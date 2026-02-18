@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FairGround Web
 
-## Getting Started
+FairGround 풋살 리그 공식 홈페이지. 앱과 동일한 Firebase RTDB에 연결되는 공개 웹사이트.
 
-First, run the development server:
+## 기술 스택
+- Next.js 16 + React 19 + TypeScript
+- TailwindCSS 4 + Shadcn UI
+- Firebase Realtime Database (읽기 전용)
+- Zustand
+- Vercel 배포
+
+## 로컬 개발
 
 ```bash
+# 1. 환경 변수 설정
+cp .env.example .env.local
+# .env.local에 Firebase 설정 입력
+
+# 2. 의존성 설치
+npm install
+
+# 3. 개발 서버 실행
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Vercel 배포
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npx vercel --prod
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+또는 GitHub 연동 후 자동 배포.
 
-## Learn More
+Vercel 환경 변수에 `.env.example`의 모든 키를 추가해야 합니다.
 
-To learn more about Next.js, take a look at the following resources:
+## 페이지
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| 경로 | 설명 |
+|------|------|
+| `/` | 홈 (히어로, 라이브, 순위, 카드 쇼케이스) |
+| `/live` | 실시간 경기 스코어 |
+| `/standings` | 리그 순위표 |
+| `/tournaments` | 대회 목록 |
+| `/tournaments/[id]` | 대회 상세 (조별 순위, 경기 결과) |
+| `/players` | 선수 카드 갤러리 |
+| `/players/[id]` | 선수 상세 프로필 |
+| `/teams` | 팀 목록 |
+| `/teams/[id]` | 팀 상세 (로스터, 시즌 성적) |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Firebase 보안 규칙
 
-## Deploy on Vercel
+공개 사이트이므로 Firebase RTDB 규칙에서 읽기를 허용해야 합니다:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```json
+{
+  "rules": {
+    ".read": true,
+    ".write": "auth != null"
+  }
+}
+```

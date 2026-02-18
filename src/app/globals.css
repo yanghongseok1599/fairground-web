@@ -1,26 +1,93 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-fg-green: #00C853;
+  --color-fg-green-dark: #009624;
+  --color-fg-green-light: #69F0AE;
+  --color-fg-navy: #0D1B2A;
+  --color-fg-navy-mid: #1B2D45;
+  --color-fg-navy-light: #2E4057;
+  --color-fg-gold: #FFD700;
+  --color-fg-gold-warm: #FFC107;
+  --color-fg-coral: #FF6B6B;
+  --color-fg-sky: #4FC3F7;
+  --color-fg-white: #FAFCFF;
+  --color-fg-gray-100: #F0F4F8;
+  --color-fg-gray-200: #D9E2EC;
+  --color-fg-gray-500: #627D98;
+  --color-fg-gray-800: #334E68;
+  --font-outfit: var(--font-outfit);
+  --font-noto: var(--font-noto);
+  --font-space: var(--font-space-mono);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --radius: 0.75rem;
+  --background: #FAFCFF;
+  --foreground: #0D1B2A;
+  --card: #ffffff;
+  --card-foreground: #0D1B2A;
+  --popover: #ffffff;
+  --popover-foreground: #0D1B2A;
+  --primary: #00C853;
+  --primary-foreground: #ffffff;
+  --secondary: #F0F4F8;
+  --secondary-foreground: #0D1B2A;
+  --muted: #F0F4F8;
+  --muted-foreground: #627D98;
+  --accent: #FFD700;
+  --accent-foreground: #0D1B2A;
+  --destructive: #FF6B6B;
+  --border: #D9E2EC;
+  --input: #D9E2EC;
+  --ring: #00C853;
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-noto), 'Noto Sans KR', sans-serif;
+  }
+  h1,h2,h3,h4,h5,h6 {
+    font-family: var(--font-outfit), 'Outfit', sans-serif;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
 }
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.animate-fade-up { animation: fadeUp 0.8s ease-out both; }
+.animate-fade-up-delay { animation: fadeUp 0.8s ease-out 0.2s both; }
+.animate-pulse-dot { animation: pulseDot 2s infinite; }
