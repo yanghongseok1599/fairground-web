@@ -7,6 +7,7 @@ import { Menu, X, User, LogIn } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 
 const NAV_ITEMS = [
+  { href: "/about", label: "소개" },
   { href: "/live", label: "라이브" },
   { href: "/tournaments", label: "대회" },
   { href: "/standings", label: "순위" },
