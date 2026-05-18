@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, X, User, LogIn } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -42,15 +42,32 @@ function FGMark() {
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const { user, player, initialized } = useAuthStore();
+
+  // Glass header elevation: subtle at the top, lifts on scroll.
+  // Static transition is acceptable under reduced-motion (no animation loop).
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
     <header
-      className="fixed top-0 left-0 w-full z-50 h-[60px] flex items-center px-5 md:px-10 gap-8"
+      data-scrolled={scrolled ? "true" : "false"}
+      className="fg-glass-header fixed top-0 left-0 w-full z-50 h-[60px] flex items-center px-5 md:px-10 gap-8"
       style={{
-        background: "rgba(255, 255, 255, 0.85)",
-        backdropFilter: "blur(20px) saturate(140%)",
-        borderBottom: "1px solid var(--border)",
+        background: scrolled
+          ? "rgba(255, 255, 255, 0.85)"
+          : "rgba(255, 255, 255, 0.72)",
+        borderBottom: scrolled
+          ? "1px solid rgba(13, 27, 42, 0.10)"
+          : "1px solid rgba(13, 27, 42, 0.06)",
+        boxShadow: scrolled ? "var(--shadow-sm)" : "none",
+        transition:
+          "background 200ms ease, border-color 200ms ease, box-shadow 200ms ease",
       }}
     >
       {/* Logo */}
@@ -66,23 +83,24 @@ export function SiteHeader() {
             <Link
               key={item.href}
               href={item.href}
-              className="relative px-3 py-2 text-[13px] font-medium transition-colors duration-200"
+              className="relative px-3 py-2 text-[13px] font-medium transition-colors duration-200 rounded-[var(--radius-sm)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
               style={{
                 fontFamily: "var(--font-body)",
                 color: isActive
                   ? "var(--primary)"
-                  : "var(--color-fg-ink-muted)",
+                  : "var(--color-fg-blue)",
                 letterSpacing: "0.01em",
+                outlineColor: "var(--color-ring)",
               }}
               onMouseEnter={(e) => {
                 if (!isActive)
                   (e.currentTarget as HTMLElement).style.color =
-                    "var(--foreground)";
+                    "var(--color-fg-blue-deep)";
               }}
               onMouseLeave={(e) => {
                 if (!isActive)
                   (e.currentTarget as HTMLElement).style.color =
-                    "var(--color-fg-ink-muted)";
+                    "var(--color-fg-blue)";
               }}
             >
               {item.label}
@@ -185,11 +203,11 @@ export function SiteHeader() {
       {/* Mobile nav */}
       {open && (
         <div
-          className="absolute top-[60px] left-0 w-full md:hidden flex flex-col py-4 px-5 gap-1"
+          className="fg-glass-header absolute top-[60px] left-0 w-full md:hidden flex flex-col py-4 px-5 gap-1"
           style={{
-            background: "rgba(255, 255, 255, 0.98)",
-            borderBottom: "1px solid var(--border)",
-            backdropFilter: "blur(20px)",
+            background: "rgba(255, 255, 255, 0.85)",
+            borderBottom: "1px solid rgba(13, 27, 42, 0.10)",
+            boxShadow: "var(--shadow-md)",
           }}
         >
           {NAV_ITEMS.map((item) => {
@@ -198,14 +216,17 @@ export function SiteHeader() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex items-center justify-between px-3 py-3 border-l-2 text-base font-medium transition-colors"
+                className="flex items-center justify-between px-3 py-3 border-l-2 text-base font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                 style={{
                   fontFamily: "var(--font-body)",
                   color: isActive
                     ? "var(--primary)"
-                    : "var(--color-fg-ink-muted)",
+                    : "var(--color-fg-blue)",
                   borderColor: isActive ? "var(--primary)" : "transparent",
-                  background: isActive ? "rgba(27,94,255,0.06)" : "transparent",
+                  outlineColor: "var(--color-ring)",
+                  background: isActive
+                    ? "var(--color-fg-paper-3)"
+                    : "transparent",
                 }}
                 onClick={() => setOpen(false)}
               >

@@ -147,7 +147,7 @@ export default function AboutPage() {
             {THREE_C.map((c) => (
               <div
                 key={c.word}
-                className="px-6 py-7"
+                className="px-6 py-7 rounded-[var(--radius-lg)]"
                 style={{
                   background: "rgba(255,255,255,0.08)",
                   border: "1px solid rgba(255,255,255,0.18)",
@@ -198,14 +198,15 @@ export default function AboutPage() {
           {PROBLEMS.map((card) => (
             <div
               key={card.num}
-              className="group relative p-7 transition-all hover:-translate-y-1 border"
+              className="group relative p-7 rounded-[var(--radius-lg)] transition-all duration-200 hover:-translate-y-1 border"
               style={{
                 background: "var(--color-fg-paper-2)",
                 borderColor: "var(--color-fg-line-soft)",
+                boxShadow: "var(--shadow-sm)",
               }}
             >
               <div
-                className="absolute top-0 left-0 h-[2px] w-full"
+                className="absolute top-0 left-0 h-[2px] w-full rounded-t-[var(--radius-lg)]"
                 style={{ background: "var(--color-fg-ink-muted)" }}
               />
               <div className="flex items-start justify-between mb-6">
@@ -273,14 +274,15 @@ export default function AboutPage() {
           {SOLUTIONS.map((card) => (
             <div
               key={card.num}
-              className="group relative p-7 transition-all hover:-translate-y-1 border"
+              className="group relative p-7 rounded-[var(--radius-lg)] transition-all duration-200 hover:-translate-y-1 border"
               style={{
                 background: "var(--color-fg-paper)",
                 borderColor: "var(--color-fg-line-soft)",
+                boxShadow: "var(--shadow-sm)",
               }}
             >
               <div
-                className="absolute top-0 left-0 h-[2px] w-full"
+                className="absolute top-0 left-0 h-[2px] w-full rounded-t-[var(--radius-lg)]"
                 style={{ background: "var(--primary)" }}
               />
               <div className="flex items-start justify-between mb-6">
@@ -364,10 +366,12 @@ export default function AboutPage() {
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/register"
-              className="group inline-flex items-center gap-3 px-7 py-4 fg-display tracking-[0.06em] text-[15px] transition-transform hover:-translate-y-0.5"
+              className="group inline-flex items-center gap-3 px-7 py-4 fg-display tracking-[0.06em] text-[15px] rounded-[var(--radius-md)] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
               style={{
                 background: "var(--primary)",
                 color: "var(--primary-foreground)",
+                boxShadow: "var(--shadow-sm)",
+                outlineColor: "var(--color-ring)",
               }}
             >
               리그 참가하기
@@ -375,10 +379,11 @@ export default function AboutPage() {
             </Link>
             <Link
               href="/"
-              className="inline-flex items-center gap-3 px-7 py-4 fg-display tracking-[0.06em] text-[15px] border transition-colors"
+              className="inline-flex items-center gap-3 px-7 py-4 fg-display tracking-[0.06em] text-[15px] border rounded-[var(--radius-md)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
               style={{
                 borderColor: "rgba(255,255,255,0.25)",
                 color: "var(--color-fg-paper)",
+                outlineColor: "var(--color-ring)",
               }}
             >
               그라운드 둘러보기

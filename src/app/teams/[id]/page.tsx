@@ -55,7 +55,7 @@ export default function TeamDetailPage() {
 
           <div className="flex items-start gap-6">
             {team.logo ? (
-              <img src={team.logo} alt={team.name} className="w-20 h-20 rounded-2xl object-cover border" style={{ borderColor: "rgba(27,94,255,0.2)" }} />
+              <img src={team.logo} alt={team.name} className="w-20 h-20 rounded-2xl object-cover border" style={{ borderColor: "rgba(0,71,171,0.2)" }} />
             ) : (
               <div className="w-20 h-20 rounded-2xl flex items-center justify-center font-black text-2xl" style={{ fontFamily: "var(--font-outfit)", background: "var(--color-fg-navy-light)", color: "var(--primary)" }}>
                 {team.name.slice(0, 2)}
@@ -85,7 +85,7 @@ export default function TeamDetailPage() {
                 { label: "득점", value: team.seasonStats.goalsFor },
                 { label: "실점", value: team.seasonStats.goalsAgainst },
               ].map((s) => (
-                <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: "rgba(27,94,255,0.08)", border: "1px solid rgba(27,94,255,0.15)" }}>
+                <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: "rgba(0,71,171,0.08)", border: "1px solid rgba(0,71,171,0.15)" }}>
                   <div className="font-black text-xl tabular-nums mb-0.5" style={{ fontFamily: "var(--font-outfit)", color: "var(--background)" }}>{s.value}</div>
                   <div className="text-[10px] uppercase" style={{ fontFamily: "var(--font-space-mono)", color: "var(--color-fg-ink-dim)" }}>{s.label}</div>
                 </div>

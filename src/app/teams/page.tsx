@@ -82,17 +82,17 @@ export default function TeamsPage() {
                     exit={{ opacity: 0, x: 60 }}
                     transition={{ type: "spring", stiffness: 260, damping: 26 }}
                     className="rounded-2xl overflow-hidden"
-                    style={{ background: "var(--foreground)", border: "1px solid rgba(27,94,255,0.2)" }}
+                    style={{ background: "var(--foreground)", border: "1px solid rgba(0,71,171,0.2)" }}
                   >
                     {/* Panel header */}
                     <div
                       className="flex items-center justify-between px-6 py-4"
-                      style={{ borderBottom: "1px solid rgba(27,94,255,0.15)" }}
+                      style={{ borderBottom: "1px solid rgba(0,71,171,0.15)" }}
                     >
                       <div className="flex items-center gap-3">
                         <div
                           className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black"
-                          style={{ background: "rgba(27,94,255,0.2)", color: "var(--primary)" }}
+                          style={{ background: "rgba(0,71,171,0.2)", color: "var(--primary)" }}
                         >
                           {selectedTeam.name.slice(0, 2)}
                         </div>

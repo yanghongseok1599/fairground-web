@@ -18,37 +18,60 @@ export function MatchCard({ match, showTimer }: MatchCardProps) {
 
   return (
     <div
-      className="relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5 border"
+      className="relative overflow-hidden rounded-[var(--radius-lg)] transition-all duration-200 hover:-translate-y-0.5 border"
       style={{
-        background: "#ffffff",
-        borderColor: live ? "#FF3B30" : "#E5E8EE",
+        background: "var(--color-fg-paper)",
+        borderColor: live ? "var(--destructive)" : "var(--color-fg-line-soft)",
+        boxShadow: "var(--shadow-sm)",
       }}
     >
       {live && (
-        <div className="absolute top-0 left-0 w-full h-[2px]" style={{ background: "#FF3B30" }} />
+        <div
+          className="absolute top-0 left-0 w-full h-[2px]"
+          style={{ background: "var(--destructive)" }}
+        />
       )}
 
       {/* Status row */}
       <div
         className="flex items-center justify-between px-4 py-2.5"
-        style={{ borderBottom: "1px solid #EAEEF5", background: live ? "rgba(255,59,48,0.06)" : "#F4F6FA" }}
+        style={{
+          borderBottom: "1px solid var(--color-fg-line-soft)",
+          background: live
+            ? "rgba(255, 59, 48, 0.06)"
+            : "var(--color-fg-paper-2)",
+        }}
       >
         <div className="flex items-center gap-2">
           {live && (
             <span
               className="h-[6px] w-[6px] rounded-full animate-pulse-dot"
-              style={{ background: "#FF3B30", boxShadow: "0 0 8px #FF3B30" }}
+              style={{
+                background: "var(--destructive)",
+                boxShadow: "0 0 8px var(--destructive)",
+              }}
             />
           )}
           <span
             className={`fg-label${live && showTimer ? " fg-mono tabular-nums" : ""}`}
-            style={{ color: live ? "#FF3B30" : finished ? "#7A8496" : "#1B5EFF" }}
+            style={{
+              color: live
+                ? "var(--destructive)"
+                : finished
+                  ? "var(--color-fg-ink-muted)"
+                  : "var(--primary)",
+            }}
             {...(live && showTimer ? { role: "status", "aria-live": "polite" as const } : {})}
           >
             {live ? (showTimer ? formatTime((match as LiveMatch).elapsedSeconds) : "LIVE") : finished ? "FINAL" : "UPCOMING"}
           </span>
         </div>
-        <span className="fg-label" style={{ color: "#7A8496" }}>R{match.round}</span>
+        <span
+          className="fg-label"
+          style={{ color: "var(--color-fg-ink-muted)" }}
+        >
+          R{match.round}
+        </span>
       </div>
 
       {/* Score row */}
@@ -60,13 +83,16 @@ export function MatchCard({ match, showTimer }: MatchCardProps) {
           <div className="flex-1 min-w-0">
             <p
               className="fg-display text-[15px] tracking-wider truncate"
-              style={{ color: "#0A1220" }}
+              style={{ color: "var(--color-fg-ink)" }}
             >
               {match.homeTeamName.slice(0, 3).toUpperCase()}
             </p>
             <p
               className="text-[11px] mt-1 truncate"
-              style={{ color: "#7A8496", fontFamily: "var(--font-pretendard)" }}
+              style={{
+                color: "var(--color-fg-ink-muted)",
+                fontFamily: "var(--font-body)",
+              }}
             >
               {match.homeTeamName}
             </p>
@@ -75,7 +101,7 @@ export function MatchCard({ match, showTimer }: MatchCardProps) {
           <div
             className="fg-mono flex items-center gap-2 tabular-nums shrink-0"
             style={{
-              color: live ? "#1B5EFF" : "#0A1220",
+              color: live ? "var(--primary)" : "var(--color-fg-ink)",
               fontWeight: 700,
               fontSize: 30,
               lineHeight: 1,
@@ -83,7 +109,13 @@ export function MatchCard({ match, showTimer }: MatchCardProps) {
             }}
           >
             <span>{match.homeScore}</span>
-            <span style={{ color: "#B1B8C4" }} className="text-xl" aria-hidden>—</span>
+            <span
+              style={{ color: "var(--color-fg-ink-ghost)" }}
+              className="text-xl"
+              aria-hidden
+            >
+              —
+            </span>
             <span className="sr-only"> 대 </span>
             <span>{match.awayScore}</span>
           </div>
@@ -91,13 +123,16 @@ export function MatchCard({ match, showTimer }: MatchCardProps) {
           <div className="flex-1 min-w-0 text-right">
             <p
               className="fg-display text-[15px] tracking-wider truncate"
-              style={{ color: "#0A1220" }}
+              style={{ color: "var(--color-fg-ink)" }}
             >
               {match.awayTeamName.slice(0, 3).toUpperCase()}
             </p>
             <p
               className="text-[11px] mt-1 truncate"
-              style={{ color: "#7A8496", fontFamily: "var(--font-pretendard)" }}
+              style={{
+                color: "var(--color-fg-ink-muted)",
+                fontFamily: "var(--font-body)",
+              }}
             >
               {match.awayTeamName}
             </p>
@@ -107,7 +142,10 @@ export function MatchCard({ match, showTimer }: MatchCardProps) {
         {live && (
           <div
             className="mt-4 pt-3 flex items-center justify-center gap-2 fg-label"
-            style={{ color: "#7A8496", borderTop: "1px solid #EAEEF5" }}
+            style={{
+              color: "var(--color-fg-ink-muted)",
+              borderTop: "1px solid var(--color-fg-line-soft)",
+            }}
           >
             <span>{(match as LiveMatch).currentHalf === 1 ? "FIRST HALF" : "SECOND HALF"}</span>
           </div>

@@ -244,7 +244,7 @@ export default function HomePage() {
               {Array.from({ length: 4 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-44 border animate-pulse"
+                  className="h-44 border animate-pulse rounded-[var(--radius-lg)]"
                   style={{
                     background: "var(--color-fg-paper-2)",
                     borderColor: "var(--color-fg-line-soft)",
@@ -293,15 +293,24 @@ export default function HomePage() {
                   >
                     <Link
                       href={`/teams/${team.id}`}
-                      className="group relative block h-full p-6 border transition-all hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                      className="group relative block h-full p-6 border rounded-[var(--radius-lg)] transition-all duration-200 hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                       style={{
                         background: "var(--color-fg-paper)",
                         borderColor: "var(--color-fg-line-soft)",
                         outlineColor: "var(--color-ring)",
+                        boxShadow: "var(--shadow-sm)",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.boxShadow =
+                          "var(--shadow-md)";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.boxShadow =
+                          "var(--shadow-sm)";
                       }}
                     >
                       <div
-                        className="absolute top-0 left-0 h-[2px] w-0 group-hover:w-full transition-all duration-300"
+                        className="absolute top-0 left-0 h-[2px] w-0 group-hover:w-full transition-all duration-300 rounded-t-[var(--radius-lg)]"
                         style={{
                           background:
                             "linear-gradient(90deg, var(--primary), var(--color-fg-blue-deep))",
@@ -353,7 +362,7 @@ export default function HomePage() {
                         {team.memberCount}명 · {s.points}PTS
                       </p>
                       <div
-                        className="grid grid-cols-3 gap-px border"
+                        className="grid grid-cols-3 gap-px border overflow-hidden rounded-[var(--radius-md)]"
                         style={{
                           background: "var(--color-fg-line-soft)",
                           borderColor: "var(--color-fg-line-soft)",
@@ -485,7 +494,7 @@ export default function HomePage() {
                   }
                 >
                   <span
-                    className="fg-label text-[10px] px-2.5 py-1"
+                    className="fg-label text-[10px] px-2.5 py-1 rounded-[var(--radius-pill)]"
                     style={{
                       color:
                         player.cardType === "premium"
@@ -515,7 +524,7 @@ export default function HomePage() {
             </div>
           ) : (
             <div
-              className="border px-6 py-16 text-center max-w-xl mx-auto"
+              className="border px-6 py-16 text-center max-w-xl mx-auto rounded-[var(--radius-lg)]"
               style={{
                 borderColor: "rgba(255,255,255,0.15)",
                 background: "rgba(255,255,255,0.04)",
@@ -542,10 +551,12 @@ export default function HomePage() {
           <div className="mt-14 flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/register"
-              className="group inline-flex items-center gap-3 px-7 py-4 fg-display tracking-[0.06em] text-[15px] transition-transform hover:-translate-y-0.5"
+              className="group inline-flex items-center gap-3 px-7 py-4 fg-display tracking-[0.06em] text-[15px] rounded-[var(--radius-md)] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
               style={{
                 background: "var(--primary)",
                 color: "var(--primary-foreground)",
+                boxShadow: "var(--shadow-sm)",
+                outlineColor: "var(--color-ring)",
               }}
             >
               내 카드 만들기
@@ -553,10 +564,11 @@ export default function HomePage() {
             </Link>
             <Link
               href="/players"
-              className="inline-flex items-center gap-3 px-7 py-4 fg-display tracking-[0.06em] text-[15px] border transition-colors"
+              className="inline-flex items-center gap-3 px-7 py-4 fg-display tracking-[0.06em] text-[15px] border rounded-[var(--radius-md)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
               style={{
                 borderColor: "rgba(255,255,255,0.25)",
                 color: "var(--color-fg-paper)",
+                outlineColor: "var(--color-ring)",
               }}
             >
               카드 전체 보기

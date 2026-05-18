@@ -16,14 +16,20 @@ export function SiteFooter() {
   return (
     <footer
       className="relative overflow-hidden"
-      style={{ background: "#ffffff", borderTop: "1px solid #E5E8EE" }}
+      style={{
+        background: "var(--color-fg-paper)",
+        borderTop: "1px solid var(--color-fg-line-soft)",
+      }}
     >
       {/* blue ticker ribbon */}
       <div
         className="py-2 overflow-hidden"
-        style={{ background: "#1B5EFF" }}
+        style={{ background: "var(--primary)" }}
       >
-        <div className="flex whitespace-nowrap animate-ticker fg-display text-[13px] tracking-[0.12em]" style={{ color: "#ffffff" }}>
+        <div
+          className="flex whitespace-nowrap animate-ticker fg-display text-[13px] tracking-[0.12em]"
+          style={{ color: "var(--primary-foreground)" }}
+        >
           {Array.from({ length: 2 }).map((_, i) => (
             <span key={i} className="flex items-center gap-6 px-6">
               {[
@@ -35,7 +41,10 @@ export function SiteFooter() {
               ].map((t, j) => (
                 <span key={`${i}-${j}`} className="flex items-center gap-6">
                   <span>{t}</span>
-                  <span className="inline-block w-1.5 h-1.5 rotate-45" style={{ background: "#ffffff" }} />
+                  <span
+                    className="inline-block w-1.5 h-1.5 rotate-45"
+                    style={{ background: "var(--primary-foreground)" }}
+                  />
                 </span>
               ))}
             </span>
@@ -54,7 +63,7 @@ export function SiteFooter() {
                 style={{
                   width: 220,
                   height: 42,
-                  background: "#1B5EFF",
+                  background: "var(--primary)",
                   WebkitMaskImage: "url(/images/logo-horizontal.png)",
                   WebkitMaskRepeat: "no-repeat",
                   WebkitMaskSize: "contain",
@@ -65,11 +74,26 @@ export function SiteFooter() {
                   maskPosition: "left center",
                 }}
               />
-              <div className="fg-label mt-3" style={{ color: "#7A8496" }}>AMATEUR FUTSAL · EST. SEOUL</div>
-              <p className="mt-6 fg-display text-[32px] tracking-[0.02em] max-w-[520px] leading-[0.95]" style={{ color: "#0A1220" }}>
-                WHERE AMATEURS <span style={{ color: "#1B5EFF" }}>PLAY PRO.</span>
+              <div
+                className="fg-label mt-3"
+                style={{ color: "var(--color-fg-ink-muted)" }}
+              >
+                AMATEUR FUTSAL · EST. SEOUL
+              </div>
+              <p
+                className="mt-6 fg-display text-[32px] tracking-[0.02em] max-w-[520px] leading-[0.95]"
+                style={{ color: "var(--color-fg-ink)" }}
+              >
+                WHERE AMATEURS{" "}
+                <span style={{ color: "var(--primary)" }}>PLAY PRO.</span>
               </p>
-              <p className="mt-4 text-[13px] leading-relaxed max-w-[480px]" style={{ color: "#4E5A6B", fontFamily: "var(--font-pretendard)" }}>
+              <p
+                className="mt-4 text-[13px] leading-relaxed max-w-[480px]"
+                style={{
+                  color: "var(--color-fg-ink-muted)",
+                  fontFamily: "var(--font-body)",
+                }}
+              >
                 서울 유일의 아마추어 풋살 리그. 실시간 스코어, 개인 스탯, FIFA 스타일 선수 카드까지 — 경기장 밖에서도 프로처럼.
               </p>
             </div>
@@ -81,10 +105,15 @@ export function SiteFooter() {
                   key={item.href}
                   href={item.href}
                   className="group flex items-center justify-between gap-4 text-sm transition-colors"
-                  style={{ color: "#4E5A6B", fontFamily: "var(--font-pretendard)" }}
+                  style={{
+                    color: "var(--color-fg-ink-muted)",
+                    fontFamily: "var(--font-body)",
+                  }}
                 >
-                  <span className="group-hover:text-[#1B5EFF] transition-colors">{item.label}</span>
-                  <span className="fg-label text-[9px] opacity-40 group-hover:opacity-100 group-hover:text-[#1B5EFF] transition">
+                  <span className="transition-colors group-hover:text-[color:var(--primary)]">
+                    {item.label}
+                  </span>
+                  <span className="fg-label text-[9px] opacity-40 transition group-hover:opacity-100 group-hover:text-[color:var(--primary)]">
                     →
                   </span>
                 </Link>
@@ -94,15 +123,24 @@ export function SiteFooter() {
 
           <div
             className="mt-14 pt-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
-            style={{ borderTop: "1px solid #E5E8EE" }}
+            style={{ borderTop: "1px solid var(--color-fg-line-soft)" }}
           >
-            <span className="fg-mono text-[11px]" style={{ color: "#7A8496" }}>
+            <span
+              className="fg-mono text-[11px]"
+              style={{ color: "var(--color-fg-ink-muted)" }}
+            >
               © 2026 FAIRGROUND · ALL RIGHTS RESERVED
             </span>
-            <div className="flex items-center gap-6 fg-label" style={{ color: "#7A8496" }}>
+            <div
+              className="flex items-center gap-6 fg-label"
+              style={{ color: "var(--color-fg-ink-muted)" }}
+            >
               <span>FUTSAL LEAGUE PLATFORM</span>
               <span className="flex items-center gap-1.5">
-                <span className="inline-block w-[6px] h-[6px] rounded-full animate-pulse-dot" style={{ background: "#1B5EFF" }} />
+                <span
+                  className="inline-block w-[6px] h-[6px] rounded-full animate-pulse-dot"
+                  style={{ background: "var(--primary)" }}
+                />
                 SYSTEM ONLINE
               </span>
             </div>

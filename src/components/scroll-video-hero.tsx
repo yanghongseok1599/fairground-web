@@ -417,11 +417,11 @@ export function ScrollVideoHero({
         {loadPct < 100 && (
           <div
             className="absolute bottom-5 left-5 fg-label z-10 flex items-center gap-2"
-            style={{ color: "#7A8496" }}
+            style={{ color: "var(--color-fg-ink-muted)" }}
           >
             <span
               className="inline-block w-[6px] h-[6px] rounded-full animate-pulse-dot"
-              style={{ background: "#1B5EFF" }}
+              style={{ background: "var(--primary)" }}
             />
             LOADING {loadPct}%
           </div>

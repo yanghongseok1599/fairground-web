@@ -152,6 +152,26 @@
 }
 
 /* =====================================================
+ * Glassmorphism header — translucent white over content.
+ * Webkit prefix + @supports opaque fallback for browsers
+ * without backdrop-filter support.
+ * ===================================================== */
+.fg-glass-header {
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .fg-glass-header {
+    background: var(--color-fg-paper) !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fg-glass-header {
+    transition: none !important;
+  }
+}
+
+/* =====================================================
  * Utilities for the stadium system (light)
  * ===================================================== */
 .fg-grain {
