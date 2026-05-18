@@ -41,8 +41,9 @@ export function MatchCard({ match, showTimer }: MatchCardProps) {
             />
           )}
           <span
-            className="fg-label"
+            className={`fg-label${live && showTimer ? " fg-mono tabular-nums" : ""}`}
             style={{ color: live ? "#FF3B30" : finished ? "#7A8496" : "#1B5EFF" }}
+            {...(live && showTimer ? { role: "status", "aria-live": "polite" as const } : {})}
           >
             {live ? (showTimer ? formatTime((match as LiveMatch).elapsedSeconds) : "LIVE") : finished ? "FINAL" : "UPCOMING"}
           </span>
@@ -52,7 +53,10 @@ export function MatchCard({ match, showTimer }: MatchCardProps) {
 
       {/* Score row */}
       <div className="px-4 py-5">
-        <div className="flex items-center justify-between gap-3">
+        <div
+          className="flex items-center justify-between gap-3"
+          {...(live ? { role: "status", "aria-live": "polite" as const, "aria-atomic": "true" as const } : {})}
+        >
           <div className="flex-1 min-w-0">
             <p
               className="fg-display text-[15px] tracking-wider truncate"
@@ -79,7 +83,8 @@ export function MatchCard({ match, showTimer }: MatchCardProps) {
             }}
           >
             <span>{match.homeScore}</span>
-            <span style={{ color: "#B1B8C4" }} className="text-xl">—</span>
+            <span style={{ color: "#B1B8C4" }} className="text-xl" aria-hidden>—</span>
+            <span className="sr-only"> 대 </span>
             <span>{match.awayScore}</span>
           </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import NextImage from "next/image";
 
 /**
  * A single reveal that fades in/out over a window of the overall scroll progress.
@@ -15,6 +16,28 @@ export interface HeroReveal {
   fadeIn?: number;
   fadeOut?: number;
   translate?: number;
+}
+
+/**
+ * Decides whether the scroll-scrubbed canvas should run at all.
+ * Skips when the user prefers reduced motion, has Save-Data / a slow
+ * connection, or is on a narrow mobile viewport — in those cases a static
+ * poster + DOM copy is shown instead (§5 motion gate, WCAG 2.3.3).
+ */
+function shouldUseStaticHero(): boolean {
+  if (typeof window === "undefined") return false;
+  const reduced =
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  const conn = (
+    navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    }
+  ).connection;
+  const saveData = conn?.saveData === true;
+  const slow =
+    conn?.effectiveType === "slow-2g" || conn?.effectiveType === "2g";
+  const narrow = window.innerWidth < 768;
+  return reduced || saveData || slow || narrow;
 }
 
 interface ScrollVideoHeroProps {
@@ -40,6 +63,12 @@ interface ScrollVideoHeroProps {
   stickyTop?: number;
   /** Reveals that fade in/out as the user scrolls through the pinned range. */
   reveals?: HeroReveal[];
+  /**
+   * Content shown over the static poster when motion is gated
+   * (reduced-motion / Save-Data / slow connection / narrow mobile).
+   * Rendered in real DOM so screen readers and crawlers always reach it.
+   */
+  staticFallback?: React.ReactNode;
 }
 
 /**
@@ -60,6 +89,7 @@ export function ScrollVideoHero({
   background = "#ffffff",
   stickyTop = 0,
   reveals = [],
+  staticFallback,
 }: ScrollVideoHeroProps) {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -68,12 +98,31 @@ export function ScrollVideoHero({
   const rafRef = useRef<number | null>(null);
   const lastFrameRef = useRef<number>(-1);
   const [loaded, setLoaded] = useState(0);
+  // Static mode is resolved on the client only (SSR renders the motion shell,
+  // then we downgrade before any heavy work runs).
+  const [staticMode, setStaticMode] = useState(false);
+  const [resolved, setResolved] = useState(false);
+
+  useEffect(() => {
+    const evaluate = () => setStaticMode(shouldUseStaticHero());
+    evaluate();
+    setResolved(true);
+    const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    mq?.addEventListener?.("change", evaluate);
+    window.addEventListener("resize", evaluate);
+    return () => {
+      mq?.removeEventListener?.("change", evaluate);
+      window.removeEventListener("resize", evaluate);
+    };
+  }, []);
 
   const frameUrl = (i: number) =>
     `${framePrefix}${String(i + 1).padStart(pad, "0")}.webp`;
 
-  // Preload all frames into memory
+  // Preload all frames into memory — skipped entirely in static mode so
+  // gated users (reduced-motion / Save-Data / mobile) pay no frame bandwidth.
   useEffect(() => {
+    if (!resolved || staticMode) return;
     framesRef.current = new Array(frameCount).fill(null);
     let cancelled = false;
     let loadedCount = 0;
@@ -114,7 +163,7 @@ export function ScrollVideoHero({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [frameCount, framePrefix, pad]);
+  }, [frameCount, framePrefix, pad, resolved, staticMode]);
 
   // Size canvas for the device pixel ratio
   const sizeCanvas = () => {
@@ -172,6 +221,7 @@ export function ScrollVideoHero({
 
   // Map scroll progress through the outer wrapper to a frame index
   useEffect(() => {
+    if (!resolved || staticMode) return;
     sizeCanvas();
     const onResize = () => sizeCanvas();
     window.addEventListener("resize", onResize);
@@ -250,9 +300,41 @@ export function ScrollVideoHero({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [frameCount]);
+  }, [frameCount, resolved, staticMode]);
 
   const loadPct = Math.round((loaded / frameCount) * 100);
+
+  // Static fallback: a single, non-scrolling stage with the poster behind
+  // real-DOM copy. No canvas, no frame download, no scroll hijacking.
+  if (resolved && staticMode) {
+    return (
+      <div
+        className="relative w-full overflow-hidden"
+        style={{
+          background,
+          ...(aspect
+            ? { width: "100%", aspectRatio: `${aspect}` }
+            : { minHeight: `calc(100vh - ${stickyTop}px)` }),
+        }}
+      >
+        <NextImage
+          src={poster}
+          alt=""
+          aria-hidden
+          fill
+          priority
+          sizes="100vw"
+          className="absolute inset-0"
+          style={{ objectFit: fit, background }}
+        />
+        {staticFallback && (
+          <div className="relative h-full w-full flex items-center justify-center px-6">
+            {staticFallback}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const stickyStyle: React.CSSProperties = {
     top: stickyTop,
@@ -282,12 +364,15 @@ export function ScrollVideoHero({
         className="sticky left-0 overflow-hidden"
         style={stickyStyle}
       >
-        {/* Poster underlay — shown until the first frame paints */}
-        <img
+        {/* Poster underlay — shown until the first frame paints (LCP target) */}
+        <NextImage
           src={poster}
           alt=""
           aria-hidden
-          className="absolute inset-0 w-full h-full"
+          fill
+          priority
+          sizes="100vw"
+          className="absolute inset-0"
           style={{
             zIndex: 0,
             objectFit: fit,

@@ -109,6 +109,15 @@
   --input: #E5E8EE;
   --ring: #1B5EFF;
   --accent-gold: #F5A623;
+
+  /* player-card 티어별 잉크 토큰 (§7 / 브랜드키트 2026).
+   * 앱 globals.css 와 동일 정의 — player-card 복붙본 드리프트 방지.
+   * standard=기본, premium=Deep Blue 트리트먼트(NO gold). 값은
+   * coordinator 가 브랜드키트로 일괄 재정렬. RGB 변종은 alpha 합성용. */
+  --card-ink-standard: #0D1B2A;
+  --card-ink-standard-rgb: 13, 27, 42;
+  --card-ink-premium: #003080;
+  --card-ink-premium-rgb: 0, 48, 128;
 }
 
 /* =====================================================
@@ -229,3 +238,37 @@
 .animate-pulse-dot      { animation: pulseDot 1.4s ease-in-out infinite; }
 .animate-ticker         { animation: tickerRoll 32s linear infinite; }
 .animate-lime-glow      { animation: blueGlow 2.4s ease-in-out infinite; }
+
+/* =====================================================
+ * Reduced motion (WCAG 2.3.3) — §5 motion gate
+ * Decorative loops are stopped; content stays visible.
+ * ===================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-fade-up,
+  .animate-fade-up-delay {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  /* Infinite decorative loops freeze at a static, legible state */
+  .animate-ticker {
+    animation: none !important;
+    transform: none !important;
+  }
+  .animate-pulse-dot {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .animate-lime-glow {
+    animation: none !important;
+  }
+}

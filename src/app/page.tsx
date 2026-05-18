@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import Image from "next/image";
+import { motion, useReducedMotion } from "framer-motion";
 import { useDataStore } from "@/stores/dataStore";
 import { MatchCard } from "@/components/match-card";
 import { StandingsTable } from "@/components/standings-table";
@@ -20,9 +21,9 @@ const ROLE_LABELS: Record<string, string> = { admin: "감독", captain: "주장"
 // Five fade-in/fade-out overlays that play across the scroll-scrubbed hero.
 // Shared styles for the Korean display lines.
 const KR_STYLE: React.CSSProperties = {
-  fontFamily: "var(--font-pretendard), sans-serif",
-  fontWeight: 900,
-  color: "#ffffff",
+  fontFamily: "var(--font-body), sans-serif",
+  fontWeight: 800,
+  color: "var(--color-fg-paper)",
   fontSize: "clamp(64px, 13vw, 180px)",
   lineHeight: 1,
   letterSpacing: "-0.03em",
@@ -35,7 +36,7 @@ const HERO_REVEALS: HeroReveal[] = [
   {
     range: [0.40, 0.60],
     content: (
-      <div style={{ ...KR_STYLE, color: "#1B5EFF" }}>그라운드</div>
+      <div style={{ ...KR_STYLE, color: "var(--primary)" }}>그라운드</div>
     ),
   },
   {
@@ -44,9 +45,9 @@ const HERO_REVEALS: HeroReveal[] = [
       <div
         className="text-center"
         style={{
-          fontFamily: "var(--font-pretendard), sans-serif",
-          fontWeight: 900,
-          color: "#ffffff",
+          fontFamily: "var(--font-body), sans-serif",
+          fontWeight: 800,
+          color: "var(--color-fg-paper)",
           fontSize: "clamp(28px, 5.5vw, 86px)",
           lineHeight: 1.05,
           letterSpacing: "-0.01em",
@@ -69,7 +70,7 @@ const HERO_REVEALS: HeroReveal[] = [
         style={{
           width: "clamp(260px, 46vw, 620px)",
           aspectRatio: "3603 / 767",
-          background: "#ffffff",
+          background: "var(--color-fg-paper)",
           WebkitMaskImage: "url(/images/logo-horizontal.png)",
           WebkitMaskRepeat: "no-repeat",
           WebkitMaskSize: "contain",
@@ -87,6 +88,7 @@ const HERO_REVEALS: HeroReveal[] = [
 
 export default function HomePage() {
   const store = useDataStore();
+  const prefersReducedMotion = useReducedMotion();
   const [recentMatches, setRecentMatches] = useState<Match[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamsLoaded, setTeamsLoaded] = useState(false);
@@ -147,7 +149,17 @@ export default function HomePage() {
       {/* ============================================================
           HERO — Scroll-Scrubbed Stadium Entrance (video + reveals)
           ============================================================ */}
-      <section className="relative" style={{ background: "#ffffff" }}>
+      <section
+        className="relative"
+        style={{ background: "#ffffff" }}
+        aria-label="FairGround — 모두가 승리하는 그라운드"
+      >
+        {/* Brand copy in real DOM exactly once: the scroll reveals are
+            aria-hidden canvas overlays, so this sr-only H1 restores the
+            page heading for screen readers and search crawlers (A1, Q4). */}
+        <h1 className="sr-only">
+          FairGround — 모두가 승리하는 그라운드. EVERYONE WINS ON THIS GROUND.
+        </h1>
         <ScrollVideoHero
           scrollLength={2.6}
           fit="cover"
@@ -155,6 +167,35 @@ export default function HomePage() {
           background="#ffffff"
           stickyTop={60}
           reveals={HERO_REVEALS}
+          staticFallback={
+            <div className="text-center" aria-hidden>
+              <div
+                style={{
+                  fontFamily: "var(--font-body), sans-serif",
+                  fontWeight: 800,
+                  color: "var(--color-fg-ink)",
+                  fontSize: "clamp(40px, 9vw, 110px)",
+                  lineHeight: 1,
+                  letterSpacing: "-0.03em",
+                }}
+              >
+                모두가 <span style={{ color: "var(--primary)" }}>승리하는</span>
+                <br />
+                그라운드
+              </div>
+              <div
+                className="mt-4 tracking-[0.12em]"
+                style={{
+                  color: "var(--color-fg-ink-muted)",
+                  fontFamily: "var(--font-body)",
+                  fontWeight: 700,
+                  fontSize: "clamp(13px, 2.5vw, 20px)",
+                }}
+              >
+                EVERYONE WINS ON THIS GROUND
+              </div>
+            </div>
+          }
         />
       </section>
 
@@ -193,7 +234,7 @@ export default function HomePage() {
               <span className="fg-label" style={{ color: "#FF3B30" }}>LIVE</span>
             </div>
 
-            <h1 className="fg-display text-[#0A1220]">
+            <p className="fg-display text-[#0A1220]" role="presentation">
               <span className="block" style={{ fontSize: "clamp(56px, 10vw, 140px)", lineHeight: 0.9 }}>
                 WHERE
               </span>
@@ -203,7 +244,7 @@ export default function HomePage() {
               <span className="block" style={{ fontSize: "clamp(56px, 10vw, 140px)", lineHeight: 0.9 }}>
                 PLAY PRO.
               </span>
-            </h1>
+            </p>
 
             <p
               className="mt-8 max-w-xl text-[15px] leading-relaxed"
@@ -583,7 +624,13 @@ export default function HomePage() {
                 >
                   <div className="flex items-center gap-3">
                     {selectedTeam.logo ? (
-                      <img src={selectedTeam.logo} alt={selectedTeam.name} className="w-9 h-9 object-contain" />
+                      <Image
+                        src={selectedTeam.logo}
+                        alt={selectedTeam.name}
+                        width={36}
+                        height={36}
+                        className="w-9 h-9 object-contain"
+                      />
                     ) : (
                       <div
                         className="w-9 h-9 grid place-items-center fg-display text-[13px]"
@@ -647,14 +694,21 @@ export default function HomePage() {
                             <motion.div
                               key={`${selectedTeam.id}-${player.id}`}
                               className="flex flex-col items-center gap-1.5 shrink-0"
-                              initial={{ x: -80, opacity: 0, rotate: STACK_ROTATIONS[i % STACK_ROTATIONS.length] }}
-                              animate={{ x: 0, opacity: 1, rotate: 0 }}
-                              transition={{
-                                delay: i * 0.055,
-                                type: "spring",
-                                stiffness: 220,
-                                damping: 22,
-                              }}
+                              initial={
+                                prefersReducedMotion
+                                  ? { opacity: 0 }
+                                  : { x: -80, opacity: 0, rotate: STACK_ROTATIONS[i % STACK_ROTATIONS.length] }
+                              }
+                              animate={
+                                prefersReducedMotion
+                                  ? { opacity: 1 }
+                                  : { x: 0, opacity: 1, rotate: 0 }
+                              }
+                              transition={
+                                prefersReducedMotion
+                                  ? { duration: 0.2 }
+                                  : { delay: i * 0.055, type: "spring", stiffness: 220, damping: 22 }
+                              }
                             >
                               <div
                                 className="px-2 py-[3px] fg-label text-[9px]"

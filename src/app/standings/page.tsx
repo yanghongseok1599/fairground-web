@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import { StandingsTable } from "@/components/standings-table";
+import { EmptyState } from "@/components/empty-state";
 import type { TeamStanding } from "@/types";
 import { Trophy } from "lucide-react";
 
@@ -61,21 +62,58 @@ export default function StandingsPage() {
       <div className="px-6 md:px-10 py-10">
         <div className="max-w-6xl mx-auto">
           {!loaded ? (
-            <div className="py-16 text-center" style={{ color: "var(--color-fg-ink-dim)" }}>불러오는 중...</div>
-          ) : displayStandings.length === 0 ? (
-            <div className="py-16 text-center" style={{ color: "var(--color-fg-ink-dim)" }}>
-              아직 집계된 순위가 없습니다
+            <div
+              className="py-16 text-center"
+              style={{ color: "var(--color-fg-ink-dim)", fontFamily: "var(--font-body)" }}
+              role="status"
+              aria-live="polite"
+            >
+              불러오는 중...
             </div>
+          ) : displayStandings.length === 0 ? (
+            <EmptyState
+              eyebrow="STANDINGS"
+              title="아직 집계된 순위가 없습니다"
+              description="시즌 경기가 진행되면 순위가 자동으로 집계됩니다."
+              actions={[
+                { label: "라이브 보기", href: "/live" },
+                { label: "경기 일정", href: "/tournaments" },
+              ]}
+            />
           ) : (
-            <StandingsTable standings={displayStandings} />
+            <StandingsTable standings={displayStandings} showPromotionSplit />
           )}
 
-          {/* Legend */}
-          {loaded && displayStandings.length > 0 && (
-            <div className="mt-6 flex flex-wrap gap-4 text-xs" style={{ color: "var(--color-fg-ink-dim)" }}>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full" style={{ background: "var(--primary)" }} />
-                상위 3팀 (승격권)
+          {/* Legend — color is paired with a text label (WCAG 1.4.1) */}
+          {loaded && displayStandings.length > 1 && (
+            <div
+              className="mt-6 flex flex-wrap gap-5 text-xs"
+              style={{ color: "var(--color-fg-ink-muted)", fontFamily: "var(--font-body)" }}
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className="fg-label text-[9px] px-1.5 py-0.5"
+                  style={{
+                    color: "var(--primary)",
+                    border: "1px solid color-mix(in srgb, var(--primary) 40%, transparent)",
+                    background: "color-mix(in srgb, var(--primary) 6%, transparent)",
+                  }}
+                >
+                  상위
+                </span>
+                <span>상위 절반 — 다음 시즌 상위 리그 배정</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="fg-label text-[9px] px-1.5 py-0.5"
+                  style={{
+                    color: "var(--color-fg-ink-dim)",
+                    border: "1px solid var(--color-fg-line-soft)",
+                  }}
+                >
+                  하위
+                </span>
+                <span>하위 절반 — 다음 시즌 하위 리그 배정</span>
               </div>
             </div>
           )}

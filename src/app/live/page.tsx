@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import { MatchCard } from "@/components/match-card";
 import { Section } from "@/components/section";
+import { EmptyState } from "@/components/empty-state";
 import type { Match } from "@/types";
 import { Radio } from "lucide-react";
 import { formatTime } from "@/utils/formatters";
@@ -49,54 +50,55 @@ export default function LivePage() {
       {/* Hero bar */}
       <div
         className="py-16 px-6 md:px-10"
-        style={{ background: "#0D1B2A" }}
+        style={{ background: "var(--color-fg-ink)" }}
       >
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-3 mb-4">
-            <Radio className="h-5 w-5" style={{ color: "#FF6B6B" }} />
-            <span
-              className="text-[11px] uppercase tracking-[3px]"
-              style={{ fontFamily: "var(--font-space-mono)", color: "#FF6B6B" }}
-            >
+            <Radio className="h-5 w-5" style={{ color: "var(--destructive)" }} />
+            <span className="fg-label" style={{ color: "var(--destructive)" }}>
               실시간 중계
             </span>
           </div>
           <h1
-            className="font-black leading-none mb-2"
+            className="leading-none mb-2"
             style={{
-              fontFamily: "var(--font-outfit)",
+              fontFamily: "var(--font-body)",
+              fontWeight: 800,
               fontSize: "clamp(36px, 6vw, 64px)",
-              letterSpacing: "-2px",
-              color: "#FAFCFF",
+              letterSpacing: "-0.02em",
+              color: "var(--color-fg-paper)",
             }}
           >
             라이브 스코어
           </h1>
-          <p className="text-sm" style={{ color: "#627D98" }}>
-            Firebase 실시간 연동 · 경기 결과 자동 업데이트
+          <p
+            className="text-sm"
+            style={{
+              color: "var(--color-fg-ink-dim)",
+              fontFamily: "var(--font-body)",
+            }}
+          >
+            실시간 연동 · 경기 결과 자동 업데이트
           </p>
         </div>
       </div>
 
       {/* Live matches */}
-      <div className="px-6 md:px-10 py-10" style={{ background: "#0D1B2A" }}>
+      <div
+        className="px-6 md:px-10 py-10"
+        style={{ background: "var(--color-fg-paper)" }}
+      >
         <div className="max-w-6xl mx-auto">
           {store.liveMatches.length === 0 ? (
-            <div
-              className="rounded-2xl p-16 text-center border"
-              style={{ borderColor: "rgba(0,200,83,0.2)", background: "rgba(0,200,83,0.03)" }}
-            >
-              <div className="text-4xl mb-4">⚽</div>
-              <h3
-                className="text-xl font-bold mb-2"
-                style={{ fontFamily: "var(--font-outfit)", color: "#FAFCFF" }}
-              >
-                현재 진행 중인 경기가 없습니다
-              </h3>
-              <p className="text-sm" style={{ color: "#627D98" }}>
-                경기가 시작되면 실시간으로 업데이트됩니다
-              </p>
-            </div>
+            <EmptyState
+              eyebrow="NO LIVE MATCHES"
+              title="현재 진행 중인 경기가 없습니다"
+              description="경기가 시작되면 실시간으로 업데이트됩니다. 다음 일정과 순위를 확인해 보세요."
+              actions={[
+                { label: "리그 순위", href: "/standings" },
+                { label: "경기 일정", href: "/tournaments" },
+              ]}
+            />
           ) : (
             <div className="space-y-4">
               {store.liveMatches.map((m) => {
@@ -106,34 +108,57 @@ export default function LivePage() {
                 return (
                   <div
                     key={m.id}
-                    className="rounded-2xl p-6 border"
+                    className="border"
                     style={{
-                      background: "rgba(0,200,83,0.04)",
-                      borderColor: "rgba(0,200,83,0.3)",
+                      background: "var(--color-fg-paper)",
+                      borderColor: "var(--destructive)",
                     }}
                   >
-                    <div className="flex items-center justify-between mb-4">
+                    <div
+                      className="flex items-center justify-between px-6 py-4"
+                      style={{
+                        borderBottom: "1px solid var(--color-fg-paper-3)",
+                        background: "color-mix(in srgb, var(--destructive) 6%, transparent)",
+                      }}
+                    >
                       <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-fg-coral animate-pulse-dot" />
                         <span
-                          className="text-[10px] uppercase tracking-[2px]"
-                          style={{ fontFamily: "var(--font-space-mono)", color: "#FF6B6B" }}
-                        >
+                          className="h-2 w-2 rounded-full animate-pulse-dot"
+                          style={{ background: "var(--destructive)" }}
+                        />
+                        <span className="fg-label" style={{ color: "var(--destructive)" }}>
                           LIVE · {m.currentHalf === 1 ? "전반" : "후반"}
                         </span>
                       </div>
+                      {/* Elapsed time updates every second — announced politely. */}
                       <span
-                        className="font-black tabular-nums text-lg"
-                        style={{ fontFamily: "var(--font-outfit)", color: "#00C853" }}
+                        role="status"
+                        aria-live="polite"
+                        className="tabular-nums font-bold text-lg"
+                        style={{
+                          color: "var(--primary)",
+                          fontFamily: "var(--font-body)",
+                        }}
                       >
+                        <span className="sr-only">경과 시간 </span>
                         {formatTime(totalElapsed)}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between gap-4">
+                    {/* Score changes are conveyed via this status region so
+                        screen readers hear updates without a page reload (A9). */}
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      aria-atomic="true"
+                      className="flex items-center justify-between gap-4 px-6 py-6"
+                    >
                       <div className="flex-1 text-right">
                         <p
                           className="text-lg font-bold"
-                          style={{ color: "#FAFCFF", fontFamily: "var(--font-outfit)" }}
+                          style={{
+                            color: "var(--color-fg-ink)",
+                            fontFamily: "var(--font-body)",
+                          }}
                         >
                           {m.homeTeamName}
                         </p>
@@ -141,21 +166,30 @@ export default function LivePage() {
                       <div
                         className="flex items-center gap-2 tabular-nums"
                         style={{
-                          fontFamily: "var(--font-outfit)",
-                          fontWeight: 900,
+                          fontFamily: "var(--font-body)",
+                          fontWeight: 800,
                           fontSize: 40,
-                          letterSpacing: "-2px",
-                          color: "#FAFCFF",
+                          letterSpacing: "-0.02em",
+                          color: "var(--color-fg-ink)",
                         }}
                       >
                         <span>{m.homeScore}</span>
-                        <span style={{ color: "#627D98", fontSize: 24 }}>:</span>
+                        <span
+                          style={{ color: "var(--color-fg-ink-ghost)", fontSize: 24 }}
+                          aria-hidden
+                        >
+                          :
+                        </span>
+                        <span className="sr-only"> 대 </span>
                         <span>{m.awayScore}</span>
                       </div>
                       <div className="flex-1">
                         <p
                           className="text-lg font-bold"
-                          style={{ color: "#FAFCFF", fontFamily: "var(--font-outfit)" }}
+                          style={{
+                            color: "var(--color-fg-ink)",
+                            fontFamily: "var(--font-body)",
+                          }}
                         >
                           {m.awayTeamName}
                         </p>
