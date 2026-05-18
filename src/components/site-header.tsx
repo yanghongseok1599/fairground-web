@@ -24,7 +24,7 @@ function FGMark() {
       style={{
         width: 150,
         height: 28,
-        background: "#1B5EFF",
+        background: "var(--primary)",
         WebkitMaskImage: "url(/images/logo-horizontal.png)",
         WebkitMaskRepeat: "no-repeat",
         WebkitMaskSize: "contain",
@@ -49,7 +49,7 @@ export function SiteHeader() {
       style={{
         background: "rgba(255, 255, 255, 0.85)",
         backdropFilter: "blur(20px) saturate(140%)",
-        borderBottom: "1px solid #E5E8EE",
+        borderBottom: "1px solid var(--border)",
       }}
     >
       {/* Logo */}
@@ -67,22 +67,28 @@ export function SiteHeader() {
               href={item.href}
               className="relative px-3 py-2 text-[13px] font-medium transition-colors duration-200"
               style={{
-                fontFamily: "var(--font-pretendard)",
-                color: isActive ? "#1B5EFF" : "#4E5A6B",
+                fontFamily: "var(--font-body)",
+                color: isActive
+                  ? "var(--primary)"
+                  : "var(--color-fg-ink-muted)",
                 letterSpacing: "0.01em",
               }}
               onMouseEnter={(e) => {
-                if (!isActive) (e.currentTarget as HTMLElement).style.color = "#0A1220";
+                if (!isActive)
+                  (e.currentTarget as HTMLElement).style.color =
+                    "var(--foreground)";
               }}
               onMouseLeave={(e) => {
-                if (!isActive) (e.currentTarget as HTMLElement).style.color = "#4E5A6B";
+                if (!isActive)
+                  (e.currentTarget as HTMLElement).style.color =
+                    "var(--color-fg-ink-muted)";
               }}
             >
               {item.label}
               {isActive && (
                 <span
                   className="absolute left-3 right-3 -bottom-[1px] h-[2px]"
-                  style={{ background: "#1B5EFF" }}
+                  style={{ background: "var(--primary)" }}
                 />
               )}
             </Link>
@@ -94,13 +100,22 @@ export function SiteHeader() {
       <div className="hidden md:flex items-center gap-3 ml-auto">
         <div
           className="flex items-center gap-1.5 px-2.5 py-1 border"
-          style={{ borderColor: "#E5E8EE", background: "#F4F6FA" }}
+          style={{
+            borderColor: "var(--border)",
+            background: "var(--secondary)",
+          }}
         >
           <span
             className="h-[6px] w-[6px] rounded-full animate-pulse-dot"
-            style={{ background: "#FF3B30", boxShadow: "0 0 8px #FF3B30" }}
+            style={{
+              background: "var(--destructive)",
+              boxShadow: "0 0 8px var(--destructive)",
+            }}
           />
-          <span className="fg-label text-[10px]" style={{ color: "#0A1220" }}>
+          <span
+            className="fg-label text-[10px]"
+            style={{ color: "var(--foreground)" }}
+          >
             LIVE
           </span>
         </div>
@@ -111,18 +126,24 @@ export function SiteHeader() {
               href="/my"
               className="flex items-center gap-2 px-3 py-1.5 text-[13px] font-medium transition-colors border"
               style={{
-                fontFamily: "var(--font-pretendard)",
-                color: pathname.startsWith("/my") ? "#ffffff" : "#0A1220",
-                background: pathname.startsWith("/my") ? "#1B5EFF" : "transparent",
-                borderColor: pathname.startsWith("/my") ? "#1B5EFF" : "#E5E8EE",
+                fontFamily: "var(--font-body)",
+                color: pathname.startsWith("/my")
+                  ? "var(--primary-foreground)"
+                  : "var(--foreground)",
+                background: pathname.startsWith("/my")
+                  ? "var(--primary)"
+                  : "transparent",
+                borderColor: pathname.startsWith("/my")
+                  ? "var(--primary)"
+                  : "var(--border)",
               }}
             >
               <div
                 className="h-6 w-6 grid place-items-center text-[10px] font-bold overflow-hidden"
                 style={{
-                  background: "#ffffff",
-                  color: "#1B5EFF",
-                  border: "1px solid #E5E8EE",
+                  background: "var(--background)",
+                  color: "var(--primary)",
+                  border: "1px solid var(--border)",
                 }}
               >
                 {(player?.profilePhotoUrl || player?.photoUrl) ? (
@@ -140,8 +161,8 @@ export function SiteHeader() {
               href="/login"
               className="flex items-center gap-1.5 text-[12px] font-bold px-4 py-2 transition-all fg-display tracking-[0.08em]"
               style={{
-                background: "#1B5EFF",
-                color: "#ffffff",
+                background: "var(--primary)",
+                color: "var(--primary-foreground)",
               }}
             >
               <LogIn className="h-3.5 w-3.5" />
@@ -155,7 +176,7 @@ export function SiteHeader() {
         className="ml-auto md:hidden"
         onClick={() => setOpen(!open)}
         aria-label="메뉴"
-        style={{ color: "#0A1220" }}
+        style={{ color: "var(--foreground)" }}
       >
         {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </button>
@@ -166,7 +187,7 @@ export function SiteHeader() {
           className="absolute top-[60px] left-0 w-full md:hidden flex flex-col py-4 px-5 gap-1"
           style={{
             background: "rgba(255, 255, 255, 0.98)",
-            borderBottom: "1px solid #E5E8EE",
+            borderBottom: "1px solid var(--border)",
             backdropFilter: "blur(20px)",
           }}
         >
@@ -178,26 +199,38 @@ export function SiteHeader() {
                 href={item.href}
                 className="flex items-center justify-between px-3 py-3 border-l-2 text-base font-medium transition-colors"
                 style={{
-                  fontFamily: "var(--font-pretendard)",
-                  color: isActive ? "#1B5EFF" : "#4E5A6B",
-                  borderColor: isActive ? "#1B5EFF" : "transparent",
+                  fontFamily: "var(--font-body)",
+                  color: isActive
+                    ? "var(--primary)"
+                    : "var(--color-fg-ink-muted)",
+                  borderColor: isActive ? "var(--primary)" : "transparent",
                   background: isActive ? "rgba(27,94,255,0.06)" : "transparent",
                 }}
                 onClick={() => setOpen(false)}
               >
                 <span>{item.label}</span>
-                <span className="fg-label" style={{ color: isActive ? "#1B5EFF" : "#B1B8C4" }}>
+                <span
+                  className="fg-label"
+                  style={{
+                    color: isActive
+                      ? "var(--primary)"
+                      : "var(--color-fg-ink-ghost)",
+                  }}
+                >
                   →
                 </span>
               </Link>
             );
           })}
-          <div className="mt-3 pt-3" style={{ borderTop: "1px solid #E5E8EE" }}>
+          <div
+            className="mt-3 pt-3"
+            style={{ borderTop: "1px solid var(--border)" }}
+          >
             {user ? (
               <Link
                 href="/my"
                 className="flex items-center gap-2 px-3 py-3 text-base font-medium"
-                style={{ color: "#1B5EFF" }}
+                style={{ color: "var(--primary)" }}
                 onClick={() => setOpen(false)}
               >
                 <User className="h-4 w-4" />
@@ -207,7 +240,10 @@ export function SiteHeader() {
               <Link
                 href="/login"
                 className="flex items-center justify-center gap-2 px-3 py-3 fg-display text-base tracking-[0.08em]"
-                style={{ background: "#1B5EFF", color: "#ffffff" }}
+                style={{
+                  background: "var(--primary)",
+                  color: "var(--primary-foreground)",
+                }}
                 onClick={() => setOpen(false)}
               >
                 <LogIn className="h-4 w-4" />

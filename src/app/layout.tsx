@@ -86,7 +86,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko" className={`${oswald.variable} ${jetbrainsMono.variable} dark`}>
+    <html lang="ko" className={`${oswald.variable} ${jetbrainsMono.variable}`}>
       <head>
         {/* Pretendard via official CDN — Google Fonts에 없음 */}
         <link

@@ -5,8 +5,15 @@
 @custom-variant dark (&:is(.dark *));
 
 /* =====================================================
- * LIGHT STADIUM · BLUE — design tokens
- * White #ffffff · Blue #1B5EFF · Red #FF3B30
+ * SOURCE OF TRUTH: FairGround design-tokens v1 (CEO plan §4)
+ * 이 블록이 정본. 수정 시 fairground/src/app/globals.css 와
+ * fairground(remotion)/src/constants/colors.ts 동기화 필수.
+ * Primary  Blue   #1B5EFF
+ * Ink            #0A1220
+ * Paper          #ffffff
+ * Accent Gold    #F5A623  (시상/premium 한정)
+ * Danger Red     #FF3B30
+ * Theme: light 일원화 (dark 토큰셋 없음)
  * ===================================================== */
 
 @theme inline {
@@ -45,44 +52,40 @@
   --color-fg-ink-dim: #7A8496;
   --color-fg-ink-ghost: #B1B8C4;
 
-  /* Legacy aliases (keep old class names working) */
-  --color-fg-lime: #1B5EFF;
-  --color-fg-lime-dim: #0C3BCC;
-  --color-fg-lime-soft: #DCE6FF;
-  --color-fg-ink-2: #F4F6FA;
-  --color-fg-ink-3: #EAEEF5;
-  --color-fg-smoke: #D5DAE2;
-  --color-fg-ash: #7A8496;
-  --color-fg-bone: #4E5A6B;
-  --color-fg-green: #1B5EFF;
-  --color-fg-green-dark: #0C3BCC;
-  --color-fg-green-light: #DCE6FF;
-  --color-fg-navy: #0A1220;
-  --color-fg-navy-mid: #F4F6FA;
-  --color-fg-navy-light: #EAEEF5;
-  --color-fg-gold: #1B5EFF;
-  --color-fg-gold-warm: #1B5EFF;
-  --color-fg-coral: #FF3B30;
-  --color-fg-sky: #1B5EFF;
-  --color-fg-white: #ffffff;
-  --color-fg-gray-100: #F4F6FA;
-  --color-fg-gray-200: #E5E8EE;
-  --color-fg-gray-500: #7A8496;
-  --color-fg-gray-800: #4E5A6B;
+  /* Accent Gold — 시상/premium 전용 실제 금색 (별칭 붕괴 아님) */
+  --color-fg-accent-gold: #F5A623;
+
+  /* Compat aliases — 사용처가 남아있어 보존하되 정직한 의미값으로 매핑.
+   * 죽은(미사용) 별칭 15개는 v1에서 제거함. */
+  --color-fg-green: #1B5EFF;        /* 사용처: 강조선/포커스 → primary */
+  --color-fg-navy: #0A1220;         /* 단일 ink */
+  --color-fg-navy-light: #EAEEF5;   /* 연한 배경 */
+  --color-fg-gold: #F5A623;         /* 실제 금색 (trophy/시상) */
+  --color-fg-gold-warm: #F5A623;    /* 실제 금색 */
+  --color-fg-coral: #FF3B30;        /* danger */
+  --color-fg-gray-200: #E5E8EE;     /* border */
+  --color-fg-gray-500: #7A8496;     /* dim 텍스트 */
 
   /* Typography tokens */
   --font-display: var(--font-oswald);
   --font-body: var(--font-pretendard);
   --font-mono: var(--font-jetbrains);
+  /* Compat aliases (사용처 잔존) — body 한글은 --font-body 사용 */
   --font-outfit: var(--font-oswald);
-  --font-noto: var(--font-pretendard);
   --font-space: var(--font-jetbrains);
   --font-space-mono: var(--font-jetbrains);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* Radius scale (CEO plan §4 — 3프로젝트 공통) */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  /* Shadow scale */
+  --shadow-sm: 0 1px 2px rgba(10, 18, 32, 0.06);
+  --shadow-md: 0 4px 16px rgba(10, 18, 32, 0.10);
+  --shadow-lg: 0 12px 40px rgba(10, 18, 32, 0.16);
 }
 
 :root {
@@ -105,6 +108,7 @@
   --border: #E5E8EE;
   --input: #E5E8EE;
   --ring: #1B5EFF;
+  --accent-gold: #F5A623;
 }
 
 /* =====================================================
