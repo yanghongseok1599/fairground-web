@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
 import { useDataStore } from "@/stores/dataStore";
 import { PlayerCard } from "@/components/player-card";
 import { EmptyState } from "@/components/empty-state";
 import { ScrollVideoHero, type HeroReveal } from "@/components/scroll-video-hero";
+import { CircularGallery, type GalleryItem } from "@/components/circular-gallery";
 import type { Team, Player } from "@/types";
 import { ArrowRight } from "lucide-react";
 
@@ -263,144 +263,22 @@ export default function HomePage() {
               ]}
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {teams.map((team, i) => {
-                const s = team.seasonStats;
-                return (
-                  <motion.div
-                    key={team.id}
-                    initial={
-                      prefersReducedMotion
-                        ? { opacity: 0 }
-                        : { opacity: 0, y: 24 }
-                    }
-                    whileInView={
-                      prefersReducedMotion
-                        ? { opacity: 1 }
-                        : { opacity: 1, y: 0 }
-                    }
-                    viewport={{ once: true, margin: "-60px" }}
-                    transition={
-                      prefersReducedMotion
-                        ? { duration: 0.2 }
-                        : {
-                            delay: Math.min(i, 7) * 0.05,
-                            type: "spring",
-                            stiffness: 220,
-                            damping: 24,
-                          }
-                    }
-                  >
-                    <Link
-                      href={`/teams/${team.id}`}
-                      className="group relative block h-full p-6 border rounded-[var(--radius-lg)] transition-all duration-200 hover:-translate-y-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-                      style={{
-                        background: "var(--color-fg-paper)",
-                        borderColor: "var(--color-fg-line-soft)",
-                        outlineColor: "var(--color-ring)",
-                        boxShadow: "var(--shadow-sm)",
-                      }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLElement).style.boxShadow =
-                          "var(--shadow-md)";
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLElement).style.boxShadow =
-                          "var(--shadow-sm)";
-                      }}
-                    >
-                      <div
-                        className="absolute top-0 left-0 h-[2px] w-0 group-hover:w-full transition-all duration-300 rounded-t-[var(--radius-lg)]"
-                        style={{
-                          background:
-                            "linear-gradient(90deg, var(--primary), var(--color-fg-blue-deep))",
-                        }}
-                      />
-                      <div className="flex items-center gap-3 mb-6">
-                        {team.logo ? (
-                          <Image
-                            src={team.logo}
-                            alt=""
-                            width={44}
-                            height={44}
-                            className="w-11 h-11 object-contain"
-                          />
-                        ) : (
-                          <div
-                            className="w-11 h-11 grid place-items-center fg-display text-[14px]"
-                            style={{
-                              background: "var(--primary)",
-                              color: "var(--primary-foreground)",
-                            }}
-                          >
-                            {team.name.slice(0, 2).toUpperCase()}
-                          </div>
-                        )}
-                        {s.rank > 0 && (
-                          <span
-                            className="ml-auto fg-mono text-[11px]"
-                            style={{ color: "var(--color-fg-ink-muted)" }}
-                          >
-                            #{s.rank}
-                          </span>
-                        )}
-                      </div>
-                      <h3
-                        className="fg-display mb-1"
-                        style={{
-                          fontSize: 20,
-                          lineHeight: 1.1,
-                          color: "var(--color-fg-ink)",
-                        }}
-                      >
-                        {team.name}
-                      </h3>
-                      <p
-                        className="fg-label mb-5"
-                        style={{ color: "var(--color-fg-ink-muted)" }}
-                      >
-                        {team.memberCount}명 · {s.points}PTS
-                      </p>
-                      <div
-                        className="grid grid-cols-3 gap-px border overflow-hidden rounded-[var(--radius-md)]"
-                        style={{
-                          background: "var(--color-fg-line-soft)",
-                          borderColor: "var(--color-fg-line-soft)",
-                        }}
-                      >
-                        {[
-                          { k: "W", v: s.wins },
-                          { k: "D", v: s.draws },
-                          { k: "L", v: s.losses },
-                        ].map((cell) => (
-                          <div
-                            key={cell.k}
-                            className="py-3 text-center"
-                            style={{ background: "var(--color-fg-paper)" }}
-                          >
-                            <div
-                              className="fg-display fg-mono tabular-nums"
-                              style={{
-                                fontSize: 22,
-                                lineHeight: 1,
-                                color: "var(--color-fg-ink)",
-                              }}
-                            >
-                              {cell.v}
-                            </div>
-                            <div
-                              className="fg-label mt-1.5 text-[10px]"
-                              style={{ color: "var(--color-fg-ink-muted)" }}
-                            >
-                              {cell.k}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </Link>
-                  </motion.div>
-                );
-              })}
+            <div className="relative w-full h-[400px] md:h-[460px]">
+              <CircularGallery
+                items={teams.map((team, i): GalleryItem => ({
+                  id: team.id,
+                  common: team.name,
+                  binomial: `${team.seasonStats.wins}W ${team.seasonStats.draws}D ${team.seasonStats.losses}L`,
+                  photo: { url: team.logo ?? "", text: team.name, by: `${team.memberCount}명` },
+                  colorIndex: i,
+                }))}
+                radius={520}
+                autoRotateSpeed={prefersReducedMotion ? 0 : 0.25}
+                onItemClick={(item) => {
+                  const t = teams.find((x) => x.id === item.id);
+                  if (t) window.location.href = `/teams/${t.id}`;
+                }}
+              />
             </div>
           )}
         </div>
