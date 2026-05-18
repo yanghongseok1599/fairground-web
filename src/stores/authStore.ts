@@ -1,23 +1,16 @@
 "use client";
 
 import { create } from "zustand";
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  GoogleAuthProvider,
-  signInWithPopup,
-  onAuthStateChanged,
-  type User,
-} from "firebase/auth";
-import { ref, set, get, update } from "firebase/database";
-import {
-  ref as storageRef,
-  uploadBytes,
-  getDownloadURL,
-} from "firebase/storage";
-import { auth, database, storage, isDemoMode } from "@/config/firebase";
+import { supabase, isDemoMode } from "@/config/supabase";
+import { rowToPlayer, playerToInsert, playerPatchToRow } from "@/lib/mappers";
 import type { Player, Position } from "@/types";
+
+// Supabase auth.users 를 앱 전반이 쓰는 최소 형태로 노출.
+// Firebase User.uid 호환을 위해 Supabase user.id 를 uid 로 매핑.
+export interface AuthUser {
+  uid: string;
+  email: string | null;
+}
 
 // ===== localStorage helpers for demo mode =====
 const LS_USERS = "fg_users";
@@ -73,8 +66,41 @@ function generateUid(): string {
   return "local_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
 }
 
-function makeDemoUser(uid: string, email: string): User {
-  return { uid, email } as User;
+function makeUser(uid: string, email: string | null): AuthUser {
+  return { uid, email };
+}
+
+function makePlayer(uid: string, name: string, phone: string): Player {
+  return {
+    id: uid,
+    uid,
+    name,
+    number: 0,
+    position: "ALA" as Position,
+    teamId: "",
+    nationality: "KOR",
+    photoUrl: "",
+    photoScale: 1,
+    cardType: "gold",
+    cardRating: 90,
+    stats: { goals: 0, assists: 0, games: 0, mom: 0 },
+    badges: [],
+    penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
+    isApproved: false,
+    role: "player",
+    phone,
+    createdAt: Date.now(),
+  };
+}
+
+// 프로필 행 조회 (없으면 null). 에러는 호출부에 표면화(은폐 catch 금지 — D-H).
+async function fetchProfile(uid: string): Promise<Player | null> {
+  const { data, error } = await supabase.from("profiles").select("*").eq("id", uid).maybeSingle();
+  if (error) {
+    console.error("[authStore] fetchProfile failed:", error.message);
+    throw new Error(error.message);
+  }
+  return data ? rowToPlayer(data) : null;
 }
 
 // ===== Store =====
@@ -97,7 +123,7 @@ interface CreatePlayerData {
 }
 
 interface AuthState {
-  user: User | null;
+  user: AuthUser | null;
   player: Player | null;
   loading: boolean;
   error: string | null;
@@ -132,15 +158,14 @@ export const useAuthStore = create<AuthState>((setState) => ({
         const players = getLocalPlayers();
         const player = players[found.uid] || null;
         saveSession(found.uid);
-        setState({
-          user: makeDemoUser(found.uid, email),
-          player,
-          loading: false,
-        });
+        setState({ user: makeUser(found.uid, email), player, loading: false });
         return;
       }
-      await signInWithEmailAndPassword(auth, email, password);
-      setState({ loading: false });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw new Error(error.message);
+      const uid = data.user.id;
+      const player = await fetchProfile(uid);
+      setState({ user: makeUser(uid, data.user.email ?? email), player, loading: false });
     } catch (e) {
       setState({ error: (e as Error).message, loading: false });
       throw e;
@@ -150,27 +175,6 @@ export const useAuthStore = create<AuthState>((setState) => ({
   register: async (data) => {
     setState({ loading: true, error: null });
     try {
-      const makePlayer = (uid: string): Player => ({
-        id: uid,
-        uid,
-        name: data.name,
-        number: 0,
-        position: "ALA" as Position,
-        teamId: "",
-        nationality: "KOR",
-        photoUrl: "",
-        photoScale: 1,
-        cardType: "gold",
-        cardRating: 90,
-        stats: { goals: 0, assists: 0, games: 0, mom: 0 },
-        badges: [],
-        penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
-        isApproved: false,
-        role: "player",
-        phone: data.phone,
-        createdAt: Date.now(),
-      });
-
       if (isDemoMode) {
         const users = getLocalUsers();
         if (users.find((u) => u.email === data.email)) {
@@ -180,18 +184,29 @@ export const useAuthStore = create<AuthState>((setState) => ({
         users.push({ uid, email: data.email, password: data.password });
         saveLocalUsers(users);
         saveSession(uid);
-        const player = makePlayer(uid);
+        const player = makePlayer(uid, data.name, data.phone);
         const players = getLocalPlayers();
         players[uid] = player;
         saveLocalPlayers(players);
-        setState({ user: makeDemoUser(uid, data.email), player, loading: false });
+        setState({ user: makeUser(uid, data.email), player, loading: false });
         return;
       }
-      const cred = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      const uid = cred.user.uid;
-      const player = makePlayer(uid);
-      await set(ref(database, `players/${uid}`), player);
-      setState({ player, loading: false });
+      const { data: signUp, error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+      });
+      if (error) throw new Error(error.message);
+      if (!signUp.user) throw new Error("가입에 실패했습니다");
+      const uid = signUp.user.id;
+      const player = makePlayer(uid, data.name, data.phone);
+      // RLS: id = auth.uid() 인 행만 INSERT 허용. role/is_approved 는 DB 기본값.
+      const { error: insErr } = await supabase.from("profiles").insert(playerToInsert(player));
+      if (insErr) throw new Error(insErr.message);
+      setState({
+        user: makeUser(uid, signUp.user.email ?? data.email),
+        player,
+        loading: false,
+      });
     } catch (e) {
       setState({ error: (e as Error).message, loading: false });
       throw e;
@@ -231,7 +246,9 @@ export const useAuthStore = create<AuthState>((setState) => ({
         setState({ player, loading: false });
         return;
       }
-      await set(ref(database, `players/${uid}`), player);
+      // upsert: 가입 시 행이 이미 있으면 갱신, 없으면 생성.
+      const { error } = await supabase.from("profiles").upsert(playerToInsert(player));
+      if (error) throw new Error(error.message);
       setState({ player, loading: false });
     } catch (e) {
       setState({ error: (e as Error).message, loading: false });
@@ -245,37 +262,16 @@ export const useAuthStore = create<AuthState>((setState) => ({
       if (isDemoMode) {
         throw new Error("데모 모드에서는 Google 로그인을 사용할 수 없습니다. 이메일로 가입해주세요.");
       }
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const uid = result.user.uid;
-      // Auto-create player if not exists
-      const snap = await get(ref(database, `players/${uid}`));
-      if (!snap.exists()) {
-        const player: Player = {
-          id: uid,
-          uid,
-          name: result.user.displayName || "",
-          number: 0,
-          position: "ALA" as Position,
-          teamId: "",
-          nationality: "KOR",
-          photoUrl: "",
-          photoScale: 1,
-          cardType: "gold",
-          cardRating: 90,
-          stats: { goals: 0, assists: 0, games: 0, mom: 0 },
-          badges: [],
-          penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
-          isApproved: false,
-          role: "player",
-          phone: "",
-          createdAt: Date.now(),
-        };
-        await set(ref(database, `players/${uid}`), player);
-        setState({ player, loading: false });
-      } else {
-        setState({ player: snap.val() as Player, loading: false });
-      }
+      // OAuth 리다이렉트 플로우. 복귀 후 init()의 onAuthStateChange가
+      // 세션을 감지하고 프로필이 없으면 자동 생성한다.
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
+        },
+      });
+      if (error) throw new Error(error.message);
+      // 리다이렉트되므로 여기서 setState 불필요(페이지 이탈).
     } catch (e) {
       setState({ error: (e as Error).message, loading: false });
       throw e;
@@ -288,7 +284,7 @@ export const useAuthStore = create<AuthState>((setState) => ({
       setState({ user: null, player: null });
       return;
     }
-    await signOut(auth);
+    await supabase.auth.signOut();
     setState({ user: null, player: null });
   },
 
@@ -305,15 +301,24 @@ export const useAuthStore = create<AuthState>((setState) => ({
       return;
     }
 
-    await update(ref(database, `players/${state.user.uid}`), data);
+    // RLS: 본인 행만, 특권컬럼(role/is_approved/stats)은 트리거가 거부.
+    const { error } = await supabase
+      .from("profiles")
+      .update(playerPatchToRow(data))
+      .eq("id", state.user.uid);
+    if (error) {
+      console.error("[authStore] updatePlayer failed:", error.message);
+      setState({ error: error.message });
+      throw new Error(error.message);
+    }
     setState({ player: { ...state.player, ...data } });
   },
 
   uploadPlayerPhoto: async (file) => {
     const state = useAuthStore.getState();
     if (!state.user) return "";
-
-    // Storage CORS 우회: base64 data URL로 RTDB에 직접 저장
+    // NOTE(상용화 후속): 현재는 base64 data URL 반환(원 동작 보존).
+    // Supabase Storage 버킷 업로드로 교체 예정 — DB에 대용량 base64 저장은 비효율.
     return new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
@@ -332,7 +337,7 @@ export const useAuthStore = create<AuthState>((setState) => ({
         const users = getLocalUsers();
         const localUser = users.find((u) => u.uid === uid);
         setState({
-          user: localUser ? makeDemoUser(uid, localUser.email) : null,
+          user: localUser ? makeUser(uid, localUser.email) : null,
           player: localUser ? player : null,
           loading: false,
           initialized: true,
@@ -342,23 +347,45 @@ export const useAuthStore = create<AuthState>((setState) => ({
       }
       return () => {};
     }
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
+
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const sUser = session?.user;
+      if (sUser) {
         try {
-          const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
-          const snap = await Promise.race([
-            get(ref(database, `players/${user.uid}`)),
-            timeout,
-          ]);
-          const player = snap && "exists" in snap && snap.exists() ? (snap.val() as Player) : null;
-          setState({ user, player, loading: false, initialized: true });
+          let player = await fetchProfile(sUser.id);
+          // OAuth 최초 로그인 시 프로필 자동 생성.
+          if (!player) {
+            const created = makePlayer(
+              sUser.id,
+              (sUser.user_metadata?.full_name as string) || sUser.email || "",
+              ""
+            );
+            const { error } = await supabase.from("profiles").insert(playerToInsert(created));
+            if (error) {
+              console.error("[authStore] auto-create profile failed:", error.message);
+            } else {
+              player = created;
+            }
+          }
+          setState({
+            user: makeUser(sUser.id, sUser.email ?? null),
+            player,
+            loading: false,
+            initialized: true,
+          });
         } catch {
-          setState({ user, player: null, loading: false, initialized: true });
+          setState({
+            user: makeUser(sUser.id, sUser.email ?? null),
+            player: null,
+            loading: false,
+            initialized: true,
+          });
         }
       } else {
         setState({ user: null, player: null, loading: false, initialized: true });
       }
     });
-    return unsubscribe;
+
+    return () => sub.subscription.unsubscribe();
   },
 }));

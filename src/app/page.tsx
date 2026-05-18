@@ -16,94 +16,6 @@ import { ArrowRight, X } from "lucide-react";
 const ROLE_ORDER: Record<string, number> = { admin: 0, captain: 1, referee: 2, player: 3 };
 const ROLE_LABELS: Record<string, string> = { admin: "감독", captain: "주장", referee: "심판", player: "선수" };
 
-const DEMO_PLAYERS: Player[] = [
-  {
-    id: "dp0", uid: "dp0", name: "이감독", number: 0, position: "FIXO", teamId: "demo",
-    nationality: "KOR", photoUrl: "https://randomuser.me/api/portraits/men/3.jpg",
-    cardType: "gold", cardRating: 92,
-    stats: { goals: 0, assists: 0, games: 18, mom: 0 },
-    badges: [], penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
-    isApproved: true, role: "admin", createdAt: 0,
-  },
-  {
-    id: "dp1", uid: "dp1", name: "김민준", number: 10, position: "PIVO", teamId: "demo",
-    nationality: "KOR", photoUrl: "https://randomuser.me/api/portraits/men/32.jpg",
-    cardType: "gold", cardRating: 88,
-    stats: { goals: 12, assists: 7, games: 18, mom: 4 },
-    badges: [], penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 1 },
-    isApproved: true, role: "captain", createdAt: 0,
-  },
-  {
-    id: "dp2", uid: "dp2", name: "이재원", number: 7, position: "ALA", teamId: "demo",
-    nationality: "KOR", photoUrl: "https://randomuser.me/api/portraits/men/45.jpg",
-    cardType: "gold", cardRating: 84,
-    stats: { goals: 8, assists: 11, games: 17, mom: 3 },
-    badges: [], penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
-    isApproved: true, role: "player", createdAt: 0,
-  },
-  {
-    id: "dp3", uid: "dp3", name: "박성호", number: 1, position: "GK", teamId: "demo",
-    nationality: "KOR", photoUrl: "https://randomuser.me/api/portraits/men/12.jpg",
-    cardType: "gold", cardRating: 82,
-    stats: { goals: 0, assists: 1, games: 16, mom: 5 },
-    badges: [], penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
-    isApproved: true, role: "player", createdAt: 0,
-  },
-  {
-    id: "dp4", uid: "dp4", name: "최현우", number: 5, position: "FIXO", teamId: "demo",
-    nationality: "KOR", photoUrl: "https://randomuser.me/api/portraits/men/67.jpg",
-    cardType: "premium", cardRating: 79,
-    stats: { goals: 3, assists: 5, games: 15, mom: 1 },
-    badges: [], penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 2 },
-    isApproved: true, role: "player", createdAt: 0,
-  },
-  {
-    id: "dp5", uid: "dp5", name: "정태양", number: 9, position: "PIVO", teamId: "demo",
-    nationality: "KOR", photoUrl: "https://randomuser.me/api/portraits/men/22.jpg",
-    cardType: "premium", cardRating: 76,
-    stats: { goals: 6, assists: 2, games: 14, mom: 2 },
-    badges: [], penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 1 },
-    isApproved: true, role: "player", createdAt: 0,
-  },
-  {
-    id: "dp6", uid: "dp6", name: "윤준서", number: 11, position: "ALA", teamId: "demo",
-    nationality: "BRA", photoUrl: "https://randomuser.me/api/portraits/men/78.jpg",
-    cardType: "gold", cardRating: 86,
-    stats: { goals: 10, assists: 9, games: 18, mom: 3 },
-    badges: [], penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
-    isApproved: true, role: "player", createdAt: 0,
-  },
-  {
-    id: "dp7", uid: "dp7", name: "강도윤", number: 4, position: "FIXO", teamId: "demo",
-    nationality: "KOR", photoUrl: "https://randomuser.me/api/portraits/men/55.jpg",
-    cardType: "premium", cardRating: 77,
-    stats: { goals: 2, assists: 6, games: 16, mom: 0 },
-    badges: [], penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 3 },
-    isApproved: true, role: "player", createdAt: 0,
-  },
-  {
-    id: "dp8", uid: "dp8", name: "손영준", number: 8, position: "ALA", teamId: "demo",
-    nationality: "JPN", photoUrl: "https://randomuser.me/api/portraits/men/91.jpg",
-    cardType: "gold", cardRating: 83,
-    stats: { goals: 7, assists: 8, games: 17, mom: 2 },
-    badges: [], penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 1 },
-    isApproved: true, role: "player", createdAt: 0,
-  },
-];
-
-const DEMO_TEAMS: Team[] = [
-  { id: "d1", name: "FC 서울", logo: "", isApproved: true, memberCount: 11, seasonStats: { points: 0, rank: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, gamesPlayed: 0 }, createdAt: 0 },
-  { id: "d2", name: "부산 아이파크", logo: "", isApproved: true, memberCount: 11, seasonStats: { points: 0, rank: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, gamesPlayed: 0 }, createdAt: 0 },
-  { id: "d3", name: "인천 유나이티드", logo: "", isApproved: true, memberCount: 11, seasonStats: { points: 0, rank: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, gamesPlayed: 0 }, createdAt: 0 },
-  { id: "d4", name: "전북 현대", logo: "", isApproved: true, memberCount: 11, seasonStats: { points: 0, rank: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, gamesPlayed: 0 }, createdAt: 0 },
-  { id: "d5", name: "울산 HD", logo: "", isApproved: true, memberCount: 11, seasonStats: { points: 0, rank: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, gamesPlayed: 0 }, createdAt: 0 },
-  { id: "d6", name: "수원 삼성", logo: "", isApproved: true, memberCount: 11, seasonStats: { points: 0, rank: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, gamesPlayed: 0 }, createdAt: 0 },
-  { id: "d7", name: "성남 FC", logo: "", isApproved: true, memberCount: 11, seasonStats: { points: 0, rank: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, gamesPlayed: 0 }, createdAt: 0 },
-  { id: "d8", name: "대구 FC", logo: "", isApproved: true, memberCount: 11, seasonStats: { points: 0, rank: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, gamesPlayed: 0 }, createdAt: 0 },
-  { id: "d9", name: "광주 FC", logo: "", isApproved: true, memberCount: 11, seasonStats: { points: 0, rank: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, gamesPlayed: 0 }, createdAt: 0 },
-  { id: "d10", name: "제주 유나이티드", logo: "", isApproved: true, memberCount: 11, seasonStats: { points: 0, rank: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0, gamesPlayed: 0 }, createdAt: 0 },
-];
-
 // ─── HERO REVEAL SEQUENCE ───────────────────────────────────────────────
 // Five fade-in/fade-out overlays that play across the scroll-scrubbed hero.
 // Shared styles for the Korean display lines.
@@ -192,7 +104,7 @@ export default function HomePage() {
         store.fetchStandings(),
       ]);
 
-      setTeams(teamsData.length > 0 ? teamsData : DEMO_TEAMS);
+      setTeams(teamsData);
       setTeamsLoaded(true);
 
       const allMatches: Match[] = [];
@@ -218,21 +130,17 @@ export default function HomePage() {
     setSelectedTeam(team);
     setTeamPlayers([]);
 
-    if (team.id.startsWith("d") && DEMO_TEAMS.some((t) => t.id === team.id)) {
-      setTeamPlayers(DEMO_PLAYERS);
-      return;
-    }
-
     setPlayersLoading(true);
     const players = await store.fetchTeamPlayers(team.id);
     setTeamPlayers(players);
     setPlayersLoading(false);
   };
 
-  const totalPlayers = teams.reduce((s, t) => s + (t.memberCount || 0), 0) || 486;
-  const totalTeams = teams.length || 24;
-  const totalMatches = recentMatches.length * 24 || 96;
-  const totalGoals = store.standings.reduce((s, t) => s + (t.goalsFor || 0), 0) || 412;
+  const totalPlayers = teams.reduce((s, t) => s + (t.memberCount || 0), 0);
+  const totalTeams = teams.length;
+  const totalMatches = Math.floor(store.standings.reduce((s, t) => s + (t.gamesPlayed || 0), 0) / 2);
+  const totalGoals = store.standings.reduce((s, t) => s + (t.goalsFor || 0), 0);
+  const seasonName = store.currentSeason?.name ?? null;
 
   return (
     <div>
@@ -258,19 +166,17 @@ export default function HomePage() {
         <div className="absolute inset-0 fg-grid opacity-40 pointer-events-none" />
 
         <div className="relative max-w-7xl mx-auto px-5 md:px-10 pt-14 md:pt-20 pb-16 md:pb-20">
-          {/* top meta strip */}
+          {/* top meta strip — 실데이터만 표시(가짜 시즌/주차/시간/날씨 제거) */}
           <div className="flex flex-wrap items-center justify-between gap-3 pb-6 border-b" style={{ borderColor: "#EAEEF5" }}>
             <div className="flex items-center gap-5 fg-label" style={{ color: "#4E5A6B" }}>
-              <span>SEASON 9</span>
-              <span style={{ color: "#B1B8C4" }}>·</span>
-              <span>WEEK 39 / 14</span>
+              {seasonName ? (
+                <span>{seasonName}</span>
+              ) : (
+                <span>FAIRGROUND LEAGUE</span>
+              )}
             </div>
             <div className="flex items-center gap-5 fg-label" style={{ color: "#4E5A6B" }}>
               <span>SEOUL</span>
-              <span style={{ color: "#B1B8C4" }}>·</span>
-              <span className="fg-mono text-[11px]">22:14 KST</span>
-              <span style={{ color: "#B1B8C4" }}>·</span>
-              <span className="fg-mono text-[11px]">11°C</span>
             </div>
           </div>
 
@@ -554,7 +460,7 @@ export default function HomePage() {
                 "LIVE SCORES · REAL STATS",
                 "FIFA STYLE PLAYER CARDS",
                 "PLAY YOUR GROWTH",
-                "SEASON 9 · WEEK 39/14",
+                "EVERYONE WINS ON THIS GROUND",
               ].map((t, j) => (
                 <span key={`${i}-${j}`} className="flex items-center gap-6">
                   <span>{t}</span>
