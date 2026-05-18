@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const inputStyle = {
@@ -22,6 +22,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [formError, setFormError] = useState("");
+  const [success, setSuccess] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +44,8 @@ export default function RegisterPage() {
 
     try {
       await register({ email, password, name: name.trim(), phone: phone.trim() });
-      router.push("/my");
+      // 가입 후 관리자 승인 안내(운영 플로우) — fairground 이식.
+      setSuccess(true);
     } catch {
       // error is set in the store
     }
@@ -59,6 +61,33 @@ export default function RegisterPage() {
       // error is set in the store
     }
   };
+
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: "#0D1B2A" }}>
+        <div className="w-full max-w-sm text-center space-y-6">
+          <CheckCircle className="mx-auto h-16 w-16" style={{ color: "#00C853" }} />
+          <div>
+            <h2 className="text-xl font-bold" style={{ color: "#FAFCFF" }}>
+              가입 완료!
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed" style={{ color: "#627D98" }}>
+              관리자 승인 후 활성화됩니다.
+              <br />
+              승인이 완료되면 로그인하여 이용할 수 있습니다.
+            </p>
+          </div>
+          <button
+            onClick={() => router.push("/login")}
+            className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all hover:opacity-90"
+            style={{ background: "#FFD700", color: "#0D1B2A" }}
+          >
+            로그인 페이지로 이동
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6" style={{ background: "#0D1B2A" }}>
