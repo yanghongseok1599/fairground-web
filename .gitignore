@@ -44,6 +44,7 @@ next-env.d.ts
 public/sitemap*.xml
 public/robots.txt
 
+
 # original badge assets (dev only)
 public/images/badges/_originals/
 

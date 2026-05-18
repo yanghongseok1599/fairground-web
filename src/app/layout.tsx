@@ -4,6 +4,7 @@ import "./globals.css";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Providers } from "@/components/providers";
+import { SwRegister } from "@/components/sw-register";
 
 const oswald = Oswald({
   subsets: ["latin"],
@@ -97,6 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen antialiased fg-grain">
         <Providers>
+          <SwRegister />
           <SiteHeader />
           <main className="pt-[60px]">{children}</main>
           <SiteFooter />
