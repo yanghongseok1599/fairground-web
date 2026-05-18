@@ -131,7 +131,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   createPlayer: (data: CreatePlayerData) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: (returnTo?: string) => Promise<void>;
   logout: () => Promise<void>;
   updatePlayer: (data: Partial<Player>) => Promise<void>;
   uploadPlayerPhoto: (file: File) => Promise<string>;
@@ -256,19 +256,27 @@ export const useAuthStore = create<AuthState>((setState) => ({
     }
   },
 
-  loginWithGoogle: async () => {
+  loginWithGoogle: async (returnTo?: string) => {
     setState({ loading: true, error: null });
     try {
       if (isDemoMode) {
         throw new Error("데모 모드에서는 Google 로그인을 사용할 수 없습니다. 이메일로 가입해주세요.");
       }
-      // OAuth 리다이렉트 플로우. 복귀 후 init()의 onAuthStateChange가
-      // 세션을 감지하고 프로필이 없으면 자동 생성한다.
+      // OAuth 리다이렉트 플로우 (implicit — 토큰이 URL hash 로 복귀).
+      // /auth/callback 클라 페이지가 detectSessionInUrl 처리를 기다린 뒤
+      // returnTo 로 이동. 세션 감지/프로필 자동생성은 init()의
+      // onAuthStateChange 가 수행한다.
+      let redirectTo: string | undefined;
+      if (typeof window !== "undefined") {
+        const cb = new URL("/auth/callback", window.location.origin);
+        if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
+          cb.searchParams.set("returnTo", returnTo);
+        }
+        redirectTo = cb.toString();
+      }
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
-        },
+        options: { redirectTo },
       });
       if (error) throw new Error(error.message);
       // 리다이렉트되므로 여기서 setState 불필요(페이지 이탈).

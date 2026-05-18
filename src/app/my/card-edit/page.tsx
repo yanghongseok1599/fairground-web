@@ -79,7 +79,7 @@ export default function CardEditPage() {
 
   useEffect(() => {
     if (!initialized) return;
-    if (!user) { router.replace("/login"); return; }
+    if (!user) { router.replace("/login?returnTo=%2Fmy%2Fcard-edit"); return; }
     if (initialized && user && !player) { router.replace("/my/player-setup"); return; }
   }, [initialized, user, player, router]);
 

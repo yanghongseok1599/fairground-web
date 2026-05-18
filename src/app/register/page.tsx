@@ -72,17 +72,17 @@ export default function RegisterPage() {
               가입 완료!
             </h2>
             <p className="mt-3 text-sm leading-relaxed" style={{ color: "#627D98" }}>
-              관리자 승인 후 활성화됩니다.
+              계정이 생성되었습니다. 마이페이지에서 선수 정보를 등록할 수 있습니다.
               <br />
-              승인이 완료되면 로그인하여 이용할 수 있습니다.
+              일부 운영 기능은 관리자 승인 후 활성화됩니다.
             </p>
           </div>
           <button
-            onClick={() => router.push("/login")}
+            onClick={() => router.push("/my")}
             className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all hover:opacity-90"
             style={{ background: "#FFD700", color: "#0D1B2A" }}
           >
-            로그인 페이지로 이동
+            마이페이지로 이동
           </button>
         </div>
       </div>

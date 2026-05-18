@@ -181,7 +181,7 @@ export default function MyPage() {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={() => router.push("/login")}
+              onClick={() => router.push("/login?returnTo=%2Fmy")}
               className="flex-1 py-3 rounded-2xl text-sm font-bold transition-all hover:opacity-90"
               style={{ background: "#FFD700", color: "#0D1B2A" }}>
               로그인

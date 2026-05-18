@@ -66,7 +66,7 @@ export default function PlayerSetupPage() {
 
   useEffect(() => {
     if (!initialized) return;
-    if (!user) { router.replace("/login"); return; }
+    if (!user) { router.replace("/login?returnTo=%2Fmy%2Fplayer-setup"); return; }
   }, [initialized, user, router]);
 
   // 전역 마우스 이벤트 (드래그 중 커서가 벗어나도 작동)

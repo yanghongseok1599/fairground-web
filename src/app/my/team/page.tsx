@@ -140,7 +140,7 @@ export default function MyTeamPage() {
         </p>
         <Button
           className="mt-4 min-h-[44px]"
-          onClick={() => router.push("/login")}
+          onClick={() => router.push("/login?returnTo=%2Fmy%2Fteam")}
         >
           로그인
         </Button>
