@@ -1,67 +1,112 @@
 "use client";
 
+import Link from "next/link";
+
+const FOOTER_LINKS = [
+  { href: "/live", label: "라이브" },
+  { href: "/tournaments", label: "대회" },
+  { href: "/standings", label: "순위" },
+  { href: "/players", label: "FA선수" },
+  { href: "/teams", label: "팀" },
+  { href: "/notices", label: "공지사항" },
+  { href: "/board", label: "자유게시판" },
+];
+
 export function SiteFooter() {
   return (
     <footer
-      className="py-16 px-6 md:px-10"
-      style={{ background: "#0D1B2A", borderTop: "1px solid rgba(0,200,83,0.1)" }}
+      className="relative overflow-hidden"
+      style={{ background: "#ffffff", borderTop: "1px solid #E5E8EE" }}
     >
-      <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-          {/* Logo & tagline */}
-          <div>
-            <img
-              src="/images/logo-horizontal.png"
-              alt="FairGround"
-              style={{ height: 36, width: "auto" }}
-            />
-            <p
-              className="mt-3 text-sm"
-              style={{
-                color: "#627D98",
-                fontFamily: "var(--font-space-mono)",
-                letterSpacing: "1px",
-              }}
-            >
-              모두가 승리하는 그라운드
-            </p>
-          </div>
-
-          {/* Links */}
-          <div className="flex flex-wrap gap-x-8 gap-y-2">
-            {[
-              { href: "/live", label: "라이브" },
-              { href: "/tournaments", label: "대회" },
-              { href: "/standings", label: "순위" },
-              { href: "/players", label: "FA선수" },
-              { href: "/teams", label: "팀" },
-              { href: "/notices", label: "공지사항" },
-              { href: "/board", label: "자유게시판" },
-            ].map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="text-sm transition-colors"
-                style={{ color: "#627D98" }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#00C853"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#627D98"; }}
-              >
-                {item.label}
-              </a>
-            ))}
-          </div>
+      {/* blue ticker ribbon */}
+      <div
+        className="py-2 overflow-hidden"
+        style={{ background: "#1B5EFF" }}
+      >
+        <div className="flex whitespace-nowrap animate-ticker fg-display text-[13px] tracking-[0.12em]" style={{ color: "#ffffff" }}>
+          {Array.from({ length: 2 }).map((_, i) => (
+            <span key={i} className="flex items-center gap-6 px-6">
+              {[
+                "WHERE AMATEURS PLAY PRO",
+                "LIVE SCORES · REAL STATS · FIFA CARDS",
+                "SEASON 9 · WEEK 39/14",
+                "PLAY YOUR GROWTH",
+                "FAIRGROUND.KR",
+              ].map((t, j) => (
+                <span key={`${i}-${j}`} className="flex items-center gap-6">
+                  <span>{t}</span>
+                  <span className="inline-block w-1.5 h-1.5 rotate-45" style={{ background: "#ffffff" }} />
+                </span>
+              ))}
+            </span>
+          ))}
         </div>
+      </div>
 
-        <div
-          className="mt-12 pt-8 flex items-center justify-between text-xs"
-          style={{ borderTop: "1px solid rgba(217,226,236,0.1)", color: "#627D98" }}
-        >
-          <span>© 2025 FairGround. All rights reserved.</span>
-          <span
-            style={{ fontFamily: "var(--font-space-mono)", letterSpacing: "1px" }}
+      <div className="relative py-16 px-5 md:px-10 fg-scanlines">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-10">
+            {/* Brand block */}
+            <div>
+              <div
+                role="img"
+                aria-label="FairGround"
+                style={{
+                  width: 220,
+                  height: 42,
+                  background: "#1B5EFF",
+                  WebkitMaskImage: "url(/images/logo-horizontal.png)",
+                  WebkitMaskRepeat: "no-repeat",
+                  WebkitMaskSize: "contain",
+                  WebkitMaskPosition: "left center",
+                  maskImage: "url(/images/logo-horizontal.png)",
+                  maskRepeat: "no-repeat",
+                  maskSize: "contain",
+                  maskPosition: "left center",
+                }}
+              />
+              <div className="fg-label mt-3" style={{ color: "#7A8496" }}>AMATEUR FUTSAL · EST. SEOUL</div>
+              <p className="mt-6 fg-display text-[32px] tracking-[0.02em] max-w-[520px] leading-[0.95]" style={{ color: "#0A1220" }}>
+                WHERE AMATEURS <span style={{ color: "#1B5EFF" }}>PLAY PRO.</span>
+              </p>
+              <p className="mt-4 text-[13px] leading-relaxed max-w-[480px]" style={{ color: "#4E5A6B", fontFamily: "var(--font-pretendard)" }}>
+                서울 유일의 아마추어 풋살 리그. 실시간 스코어, 개인 스탯, FIFA 스타일 선수 카드까지 — 경기장 밖에서도 프로처럼.
+              </p>
+            </div>
+
+            {/* Nav */}
+            <div className="grid grid-cols-2 gap-x-10 gap-y-3 shrink-0">
+              {FOOTER_LINKS.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="group flex items-center justify-between gap-4 text-sm transition-colors"
+                  style={{ color: "#4E5A6B", fontFamily: "var(--font-pretendard)" }}
+                >
+                  <span className="group-hover:text-[#1B5EFF] transition-colors">{item.label}</span>
+                  <span className="fg-label text-[9px] opacity-40 group-hover:opacity-100 group-hover:text-[#1B5EFF] transition">
+                    →
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div
+            className="mt-14 pt-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+            style={{ borderTop: "1px solid #E5E8EE" }}
           >
-            FUTSAL LEAGUE PLATFORM
-          </span>
+            <span className="fg-mono text-[11px]" style={{ color: "#7A8496" }}>
+              © 2026 FAIRGROUND · ALL RIGHTS RESERVED
+            </span>
+            <div className="flex items-center gap-6 fg-label" style={{ color: "#7A8496" }}>
+              <span>FUTSAL LEAGUE PLATFORM</span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block w-[6px] h-[6px] rounded-full animate-pulse-dot" style={{ background: "#1B5EFF" }} />
+                SYSTEM ONLINE
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </footer>

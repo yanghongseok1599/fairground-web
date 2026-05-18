@@ -1,41 +1,34 @@
 import type { Metadata, Viewport } from "next";
-import { Outfit, Noto_Sans_KR, Space_Mono } from "next/font/google";
+import { Oswald, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Providers } from "@/components/providers";
 
-const outfit = Outfit({
+const oswald = Oswald({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
-  variable: "--font-outfit",
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-oswald",
   display: "swap",
 });
 
-const notoSansKR = Noto_Sans_KR({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "700", "900"],
-  variable: "--font-noto",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-jetbrains",
   display: "swap",
 });
 
-const spaceMono = Space_Mono({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-  variable: "--font-space-mono",
-  display: "swap",
-});
-
-const siteUrl = "https://fairground.kr"; // ← 배포 도메인으로 교체
+const siteUrl = "https://fairground.kr";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "FairGround - 모두가 승리하는 풋살 페스티벌",
+    default: "FairGround — Where Amateurs Play Pro",
     template: "%s | FairGround",
   },
   description:
-    "풋살 리그 실시간 통합 플랫폼. 실시간 경기 스코어, 나만의 선수 카드, 리그 순위, 팀 관리까지 한곳에서. Play Your Growth!",
+    "서울 유일의 아마추어 풋살 리그. 실시간 스코어, 개인 스탯, FIFA 스타일 선수 카드까지 — 경기장 밖에서도 프로처럼.",
   alternates: {
     canonical: siteUrl,
     languages: { ko: `${siteUrl}/` },
@@ -54,7 +47,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: siteUrl,
-    title: "FairGround - 모두가 승리하는 풋살 페스티벌",
+    title: "FairGround — Where Amateurs Play Pro",
     description:
       "실시간 경기 스코어, 나만의 선수 카드, 리그 순위를 한곳에서. Play Your Growth!",
     siteName: "FairGround",
@@ -63,13 +56,13 @@ export const metadata: Metadata = {
         url: `${siteUrl}/og-image.png`,
         width: 1200,
         height: 630,
-        alt: "FairGround - 모두가 승리하는 풋살 페스티벌",
+        alt: "FairGround — Where Amateurs Play Pro",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "FairGround - 모두가 승리하는 풋살 페스티벌",
+    title: "FairGround — Where Amateurs Play Pro",
     description: "풋살 리그 실시간 통합 플랫폼. Play Your Growth!",
     images: [`${siteUrl}/og-image.png`],
   },
@@ -88,16 +81,24 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0D1B2A",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko" className={`${outfit.variable} ${notoSansKR.variable} ${spaceMono.variable}`}>
-      <body className="min-h-screen bg-fg-white antialiased">
+    <html lang="ko" className={`${oswald.variable} ${jetbrainsMono.variable} dark`}>
+      <head>
+        {/* Pretendard via official CDN — Google Fonts에 없음 */}
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+        />
+        <style>{`:root { --font-pretendard: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }`}</style>
+      </head>
+      <body className="min-h-screen antialiased fg-grain">
         <Providers>
           <SiteHeader />
-          <main>{children}</main>
+          <main className="pt-[60px]">{children}</main>
           <SiteFooter />
         </Providers>
       </body>

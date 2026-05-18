@@ -5,42 +5,60 @@ interface SectionProps {
   children: React.ReactNode;
   dark?: boolean;
   className?: string;
+  chapter?: string;
 }
 
-export function Section({ label, title, description, children, dark, className }: SectionProps) {
+export function Section({ label, title, description, children, dark, className, chapter }: SectionProps) {
   return (
     <section
-      className={`py-20 px-6 md:px-10 ${className || ""}`}
-      style={{ background: dark ? "#0D1B2A" : undefined }}
+      className={`relative py-20 md:py-24 px-5 md:px-10 ${className || ""}`}
+      style={{ background: dark ? "#F4F6FA" : "#ffffff" }}
     >
+      {/* top hairline */}
+      <div
+        className="absolute top-0 left-5 right-5 md:left-10 md:right-10 h-px"
+        style={{ background: "linear-gradient(90deg, transparent, #E5E8EE 20%, #E5E8EE 80%, transparent)" }}
+      />
+
       <div className="max-w-6xl mx-auto">
-        {label && (
-          <p
-            className="text-[11px] uppercase tracking-[3px] mb-3"
-            style={{ fontFamily: "var(--font-space-mono)", color: "#00C853" }}
-          >
-            {label}
-          </p>
-        )}
-        <h2
-          className="mb-4 font-extrabold leading-tight"
-          style={{
-            fontFamily: "var(--font-outfit), Outfit, sans-serif",
-            fontSize: "clamp(28px, 4vw, 42px)",
-            letterSpacing: "-1.5px",
-            color: dark ? "#FAFCFF" : "#0D1B2A",
-          }}
-        >
-          {title}
-        </h2>
-        {description && (
-          <p
-            className="text-base mb-10 max-w-xl leading-relaxed"
-            style={{ color: dark ? "#627D98" : "#627D98" }}
-          >
-            {description}
-          </p>
-        )}
+        <div className="flex items-start gap-4 md:gap-6 mb-10 md:mb-14">
+          {chapter && (
+            <span
+              className="fg-mono text-[11px] mt-2 shrink-0"
+              style={{ color: "#1B5EFF" }}
+            >
+              {chapter}
+            </span>
+          )}
+          <div className="flex-1">
+            {label && (
+              <div className="flex items-center gap-2 mb-3">
+                <span className="inline-block w-2 h-2" style={{ background: "#1B5EFF" }} />
+                <p className="fg-label" style={{ color: "#1B5EFF" }}>
+                  {label}
+                </p>
+              </div>
+            )}
+            <h2
+              className="fg-display"
+              style={{
+                fontSize: "clamp(36px, 6vw, 72px)",
+                letterSpacing: "-0.01em",
+                color: "#0A1220",
+              }}
+            >
+              {title}
+            </h2>
+            {description && (
+              <p
+                className="mt-4 text-[15px] leading-relaxed max-w-2xl"
+                style={{ color: "#4E5A6B", fontFamily: "var(--font-pretendard)" }}
+              >
+                {description}
+              </p>
+            )}
+          </div>
+        </div>
         {children}
       </div>
     </section>

@@ -16,6 +16,28 @@ const NAV_ITEMS = [
   { href: "/board", label: "자유게시판" },
 ];
 
+function FGMark() {
+  return (
+    <div
+      role="img"
+      aria-label="FairGround"
+      style={{
+        width: 150,
+        height: 28,
+        background: "#1B5EFF",
+        WebkitMaskImage: "url(/images/logo-horizontal.png)",
+        WebkitMaskRepeat: "no-repeat",
+        WebkitMaskSize: "contain",
+        WebkitMaskPosition: "left center",
+        maskImage: "url(/images/logo-horizontal.png)",
+        maskRepeat: "no-repeat",
+        maskSize: "contain",
+        maskPosition: "left center",
+      }}
+    />
+  );
+}
+
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -23,97 +45,117 @@ export function SiteHeader() {
 
   return (
     <header
-      className="fixed top-0 left-0 w-full z-50 h-[60px] flex items-center px-6 md:px-10 gap-8"
+      className="fixed top-0 left-0 w-full z-50 h-[60px] flex items-center px-5 md:px-10 gap-8"
       style={{
-        background: "rgba(13, 27, 42, 0.95)",
-        backdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(0, 200, 83, 0.2)",
+        background: "rgba(255, 255, 255, 0.85)",
+        backdropFilter: "blur(20px) saturate(140%)",
+        borderBottom: "1px solid #E5E8EE",
       }}
     >
       {/* Logo */}
-      <Link href="/" className="shrink-0 flex items-center mr-4">
-        <img
-          src="/images/logo-horizontal.png"
-          alt="FairGround"
-          style={{ height: 28, width: "auto" }}
-        />
+      <Link href="/" className="shrink-0 flex items-center mr-2" aria-label="FairGround 홈">
+        <FGMark />
       </Link>
 
       {/* Desktop nav */}
-      <nav className="hidden md:flex items-center gap-6 flex-1">
+      <nav className="hidden md:flex items-center gap-1 flex-1">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
-              className="text-[13px] font-medium tracking-[0.5px] transition-colors"
+              className="relative px-3 py-2 text-[13px] font-medium transition-colors duration-200"
               style={{
-                fontFamily: "var(--font-noto)",
-                color: isActive ? "#69F0AE" : "#D9E2EC",
+                fontFamily: "var(--font-pretendard)",
+                color: isActive ? "#1B5EFF" : "#4E5A6B",
+                letterSpacing: "0.01em",
               }}
-              onMouseEnter={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.color = "#69F0AE"; }}
-              onMouseLeave={(e) => { if (!isActive) (e.currentTarget as HTMLElement).style.color = "#D9E2EC"; }}
+              onMouseEnter={(e) => {
+                if (!isActive) (e.currentTarget as HTMLElement).style.color = "#0A1220";
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) (e.currentTarget as HTMLElement).style.color = "#4E5A6B";
+              }}
             >
               {item.label}
+              {isActive && (
+                <span
+                  className="absolute left-3 right-3 -bottom-[1px] h-[2px]"
+                  style={{ background: "#1B5EFF" }}
+                />
+              )}
             </Link>
           );
         })}
       </nav>
 
-      {/* Right side: Live indicator + auth */}
-      <div className="hidden md:flex items-center gap-4 ml-auto">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-fg-green animate-pulse-dot" />
+      {/* Right: LIVE indicator + auth */}
+      <div className="hidden md:flex items-center gap-3 ml-auto">
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 border"
+          style={{ borderColor: "#E5E8EE", background: "#F4F6FA" }}
+        >
           <span
-            className="text-[11px] tracking-[2px] uppercase text-fg-gray-500"
-            style={{ fontFamily: "var(--font-space-mono)" }}
-          >
-            Live
+            className="h-[6px] w-[6px] rounded-full animate-pulse-dot"
+            style={{ background: "#FF3B30", boxShadow: "0 0 8px #FF3B30" }}
+          />
+          <span className="fg-label text-[10px]" style={{ color: "#0A1220" }}>
+            LIVE
           </span>
         </div>
 
-        {initialized && (
-          user ? (
+        {initialized &&
+          (user ? (
             <Link
               href="/my"
-              className="flex items-center gap-2 text-[13px] font-medium transition-colors"
-              style={{ color: pathname.startsWith("/my") ? "#69F0AE" : "#D9E2EC" }}
+              className="flex items-center gap-2 px-3 py-1.5 text-[13px] font-medium transition-colors border"
+              style={{
+                fontFamily: "var(--font-pretendard)",
+                color: pathname.startsWith("/my") ? "#ffffff" : "#0A1220",
+                background: pathname.startsWith("/my") ? "#1B5EFF" : "transparent",
+                borderColor: pathname.startsWith("/my") ? "#1B5EFF" : "#E5E8EE",
+              }}
             >
               <div
-                className="h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold overflow-hidden"
-                style={{ background: "rgba(0, 200, 83, 0.15)", border: "1px solid rgba(0, 200, 83, 0.4)", color: "#69F0AE" }}
+                className="h-6 w-6 grid place-items-center text-[10px] font-bold overflow-hidden"
+                style={{
+                  background: "#ffffff",
+                  color: "#1B5EFF",
+                  border: "1px solid #E5E8EE",
+                }}
               >
                 {(player?.profilePhotoUrl || player?.photoUrl) ? (
                   <img src={player.profilePhotoUrl || player.photoUrl} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  <User className="h-3.5 w-3.5" />
+                  <User className="h-3 w-3" />
                 )}
               </div>
-              {player?.name || "마이"}
+              <span className="fg-display tracking-wider text-[13px]">
+                {player?.name || "MY"}
+              </span>
             </Link>
           ) : (
             <Link
               href="/login"
-              className="flex items-center gap-1.5 text-[13px] font-medium px-3 py-1.5 rounded-md transition-all"
+              className="flex items-center gap-1.5 text-[12px] font-bold px-4 py-2 transition-all fg-display tracking-[0.08em]"
               style={{
-                background: "rgba(0, 200, 83, 0.1)",
-                border: "1px solid rgba(0, 200, 83, 0.3)",
-                color: "#69F0AE",
+                background: "#1B5EFF",
+                color: "#ffffff",
               }}
             >
               <LogIn className="h-3.5 w-3.5" />
-              로그인
+              참가 신청
             </Link>
-          )
-        )}
+          ))}
       </div>
 
       {/* Mobile menu toggle */}
       <button
-        className="ml-auto md:hidden text-fg-gray-200"
+        className="ml-auto md:hidden"
         onClick={() => setOpen(!open)}
         aria-label="메뉴"
+        style={{ color: "#0A1220" }}
       >
         {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </button>
@@ -121,28 +163,41 @@ export function SiteHeader() {
       {/* Mobile nav */}
       {open && (
         <div
-          className="absolute top-[60px] left-0 w-full md:hidden flex flex-col py-4 px-6 gap-4"
+          className="absolute top-[60px] left-0 w-full md:hidden flex flex-col py-4 px-5 gap-1"
           style={{
-            background: "rgba(13, 27, 42, 0.98)",
-            borderBottom: "1px solid rgba(0, 200, 83, 0.2)",
+            background: "rgba(255, 255, 255, 0.98)",
+            borderBottom: "1px solid #E5E8EE",
+            backdropFilter: "blur(20px)",
           }}
         >
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="text-base font-medium text-fg-gray-200"
-              onClick={() => setOpen(false)}
-            >
-              {item.label}
-            </Link>
-          ))}
-          <div className="border-t border-white/10 pt-3">
+          {NAV_ITEMS.map((item) => {
+            const isActive = pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex items-center justify-between px-3 py-3 border-l-2 text-base font-medium transition-colors"
+                style={{
+                  fontFamily: "var(--font-pretendard)",
+                  color: isActive ? "#1B5EFF" : "#4E5A6B",
+                  borderColor: isActive ? "#1B5EFF" : "transparent",
+                  background: isActive ? "rgba(27,94,255,0.06)" : "transparent",
+                }}
+                onClick={() => setOpen(false)}
+              >
+                <span>{item.label}</span>
+                <span className="fg-label" style={{ color: isActive ? "#1B5EFF" : "#B1B8C4" }}>
+                  →
+                </span>
+              </Link>
+            );
+          })}
+          <div className="mt-3 pt-3" style={{ borderTop: "1px solid #E5E8EE" }}>
             {user ? (
               <Link
                 href="/my"
-                className="flex items-center gap-2 text-base font-medium"
-                style={{ color: "#69F0AE" }}
+                className="flex items-center gap-2 px-3 py-3 text-base font-medium"
+                style={{ color: "#1B5EFF" }}
                 onClick={() => setOpen(false)}
               >
                 <User className="h-4 w-4" />
@@ -151,12 +206,12 @@ export function SiteHeader() {
             ) : (
               <Link
                 href="/login"
-                className="flex items-center gap-2 text-base font-medium"
-                style={{ color: "#69F0AE" }}
+                className="flex items-center justify-center gap-2 px-3 py-3 fg-display text-base tracking-[0.08em]"
+                style={{ background: "#1B5EFF", color: "#ffffff" }}
                 onClick={() => setOpen(false)}
               >
                 <LogIn className="h-4 w-4" />
-                로그인 / 회원가입
+                참가 신청
               </Link>
             )}
           </div>

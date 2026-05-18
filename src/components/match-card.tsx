@@ -14,64 +14,100 @@ function isLiveMatch(m: Match | LiveMatch): m is LiveMatch {
 
 export function MatchCard({ match, showTimer }: MatchCardProps) {
   const live = isLiveMatch(match);
+  const finished = match.status === "finished";
 
   return (
     <div
-      className="rounded-2xl p-5 border transition-all"
+      className="relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5 border"
       style={{
-        background: live ? "rgba(0,200,83,0.04)" : "#ffffff",
-        borderColor: live ? "rgba(0,200,83,0.3)" : "#D9E2EC",
+        background: "#ffffff",
+        borderColor: live ? "#FF3B30" : "#E5E8EE",
       }}
     >
+      {live && (
+        <div className="absolute top-0 left-0 w-full h-[2px]" style={{ background: "#FF3B30" }} />
+      )}
+
       {/* Status row */}
-      <div className="flex items-center justify-between mb-3">
+      <div
+        className="flex items-center justify-between px-4 py-2.5"
+        style={{ borderBottom: "1px solid #EAEEF5", background: live ? "rgba(255,59,48,0.06)" : "#F4F6FA" }}
+      >
         <div className="flex items-center gap-2">
           {live && (
-            <span className="h-2 w-2 rounded-full bg-fg-coral animate-pulse-dot" />
+            <span
+              className="h-[6px] w-[6px] rounded-full animate-pulse-dot"
+              style={{ background: "#FF3B30", boxShadow: "0 0 8px #FF3B30" }}
+            />
           )}
           <span
-            className="text-[10px] uppercase tracking-[2px] font-semibold"
-            style={{
-              fontFamily: "var(--font-space-mono)",
-              color: live ? "#FF6B6B" : "#627D98",
-            }}
+            className="fg-label"
+            style={{ color: live ? "#FF3B30" : finished ? "#7A8496" : "#1B5EFF" }}
           >
-            {live ? (showTimer ? formatTime((match as LiveMatch).elapsedSeconds) : "LIVE") : match.status === "finished" ? "종료" : "예정"}
+            {live ? (showTimer ? formatTime((match as LiveMatch).elapsedSeconds) : "LIVE") : finished ? "FINAL" : "UPCOMING"}
           </span>
         </div>
-        <span className="text-xs text-fg-gray-500">R{match.round}</span>
+        <span className="fg-label" style={{ color: "#7A8496" }}>R{match.round}</span>
       </div>
 
       {/* Score row */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex-1 text-right">
-          <p className="text-sm font-semibold text-fg-navy truncate">{match.homeTeamName}</p>
-        </div>
-        <div
-          className="flex items-center gap-1.5 tabular-nums"
-          style={{
-            fontFamily: "var(--font-outfit), Outfit, sans-serif",
-            fontWeight: 900,
-            fontSize: 24,
-            letterSpacing: "-1px",
-            color: "#0D1B2A",
-          }}
-        >
-          <span>{match.homeScore}</span>
-          <span className="text-fg-gray-500 text-lg">:</span>
-          <span>{match.awayScore}</span>
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-fg-navy truncate">{match.awayTeamName}</p>
-        </div>
-      </div>
+      <div className="px-4 py-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p
+              className="fg-display text-[15px] tracking-wider truncate"
+              style={{ color: "#0A1220" }}
+            >
+              {match.homeTeamName.slice(0, 3).toUpperCase()}
+            </p>
+            <p
+              className="text-[11px] mt-1 truncate"
+              style={{ color: "#7A8496", fontFamily: "var(--font-pretendard)" }}
+            >
+              {match.homeTeamName}
+            </p>
+          </div>
 
-      {/* Half indicator for live */}
-      {live && (
-        <div className="mt-2 text-center text-xs" style={{ color: "#627D98" }}>
-          {(match as LiveMatch).currentHalf === 1 ? "전반전" : "후반전"}
+          <div
+            className="fg-mono flex items-center gap-2 tabular-nums shrink-0"
+            style={{
+              color: live ? "#1B5EFF" : "#0A1220",
+              fontWeight: 700,
+              fontSize: 30,
+              lineHeight: 1,
+              letterSpacing: "-0.02em",
+            }}
+          >
+            <span>{match.homeScore}</span>
+            <span style={{ color: "#B1B8C4" }} className="text-xl">—</span>
+            <span>{match.awayScore}</span>
+          </div>
+
+          <div className="flex-1 min-w-0 text-right">
+            <p
+              className="fg-display text-[15px] tracking-wider truncate"
+              style={{ color: "#0A1220" }}
+            >
+              {match.awayTeamName.slice(0, 3).toUpperCase()}
+            </p>
+            <p
+              className="text-[11px] mt-1 truncate"
+              style={{ color: "#7A8496", fontFamily: "var(--font-pretendard)" }}
+            >
+              {match.awayTeamName}
+            </p>
+          </div>
         </div>
-      )}
+
+        {live && (
+          <div
+            className="mt-4 pt-3 flex items-center justify-center gap-2 fg-label"
+            style={{ color: "#7A8496", borderTop: "1px solid #EAEEF5" }}
+          >
+            <span>{(match as LiveMatch).currentHalf === 1 ? "FIRST HALF" : "SECOND HALF"}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
