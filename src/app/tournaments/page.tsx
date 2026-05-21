@@ -465,22 +465,22 @@ export default function TournamentsPage() {
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {CARD_RULES.map((rule, index) => (
-                <div key={rule.title} className="border p-6" style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)" }}>
-                  <div className="mb-5 flex items-center justify-between">
+                <div key={rule.title} className="border p-5" style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)" }}>
+                  <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <ClipboardList className="h-4 w-4" style={{ color: "var(--color-fg-paper)" }} />
-                      <span className="fg-label text-[10px]" style={{ color: "var(--color-fg-paper)" }}>
+                      <ClipboardList className="h-3.5 w-3.5" style={{ color: "var(--color-fg-paper)" }} />
+                      <span className="fg-label text-[9px]" style={{ color: "var(--color-fg-paper)" }}>
                         {rule.title}
                       </span>
                     </div>
-                    <span className="fg-mono text-[11px]" style={{ color: "rgba(255,255,255,0.36)" }}>
+                    <span className="fg-mono text-[10px]" style={{ color: "rgba(255,255,255,0.36)" }}>
                       {String(index + 1).padStart(2, "0")}
                     </span>
                   </div>
-                  <div className="fg-display min-h-[56px] text-[26px] leading-none" style={{ color: "var(--background)" }}>
+                  <div className="fg-display min-h-[40px] text-[20px] leading-none" style={{ color: "var(--background)" }}>
                     {rule.value}
                   </div>
-                  <p className="mt-4 text-sm leading-relaxed" style={{ color: "var(--color-fg-ink-dim)" }}>
+                  <p className="mt-3 text-[13px] leading-relaxed" style={{ color: "var(--color-fg-ink-dim)" }}>
                     {rule.body}
                   </p>
                 </div>
