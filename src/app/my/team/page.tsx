@@ -365,7 +365,7 @@ export default function MyTeamPage() {
                           <img
                             src={editLogo}
                             alt="로고 미리보기"
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-contain bg-[var(--color-fg-paper)]"
                           />
                           <button
                             type="button"

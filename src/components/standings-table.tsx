@@ -127,7 +127,7 @@ export function StandingsTable({
                           alt=""
                           width={32}
                           height={32}
-                          className="w-8 h-8 rounded-sm object-cover"
+                          className="w-8 h-8 rounded-sm object-contain bg-[var(--color-fg-paper)]"
                         />
                       ) : (
                         <div
