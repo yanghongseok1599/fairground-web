@@ -102,7 +102,7 @@ export default function AboutPage() {
           src="/image.png"
           alt=""
           aria-hidden="true"
-          className="absolute inset-y-0 right-0 h-full w-full object-cover object-[center_center] md:w-[62%] md:object-[20%_center] lg:w-[58%]"
+          className="absolute inset-y-0 right-0 h-full w-full object-cover object-[center_center] md:w-[70%] md:object-[30%_center] lg:w-[66%]"
         />
         <div
           className="absolute inset-0 pointer-events-none"
