@@ -5,9 +5,10 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
-import { PlayerCard } from "@/components/player-card";
+import { PlayerCardCaptureFrame } from "@/components/player-card-capture-frame";
 import type { Player, Team } from "@/types";
 import { ArrowLeft, Download, Share2, Loader2, Pencil } from "lucide-react";
+import { downloadElementAsPng } from "@/lib/card-download";
 
 export default function PlayerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,7 +19,7 @@ export default function PlayerDetailPage() {
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const cardBoxRef = useRef<HTMLDivElement>(null);
+  const exportCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -35,21 +36,10 @@ export default function PlayerDetailPage() {
   }, [id]);
 
   const handleSave = async () => {
-    if (!cardBoxRef.current || !player) return;
+    if (!exportCardRef.current || !player) return;
     setSaving(true);
     try {
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(cardBoxRef.current, {
-        backgroundColor: null,
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-      });
-      const link = document.createElement("a");
-      link.download = `${player.name}-fairground.png`;
-      link.href = canvas.toDataURL("image/png");
-      link.click();
+      await downloadElementAsPng(exportCardRef.current, `${player.name}-fairground.png`);
     } catch (e) {
       console.error(e);
     } finally {
@@ -93,7 +83,7 @@ export default function PlayerDetailPage() {
     <div className="pt-[60px] min-h-screen flex flex-col" style={{ background: "#0D1B2A" }}>
       <div className="flex-1 flex flex-col items-center px-6 py-10">
         {/* Back */}
-        <div className="w-full max-w-sm mb-8">
+        <div className="w-full max-w-[240px] mb-8">
           <Link
             href="/my"
             className="inline-flex items-center gap-2 text-sm transition-colors"
@@ -107,73 +97,23 @@ export default function PlayerDetailPage() {
         </div>
 
         {/* Space background card */}
-        <div
-          ref={cardBoxRef}
-          className="relative overflow-hidden rounded-2xl"
-          style={{ width: 320, height: 320 }}
-        >
-          {/* Space bg */}
-          <img
-            src="/images/space-bg.jpg"
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover"
-            draggable={false}
-          />
-          {/* Dark overlay */}
-          <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
-          {/* Gold glow */}
-          <div
-            className="absolute"
-            style={{
-              left: "50%", top: "45%",
-              transform: "translate(-50%, -50%)",
-              width: "80%", height: "80%",
-              borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(201,168,76,0.28) 0%, rgba(201,168,76,0.08) 40%, transparent 65%)",
-            }}
-          />
-          {/* Light rays */}
-          {[-18, -6, 0, 6, 18].map((deg, i) => (
-            <div key={i} className="absolute" style={{
-              left: "50%", top: 0,
-              width: i === 2 ? 3 : 2,
-              height: "130%",
-              background: `linear-gradient(to bottom, transparent 0%, rgba(201,168,76,${i === 2 ? 0.1 : 0.04}) 30%, rgba(201,168,76,${i === 2 ? 0.15 : 0.06}) 48%, rgba(201,168,76,${i === 2 ? 0.1 : 0.04}) 66%, transparent 100%)`,
-              transform: `translateX(-50%) rotate(${deg}deg)`,
-              transformOrigin: "50% 45%",
-            }} />
-          ))}
-          {/* Card centered */}
-          <div className="absolute inset-0 flex items-center justify-center" style={{ paddingBottom: "6%" }}>
-            <div style={{ transform: "scale(0.92)", transformOrigin: "center center" }}>
-              <PlayerCard player={player} size="lg" teamLogo={team?.logo} />
-            </div>
-          </div>
-          {/* Bottom logo */}
-          <div
-            className="absolute pointer-events-none flex justify-center"
-            style={{ left: 0, right: 0, bottom: "4%", zIndex: 3 }}
-          >
-            <img
-              src="/images/logo-horizontal.png"
-              alt="FAIRGROUND"
-              style={{ height: 16, opacity: 0.9 }}
-              draggable={false}
-            />
-          </div>
-          {/* Edge vignette */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{ background: "radial-gradient(ellipse 65% 60% at 50% 45%, transparent 35%, rgba(0,0,0,0.55) 100%)" }}
+        <div ref={exportCardRef}>
+          <PlayerCardCaptureFrame
+            player={player}
+            teamLogo={team?.logo}
+            boxSize={220}
+            cardSize="lg"
+            cardScale={0.62}
+            logoHeight={12}
           />
         </div>
 
         {/* Buttons */}
-        <div className="flex gap-3 mt-6 w-full max-w-sm">
+        <div className="flex gap-3 mt-5 w-full max-w-[240px]">
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50"
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50"
             style={{ background: "#FFD700", color: "#0D1B2A" }}
           >
             {saving
@@ -183,7 +123,7 @@ export default function PlayerDetailPage() {
           </button>
           <button
             onClick={handleShare}
-            className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-bold transition-all hover:opacity-90"
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold transition-all hover:opacity-90"
             style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#FAFCFF" }}
           >
             <Share2 className="w-4 h-4" />
@@ -195,12 +135,56 @@ export default function PlayerDetailPage() {
         {isOwn && (
           <Link
             href="/my/card-edit"
-            className="flex items-center justify-center gap-2 mt-3 w-full max-w-sm py-3.5 rounded-2xl text-sm font-bold transition-all hover:opacity-90"
+            className="flex items-center justify-center gap-2 mt-3 w-full max-w-[240px] py-3 rounded-2xl text-sm font-bold transition-all hover:opacity-90"
             style={{ background: "rgba(0,200,83,0.08)", border: "1px solid rgba(0,200,83,0.25)", color: "#00C853" }}
           >
             <Pencil className="w-4 h-4" />
             카드 수정
           </Link>
+        )}
+
+        {/* 프로필 보강(있는 것만 표시) */}
+        {(player.mbti || player.disposition || player.personalValues || player.bio) && (
+          <div className="w-full max-w-[560px] mt-8 space-y-4">
+            {(player.mbti || player.disposition) && (
+              <div className="flex flex-wrap gap-1.5 justify-center">
+                {player.mbti && (
+                  <span className="text-[10px] px-2.5 py-1 rounded-full font-bold"
+                    style={{ background: "rgba(79,195,247,0.12)", color: "#4FC3F7", fontFamily: "var(--font-space-mono)" }}>
+                    MBTI · {player.mbti}
+                  </span>
+                )}
+                {player.disposition && (
+                  <span className="text-[10px] px-2.5 py-1 rounded-full font-bold"
+                    style={{ background: "rgba(0,200,83,0.12)", color: "#00C853", fontFamily: "var(--font-space-mono)" }}>
+                    성향 · {player.disposition}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {player.personalValues && (
+              <div className="rounded-2xl px-5 py-4"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <p className="text-[10px] uppercase tracking-[2px] mb-2"
+                  style={{ fontFamily: "var(--font-space-mono)", color: "#00C853" }}>Values</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "#FAFCFF" }}>
+                  {player.personalValues}
+                </p>
+              </div>
+            )}
+
+            {player.bio && (
+              <div className="rounded-2xl px-5 py-4"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <p className="text-[10px] uppercase tracking-[2px] mb-2"
+                  style={{ fontFamily: "var(--font-space-mono)", color: "#00C853" }}>About Me</p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "#FAFCFF" }}>
+                  {player.bio}
+                </p>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>

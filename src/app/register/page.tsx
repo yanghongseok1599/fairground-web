@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { buildRegistrationProfile, isValidRegistrationProfile } from "@/lib/registration-profile";
+import type { Gender } from "@/types";
 
 const inputStyle = {
   background: "rgba(255,255,255,0.06)",
@@ -12,25 +14,58 @@ const inputStyle = {
   color: "#FAFCFF",
 } as React.CSSProperties;
 
+const MBTI_TYPES = [
+  "INTJ", "INTP", "ENTJ", "ENTP",
+  "INFJ", "INFP", "ENFJ", "ENFP",
+  "ISTJ", "ISFJ", "ESTJ", "ESFJ",
+  "ISTP", "ISFP", "ESTP", "ESFP",
+] as const;
+
+const labelClass = "text-xs font-medium uppercase tracking-wider";
+const labelStyle = { color: "#627D98", fontFamily: "var(--font-space-mono)" } as React.CSSProperties;
+const helperStyle = { color: "#627D98", fontFamily: "var(--font-space-mono)" } as React.CSSProperties;
+
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, loginWithGoogle, loading, error, clearError } = useAuth();
+  const { register, loginWithGoogle, loading, error, clearError, updatePlayer } = useAuth();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [gender, setGender] = useState<Gender | "">("");
+  const [birthDate, setBirthDate] = useState("");
+  const [hasPlayerExperience, setHasPlayerExperience] = useState(false);
+  const [mbti, setMbti] = useState("");
+  const [disposition, setDisposition] = useState("");
+  const [personalValues, setPersonalValues] = useState("");
+  const [bio, setBio] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [formError, setFormError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [invitedTeamId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("teamId") || "";
+  });
+
+  const isFreeAgent = !invitedTeamId;
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
     setFormError("");
 
-    if (!name.trim()) {
-      setFormError("이름을 입력해주세요");
+    const profile = buildRegistrationProfile({
+      name,
+      email,
+      phone,
+      gender,
+      birthDate,
+      hasPlayerExperience,
+    });
+
+    if (!isValidRegistrationProfile(profile)) {
+      setFormError("이름, 전화번호, 이메일, 성별, 생년월일을 모두 입력해주세요");
       return;
     }
     if (password !== confirmPassword) {
@@ -43,7 +78,32 @@ export default function RegisterPage() {
     }
 
     try {
-      await register({ email, password, name: name.trim(), phone: phone.trim() });
+      await register({
+        email: profile.email,
+        password,
+        name: profile.name,
+        phone: profile.phone,
+        gender: profile.gender as Gender,
+        birthDate: profile.birthDate,
+        hasPlayerExperience: profile.hasPlayerExperience,
+        teamId: invitedTeamId,
+      });
+
+      // 신규 프로필 필드는 store 시그니처 영향 없이 가입 직후 후속 저장으로 결선.
+      const extraUpdate: Record<string, string | undefined> = {};
+      if (mbti.trim()) extraUpdate.mbti = mbti.trim();
+      if (disposition.trim()) extraUpdate.disposition = disposition.trim();
+      if (personalValues.trim()) extraUpdate.personalValues = personalValues.trim();
+      if (isFreeAgent && bio.trim()) extraUpdate.bio = bio.trim();
+      if (Object.keys(extraUpdate).length > 0) {
+        try {
+          await updatePlayer(extraUpdate);
+        } catch (extraErr) {
+          // 보조 저장 실패는 가입 자체를 막지 않음 — 마이페이지에서 재시도 가능.
+          console.warn("[register] optional profile fields update skipped:", extraErr);
+        }
+      }
+
       // 가입 후 관리자 승인 안내(운영 플로우) — fairground 이식.
       setSuccess(true);
     } catch {
@@ -106,6 +166,7 @@ export default function RegisterPage() {
           </h1>
           <p className="text-sm mt-2" style={{ color: "#627D98" }}>
             계정을 만들고 시작하세요
+            {invitedTeamId && " · 팀 초대 링크로 입장"}
           </p>
         </div>
 
@@ -133,7 +194,7 @@ export default function RegisterPage() {
           </div>
           <div className="relative flex justify-center text-xs">
             <span className="px-3" style={{ background: "#0D1B2A", color: "#627D98" }}>
-              또는 이메일로 가입
+              또는 아이디로 가입
             </span>
           </div>
         </div>
@@ -166,6 +227,7 @@ export default function RegisterPage() {
               placeholder="010-0000-0000"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              required
               className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
               style={inputStyle}
             />
@@ -174,11 +236,12 @@ export default function RegisterPage() {
           <div className="space-y-1.5">
             <label className="text-xs font-medium uppercase tracking-wider"
               style={{ color: "#627D98", fontFamily: "var(--font-space-mono)" }}>
-              이메일
+              이메일 또는 아이디
             </label>
             <input
-              type="email"
-              placeholder="email@example.com"
+              type="text"
+              autoComplete="username"
+              placeholder="ccv5 또는 email@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -186,6 +249,149 @@ export default function RegisterPage() {
               style={inputStyle}
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium uppercase tracking-wider"
+                style={{ color: "#627D98", fontFamily: "var(--font-space-mono)" }}>
+                성별
+              </label>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value as Gender | "")}
+                required
+                className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
+                style={inputStyle}
+              >
+                <option value="" style={{ color: "#0D1B2A" }}>선택</option>
+                <option value="male" style={{ color: "#0D1B2A" }}>남성</option>
+                <option value="female" style={{ color: "#0D1B2A" }}>여성</option>
+                <option value="other" style={{ color: "#0D1B2A" }}>기타</option>
+                <option value="prefer_not_to_say" style={{ color: "#0D1B2A" }}>응답 안 함</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium uppercase tracking-wider"
+                style={{ color: "#627D98", fontFamily: "var(--font-space-mono)" }}>
+                생년월일
+              </label>
+              <input
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+                required
+                className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
+                style={inputStyle}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2 rounded-2xl px-4 py-3" style={{ border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)" }}>
+            <p className="text-xs font-medium uppercase tracking-wider" style={{ color: "#627D98", fontFamily: "var(--font-space-mono)" }}>
+              선수 경력 여부
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setHasPlayerExperience(true)}
+                className="rounded-xl py-2.5 text-sm font-bold transition-all"
+                style={{ background: hasPlayerExperience ? "#FFD700" : "rgba(255,255,255,0.06)", color: hasPlayerExperience ? "#0D1B2A" : "#FAFCFF" }}
+              >
+                경력 있음
+              </button>
+              <button
+                type="button"
+                onClick={() => setHasPlayerExperience(false)}
+                className="rounded-xl py-2.5 text-sm font-bold transition-all"
+                style={{ background: !hasPlayerExperience ? "#FFD700" : "rgba(255,255,255,0.06)", color: !hasPlayerExperience ? "#0D1B2A" : "#FAFCFF" }}
+              >
+                없음 / 처음
+              </button>
+            </div>
+          </div>
+
+          {/* ── 프로필 보강(선택 입력) ── */}
+          <div className="space-y-1.5">
+            <label htmlFor="register-mbti" className={labelClass} style={labelStyle}>
+              MBTI
+            </label>
+            <select
+              id="register-mbti"
+              value={mbti}
+              onChange={(e) => setMbti(e.target.value)}
+              className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
+              style={inputStyle}
+            >
+              <option value="" style={{ color: "#0D1B2A" }}>선택 안 함</option>
+              {MBTI_TYPES.map((type) => (
+                <option key={type} value={type} style={{ color: "#0D1B2A" }}>{type}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="register-disposition" className={labelClass} style={labelStyle}>
+              성향
+            </label>
+            <input
+              id="register-disposition"
+              type="text"
+              placeholder="예: 적극적 / 분석적 / 협동적"
+              value={disposition}
+              onChange={(e) => setDisposition(e.target.value)}
+              maxLength={200}
+              aria-describedby="register-disposition-help"
+              className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
+              style={inputStyle}
+            />
+            <p id="register-disposition-help" className="text-[10px] pl-1" style={helperStyle}>
+              한 줄 · 최대 200자 ({disposition.length}/200)
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="register-values" className={labelClass} style={labelStyle}>
+              추구하는 가치관
+            </label>
+            <textarea
+              id="register-values"
+              rows={3}
+              placeholder="내가 그라운드에서 중요하게 여기는 것"
+              value={personalValues}
+              onChange={(e) => setPersonalValues(e.target.value)}
+              maxLength={500}
+              aria-describedby="register-values-help"
+              className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all resize-none"
+              style={inputStyle}
+            />
+            <p id="register-values-help" className="text-[10px] pl-1" style={helperStyle}>
+              최대 500자 ({personalValues.length}/500)
+            </p>
+          </div>
+
+          {/* ── FA(팀 미초대) 전용 자기소개 ── */}
+          {isFreeAgent && (
+            <div className="space-y-1.5">
+              <label htmlFor="register-bio" className={labelClass} style={labelStyle}>
+                자기소개 (FA)
+              </label>
+              <textarea
+                id="register-bio"
+                rows={5}
+                placeholder="내 플레이 스타일·강점·연락처 등을 자유롭게 — 팀 영입 안내에 사용됩니다"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                maxLength={2000}
+                aria-describedby="register-bio-help"
+                className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all resize-none"
+                style={inputStyle}
+              />
+              <p id="register-bio-help" className="text-[10px] pl-1" style={helperStyle}>
+                팀 미초대 가입에만 표시 · 최대 2000자 ({bio.length}/2000)
+              </p>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium uppercase tracking-wider"
