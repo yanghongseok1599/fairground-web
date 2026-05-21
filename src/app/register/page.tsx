@@ -8,11 +8,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { buildRegistrationProfile, isValidRegistrationProfile } from "@/lib/registration-profile";
 import type { Gender } from "@/types";
 
-const inputStyle = {
-  background: "rgba(255,255,255,0.06)",
-  border: "1px solid rgba(255,255,255,0.1)",
-  color: "#FAFCFF",
-} as React.CSSProperties;
+/* ===========================================================
+ * Light theme (White&Blue) — FairGround BrandKit 2026
+ * 모든 다크/노란 액센트는 브랜드 블루·ink 톤으로 통일.
+ * 입력 보더 --color-fg-line-soft, 포커스 링 --color-ring.
+ * =========================================================== */
+
+const inputStyle: React.CSSProperties = {
+  background: "var(--color-fg-paper)",
+  border: "1px solid var(--color-fg-line-soft)",
+  color: "var(--color-fg-ink)",
+};
 
 const MBTI_TYPES = [
   "INTJ", "INTP", "ENTJ", "ENTP",
@@ -22,8 +28,14 @@ const MBTI_TYPES = [
 ] as const;
 
 const labelClass = "text-xs font-medium uppercase tracking-wider";
-const labelStyle = { color: "#627D98", fontFamily: "var(--font-space-mono)" } as React.CSSProperties;
-const helperStyle = { color: "#627D98", fontFamily: "var(--font-space-mono)" } as React.CSSProperties;
+const labelStyle: React.CSSProperties = {
+  color: "var(--color-fg-ink-muted)",
+  fontFamily: "var(--font-space-mono)",
+};
+const helperStyle: React.CSSProperties = {
+  color: "var(--color-fg-ink-muted)",
+  fontFamily: "var(--font-space-mono)",
+};
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -124,14 +136,20 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: "#0D1B2A" }}>
+      <div
+        className="min-h-screen flex items-center justify-center px-6"
+        style={{ background: "var(--color-fg-paper)" }}
+      >
         <div className="w-full max-w-sm text-center space-y-6">
-          <CheckCircle className="mx-auto h-16 w-16" style={{ color: "#00C853" }} />
+          <CheckCircle className="mx-auto h-16 w-16" style={{ color: "var(--primary)" }} />
           <div>
-            <h2 className="text-xl font-bold" style={{ color: "#FAFCFF" }}>
+            <h2 className="text-xl font-bold" style={{ color: "var(--color-fg-ink)" }}>
               가입 완료!
             </h2>
-            <p className="mt-3 text-sm leading-relaxed" style={{ color: "#627D98" }}>
+            <p
+              className="mt-3 text-sm leading-relaxed"
+              style={{ color: "var(--color-fg-ink-muted)" }}
+            >
               계정이 생성되었습니다. 마이페이지에서 선수 정보를 등록할 수 있습니다.
               <br />
               일부 운영 기능은 관리자 승인 후 활성화됩니다.
@@ -140,7 +158,11 @@ export default function RegisterPage() {
           <button
             onClick={() => router.push("/my")}
             className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all hover:opacity-90"
-            style={{ background: "#FFD700", color: "#0D1B2A" }}
+            style={{
+              background: "var(--primary)",
+              color: "var(--color-fg-paper)",
+              boxShadow: "var(--shadow-sm)",
+            }}
           >
             마이페이지로 이동
           </button>
@@ -150,21 +172,32 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6" style={{ background: "#0D1B2A" }}>
-      <div className="w-full max-w-sm space-y-8">
+    <div
+      className="min-h-screen flex items-center justify-center px-6"
+      style={{ background: "var(--color-fg-paper)" }}
+    >
+      <div className="w-full max-w-sm space-y-8 py-12">
 
         {/* Back + Header */}
         <div>
-          <button onClick={() => router.back()}
+          <button
+            onClick={() => router.back()}
             className="flex items-center gap-2 text-sm mb-8 transition-opacity hover:opacity-70"
-            style={{ color: "#627D98" }}>
+            style={{ color: "var(--color-fg-ink-muted)" }}
+          >
             <ArrowLeft className="w-4 h-4" /> 뒤로
           </button>
-          <h1 className="font-black text-3xl leading-tight"
-            style={{ fontFamily: "var(--font-outfit)", letterSpacing: "-1.5px", color: "#FAFCFF" }}>
+          <h1
+            className="font-black text-3xl leading-tight"
+            style={{
+              fontFamily: "var(--font-pretendard)",
+              letterSpacing: "-1.5px",
+              color: "var(--color-fg-ink)",
+            }}
+          >
             회원가입
           </h1>
-          <p className="text-sm mt-2" style={{ color: "#627D98" }}>
+          <p className="text-sm mt-2" style={{ color: "var(--color-fg-ink-muted)" }}>
             계정을 만들고 시작하세요
             {invitedTeamId && " · 팀 초대 링크로 입장"}
           </p>
@@ -176,7 +209,12 @@ export default function RegisterPage() {
           onClick={handleGoogleRegister}
           disabled={loading}
           className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-40"
-          style={{ background: "#fff", color: "#0D1B2A" }}
+          style={{
+            background: "var(--color-fg-paper)",
+            border: "1px solid var(--color-fg-line-soft)",
+            color: "var(--color-fg-ink)",
+            boxShadow: "var(--shadow-sm)",
+          }}
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
@@ -190,10 +228,13 @@ export default function RegisterPage() {
         {/* Divider */}
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t" style={{ borderColor: "rgba(255,255,255,0.1)" }} />
+            <div className="w-full border-t" style={{ borderColor: "var(--color-fg-line-soft)" }} />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="px-3" style={{ background: "#0D1B2A", color: "#627D98" }}>
+            <span
+              className="px-3"
+              style={{ background: "var(--color-fg-paper)", color: "var(--color-fg-ink-muted)" }}
+            >
               또는 아이디로 가입
             </span>
           </div>
@@ -202,27 +243,27 @@ export default function RegisterPage() {
         {/* Form */}
         <form onSubmit={handleRegister} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium uppercase tracking-wider"
-              style={{ color: "#627D98", fontFamily: "var(--font-space-mono)" }}>
+            <label htmlFor="register-name" className={labelClass} style={labelStyle}>
               이름
             </label>
             <input
+              id="register-name"
               type="text"
               placeholder="이름 입력"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
+              className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all focus:ring-2"
               style={inputStyle}
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium uppercase tracking-wider"
-              style={{ color: "#627D98", fontFamily: "var(--font-space-mono)" }}>
+            <label htmlFor="register-phone" className={labelClass} style={labelStyle}>
               전화번호
             </label>
             <input
+              id="register-phone"
               type="tel"
               placeholder="010-0000-0000"
               value={phone}
@@ -234,11 +275,11 @@ export default function RegisterPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium uppercase tracking-wider"
-              style={{ color: "#627D98", fontFamily: "var(--font-space-mono)" }}>
+            <label htmlFor="register-email" className={labelClass} style={labelStyle}>
               이메일 또는 아이디
             </label>
             <input
+              id="register-email"
               type="text"
               autoComplete="username"
               placeholder="ccv5 또는 email@example.com"
@@ -252,31 +293,31 @@ export default function RegisterPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium uppercase tracking-wider"
-                style={{ color: "#627D98", fontFamily: "var(--font-space-mono)" }}>
+              <label htmlFor="register-gender" className={labelClass} style={labelStyle}>
                 성별
               </label>
               <select
+                id="register-gender"
                 value={gender}
                 onChange={(e) => setGender(e.target.value as Gender | "")}
                 required
                 className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
                 style={inputStyle}
               >
-                <option value="" style={{ color: "#0D1B2A" }}>선택</option>
-                <option value="male" style={{ color: "#0D1B2A" }}>남성</option>
-                <option value="female" style={{ color: "#0D1B2A" }}>여성</option>
-                <option value="other" style={{ color: "#0D1B2A" }}>기타</option>
-                <option value="prefer_not_to_say" style={{ color: "#0D1B2A" }}>응답 안 함</option>
+                <option value="">선택</option>
+                <option value="male">남성</option>
+                <option value="female">여성</option>
+                <option value="other">기타</option>
+                <option value="prefer_not_to_say">응답 안 함</option>
               </select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium uppercase tracking-wider"
-                style={{ color: "#627D98", fontFamily: "var(--font-space-mono)" }}>
+              <label htmlFor="register-birth" className={labelClass} style={labelStyle}>
                 생년월일
               </label>
               <input
+                id="register-birth"
                 type="date"
                 value={birthDate}
                 onChange={(e) => setBirthDate(e.target.value)}
@@ -287,24 +328,44 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div className="space-y-2 rounded-2xl px-4 py-3" style={{ border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)" }}>
-            <p className="text-xs font-medium uppercase tracking-wider" style={{ color: "#627D98", fontFamily: "var(--font-space-mono)" }}>
+          <div
+            className="space-y-2 rounded-2xl px-4 py-3"
+            style={{
+              border: "1px solid var(--color-fg-line-soft)",
+              background: "var(--color-fg-paper-2)",
+            }}
+          >
+            <p className="text-xs font-medium uppercase tracking-wider" style={labelStyle}>
               선수 경력 여부
             </p>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setHasPlayerExperience(true)}
+                aria-pressed={hasPlayerExperience}
                 className="rounded-xl py-2.5 text-sm font-bold transition-all"
-                style={{ background: hasPlayerExperience ? "#FFD700" : "rgba(255,255,255,0.06)", color: hasPlayerExperience ? "#0D1B2A" : "#FAFCFF" }}
+                style={{
+                  background: hasPlayerExperience ? "var(--primary)" : "var(--color-fg-paper)",
+                  color: hasPlayerExperience ? "var(--color-fg-paper)" : "var(--color-fg-ink)",
+                  border: `1px solid ${
+                    hasPlayerExperience ? "var(--primary)" : "var(--color-fg-line-soft)"
+                  }`,
+                }}
               >
                 경력 있음
               </button>
               <button
                 type="button"
                 onClick={() => setHasPlayerExperience(false)}
+                aria-pressed={!hasPlayerExperience}
                 className="rounded-xl py-2.5 text-sm font-bold transition-all"
-                style={{ background: !hasPlayerExperience ? "#FFD700" : "rgba(255,255,255,0.06)", color: !hasPlayerExperience ? "#0D1B2A" : "#FAFCFF" }}
+                style={{
+                  background: !hasPlayerExperience ? "var(--primary)" : "var(--color-fg-paper)",
+                  color: !hasPlayerExperience ? "var(--color-fg-paper)" : "var(--color-fg-ink)",
+                  border: `1px solid ${
+                    !hasPlayerExperience ? "var(--primary)" : "var(--color-fg-line-soft)"
+                  }`,
+                }}
               >
                 없음 / 처음
               </button>
@@ -323,9 +384,9 @@ export default function RegisterPage() {
               className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
               style={inputStyle}
             >
-              <option value="" style={{ color: "#0D1B2A" }}>선택 안 함</option>
+              <option value="">선택 안 함</option>
               {MBTI_TYPES.map((type) => (
-                <option key={type} value={type} style={{ color: "#0D1B2A" }}>{type}</option>
+                <option key={type} value={type}>{type}</option>
               ))}
             </select>
           </div>
@@ -394,11 +455,11 @@ export default function RegisterPage() {
           )}
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium uppercase tracking-wider"
-              style={{ color: "#627D98", fontFamily: "var(--font-space-mono)" }}>
+            <label htmlFor="register-password" className={labelClass} style={labelStyle}>
               비밀번호
             </label>
             <input
+              id="register-password"
               type="password"
               placeholder="6자 이상 입력"
               value={password}
@@ -410,11 +471,11 @@ export default function RegisterPage() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium uppercase tracking-wider"
-              style={{ color: "#627D98", fontFamily: "var(--font-space-mono)" }}>
+            <label htmlFor="register-password2" className={labelClass} style={labelStyle}>
               비밀번호 확인
             </label>
             <input
+              id="register-password2"
               type="password"
               placeholder="비밀번호 다시 입력"
               value={confirmPassword}
@@ -426,21 +487,37 @@ export default function RegisterPage() {
           </div>
 
           {(formError || error) && (
-            <p className="text-xs px-1" style={{ color: "#FF6B6B" }}>{formError || error}</p>
+            <p
+              className="text-xs px-1"
+              style={{ color: "var(--destructive)" }}
+              role="alert"
+              aria-live="polite"
+            >
+              {formError || error}
+            </p>
           )}
 
           <button
             type="submit"
             disabled={loading}
             className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-40 mt-2"
-            style={{ background: "#FFD700", color: "#0D1B2A" }}>
+            style={{
+              background: "var(--primary)",
+              color: "var(--color-fg-paper)",
+              boxShadow: "var(--shadow-sm)",
+            }}
+          >
             {loading ? "처리 중..." : "가입하기"}
           </button>
         </form>
 
-        <p className="text-center text-sm" style={{ color: "#627D98" }}>
+        <p className="text-center text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>
           이미 계정이 있으신가요?{" "}
-          <Link href="/login" style={{ color: "#00C853" }} className="font-semibold hover:opacity-80 transition-opacity">
+          <Link
+            href="/login"
+            style={{ color: "var(--primary)" }}
+            className="font-semibold hover:opacity-80 transition-opacity"
+          >
             로그인
           </Link>
         </p>
