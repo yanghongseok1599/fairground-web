@@ -11,6 +11,10 @@ import type {
   Tournament,
   TournamentGroup,
   Season,
+  BoardPost,
+  BoardComment,
+  Notice,
+  PostCategory,
 } from "@/types";
 import type { Database } from "@/lib/database.types";
 
@@ -26,6 +30,15 @@ type MatchEventInsert = Database["public"]["Tables"]["match_events"]["Insert"];
 type TournamentRow = Database["public"]["Tables"]["tournaments"]["Row"];
 type TournamentInsert = Database["public"]["Tables"]["tournaments"]["Insert"];
 type SeasonRow = Database["public"]["Tables"]["seasons"]["Row"];
+
+type NoticeRow = Database["public"]["Tables"]["notices"]["Row"];
+type NoticeInsert = Database["public"]["Tables"]["notices"]["Insert"];
+type NoticeUpdate = Database["public"]["Tables"]["notices"]["Update"];
+type BoardPostRow = Database["public"]["Tables"]["board_posts"]["Row"];
+type BoardPostInsert = Database["public"]["Tables"]["board_posts"]["Insert"];
+type BoardPostUpdate = Database["public"]["Tables"]["board_posts"]["Update"];
+type BoardCommentRow = Database["public"]["Tables"]["board_comments"]["Row"];
+type BoardCommentInsert = Database["public"]["Tables"]["board_comments"]["Insert"];
 
 const ts = (s: string | null): number => (s ? new Date(s).getTime() : 0);
 
@@ -304,5 +317,141 @@ export function rowToSeason(r: SeasonRow): Season {
     tournamentIds: [],
     startDate: r.start_date ?? "",
     endDate: r.end_date ?? "",
+  };
+}
+
+// ===== Notice =====
+/**
+ * profiles 조인 결과는 select 형태에 따라 객체 또는 배열로 올 수 있어 둘 다 허용.
+ * RLS·스키마 변경 없이 작성자 이름만 클라에서 표시한다.
+ */
+type AuthorJoin = { name: string } | { name: string }[] | null | undefined;
+
+function pickAuthorName(j: AuthorJoin): string | undefined {
+  if (!j) return undefined;
+  if (Array.isArray(j)) return j[0]?.name;
+  return j.name;
+}
+
+type NoticeRowWithAuthor = NoticeRow & { profiles?: AuthorJoin };
+
+export function rowToNotice(r: NoticeRowWithAuthor): Notice {
+  return {
+    id: r.id,
+    title: r.title,
+    body: r.body,
+    category: r.category,
+    isPinned: r.is_pinned,
+    isImportant: r.is_important,
+    authorId: r.author_id ?? undefined,
+    authorName: pickAuthorName(r.profiles),
+    publishedAt: ts(r.published_at),
+    createdAt: ts(r.created_at),
+    updatedAt: ts(r.updated_at),
+  };
+}
+
+export interface NoticeInputCreate {
+  title: string;
+  body: string;
+  category: string;
+  isPinned?: boolean;
+  isImportant?: boolean;
+  authorId?: string | null;
+}
+
+export function noticeToInsert(d: NoticeInputCreate): NoticeInsert {
+  return {
+    title: d.title,
+    body: d.body,
+    category: d.category,
+    is_pinned: d.isPinned ?? false,
+    is_important: d.isImportant ?? false,
+    author_id: d.authorId ?? null,
+  };
+}
+
+export function noticePatchToRow(d: Partial<NoticeInputCreate>): NoticeUpdate {
+  const u: NoticeUpdate = {};
+  if (d.title !== undefined) u.title = d.title;
+  if (d.body !== undefined) u.body = d.body;
+  if (d.category !== undefined) u.category = d.category;
+  if (d.isPinned !== undefined) u.is_pinned = d.isPinned;
+  if (d.isImportant !== undefined) u.is_important = d.isImportant;
+  // updated_at 은 DB 트리거가 갱신하지 않으므로 클라에서 명시.
+  u.updated_at = new Date().toISOString();
+  return u;
+}
+
+// ===== Board Post =====
+type BoardPostRowWithAuthor = BoardPostRow & { profiles?: AuthorJoin };
+
+export function rowToBoardPost(r: BoardPostRowWithAuthor): BoardPost {
+  return {
+    id: r.id,
+    title: r.title,
+    body: r.body,
+    category: r.category,
+    authorId: r.author_id,
+    authorName: pickAuthorName(r.profiles),
+    viewCount: r.view_count,
+    commentCount: r.comment_count,
+    createdAt: ts(r.created_at),
+    updatedAt: ts(r.updated_at),
+  };
+}
+
+export interface BoardPostInputCreate {
+  title: string;
+  body: string;
+  category: PostCategory;
+  authorId: string;
+}
+
+export function boardPostToInsert(d: BoardPostInputCreate): BoardPostInsert {
+  return {
+    title: d.title,
+    body: d.body,
+    category: d.category,
+    author_id: d.authorId,
+  };
+}
+
+export function boardPostPatchToRow(
+  d: Partial<Pick<BoardPostInputCreate, "title" | "body" | "category">>,
+): BoardPostUpdate {
+  const u: BoardPostUpdate = {};
+  if (d.title !== undefined) u.title = d.title;
+  if (d.body !== undefined) u.body = d.body;
+  if (d.category !== undefined) u.category = d.category;
+  u.updated_at = new Date().toISOString();
+  return u;
+}
+
+// ===== Board Comment =====
+type BoardCommentRowWithAuthor = BoardCommentRow & { profiles?: AuthorJoin };
+
+export function rowToBoardComment(r: BoardCommentRowWithAuthor): BoardComment {
+  return {
+    id: r.id,
+    postId: r.post_id,
+    body: r.body,
+    authorId: r.author_id,
+    authorName: pickAuthorName(r.profiles),
+    createdAt: ts(r.created_at),
+  };
+}
+
+export interface BoardCommentInputCreate {
+  postId: string;
+  body: string;
+  authorId: string;
+}
+
+export function boardCommentToInsert(d: BoardCommentInputCreate): BoardCommentInsert {
+  return {
+    post_id: d.postId,
+    body: d.body,
+    author_id: d.authorId,
   };
 }

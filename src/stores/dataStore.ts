@@ -14,6 +14,17 @@ import {
   matchToInsert,
   rowToTournament,
   rowToSeason,
+  tournamentToInsert,
+  rowToNotice,
+  noticeToInsert,
+  noticePatchToRow,
+  rowToBoardPost,
+  boardPostToInsert,
+  boardPostPatchToRow,
+  rowToBoardComment,
+  boardCommentToInsert,
+  type NoticeInputCreate,
+  type BoardPostInputCreate,
 } from "@/lib/mappers";
 import { calculateCardRating } from "@/utils/formatters";
 import type {
@@ -26,6 +37,10 @@ import type {
   Tournament,
   Season,
   TeamStanding,
+  Notice,
+  BoardPost,
+  BoardComment,
+  PostCategory,
 } from "@/types";
 
 // 단일앱 통합 store: 공개사이트 read(RLS anon) + 운영 write(인증/RLS) 통합.
@@ -133,6 +148,7 @@ interface DataState {
   // --- Write (운영/심판 콘솔 — fairground 풀 구현 이식) ---
   createTeam: (team: Omit<Team, "id">) => Promise<string>;
   updateTeam: (id: string, data: Partial<Team>) => Promise<void>;
+  createTournament: (tournament: Omit<Tournament, "id">) => Promise<string>;
   createMatch: (tournamentId: string, match: Omit<Match, "id">) => Promise<string>;
   startMatch: (tournamentId: string, matchId: string) => Promise<void>;
   pauseMatch: (matchId: string) => Promise<void>;
@@ -146,6 +162,28 @@ interface DataState {
   cancelMatchEvent: (tournamentId: string, matchId: string, eventId: string) => Promise<void>;
   updateMatchTimer: (matchId: string, elapsedSeconds: number, currentHalf: 1 | 2) => Promise<void>;
   setMatchMom: (tournamentId: string, matchId: string, playerId: string) => Promise<void>;
+
+  // --- Notices (운영 → 회원 일방향, RLS: 누구나 read / is_referee_or_admin 만 write) ---
+  fetchNotices: (opts?: { category?: string }) => Promise<Notice[]>;
+  fetchNotice: (id: string) => Promise<Notice | null>;
+  createNotice: (input: NoticeInputCreate) => Promise<string>;
+  updateNotice: (id: string, patch: Partial<NoticeInputCreate>) => Promise<void>;
+  deleteNotice: (id: string) => Promise<void>;
+
+  // --- Board posts (자유게시판, RLS: 누구나 read / 본인만 write·update / 본인+admin delete) ---
+  fetchBoardPosts: (opts?: { category?: PostCategory; sort?: "recent" | "comments" }) => Promise<BoardPost[]>;
+  fetchBoardPost: (id: string, opts?: { bumpView?: boolean }) => Promise<BoardPost | null>;
+  createBoardPost: (input: BoardPostInputCreate) => Promise<string>;
+  updateBoardPost: (
+    id: string,
+    patch: Partial<Pick<BoardPostInputCreate, "title" | "body" | "category">>,
+  ) => Promise<void>;
+  deleteBoardPost: (id: string) => Promise<void>;
+
+  // --- Board comments ---
+  fetchComments: (postId: string) => Promise<BoardComment[]>;
+  addComment: (postId: string, body: string, authorId: string) => Promise<string>;
+  deleteComment: (commentId: string) => Promise<void>;
 }
 
 export const useDataStore = create<DataState>((setState, getState) => ({
@@ -397,7 +435,11 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       setState((s) => ({ teams: { ...s.teams, [id]: newTeam } }));
       return id;
     }
-    const { data, error } = await supabase.from("teams").insert(teamToInsert(team)).select("*").single();
+    const { data, error } = await supabase
+      .from("teams")
+      .insert(teamToInsert({ ...team, captainId: team.captainId || undefined }))
+      .select("*")
+      .single();
     if (error || !data) throw new Error(error?.message ?? "createTeam failed");
     const created = rowToTeam(data);
     setState((s) => ({ teams: { ...s.teams, [created.id]: created } }));
@@ -419,6 +461,27 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     setState((s) => ({
       teams: { ...s.teams, [id]: s.teams[id] ? { ...s.teams[id], ...data } : s.teams[id] },
     }));
+  },
+
+  createTournament: async (tournament) => {
+    if (isDemoMode) {
+      const id = generateId();
+      const newTournament = { ...tournament, id };
+      const tournaments = getLocalTournaments();
+      tournaments[id] = newTournament;
+      saveLocalTournaments(tournaments);
+      setState((s) => ({ tournaments: { ...s.tournaments, [id]: newTournament } }));
+      return id;
+    }
+    const { data, error } = await supabase
+      .from("tournaments")
+      .insert(tournamentToInsert(tournament))
+      .select("*")
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "createTournament failed");
+    const created = rowToTournament(data);
+    setState((s) => ({ tournaments: { ...s.tournaments, [created.id]: created } }));
+    return created.id;
   },
 
   createMatch: async (tournamentId, match) => {
@@ -672,5 +735,148 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     }
     const { error } = await supabase.from("matches").update({ mom_player_id: playerId }).eq("id", matchId);
     if (error) { console.error("[dataStore] setMatchMom:", error.message); throw new Error(error.message); }
+  },
+
+  // ===== Notices =====
+  // 데모 모드는 비활성(Supabase 전용). 데모 환경에서는 빈 배열을 안전히 반환.
+  fetchNotices: async (opts) => {
+    if (isDemoMode) return [];
+    let q = supabase
+      .from("notices")
+      .select("*, profiles:author_id(name)")
+      .order("is_pinned", { ascending: false })
+      .order("published_at", { ascending: false });
+    if (opts?.category) q = q.eq("category", opts.category);
+    const { data, error } = await q;
+    if (error) {
+      console.error("[dataStore] fetchNotices:", error.message);
+      return [];
+    }
+    return (data ?? []).map(rowToNotice);
+  },
+
+  fetchNotice: async (id) => {
+    if (isDemoMode) return null;
+    const { data, error } = await supabase
+      .from("notices")
+      .select("*, profiles:author_id(name)")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) { console.error("[dataStore] fetchNotice:", error.message); return null; }
+    return data ? rowToNotice(data) : null;
+  },
+
+  createNotice: async (input) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 공지를 작성할 수 없습니다");
+    const { data, error } = await supabase
+      .from("notices")
+      .insert(noticeToInsert(input))
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "createNotice failed");
+    return data.id;
+  },
+
+  updateNotice: async (id, patch) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 공지를 수정할 수 없습니다");
+    const { error } = await supabase.from("notices").update(noticePatchToRow(patch)).eq("id", id);
+    if (error) { console.error("[dataStore] updateNotice:", error.message); throw new Error(error.message); }
+  },
+
+  deleteNotice: async (id) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 공지를 삭제할 수 없습니다");
+    const { error } = await supabase.from("notices").delete().eq("id", id);
+    if (error) { console.error("[dataStore] deleteNotice:", error.message); throw new Error(error.message); }
+  },
+
+  // ===== Board posts =====
+  fetchBoardPosts: async (opts) => {
+    if (isDemoMode) return [];
+    const sortField = opts?.sort === "comments" ? "comment_count" : "created_at";
+    let q = supabase
+      .from("board_posts")
+      .select("*, profiles:author_id(name)")
+      .order(sortField, { ascending: false });
+    if (opts?.category) q = q.eq("category", opts.category);
+    const { data, error } = await q;
+    if (error) {
+      console.error("[dataStore] fetchBoardPosts:", error.message);
+      return [];
+    }
+    return (data ?? []).map(rowToBoardPost);
+  },
+
+  fetchBoardPost: async (id, opts) => {
+    if (isDemoMode) return null;
+    // 조회수 증가는 멱등이 아니므로 페이지에서 useRef 가드로 1회만 호출.
+    if (opts?.bumpView) {
+      const { error: bumpErr } = await supabase.rpc("bump_post_view", { p_post_id: id });
+      if (bumpErr) console.error("[dataStore] bump_post_view:", bumpErr.message);
+    }
+    const { data, error } = await supabase
+      .from("board_posts")
+      .select("*, profiles:author_id(name)")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) { console.error("[dataStore] fetchBoardPost:", error.message); return null; }
+    return data ? rowToBoardPost(data) : null;
+  },
+
+  createBoardPost: async (input) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 게시글을 작성할 수 없습니다");
+    const { data, error } = await supabase
+      .from("board_posts")
+      .insert(boardPostToInsert(input))
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "createBoardPost failed");
+    return data.id;
+  },
+
+  updateBoardPost: async (id, patch) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 게시글을 수정할 수 없습니다");
+    const { error } = await supabase
+      .from("board_posts")
+      .update(boardPostPatchToRow(patch))
+      .eq("id", id);
+    if (error) { console.error("[dataStore] updateBoardPost:", error.message); throw new Error(error.message); }
+  },
+
+  deleteBoardPost: async (id) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 게시글을 삭제할 수 없습니다");
+    const { error } = await supabase.from("board_posts").delete().eq("id", id);
+    if (error) { console.error("[dataStore] deleteBoardPost:", error.message); throw new Error(error.message); }
+  },
+
+  // ===== Board comments =====
+  fetchComments: async (postId) => {
+    if (isDemoMode) return [];
+    const { data, error } = await supabase
+      .from("board_comments")
+      .select("*, profiles:author_id(name)")
+      .eq("post_id", postId)
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.error("[dataStore] fetchComments:", error.message);
+      return [];
+    }
+    return (data ?? []).map(rowToBoardComment);
+  },
+
+  addComment: async (postId, body, authorId) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 댓글을 작성할 수 없습니다");
+    const { data, error } = await supabase
+      .from("board_comments")
+      .insert(boardCommentToInsert({ postId, body, authorId }))
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "addComment failed");
+    return data.id;
+  },
+
+  deleteComment: async (commentId) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 댓글을 삭제할 수 없습니다");
+    const { error } = await supabase.from("board_comments").delete().eq("id", commentId);
+    if (error) { console.error("[dataStore] deleteComment:", error.message); throw new Error(error.message); }
   },
 }));

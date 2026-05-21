@@ -206,3 +206,58 @@ export interface PlayerBadge {
   progress: number;
   isEarned: boolean;
 }
+
+// ===== Board / Notices =====
+export type PostCategory = "자유" | "매치후기" | "팁" | "모집" | "질문";
+export const POST_CATEGORIES: readonly PostCategory[] = [
+  "자유",
+  "매치후기",
+  "팁",
+  "모집",
+  "질문",
+] as const;
+
+export type NoticeCategory = "운영" | "일정" | "결과" | "규정";
+export const NOTICE_CATEGORIES: readonly NoticeCategory[] = [
+  "운영",
+  "일정",
+  "결과",
+  "규정",
+] as const;
+
+export interface BoardPost {
+  id: string;
+  title: string;
+  body: string;
+  category: PostCategory;
+  authorId: string;
+  authorName?: string;
+  viewCount: number;
+  commentCount: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface BoardComment {
+  id: string;
+  postId: string;
+  body: string;
+  authorId: string;
+  authorName?: string;
+  createdAt: number;
+}
+
+export interface Notice {
+  id: string;
+  title: string;
+  body: string;
+  /** 자유 형식 카테고리 — UI는 NOTICE_CATEGORIES 제안값을 사용. */
+  category: string;
+  isPinned: boolean;
+  isImportant: boolean;
+  authorId?: string;
+  authorName?: string;
+  publishedAt: number;
+  createdAt: number;
+  updatedAt: number;
+}
