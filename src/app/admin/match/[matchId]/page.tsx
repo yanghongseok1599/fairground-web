@@ -77,7 +77,9 @@ function AdminMatchControl() {
   const matchFinished =
     (mc.liveMatch?.status ?? mc.match?.status) === "finished";
   useEffect(() => {
-    if (matchFinished && endDialogOpen) setEndDialogOpen(false);
+    if (matchFinished && endDialogOpen) {
+      queueMicrotask(() => setEndDialogOpen(false));
+    }
   }, [matchFinished, endDialogOpen]);
 
   if (!tournamentId) {

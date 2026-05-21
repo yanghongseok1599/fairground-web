@@ -28,7 +28,7 @@ function LoginForm() {
     e.preventDefault();
     clearError();
     try {
-      await login(email, password);
+      await login(email.trim(), password.trim());
       router.push(returnTo);
     } catch {
       // error 는 store 에 표면화됨 (aria-describedby 로 노출)
@@ -67,13 +67,13 @@ function LoginForm() {
           <CardContent className="p-6">
             <form onSubmit={handleLogin} className="space-y-4" noValidate>
               <div className="space-y-2">
-                <Label htmlFor="email">이메일</Label>
+                <Label htmlFor="email">아이디 또는 이메일</Label>
                 <Input
                   id="email"
                   name="email"
-                  type="email"
-                  autoComplete="email"
-                  placeholder="email@example.com"
+                  type="text"
+                  autoComplete="username"
+                  placeholder="ccv1599 또는 email@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required

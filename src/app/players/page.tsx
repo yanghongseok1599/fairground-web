@@ -20,7 +20,9 @@ export default function PlayersPage() {
 
   useEffect(() => {
     store.fetchPlayers().then((list) => {
-      const approved = list.filter((p) => p.isApproved).sort((a, b) => b.cardRating - a.cardRating);
+      const approved = list
+        .filter((p) => p.isApproved && !p.teamId)
+        .sort((a, b) => b.cardRating - a.cardRating);
       setPlayers(approved);
       setLoading(false);
     });
@@ -48,11 +50,11 @@ export default function PlayersPage() {
           <p className="text-sm mb-6" style={{ color: "var(--color-fg-ink-dim)" }}>{players.length}명의 등록 선수</p>
           <div className="flex flex-wrap items-center gap-4">
             <a
-              href="/login"
+              href="/my/player-setup"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
               style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
             >
-              개인 가입 후 선수 등록 →
+              선수 카드 등록하기 →
             </a>
             <p className="text-xs" style={{ color: "var(--color-fg-ink-dim)", fontFamily: "var(--font-space-mono)" }}>
               팀 소속 없이 개인으로 가입해 리그에 참가할 수 있습니다

@@ -1,11 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Shield, Users, UserCheck, AlertTriangle, Gamepad2 } from "lucide-react";
+import { AlertTriangle, Gamepad2, Shield, ShieldCheck, Sparkles, UserCheck, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { AdminHeader } from "@/components/admin-header";
 import { AdminGuard } from "@/components/admin-guard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AdminShell, AdminTile } from "@/components/admin-shell";
+import { getAdminMenuItems } from "@/lib/admin-menu";
+
+const ICONS = {
+  matches: Gamepad2,
+  players: UserCheck,
+  referees: ShieldCheck,
+  teams: Users,
+  penalties: AlertTriangle,
+};
 
 export default function AdminPage() {
   return (
@@ -19,75 +27,58 @@ function AdminDashboard() {
   const { player } = useAuth();
   if (!player) return null;
 
-  const menuItems = [
-    {
-      title: "경기 관리",
-      description: "라이브 경기 운영, 타이머, 스코어 입력",
-      icon: Gamepad2,
-      href: "/admin/matches",
-      roles: ["admin", "referee"],
-    },
-    {
-      title: "선수 승인",
-      description: "가입 신청 선수 승인/거부",
-      icon: UserCheck,
-      href: "/admin",
-      roles: ["admin"],
-    },
-    {
-      title: "팀 관리",
-      description: "팀 생성 승인, 팀 정보 관리",
-      icon: Users,
-      href: "/admin",
-      roles: ["admin"],
-    },
-    {
-      title: "페널티 관리",
-      description: "페널티 부여, 오심 정정",
-      icon: AlertTriangle,
-      href: "/admin",
-      roles: ["admin"],
-    },
-  ];
-
-  const visibleItems = menuItems.filter((item) =>
-    item.roles.includes(player.role),
-  );
+  const visibleItems = getAdminMenuItems(player.role);
 
   return (
-    <div className="min-h-screen pb-4" style={{ background: "var(--background)" }}>
-      <AdminHeader title="관리자" />
-
-      <div className="mx-auto max-w-md space-y-4 p-4">
-        <div className="flex items-center gap-2">
-          <Shield className="h-5 w-5" style={{ color: "var(--accent-gold)" }} />
-          <span className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-            {player.role === "admin" ? "관리자" : "심판"} - {player.name}
-          </span>
+    <AdminShell
+      backHref="/"
+      backLabel="사이트로 돌아가기"
+      eyebrow="FAIRGROUND CONTROL ROOM"
+      title="운영 콘솔"
+      description="FairGround의 경기, 선수카드, 팀 승인, 페널티 운영을 브랜드 사이트와 같은 스타디움 라이트 컨셉에서 관리합니다."
+      aside={
+        <div
+          className="border p-6"
+          style={{
+            background: "rgba(255,255,255,0.82)",
+            borderColor: "rgba(0,71,171,0.16)",
+            boxShadow: "var(--shadow-md)",
+          }}
+        >
+          <Sparkles className="mb-5 h-7 w-7" style={{ color: "var(--primary)" }} />
+          <div className="fg-label text-[10px]" style={{ color: "var(--color-fg-ink-muted)" }}>SIGNED IN</div>
+          <div className="mt-2 fg-display text-3xl font-black" style={{ color: "var(--color-fg-ink)" }}>{player.name}</div>
+          <div className="mt-5 inline-flex items-center gap-2 border px-3 py-1.5 text-xs font-bold" style={{ borderColor: "rgba(0,71,171,0.18)", background: "var(--color-fg-paper-3)", color: "var(--primary)" }}>
+            <Shield className="h-3.5 w-3.5" />
+            {player.role === "admin" ? "관리자" : "심판"}
+          </div>
         </div>
-
-        {visibleItems.map((item) => (
-          <Link key={item.title} href={item.href}>
-            <Card className="transition-shadow hover:shadow-md">
-              <CardHeader className="flex flex-row items-center gap-3 pb-2">
-                <item.icon
-                  className="h-5 w-5"
-                  style={{ color: "var(--accent-gold)" }}
-                />
-                <CardTitle className="text-base">{item.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p
-                  className="text-sm"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  {item.description}
-                </p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+      }
+    >
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {visibleItems.map((item, index) => {
+          const Icon = ICONS[item.metricKey];
+          return (
+            <AdminTile
+              key={item.href}
+              href={item.href}
+              icon={Icon}
+              index={`0${index + 1}`}
+              title={item.title}
+              description={item.description}
+              meta={item.metricKey.toUpperCase()}
+            />
+          );
+        })}
       </div>
-    </div>
+      <div className="mt-8 flex flex-wrap gap-3">
+        <Link href="/teams" className="inline-flex min-h-[48px] items-center border px-6 fg-display text-sm transition-transform hover:-translate-y-0.5" style={{ borderColor: "rgba(0,71,171,0.20)", background: "rgba(255,255,255,0.72)", color: "var(--primary)" }}>
+          공개 팀 페이지 확인
+        </Link>
+        <Link href="/live" className="inline-flex min-h-[48px] items-center px-6 fg-display text-sm transition-transform hover:-translate-y-0.5" style={{ background: "var(--primary)", color: "var(--primary-foreground)", boxShadow: "0 14px 30px rgba(0,71,171,0.20)" }}>
+          라이브 화면 보기
+        </Link>
+      </div>
+    </AdminShell>
   );
 }

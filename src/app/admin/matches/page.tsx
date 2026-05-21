@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
-import { AdminHeader } from "@/components/admin-header";
 import { AdminLoading } from "@/components/admin-loading";
 import { AdminGuard } from "@/components/admin-guard";
+import { AdminShell } from "@/components/admin-shell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,8 +26,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Circle } from "lucide-react";
+import { Plus, Circle, Wand2 } from "lucide-react";
 import type { Tournament, Match, Team } from "@/types";
+import { buildAutoGroups, buildGroupRoundRobinMatches, recommendGroupCount } from "@/lib/auto-matchmaking";
+import { buildTournamentDraft, isValidTournamentDraft } from "@/lib/tournament-admin";
+import { setTournamentGroups } from "@/lib/admin-actions";
 
 type MatchFilter = "all" | "scheduled" | "live" | "finished";
 
@@ -51,6 +55,15 @@ function AdminMatches() {
   const [filter, setFilter] = useState<MatchFilter>("all");
   const [loading, setLoading] = useState(true);
 
+  // New tournament dialog
+  const [tournamentDialogOpen, setTournamentDialogOpen] = useState(false);
+  const [newTournamentName, setNewTournamentName] = useState("");
+  const [newTournamentStartDate, setNewTournamentStartDate] = useState("");
+  const [newTournamentEndDate, setNewTournamentEndDate] = useState("");
+  const [newTournamentLocation, setNewTournamentLocation] = useState("");
+  const [creatingTournament, setCreatingTournament] = useState(false);
+  const [tournamentMessage, setTournamentMessage] = useState("");
+
   // New match dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newTournamentId, setNewTournamentId] = useState("");
@@ -58,6 +71,14 @@ function AdminMatches() {
   const [newAwayTeamId, setNewAwayTeamId] = useState("");
   const [newRound, setNewRound] = useState("1");
   const [creating, setCreating] = useState(false);
+
+  // Auto grouping/matching dialog
+  const [autoDialogOpen, setAutoDialogOpen] = useState(false);
+  const [autoTournamentId, setAutoTournamentId] = useState("");
+  const [autoGroupCount, setAutoGroupCount] = useState("2");
+  const [autoStartRound, setAutoStartRound] = useState("1");
+  const [autoGenerating, setAutoGenerating] = useState(false);
+  const [autoMessage, setAutoMessage] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -147,6 +168,40 @@ function AdminMatches() {
     }
   };
 
+  const handleCreateTournament = async () => {
+    const draft = buildTournamentDraft({
+      name: newTournamentName,
+      startDate: newTournamentStartDate,
+      endDate: newTournamentEndDate,
+      location: newTournamentLocation,
+    });
+    if (!isValidTournamentDraft(draft)) {
+      setTournamentMessage("대회명, 시작일, 장소를 모두 입력해주세요.");
+      return;
+    }
+
+    setCreatingTournament(true);
+    setTournamentMessage("");
+    try {
+      const tournamentId = await store.createTournament(draft);
+      const createdTournament = { ...draft, id: tournamentId };
+      setTournaments((prev) => [createdTournament, ...prev]);
+      setMatchesByTournament((prev) => ({ ...prev, [tournamentId]: [] }));
+      setNewTournamentId(tournamentId);
+      setAutoTournamentId(tournamentId);
+      setNewTournamentName("");
+      setNewTournamentStartDate("");
+      setNewTournamentEndDate("");
+      setNewTournamentLocation("");
+      setTournamentMessage("대회가 추가되었습니다.");
+      setTournamentDialogOpen(false);
+    } catch (error) {
+      setTournamentMessage(error instanceof Error ? error.message : "대회 추가에 실패했습니다.");
+    } finally {
+      setCreatingTournament(false);
+    }
+  };
+
   const handleCreateMatch = async () => {
     if (!newTournamentId || !newHomeTeamId || !newAwayTeamId) return;
     if (newHomeTeamId === newAwayTeamId) return;
@@ -215,14 +270,68 @@ function AdminMatches() {
     ? getTeamsForTournament(newTournamentId)
     : [];
   const teamList = Object.values(teams);
+  const approvedTeamList = teamList.filter((team) => team.isApproved);
+  const selectedAutoTournament = tournaments.find((t) => t.id === autoTournamentId);
+  const recommendedAutoGroupCount = recommendGroupCount(approvedTeamList.length);
+
+  const handleAutoGenerate = async () => {
+    if (!autoTournamentId) return;
+    setAutoMessage("");
+    const eligibleTeams = approvedTeamList.map((team) => ({
+      id: team.id,
+      name: team.name,
+      points: team.seasonStats?.points ?? 0,
+      goalDifference: team.seasonStats?.goalDifference ?? 0,
+      goalsFor: team.seasonStats?.goalsFor ?? 0,
+    }));
+    if (eligibleTeams.length < 2) {
+      setAutoMessage("승인된 팀이 2팀 이상 필요합니다.");
+      return;
+    }
+
+    setAutoGenerating(true);
+    try {
+      const groupCount = Math.max(1, Math.min(parseInt(autoGroupCount, 10) || recommendedAutoGroupCount, eligibleTeams.length));
+      const startRound = parseInt(autoStartRound, 10) || 1;
+      const groups = buildAutoGroups(eligibleTeams, groupCount);
+      const generatedMatches = buildGroupRoundRobinMatches(groups, eligibleTeams, autoTournamentId, startRound);
+      const existingMatches = matchesByTournament[autoTournamentId] || [];
+      const existingPairKeys = new Set(
+        existingMatches.map((match) => [match.homeTeamId, match.awayTeamId].sort().join(":"))
+      );
+      const matchesToCreate = generatedMatches.filter(
+        (match) => !existingPairKeys.has([match.homeTeamId, match.awayTeamId].sort().join(":"))
+      );
+
+      await setTournamentGroups(autoTournamentId, groups);
+      const createdMatches: Match[] = [];
+      for (const match of matchesToCreate) {
+        const matchId = await store.createMatch(autoTournamentId, match);
+        createdMatches.push({ ...match, id: matchId });
+      }
+
+      setTournaments((prev) => prev.map((tournament) => tournament.id === autoTournamentId ? { ...tournament, groups } : tournament));
+      setMatchesByTournament((prev) => ({
+        ...prev,
+        [autoTournamentId]: [...(prev[autoTournamentId] || []), ...createdMatches],
+      }));
+      setAutoMessage(`${groups.length}개 조 편성, 예정 경기 ${createdMatches.length}개 생성 완료`);
+    } catch (error) {
+      setAutoMessage(error instanceof Error ? error.message : "자동 조편성에 실패했습니다.");
+    } finally {
+      setAutoGenerating(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen pb-4" style={{ background: "var(--background)" }}>
-      <AdminHeader title="경기 관리" />
-
-      <div className="mx-auto max-w-md space-y-4 p-4">
+    <AdminShell
+      eyebrow="MATCH OPERATIONS"
+      title="경기 관리"
+      description="대회 생성부터 자동 조편성, 경기 생성, 라이브 스코어 입력까지 현장 운영 흐름을 한 화면에서 처리합니다."
+    >
+      <div className="space-y-6">
         {/* Filter */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {(["all", "scheduled", "live", "finished"] as MatchFilter[]).map(
             (f) => (
               <Button
@@ -345,8 +454,176 @@ function AdminMatches() {
           })
         )}
 
-        {/* New Match Button */}
         {player?.role === "admin" && (
+          <div className="grid gap-3 md:grid-cols-3">
+          <Dialog open={tournamentDialogOpen} onOpenChange={(open) => {
+            setTournamentDialogOpen(open);
+            if (open) setTournamentMessage("");
+          }}>
+            <DialogTrigger asChild>
+              <Button className="min-h-[44px] w-full">
+                <Plus className="mr-2 h-4 w-4" />대회 추가
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>대회 추가</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">대회명</label>
+                  <Input
+                    value={newTournamentName}
+                    onChange={(event) => setNewTournamentName(event.target.value)}
+                    placeholder="예: 2026 봄 리그"
+                  />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">시작일</label>
+                    <Input
+                      type="date"
+                      value={newTournamentStartDate}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setNewTournamentStartDate(value);
+                        if (newTournamentEndDate && value && newTournamentEndDate < value) {
+                          setNewTournamentEndDate(value);
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">종료일 <span style={{ color: "var(--muted-foreground)" }}>(선택)</span></label>
+                    <Input
+                      type="date"
+                      value={newTournamentEndDate}
+                      min={newTournamentStartDate || undefined}
+                      onChange={(event) => setNewTournamentEndDate(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                  하루 대회는 시작일만 선택하고, 양일 이상 대회는 종료일도 선택하세요.
+                </p>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">장소</label>
+                  <Input
+                    value={newTournamentLocation}
+                    onChange={(event) => setNewTournamentLocation(event.target.value)}
+                    placeholder="예: 서울 풋살파크"
+                  />
+                </div>
+                {tournamentMessage && (
+                  <p className="text-sm" style={{ color: tournamentMessage.includes("추가") ? "var(--primary)" : "var(--destructive)" }}>
+                    {tournamentMessage}
+                  </p>
+                )}
+                <Button
+                  className="min-h-[44px] w-full"
+                  onClick={handleCreateTournament}
+                  disabled={creatingTournament}
+                >
+                  {creatingTournament ? "추가 중..." : "대회 생성"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={autoDialogOpen} onOpenChange={setAutoDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="min-h-[44px] w-full">
+                <Wand2 className="mr-2 h-4 w-4" />신청팀 자동 조편성/매칭
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>신청팀 자동 조편성/매칭</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">대회</label>
+                  <Select
+                    value={autoTournamentId}
+                    onValueChange={(v) => {
+                      setAutoTournamentId(v);
+                      setAutoMessage("");
+                      const recommended = recommendGroupCount(approvedTeamList.length);
+                      setAutoGroupCount(String(recommended));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="대회 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tournaments.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">조 개수</label>
+                    <Select value={autoGroupCount} onValueChange={setAutoGroupCount}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((count) => (
+                          <SelectItem key={count} value={String(count)} disabled={count > Math.max(approvedTeamList.length, 1)}>
+                            {count}개 조
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">시작 라운드</label>
+                    <Select value={autoStartRound} onValueChange={setAutoStartRound}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((round) => (
+                          <SelectItem key={round} value={String(round)}>
+                            R{round}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border p-3 text-xs" style={{ color: "var(--muted-foreground)" }}>
+                  승인된 신청팀 {approvedTeamList.length}개를 시즌 승점 기준으로 시드 배정하고, 지그재그 방식으로 조를 나눈 뒤 조별 풀리그 예정 경기를 생성합니다.
+                  {selectedAutoTournament && (
+                    <div className="mt-2 font-medium" style={{ color: "var(--foreground)" }}>
+                      대상: {selectedAutoTournament.name} · 권장 {recommendedAutoGroupCount}개 조
+                    </div>
+                  )}
+                </div>
+
+                {autoMessage && (
+                  <p className="text-sm" style={{ color: autoMessage.includes("완료") ? "var(--primary)" : "var(--destructive)" }}>
+                    {autoMessage}
+                  </p>
+                )}
+
+                <Button
+                  className="min-h-[44px] w-full"
+                  onClick={handleAutoGenerate}
+                  disabled={autoGenerating || !autoTournamentId || approvedTeamList.length < 2}
+                >
+                  {autoGenerating ? "자동 생성 중..." : "조편성 + 예정 경기 생성"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button className="min-h-[44px] w-full">
@@ -471,8 +748,9 @@ function AdminMatches() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         )}
       </div>
-    </div>
+    </AdminShell>
   );
 }
