@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { useDataStore } from "@/stores/dataStore";
@@ -78,19 +78,96 @@ const HERO_REVEALS: HeroReveal[] = [
   },
 ];
 
+const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
+  {
+    id: "showcase-premium-1",
+    uid: "showcase-premium-1",
+    name: "김도현",
+    number: 10,
+    position: "PIVO",
+    teamId: "showcase",
+    nationality: "KOR",
+    photoUrl: "/images/players/showcase-player-1.png",
+    cardType: "premium",
+    cardRating: 92,
+    stats: { goals: 14, assists: 7, games: 14, mom: 5 },
+    badges: ["champion", "golden_boot", "mvp"],
+    penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
+    isApproved: true,
+    role: "player",
+    createdAt: 0,
+  },
+  {
+    id: "showcase-premium-2",
+    uid: "showcase-premium-2",
+    name: "박지후",
+    number: 7,
+    position: "ALA",
+    teamId: "showcase",
+    nationality: "KOR",
+    photoUrl: "/images/players/showcase-player-2.png",
+    cardType: "premium",
+    cardRating: 90,
+    stats: { goals: 12, assists: 5, games: 14, mom: 4 },
+    badges: ["champion", "playmaker", "assist_king"],
+    penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
+    isApproved: true,
+    role: "player",
+    createdAt: 0,
+  },
+  {
+    id: "showcase-gold-1",
+    uid: "showcase-gold-1",
+    name: "이서준",
+    number: 11,
+    position: "ALA",
+    teamId: "showcase",
+    nationality: "KOR",
+    photoUrl: "/images/players/showcase-player-3.png",
+    cardType: "gold",
+    cardRating: 90,
+    stats: { goals: 9, assists: 6, games: 14, mom: 2 },
+    badges: ["first_goal", "match_winner"],
+    penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
+    isApproved: true,
+    role: "player",
+    createdAt: 0,
+  },
+  {
+    id: "showcase-gold-2",
+    uid: "showcase-gold-2",
+    name: "정우진",
+    number: 8,
+    position: "FIXO",
+    teamId: "showcase",
+    nationality: "KOR",
+    photoUrl: "/images/players/showcase-player-4.png",
+    cardType: "gold",
+    cardRating: 90,
+    stats: { goals: 6, assists: 8, games: 14, mom: 1 },
+    badges: ["fair_play", "iron_man"],
+    penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
+    isApproved: true,
+    role: "player",
+    createdAt: 0,
+  },
+];
+
 export default function HomePage() {
   const store = useDataStore();
   const prefersReducedMotion = useReducedMotion();
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamsLoaded, setTeamsLoaded] = useState(false);
   const [showcasePlayers, setShowcasePlayers] = useState<Player[]>([]);
+  const mobileShowcase = useMemo(() => {
+    const firstPremium = showcasePlayers.find((p) => p.cardType === "premium");
+    const firstGold = showcasePlayers.find((p) => p.cardType === "gold");
+    return [firstPremium, firstGold].filter((x): x is Player => Boolean(x));
+  }, [showcasePlayers]);
 
   useEffect(() => {
     const load = async () => {
-      const [teamsData, playersData] = await Promise.all([
-        store.fetchTeams(),
-        store.fetchPlayers(),
-      ]);
+      const teamsData = await store.fetchTeams();
 
       setTeams(
         [...teamsData].sort(
@@ -100,17 +177,7 @@ export default function HomePage() {
         )
       );
       setTeamsLoaded(true);
-
-      // 쇼케이스: 프리미엄 티어 우선, 그다음 레이팅 높은 순.
-      const ranked = [...playersData]
-        .filter((p) => p.isApproved !== false)
-        .sort((a, b) => {
-          const tierA = a.cardType === "premium" ? 0 : 1;
-          const tierB = b.cardType === "premium" ? 0 : 1;
-          if (tierA !== tierB) return tierA - tierB;
-          return (b.cardRating || 0) - (a.cardRating || 0);
-        });
-      setShowcasePlayers(ranked.slice(0, 4));
+      setShowcasePlayers(SHOWCASE_SAMPLE_PLAYERS);
     };
 
     load();
@@ -183,7 +250,7 @@ export default function HomePage() {
         }}
       >
         <div className="absolute inset-0 fg-grid opacity-40 pointer-events-none" />
-        <div className="relative max-w-6xl mx-auto">
+        <div className="relative mx-auto max-w-[1320px]">
           <div className="flex items-start gap-4 md:gap-6 mb-12 md:mb-16">
             <span
               className="fg-mono text-[11px] mt-2 shrink-0"
@@ -212,20 +279,34 @@ export default function HomePage() {
                 >
                   참가 팀 소개
                 </h2>
-                {teams.length > 0 && (
+                <div className="flex flex-wrap items-center justify-end gap-3 mb-2">
                   <Link
-                    href="/teams"
-                    className="group inline-flex items-center gap-3 fg-label transition-colors shrink-0 mb-2"
-                    style={{ color: "var(--color-fg-ink-muted)" }}
+                    href="/my/team"
+                    className="inline-flex items-center gap-2 px-4 py-2 fg-label border transition-colors"
+                    style={{
+                      color: "var(--primary)",
+                      borderColor: "rgba(0,71,171,0.2)",
+                      background: "var(--color-fg-paper)",
+                    }}
                   >
-                    <span
-                      className="inline-block w-6 h-[2px] group-hover:w-10 transition-all"
-                      style={{ background: "var(--primary)" }}
-                    />
-                    ALL TEAMS
+                    우리팀 등록하기
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
-                )}
+                  {teams.length > 0 && (
+                    <Link
+                      href="/teams"
+                      className="group inline-flex items-center gap-3 fg-label transition-colors shrink-0"
+                      style={{ color: "var(--color-fg-ink-muted)" }}
+                    >
+                      <span
+                        className="inline-block w-6 h-[2px] group-hover:w-10 transition-all"
+                        style={{ background: "var(--primary)" }}
+                      />
+                      ALL TEAMS
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  )}
+                </div>
               </div>
               <p
                 className="mt-4 text-[15px] leading-relaxed max-w-2xl"
@@ -258,27 +339,29 @@ export default function HomePage() {
               title="아직 등록된 팀이 없습니다"
               description="첫 번째 팀이 되어 이번 시즌 그라운드를 열어보세요."
               actions={[
-                { label: "리그 참가", href: "/register" },
+                { label: "우리팀 등록하기", href: "/my/team" },
                 { label: "팀 전체 보기", href: "/teams" },
               ]}
             />
           ) : (
-            <div className="relative w-full h-[400px] md:h-[460px]">
-              <CircularGallery
-                items={teams.map((team, i): GalleryItem => ({
-                  id: team.id,
-                  common: team.name,
-                  binomial: `${team.seasonStats.wins}W ${team.seasonStats.draws}D ${team.seasonStats.losses}L`,
-                  photo: { url: team.logo ?? "", text: team.name, by: `${team.memberCount}명` },
-                  colorIndex: i,
-                }))}
-                radius={520}
-                autoRotateSpeed={prefersReducedMotion ? 0 : 0.25}
-                onItemClick={(item) => {
-                  const t = teams.find((x) => x.id === item.id);
-                  if (t) window.location.href = `/teams/${t.id}`;
-                }}
-              />
+            <div className="relative w-full h-[280px] md:h-[460px] overflow-hidden">
+              <div className="absolute inset-0 origin-top scale-[0.7] md:scale-100">
+                <CircularGallery
+                  items={teams.map((team, i): GalleryItem => ({
+                    id: team.id,
+                    common: team.name,
+                    binomial: `${team.seasonStats.wins}W ${team.seasonStats.draws}D ${team.seasonStats.losses}L`,
+                    photo: { url: team.logo ?? "", text: team.name, by: `${team.memberCount}명` },
+                    colorIndex: i,
+                  }))}
+                  radius={520}
+                  autoRotateSpeed={prefersReducedMotion ? 0 : 0.25}
+                  onItemClick={(item) => {
+                    const t = teams.find((x) => x.id === item.id);
+                    if (t) window.location.href = `/teams/${t.id}`;
+                  }}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -299,7 +382,7 @@ export default function HomePage() {
               "radial-gradient(110% 80% at 50% 0%, rgba(0,71,171,0.35), transparent 65%)",
           }}
         />
-        <div className="relative max-w-6xl mx-auto">
+        <div className="relative mx-auto max-w-[1320px]">
           <div className="flex items-start gap-4 md:gap-6 mb-12 md:mb-16">
             <span
               className="fg-mono text-[11px] mt-2 shrink-0"
@@ -344,62 +427,98 @@ export default function HomePage() {
           </div>
 
           {showcasePlayers.length > 0 ? (
-            <div className="flex flex-wrap items-end justify-center gap-6 md:gap-10">
-              {showcasePlayers.map((player, i) => (
-                <motion.div
-                  key={player.id}
-                  className="flex flex-col items-center gap-3"
-                  initial={
-                    prefersReducedMotion
-                      ? { opacity: 0 }
-                      : { opacity: 0, y: 40, rotate: i % 2 ? 3 : -3 }
-                  }
-                  whileInView={
-                    prefersReducedMotion
-                      ? { opacity: 1 }
-                      : { opacity: 1, y: 0, rotate: 0 }
-                  }
-                  viewport={{ once: true, margin: "-80px" }}
-                  transition={
-                    prefersReducedMotion
-                      ? { duration: 0.2 }
-                      : {
-                          delay: i * 0.08,
-                          type: "spring",
-                          stiffness: 200,
-                          damping: 20,
-                        }
-                  }
-                >
-                  <span
-                    className="fg-label text-[10px] px-2.5 py-1 rounded-[var(--radius-pill)]"
-                    style={{
-                      color:
-                        player.cardType === "premium"
-                          ? "var(--color-fg-paper)"
-                          : "var(--color-fg-blue-soft)",
-                      background:
-                        player.cardType === "premium"
-                          ? "var(--color-fg-blue-deep)"
-                          : "rgba(255,255,255,0.08)",
-                      border:
-                        player.cardType === "premium"
-                          ? "1px solid var(--primary)"
-                          : "1px solid rgba(255,255,255,0.18)",
-                    }}
+            <>
+              {/* Mobile: 1 premium + 1 gold, vertical stack */}
+              <div className="md:hidden flex flex-col items-center gap-10 px-5">
+                {mobileShowcase.map((player, i) => (
+                  <motion.div
+                    key={`m-${player.id}`}
+                    className="flex flex-col items-center gap-3"
+                    initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 32 }}
+                    whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-60px" }}
+                    transition={prefersReducedMotion ? { duration: 0.2 } : { delay: i * 0.1, type: "spring", stiffness: 200, damping: 20 }}
                   >
-                    {player.cardType === "premium" ? "PREMIUM" : "GOLD"}
-                  </span>
-                  <Link
-                    href={`/players/${player.id}`}
-                    className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
-                    style={{ outlineColor: "var(--color-ring)" }}
+                    <span
+                      className="fg-label text-[10px] px-2.5 py-1 rounded-[var(--radius-pill)]"
+                      style={{
+                        color: player.cardType === "premium" ? "var(--color-fg-paper)" : "var(--color-fg-blue-soft)",
+                        background: player.cardType === "premium" ? "var(--color-fg-blue-deep)" : "rgba(255,255,255,0.08)",
+                        border: player.cardType === "premium" ? "1px solid var(--primary)" : "1px solid rgba(255,255,255,0.18)",
+                      }}
+                    >
+                      {player.cardType === "premium" ? "PREMIUM" : "GOLD"}
+                    </span>
+                    <Link
+                      href={player.id.startsWith("showcase-") ? "/players" : `/players/${player.id}`}
+                      className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+                      style={{ outlineColor: "var(--color-ring)" }}
+                    >
+                      <PlayerCard player={player} size="lg" />
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+              {/* Desktop: 4 cards horizontal scroll */}
+              <div className="hidden md:block -mx-5 overflow-x-auto px-5 pb-4 md:mx-0 md:px-0">
+              <div className="mx-auto flex w-max items-end justify-center gap-5 md:gap-8 lg:gap-10">
+                {showcasePlayers.map((player, i) => (
+                  <motion.div
+                    key={player.id}
+                    className="flex flex-col items-center gap-3"
+                    initial={
+                      prefersReducedMotion
+                        ? { opacity: 0 }
+                        : { opacity: 0, y: 40, rotate: i % 2 ? 3 : -3 }
+                    }
+                    whileInView={
+                      prefersReducedMotion
+                        ? { opacity: 1 }
+                        : { opacity: 1, y: 0, rotate: 0 }
+                    }
+                    viewport={{ once: true, margin: "-80px" }}
+                    transition={
+                      prefersReducedMotion
+                        ? { duration: 0.2 }
+                        : {
+                            delay: i * 0.08,
+                            type: "spring",
+                            stiffness: 200,
+                            damping: 20,
+                          }
+                    }
                   >
-                    <PlayerCard player={player} size="lg" />
-                  </Link>
-                </motion.div>
-              ))}
+                    <span
+                      className="fg-label text-[10px] px-2.5 py-1 rounded-[var(--radius-pill)]"
+                      style={{
+                        color:
+                          player.cardType === "premium"
+                            ? "var(--color-fg-paper)"
+                            : "var(--color-fg-blue-soft)",
+                        background:
+                          player.cardType === "premium"
+                            ? "var(--color-fg-blue-deep)"
+                            : "rgba(255,255,255,0.08)",
+                        border:
+                          player.cardType === "premium"
+                            ? "1px solid var(--primary)"
+                            : "1px solid rgba(255,255,255,0.18)",
+                      }}
+                    >
+                      {player.cardType === "premium" ? "PREMIUM" : "GOLD"}
+                    </span>
+                    <Link
+                      href={player.id.startsWith("showcase-") ? "/players" : `/players/${player.id}`}
+                      className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+                      style={{ outlineColor: "var(--color-ring)" }}
+                    >
+                      <PlayerCard player={player} size="lg" />
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
             </div>
+            </>
           ) : (
             <div
               className="border px-6 py-16 text-center max-w-xl mx-auto rounded-[var(--radius-lg)]"
@@ -428,7 +547,7 @@ export default function HomePage() {
 
           <div className="mt-14 flex flex-wrap items-center justify-center gap-3">
             <Link
-              href="/register"
+              href="/my/player-setup"
               className="group inline-flex items-center gap-3 px-7 py-4 fg-display tracking-[0.06em] text-[15px] rounded-[var(--radius-md)] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
               style={{
                 background: "var(--primary)",
