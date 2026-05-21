@@ -169,8 +169,8 @@ export default function TournamentsPage() {
         />
         <div className="relative mx-auto max-w-6xl">
           <div className="flex items-center gap-3 mb-4">
-            <Trophy className="h-5 w-5" style={{ color: "var(--accent-gold)" }} />
-            <span className="fg-label" style={{ color: "var(--accent-gold)" }}>
+            <Trophy className="h-5 w-5" style={{ color: "var(--color-fg-paper)" }} />
+            <span className="fg-label" style={{ color: "var(--color-fg-paper)" }}>
               Tournament Hub
             </span>
           </div>
@@ -216,7 +216,7 @@ export default function TournamentsPage() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="fg-label mb-3" style={{ color: "var(--primary)" }}>
+              <p className="fg-label mb-3" style={{ color: "var(--color-fg-paper)" }}>
                 Schedule
               </p>
               <h2 className="fg-display text-[36px] md:text-[56px]" style={{ color: "var(--color-fg-ink)" }}>
@@ -257,7 +257,7 @@ export default function TournamentsPage() {
                           {statusLabel[t.status] || t.status}
                         </span>
                         {t.winningTeamName && (
-                          <span className="text-xs font-semibold" style={{ color: "var(--accent-gold)" }}>
+                          <span className="text-xs font-semibold" style={{ color: "var(--color-fg-paper)" }}>
                             우승 {t.winningTeamName}
                           </span>
                         )}
@@ -289,7 +289,7 @@ export default function TournamentsPage() {
 
       <section id="rules" className="px-6 py-14 md:px-10 md:py-18" style={{ background: "var(--color-fg-paper-2)" }}>
         <div className="mx-auto max-w-6xl">
-          <p className="fg-label mb-3" style={{ color: "var(--primary)" }}>
+          <p className="fg-label mb-3" style={{ color: "var(--color-fg-paper)" }}>
             Rules
           </p>
           <h2 className="fg-display text-[36px] md:text-[56px]" style={{ color: "var(--color-fg-ink)" }}>
@@ -318,7 +318,7 @@ export default function TournamentsPage() {
                       >
                         <Icon className="h-5 w-5" />
                       </div>
-                      <span className="fg-mono text-[11px]" style={{ color: "var(--primary)" }}>
+                      <span className="fg-mono text-[11px]" style={{ color: "var(--color-fg-paper)" }}>
                         {String(index + 1).padStart(2, "0")}
                       </span>
                     </div>
@@ -343,7 +343,7 @@ export default function TournamentsPage() {
                 { label: "결과", value: "순위·카드·시상 반영" },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between border-b px-6 py-4 md:border-b-0 md:border-r" style={{ borderColor: "var(--color-fg-line-soft)" }}>
-                  <span className="fg-label text-[10px]" style={{ color: "var(--primary)" }}>
+                  <span className="fg-label text-[10px]" style={{ color: "var(--color-fg-paper)" }}>
                     {item.label}
                   </span>
                   <span className="text-sm font-black" style={{ color: "var(--color-fg-ink)" }}>
@@ -360,7 +360,7 @@ export default function TournamentsPage() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="fg-label mb-3" style={{ color: "var(--primary)" }}>
+              <p className="fg-label mb-3" style={{ color: "var(--color-fg-paper)" }}>
                 League Table
               </p>
               <h2 className="fg-display text-[36px] md:text-[56px]" style={{ color: "var(--color-fg-ink)" }}>
@@ -394,7 +394,7 @@ export default function TournamentsPage() {
               {standings.length > 1 && (
                 <div className="mt-6 flex flex-wrap gap-5 text-xs" style={{ color: "var(--color-fg-ink-muted)", fontFamily: "var(--font-body)" }}>
                   <div className="flex items-center gap-2">
-                    <span className="fg-label px-1.5 py-0.5 text-[9px]" style={{ color: "var(--primary)", border: "1px solid color-mix(in srgb, var(--primary) 40%, transparent)", background: "color-mix(in srgb, var(--primary) 6%, transparent)" }}>
+                    <span className="fg-label px-1.5 py-0.5 text-[9px]" style={{ color: "var(--color-fg-paper)", border: "1px solid color-mix(in srgb, var(--primary) 40%, transparent)", background: "color-mix(in srgb, var(--primary) 6%, transparent)" }}>
                       상위
                     </span>
                     <span>상위 절반 — 다음 시즌 상위 리그 배정</span>
@@ -416,7 +416,7 @@ export default function TournamentsPage() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-9 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="fg-label mb-3" style={{ color: "var(--accent-gold)" }}>
+              <p className="fg-label mb-3" style={{ color: "var(--color-fg-paper)" }}>
                 Player Card System
               </p>
               <h2 className="fg-display text-[36px] md:text-[56px]" style={{ color: "var(--background)" }}>
@@ -468,8 +468,8 @@ export default function TournamentsPage() {
                 <div key={rule.title} className="border p-6" style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)" }}>
                   <div className="mb-5 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <ClipboardList className="h-4 w-4" style={{ color: "var(--accent-gold)" }} />
-                      <span className="fg-label text-[10px]" style={{ color: "var(--accent-gold)" }}>
+                      <ClipboardList className="h-4 w-4" style={{ color: "var(--color-fg-paper)" }} />
+                      <span className="fg-label text-[10px]" style={{ color: "var(--color-fg-paper)" }}>
                         {rule.title}
                       </span>
                     </div>
@@ -503,7 +503,7 @@ export default function TournamentsPage() {
           <div id="badge-system" className="mt-16 scroll-mt-24 border-t pt-12" style={{ borderColor: "rgba(255,255,255,0.12)" }}>
             <div className="mb-9 flex flex-wrap items-end justify-between gap-4">
               <div>
-                <p className="fg-label mb-3" style={{ color: "var(--accent-gold)" }}>
+                <p className="fg-label mb-3" style={{ color: "var(--color-fg-paper)" }}>
                   Badge System
                 </p>
                 <h3 className="fg-display text-[32px] md:text-[48px]" style={{ color: "var(--background)" }}>
@@ -533,8 +533,8 @@ export default function TournamentsPage() {
                 return (
                   <div key={category}>
                     <div className="mb-4 flex items-center gap-3">
-                      <span className="h-px w-8" style={{ background: "var(--accent-gold)" }} />
-                      <h4 className="fg-label text-[12px]" style={{ color: "var(--accent-gold)" }}>
+                      <span className="h-px w-8" style={{ background: "rgba(255,255,255,0.35)" }} />
+                      <h4 className="fg-label text-[12px]" style={{ color: "var(--color-fg-paper)" }}>
                         {label} 뱃지
                       </h4>
                     </div>
@@ -563,7 +563,7 @@ export default function TournamentsPage() {
                                 {badge.name}
                               </h5>
                               {badge.maxProgress && badge.maxProgress > 1 && (
-                                <span className="fg-mono shrink-0 text-[10px]" style={{ color: "var(--accent-gold)" }}>
+                                <span className="fg-mono shrink-0 text-[10px]" style={{ color: "var(--color-fg-paper)" }}>
                                   {badge.maxProgress}
                                 </span>
                               )}
