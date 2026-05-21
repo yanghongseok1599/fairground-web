@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Shield, CheckCircle, Edit } from "lucide-react";
+import { ArrowLeft, Shield, CheckCircle, Edit, ImageIcon, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTeam } from "@/hooks/useTeam";
 import { useDataStore } from "@/stores/dataStore";
@@ -13,16 +13,83 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+const REGISTERED_TEAM_ID_KEY = "fg_registered_team_id";
+
+const compressLogoFile = (file: File, maxPx = 512): Promise<string> =>
+  new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("이미지 파일만 업로드할 수 있습니다."));
+      return;
+    }
+
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+
+      let { width, height } = image;
+      if (width > maxPx || height > maxPx) {
+        if (width > height) {
+          height = Math.round((height * maxPx) / width);
+          width = maxPx;
+        } else {
+          width = Math.round((width * maxPx) / height);
+          height = maxPx;
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const context = canvas.getContext("2d");
+      if (!context) {
+        reject(new Error("이미지 처리에 실패했습니다."));
+        return;
+      }
+
+      context.drawImage(image, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error("이미지 압축에 실패했습니다."));
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error("이미지 읽기에 실패했습니다."));
+          reader.readAsDataURL(blob);
+        },
+        "image/webp",
+        0.75
+      );
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("이미지를 불러오지 못했습니다."));
+    };
+
+    image.src = objectUrl;
+  });
+
 export default function MyTeamPage() {
   const router = useRouter();
-  const { user, player, initialized } = useAuth();
-  const { team, loading: teamLoading } = useTeam(player?.teamId);
+  const { player, initialized, updatePlayer } = useAuth();
   const createTeam = useDataStore((s) => s.createTeam);
   const updateTeam = useDataStore((s) => s.updateTeam);
+
+  const [registeredTeamId, setRegisteredTeamId] = useState("");
+  const [queryTeamId, setQueryTeamId] = useState("");
+  const activeTeamId = player?.teamId || queryTeamId || registeredTeamId || undefined;
+  const { team, loading: teamLoading } = useTeam(activeTeamId);
 
   const [name, setName] = useState("");
   const [logo, setLogo] = useState("");
   const [foundedYear, setFoundedYear] = useState("");
+  const [logoProcessing, setLogoProcessing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
@@ -32,9 +99,53 @@ export default function MyTeamPage() {
   const [editName, setEditName] = useState("");
   const [editLogo, setEditLogo] = useState("");
   const [editFoundedYear, setEditFoundedYear] = useState("");
+  const [editIntroSubtitle, setEditIntroSubtitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editBannerUrl, setEditBannerUrl] = useState("");
+  const [editLogoProcessing, setEditLogoProcessing] = useState(false);
 
   const isCaptainOrAdmin =
     player?.role === "captain" || player?.role === "admin";
+  const isLocalRegisteredTeam =
+    Boolean(registeredTeamId) && team?.id === registeredTeamId;
+
+  useEffect(() => {
+    const savedTeamId = localStorage.getItem(REGISTERED_TEAM_ID_KEY) || "";
+    setRegisteredTeamId(savedTeamId);
+
+    const params = new URLSearchParams(window.location.search);
+    const teamId = params.get("teamId") || "";
+    if (!teamId) return;
+    localStorage.setItem(REGISTERED_TEAM_ID_KEY, teamId);
+    setQueryTeamId(teamId);
+    setRegisteredTeamId(teamId);
+  }, []);
+
+  const handleLogoFile = async (
+    file: File | undefined,
+    mode: "create" | "edit"
+  ) => {
+    if (!file) return;
+
+    const setProcessing =
+      mode === "create" ? setLogoProcessing : setEditLogoProcessing;
+    const setLogoValue = mode === "create" ? setLogo : setEditLogo;
+
+    setError("");
+    setProcessing(true);
+    try {
+      const compressedLogo = await compressLogoFile(file);
+      setLogoValue(compressedLogo);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "로고 이미지를 처리하지 못했습니다."
+      );
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,11 +158,11 @@ export default function MyTeamPage() {
 
     setSubmitting(true);
     try {
-      await createTeam({
+      const createdTeamId = await createTeam({
         name: name.trim(),
         logo: logo.trim() || "/images/default-team.png",
         isApproved: false,
-        captainId: player?.id || "",
+        captainId: player?.id || undefined,
         foundedYear: foundedYear ? parseInt(foundedYear, 10) : undefined,
         memberCount: 1,
         seasonStats: {
@@ -67,9 +178,20 @@ export default function MyTeamPage() {
         },
         createdAt: Date.now(),
       });
-      setSuccess(true);
-    } catch {
-      setError("팀 등록에 실패했습니다. 다시 시도해주세요.");
+      if (player) {
+        await updatePlayer({ teamId: createdTeamId });
+      }
+      localStorage.setItem(REGISTERED_TEAM_ID_KEY, createdTeamId);
+      setRegisteredTeamId(createdTeamId);
+      setSuccess(false);
+    } catch (err) {
+      console.error("[MyTeamPage] createTeam failed:", err);
+      const message = err instanceof Error ? err.message : "";
+      setError(
+        message.includes("row-level security")
+          ? "팀 등록 권한 설정이 필요합니다. 관리자에게 문의해주세요."
+          : "팀 등록에 실패했습니다. 다시 시도해주세요."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -80,6 +202,9 @@ export default function MyTeamPage() {
     setEditName(team.name);
     setEditLogo(team.logo);
     setEditFoundedYear(team.foundedYear?.toString() || "");
+    setEditIntroSubtitle(team.introSubtitle ?? "");
+    setEditDescription(team.description ?? "");
+    setEditBannerUrl(team.bannerUrl ?? "");
     setEditing(true);
   };
 
@@ -101,9 +226,13 @@ export default function MyTeamPage() {
         foundedYear: editFoundedYear
           ? parseInt(editFoundedYear, 10)
           : undefined,
+        introSubtitle: editIntroSubtitle.trim() || undefined,
+        description: editDescription.trim() || undefined,
+        bannerUrl: editBannerUrl.trim() || undefined,
       });
       setEditing(false);
-    } catch {
+    } catch (err) {
+      console.error("[MyTeamPage] updateTeam failed:", err);
       setError("팀 정보 수정에 실패했습니다.");
     } finally {
       setSubmitting(false);
@@ -115,35 +244,6 @@ export default function MyTeamPage() {
       <div className="min-h-screen" style={{ background: "var(--background)" }}>
         <AdminHeader title="팀 관리" />
         <AdminLoading />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div
-        className="flex min-h-[60vh] flex-col items-center justify-center p-4 text-center"
-        style={{ background: "var(--background)" }}
-      >
-        <Shield
-          className="mb-4 h-12 w-12"
-          style={{ color: "var(--muted-foreground)" }}
-        />
-        <h1 className="text-xl font-bold" style={{ color: "var(--foreground)" }}>
-          로그인이 필요합니다
-        </h1>
-        <p
-          className="mt-2 text-sm"
-          style={{ color: "var(--muted-foreground)" }}
-        >
-          팀 관리는 로그인 후 이용할 수 있습니다.
-        </p>
-        <Button
-          className="mt-4 min-h-[44px]"
-          onClick={() => router.push("/login?returnTo=%2Fmy%2Fteam")}
-        >
-          로그인
-        </Button>
       </div>
     );
   }
@@ -185,16 +285,16 @@ export default function MyTeamPage() {
             <div className="flex gap-3">
               <Button
                 className="min-h-[44px] flex-1"
-                onClick={() => router.push("/my")}
+                onClick={() => setSuccess(false)}
               >
-                마이페이지로 이동
+                팀 관리 보기
               </Button>
               <Button
                 variant="outline"
                 className="min-h-[44px] flex-1"
-                onClick={() => router.push("/")}
+                onClick={() => router.push("/my")}
               >
-                홈으로
+                마이페이지
               </Button>
             </div>
           </div>
@@ -241,12 +341,49 @@ export default function MyTeamPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>로고 URL</Label>
-                    <Input
-                      value={editLogo}
-                      onChange={(e) => setEditLogo(e.target.value)}
-                      placeholder="https://example.com/logo.png"
-                    />
+                    <Label htmlFor="editTeamLogo">로고 이미지</Label>
+                    <div className="flex items-center gap-3">
+                      <label
+                        htmlFor="editTeamLogo"
+                        className="flex min-h-[44px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors hover:bg-muted"
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                        {editLogoProcessing ? "압축 중..." : "이미지 선택"}
+                      </label>
+                      <Input
+                        id="editTeamLogo"
+                        type="file"
+                        accept="image/*"
+                        className="sr-only"
+                        disabled={editLogoProcessing}
+                        onChange={(e) =>
+                          void handleLogoFile(e.target.files?.[0], "edit")
+                        }
+                      />
+                      {editLogo && (
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border">
+                          <img
+                            src={editLogo}
+                            alt="로고 미리보기"
+                            className="h-full w-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            aria-label="로고 제거"
+                            className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center bg-black/60 text-white"
+                            onClick={() => setEditLogo("")}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <p
+                      className="text-xs"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      고해상도 이미지는 자동으로 512px WebP로 압축되어 저장됩니다.
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label>창단 연도</Label>
@@ -257,6 +394,39 @@ export default function MyTeamPage() {
                       placeholder="2024"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="editIntroSubtitle">한 줄 소개 (부제)</Label>
+                    <Input
+                      id="editIntroSubtitle"
+                      value={editIntroSubtitle}
+                      onChange={(e) => setEditIntroSubtitle(e.target.value)}
+                      placeholder="우리 팀을 한 문장으로"
+                      maxLength={80}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="editDescription">팀 소개</Label>
+                    <textarea
+                      id="editDescription"
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      placeholder="팀 색깔, 운영 방향, 모집 안내 등 자유롭게 작성하세요."
+                      rows={5}
+                      maxLength={800}
+                      className="flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      style={{ borderColor: "var(--border)" }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="editBannerUrl">배너 이미지 URL (선택)</Label>
+                    <Input
+                      id="editBannerUrl"
+                      type="url"
+                      value={editBannerUrl}
+                      onChange={(e) => setEditBannerUrl(e.target.value)}
+                      placeholder="https://..."
+                    />
+                  </div>
 
                   {error && <p className="text-sm text-red-500">{error}</p>}
 
@@ -264,9 +434,13 @@ export default function MyTeamPage() {
                     <Button
                       type="submit"
                       className="min-h-[44px] flex-1"
-                      disabled={submitting}
+                      disabled={submitting || editLogoProcessing}
                     >
-                      {submitting ? "수정 중..." : "수정 완료"}
+                      {submitting
+                        ? "수정 중..."
+                        : editLogoProcessing
+                          ? "이미지 처리 중..."
+                          : "수정 완료"}
                     </Button>
                     <Button
                       type="button"
@@ -290,14 +464,14 @@ export default function MyTeamPage() {
                 <CardContent className="p-5">
                   <div className="flex items-center gap-4">
                     <div
-                      className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full"
+                      className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl p-1.5"
                       style={{ background: "var(--muted)" }}
                     >
                       {team.logo ? (
                         <img
                           src={team.logo}
                           alt={team.name}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-contain"
                         />
                       ) : (
                         <Shield
@@ -383,6 +557,19 @@ export default function MyTeamPage() {
                   팀 정보 수정
                 </Button>
               )}
+              {isLocalRegisteredTeam && !isCaptainOrAdmin && (
+                <Card>
+                  <CardContent className="p-4">
+                    <p
+                      className="text-sm leading-relaxed"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      이 브라우저에서 등록한 팀입니다. 현재는 승인 대기 상태를
+                      확인할 수 있고, 팀 정보 수정은 관리자 승인 후 가능합니다.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* View Team Page */}
               <Button
@@ -465,22 +652,40 @@ export default function MyTeamPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="teamLogo">로고 URL</Label>
-                <div className="flex gap-2">
+                <Label htmlFor="teamLogo">로고 이미지</Label>
+                <div className="flex items-center gap-3">
+                  <label
+                    htmlFor="teamLogo"
+                    className="flex min-h-[44px] flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors hover:bg-muted"
+                  >
+                    <ImageIcon className="h-4 w-4" />
+                    {logoProcessing ? "압축 중..." : "이미지 선택"}
+                  </label>
                   <Input
                     id="teamLogo"
-                    value={logo}
-                    onChange={(e) => setLogo(e.target.value)}
-                    placeholder="https://example.com/logo.png"
-                    className="flex-1"
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    disabled={logoProcessing}
+                    onChange={(e) =>
+                      void handleLogoFile(e.target.files?.[0], "create")
+                    }
                   />
                   {logo && (
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border">
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border">
                       <img
                         src={logo}
-                        alt="미리보기"
+                        alt="로고 미리보기"
                         className="h-full w-full object-cover"
                       />
+                      <button
+                        type="button"
+                        aria-label="로고 제거"
+                        className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center bg-black/60 text-white"
+                        onClick={() => setLogo("")}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </div>
                   )}
                 </div>
@@ -488,7 +693,8 @@ export default function MyTeamPage() {
                   className="text-xs"
                   style={{ color: "var(--muted-foreground)" }}
                 >
-                  이미지 URL을 입력해주세요. 비워두면 기본 로고가 사용됩니다.
+                  고해상도 이미지는 자동으로 512px WebP로 압축됩니다. 비워두면
+                  기본 로고가 사용됩니다.
                 </p>
               </div>
 
@@ -510,9 +716,13 @@ export default function MyTeamPage() {
               <Button
                 type="submit"
                 className="min-h-[44px] w-full"
-                disabled={submitting}
+                disabled={submitting || logoProcessing}
               >
-                {submitting ? "등록 중..." : "팀 등록하기"}
+                {submitting
+                  ? "등록 중..."
+                  : logoProcessing
+                    ? "이미지 처리 중..."
+                    : "팀 등록하기"}
               </Button>
             </form>
           </CardContent>
