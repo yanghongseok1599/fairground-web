@@ -2,6 +2,7 @@
 export type Position = "GK" | "FIXO" | "ALA" | "PIVO";
 export type CardType = "gold" | "premium";
 export type PlayerRole = "player" | "captain" | "referee" | "admin";
+export type Gender = "male" | "female" | "other" | "prefer_not_to_say";
 
 export interface PlayerStats {
   goals: number;
@@ -37,6 +38,14 @@ export interface Player {
   isApproved: boolean;
   role: PlayerRole;
   phone?: string;
+  email?: string;
+  gender?: Gender;
+  birthDate?: string;
+  hasPlayerExperience?: boolean;
+  mbti?: string;
+  disposition?: string;
+  personalValues?: string;
+  bio?: string;
   createdAt: number;
 }
 
@@ -63,6 +72,9 @@ export interface Team {
   memberCount: number;
   seasonStats: TeamSeasonStats;
   createdAt: number;
+  description?: string;
+  introSubtitle?: string;
+  bannerUrl?: string;
 }
 
 // ===== Match =====

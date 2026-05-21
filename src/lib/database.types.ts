@@ -245,11 +245,15 @@ export type Database = {
           assists: number
           badges: string[]
           ban_matches_remaining: number
+          birth_date: string | null
           card_rating: number
           card_type: Database["public"]["Enums"]["card_type_t"]
           created_at: string
+          email: string | null
           games: number
+          gender: string | null
           goals: number
+          has_player_experience: boolean
           id: string
           is_approved: boolean
           is_banned: boolean
@@ -266,16 +270,24 @@ export type Database = {
           role: Database["public"]["Enums"]["player_role_t"]
           season_yellow_cards: number
           team_id: string | null
+                  bio: string | null
+          disposition: string | null
+          mbti: string | null
+          personal_values: string | null
         }
         Insert: {
           assists?: number
           badges?: string[]
           ban_matches_remaining?: number
+          birth_date?: string | null
           card_rating?: number
           card_type?: Database["public"]["Enums"]["card_type_t"]
           created_at?: string
+          email?: string | null
           games?: number
+          gender?: string | null
           goals?: number
+          has_player_experience?: boolean
           id: string
           is_approved?: boolean
           is_banned?: boolean
@@ -292,16 +304,24 @@ export type Database = {
           role?: Database["public"]["Enums"]["player_role_t"]
           season_yellow_cards?: number
           team_id?: string | null
+                  bio?: string | null
+          disposition?: string | null
+          mbti?: string | null
+          personal_values?: string | null
         }
         Update: {
           assists?: number
           badges?: string[]
           ban_matches_remaining?: number
+          birth_date?: string | null
           card_rating?: number
           card_type?: Database["public"]["Enums"]["card_type_t"]
           created_at?: string
+          email?: string | null
           games?: number
+          gender?: string | null
           goals?: number
+          has_player_experience?: boolean
           id?: string
           is_approved?: boolean
           is_banned?: boolean
@@ -318,6 +338,10 @@ export type Database = {
           role?: Database["public"]["Enums"]["player_role_t"]
           season_yellow_cards?: number
           team_id?: string | null
+                  bio?: string | null
+          disposition?: string | null
+          mbti?: string | null
+          personal_values?: string | null
         }
         Relationships: [
           {
@@ -358,10 +382,13 @@ export type Database = {
       }
       teams: {
         Row: {
+          banner_url: string | null
           captain_id: string | null
           created_at: string
+          description: string | null
           founded_year: number | null
           id: string
+          intro_subtitle: string | null
           is_approved: boolean
           logo: string
           member_count: number
@@ -369,10 +396,13 @@ export type Database = {
           season_stats: Json
         }
         Insert: {
+          banner_url?: string | null
           captain_id?: string | null
           created_at?: string
+          description?: string | null
           founded_year?: number | null
           id?: string
+          intro_subtitle?: string | null
           is_approved?: boolean
           logo?: string
           member_count?: number
@@ -380,10 +410,13 @@ export type Database = {
           season_stats?: Json
         }
         Update: {
+          banner_url?: string | null
           captain_id?: string | null
           created_at?: string
+          description?: string | null
           founded_year?: number | null
           id?: string
+          intro_subtitle?: string | null
           is_approved?: boolean
           logo?: string
           member_count?: number

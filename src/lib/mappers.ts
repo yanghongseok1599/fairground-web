@@ -24,6 +24,7 @@ type MatchRow = Database["public"]["Tables"]["matches"]["Row"];
 type MatchEventRow = Database["public"]["Tables"]["match_events"]["Row"];
 type MatchEventInsert = Database["public"]["Tables"]["match_events"]["Insert"];
 type TournamentRow = Database["public"]["Tables"]["tournaments"]["Row"];
+type TournamentInsert = Database["public"]["Tables"]["tournaments"]["Insert"];
 type SeasonRow = Database["public"]["Tables"]["seasons"]["Row"];
 
 const ts = (s: string | null): number => (s ? new Date(s).getTime() : 0);
@@ -53,12 +54,19 @@ export function rowToPlayer(r: ProfileRow): Player {
     isApproved: r.is_approved,
     role: r.role,
     phone: r.phone ?? undefined,
+    email: r.email ?? undefined,
+    gender: (r.gender as Player["gender"]) ?? undefined,
+    birthDate: r.birth_date ?? undefined,
+    hasPlayerExperience: r.has_player_experience ?? undefined,
+    mbti: r.mbti ?? undefined,
+    disposition: r.disposition ?? undefined,
+    personalValues: r.personal_values ?? undefined,
+    bio: r.bio ?? undefined,
     createdAt: new Date(r.created_at).getTime(),
   };
 }
 
-// 신규 프로필 INSERT. is_approved/role 은 의도적으로 생략 → DB 기본값(false/'player').
-// RLS 특권컬럼 트리거가 클라이언트의 role 자가지정을 차단(D-C 해결)하므로 안전.
+// 신규 프로필 INSERT. admin 은 클라이언트 선택지에 없고, DB 정책도 차단한다.
 export function playerToInsert(p: Player): ProfileInsert {
   return {
     id: p.id,
@@ -81,12 +89,21 @@ export function playerToInsert(p: Player): ProfileInsert {
     ban_matches_remaining: p.penaltyStatus.banMatchesRemaining,
     season_yellow_cards: p.penaltyStatus.seasonYellowCards,
     badges: p.badges,
+    role: p.role,
     phone: p.phone ?? null,
+    email: p.email ?? null,
+    gender: p.gender ?? null,
+    birth_date: p.birthDate ?? null,
+    has_player_experience: p.hasPlayerExperience ?? false,
+    mbti: p.mbti ?? null,
+    disposition: p.disposition ?? null,
+    personal_values: p.personalValues ?? null,
+    bio: p.bio ?? null,
   };
 }
 
-// 부분 수정 → row 패치. role/is_approved/통계는 매핑하지 않는다
-// (RLS 트리거가 비admin의 변경을 거부 — 의도된 권한 경계).
+// 부분 수정 → row 패치. is_approved/통계는 매핑하지 않는다.
+// role 은 player/captain/referee 등록 유형 저장에만 사용한다(admin 은 UI/정책에서 차단).
 export function playerPatchToRow(d: Partial<Player>): ProfileUpdate {
   const u: ProfileUpdate = {};
   if (d.name !== undefined) u.name = d.name;
@@ -100,7 +117,16 @@ export function playerPatchToRow(d: Partial<Player>): ProfileUpdate {
   if (d.photoOffsetX !== undefined) u.photo_offset_x = d.photoOffsetX ?? null;
   if (d.cardType !== undefined) u.card_type = d.cardType;
   if (d.badges !== undefined) u.badges = d.badges;
+  if (d.role !== undefined) u.role = d.role;
   if (d.phone !== undefined) u.phone = d.phone ?? null;
+  if (d.email !== undefined) u.email = d.email ?? null;
+  if (d.gender !== undefined) u.gender = d.gender ?? null;
+  if (d.birthDate !== undefined) u.birth_date = d.birthDate ?? null;
+  if (d.hasPlayerExperience !== undefined) u.has_player_experience = d.hasPlayerExperience ?? false;
+  if (d.mbti !== undefined) u.mbti = d.mbti?.trim() || null;
+  if (d.disposition !== undefined) u.disposition = d.disposition?.trim() || null;
+  if (d.personalValues !== undefined) u.personal_values = d.personalValues?.trim() || null;
+  if (d.bio !== undefined) u.bio = d.bio?.trim() || null;
   return u;
 }
 
@@ -121,6 +147,9 @@ export function rowToTeam(r: TeamRow): Team {
     memberCount: r.member_count,
     seasonStats: (r.season_stats as unknown as TeamSeasonStats) ?? EMPTY_TEAM_STATS,
     createdAt: ts(r.created_at),
+    description: r.description ?? undefined,
+    introSubtitle: r.intro_subtitle ?? undefined,
+    bannerUrl: r.banner_url ?? undefined,
   };
 }
 
@@ -134,6 +163,9 @@ export function teamToInsert(t: Omit<Team, "id"> & { id?: string }): TeamInsert 
     founded_year: t.foundedYear ?? null,
     member_count: t.memberCount ?? 0,
     season_stats: (t.seasonStats ?? EMPTY_TEAM_STATS) as unknown as TeamInsert["season_stats"],
+    description: t.description ?? null,
+    intro_subtitle: t.introSubtitle ?? null,
+    banner_url: t.bannerUrl ?? null,
   };
 }
 
@@ -146,6 +178,9 @@ export function teamPatchToRow(d: Partial<Team>): TeamUpdate {
   if (d.foundedYear !== undefined) u.founded_year = d.foundedYear ?? null;
   if (d.memberCount !== undefined) u.member_count = d.memberCount;
   if (d.seasonStats !== undefined) u.season_stats = d.seasonStats as unknown as TeamUpdate["season_stats"];
+  if (d.description !== undefined) u.description = d.description ?? null;
+  if (d.introSubtitle !== undefined) u.intro_subtitle = d.introSubtitle ?? null;
+  if (d.bannerUrl !== undefined) u.banner_url = d.bannerUrl ?? null;
   return u;
 }
 
@@ -230,6 +265,20 @@ export function matchToInsert(
 }
 
 // ===== Tournament / Season (groups/tournamentIds 는 jsonb/파생) =====
+export function tournamentToInsert(t: Omit<Tournament, "id"> & { id?: string }): TournamentInsert {
+  return {
+    ...(t.id ? { id: t.id } : {}),
+    season_id: t.seasonId || null,
+    name: t.name,
+    date: t.date || null,
+    location: t.location || null,
+    status: t.status ?? "upcoming",
+    groups: (t.groups ?? []) as unknown as TournamentInsert["groups"],
+    winning_team_id: t.winningTeamId ?? null,
+    winning_team_name: t.winningTeamName ?? null,
+  };
+}
+
 export function rowToTournament(r: TournamentRow): Tournament {
   return {
     id: r.id,
