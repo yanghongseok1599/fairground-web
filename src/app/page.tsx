@@ -344,8 +344,8 @@ export default function HomePage() {
               ]}
             />
           ) : (
-            <div className="relative w-full h-[280px] md:h-[460px] overflow-hidden">
-              <div className="absolute inset-0 origin-top scale-[0.7] md:scale-100">
+            <div className="relative w-full h-[440px] md:h-[460px]">
+              <div className="absolute inset-0 origin-top scale-[0.7] translate-y-16 md:scale-100 md:translate-y-0">
                 <CircularGallery
                   items={teams.map((team, i): GalleryItem => ({
                     id: team.id,
