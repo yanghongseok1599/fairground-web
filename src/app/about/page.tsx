@@ -200,7 +200,7 @@ export default function AboutPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div className="mt-12 flex flex-col gap-5 md:mt-16 md:flex-row md:items-end md:justify-between">
             <div className="grid max-w-[560px] grid-cols-3 gap-2">
               {THREE_C.map((c) => (
                 <div
