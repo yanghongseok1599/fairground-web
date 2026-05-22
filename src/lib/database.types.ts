@@ -16,6 +16,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_events: {
+        Row: {
+          actor_id: string | null
+          actor_name: string | null
+          badge_id: string | null
+          comment_id: string | null
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["activity_kind_t"]
+          match_id: string | null
+          photo_id: string | null
+          player_id: string | null
+          post_id: string | null
+          snippet: string | null
+          team_id: string | null
+          title: string
+          tournament_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name?: string | null
+          badge_id?: string | null
+          comment_id?: string | null
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["activity_kind_t"]
+          match_id?: string | null
+          photo_id?: string | null
+          player_id?: string | null
+          post_id?: string | null
+          snippet?: string | null
+          team_id?: string | null
+          title: string
+          tournament_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name?: string | null
+          badge_id?: string | null
+          comment_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["activity_kind_t"]
+          match_id?: string | null
+          photo_id?: string | null
+          player_id?: string | null
+          post_id?: string | null
+          snippet?: string | null
+          team_id?: string | null
+          title?: string
+          tournament_id?: string | null
+        }
+        Relationships: []
+      }
       app_push_config: {
         Row: {
           id: boolean
@@ -932,6 +986,14 @@ export type Database = {
       safe_uuid: { Args: { p: string }; Returns: string }
     }
     Enums: {
+      activity_kind_t:
+        | "post_created"
+        | "comment_created"
+        | "match_finished"
+        | "photo_uploaded"
+        | "badge_earned"
+        | "player_joined"
+        | "tournament_created"
       card_type_t: "gold" | "premium"
       match_event_t:
         | "goal"
@@ -1078,6 +1140,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      activity_kind_t: [
+        "post_created",
+        "comment_created",
+        "match_finished",
+        "photo_uploaded",
+        "badge_earned",
+        "player_joined",
+        "tournament_created",
+      ],
       card_type_t: ["gold", "premium"],
       match_event_t: [
         "goal",
