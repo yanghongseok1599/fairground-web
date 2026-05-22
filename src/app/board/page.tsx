@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, MessageSquare, Eye } from "lucide-react";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,14 +16,57 @@ const FILTERS: readonly Filter[] = ["전체", ...POST_CATEGORIES] as const;
 
 type Sort = "recent" | "comments";
 
+function isFilter(v: string | null): v is Filter {
+  return !!v && (FILTERS as readonly string[]).includes(v);
+}
+
+// useSearchParams 는 Suspense 경계가 필요 (Next.js App Router CSR bail-out 규칙).
 export default function BoardPage() {
+  return (
+    <Suspense fallback={<BoardSkeleton />}>
+      <BoardPageInner />
+    </Suspense>
+  );
+}
+
+function BoardSkeleton() {
+  return (
+    <div
+      className="pt-[60px] min-h-screen flex items-center justify-center text-sm"
+      style={{ background: "var(--color-fg-paper-2)", color: "var(--color-fg-ink-muted)" }}
+    >
+      불러오는 중…
+    </div>
+  );
+}
+
+function BoardPageInner() {
   const fetchBoardPosts = useDataStore((s) => s.fetchBoardPosts);
   const { user } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // URL ?cat=... 을 단일 소스로 사용 (state 미러링은 동기화 비용만 추가됨).
+  const catParam = searchParams.get("cat");
+  const filter: Filter = isFilter(catParam) ? catParam : "전체";
 
   const [posts, setPosts] = useState<BoardPost[]>([]);
-  const [filter, setFilter] = useState<Filter>("전체");
   const [sort, setSort] = useState<Sort>("recent");
   const [loading, setLoading] = useState(true);
+
+  const setFilter = useCallback(
+    (next: Filter) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === "전체") {
+        params.delete("cat");
+      } else {
+        params.set("cat", next);
+      }
+      const qs = params.toString();
+      router.push(qs ? `/board?${qs}` : "/board", { scroll: false });
+    },
+    [router, searchParams],
+  );
 
   useEffect(() => {
     let active = true;
