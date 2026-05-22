@@ -15,6 +15,8 @@ function targetHref(n: NotificationItem): string {
   if (n.postId && n.commentId) return `/board/${n.postId}#cm-${n.commentId}`;
   if (n.postId) return `/board/${n.postId}`;
   if (n.kind === "team_notice" && n.teamId) return `/teams/${n.teamId}/notices`;
+  if (n.kind === "tier_promoted") return `/my`;
+  if (n.kind === "coach_approved") return `/my`;
   if (n.teamId) return `/teams/${n.teamId}`;
   return "/";
 }

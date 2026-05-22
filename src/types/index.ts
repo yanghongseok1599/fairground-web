@@ -307,7 +307,7 @@ export interface Notice {
 }
 
 // ===== Community Engine =====
-export type NotificationKind = "mention" | "reply" | "reaction" | "team_notice" | "coach_approved";
+export type NotificationKind = "mention" | "reply" | "reaction" | "team_notice" | "coach_approved" | "tier_promoted";
 
 export interface NotificationItem {
   id: string;
@@ -397,7 +397,8 @@ export type ActivityKind =
   | "photo_uploaded"
   | "badge_earned"
   | "player_joined"
-  | "tournament_created";
+  | "tournament_created"
+  | "tier_promoted";
 
 export interface ActivityEvent {
   id: string;

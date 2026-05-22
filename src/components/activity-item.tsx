@@ -8,6 +8,7 @@ import {
   MessageCircle,
   MessageSquare,
   Trophy,
+  TrendingUp,
   UserPlus,
   Activity as ActivityIcon,
 } from "lucide-react";
@@ -34,6 +35,8 @@ function iconFor(kind: ActivityKind) {
       return UserPlus;
     case "tournament_created":
       return Calendar;
+    case "tier_promoted":
+      return TrendingUp;
     default:
       return ActivityIcon;
   }
@@ -49,6 +52,7 @@ function targetHref(e: ActivityEvent): string {
   if (e.photoId && e.teamId) return `/teams/${e.teamId}/gallery`;
   if (e.badgeId && e.playerId) return `/players/${e.playerId}`;
   if (e.kind === "player_joined" && e.playerId) return `/players/${e.playerId}`;
+  if (e.kind === "tier_promoted" && e.playerId) return `/players/${e.playerId}`;
   if (e.tournamentId) return `/tournaments/${e.tournamentId}`;
   if (e.teamId) return `/teams/${e.teamId}`;
   return "/";

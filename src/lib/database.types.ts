@@ -1116,6 +1116,7 @@ export type Database = {
         | "badge_earned"
         | "player_joined"
         | "tournament_created"
+        | "tier_promoted"
       card_type_t: "gold" | "premium"
       match_event_t:
         | "goal"
@@ -1131,6 +1132,7 @@ export type Database = {
         | "reaction"
         | "team_notice"
         | "coach_approved"
+        | "tier_promoted"
       player_role_t: "player" | "captain" | "referee" | "admin"
       position_t: "GK" | "FIXO" | "ALA" | "PIVO"
       post_category_t: "자유" | "매치후기" | "팁" | "모집" | "질문"
@@ -1273,6 +1275,7 @@ export const Constants = {
         "badge_earned",
         "player_joined",
         "tournament_created",
+        "tier_promoted",
       ],
       card_type_t: ["gold", "premium"],
       match_event_t: [
@@ -1290,6 +1293,7 @@ export const Constants = {
         "reaction",
         "team_notice",
         "coach_approved",
+        "tier_promoted",
       ],
       player_role_t: ["player", "captain", "referee", "admin"],
       position_t: ["GK", "FIXO", "ALA", "PIVO"],
