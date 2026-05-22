@@ -3,38 +3,26 @@
 import React, { useState } from "react";
 import { Upload } from "lucide-react";
 import { useDataStore } from "@/stores/dataStore";
+import { compressImageBlob } from "@/lib/image-compression";
 import type { TeamPhoto } from "@/types";
 
-async function compressToWebp(file: File, maxPx = 1920, quality = 0.8): Promise<File> {
+const GALLERY_MAX_PX = 1600;
+const GALLERY_QUALITY = 0.78;
+
+async function compressForGallery(file: File): Promise<File> {
   if (!file.type.startsWith("image/")) throw new Error("이미지 파일만 업로드할 수 있습니다");
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((res, rej) => {
-      const i = new Image();
-      i.onload = () => res(i);
-      i.onerror = () => rej(new Error("이미지를 불러오지 못했습니다"));
-      i.src = url;
-    });
-    let { width, height } = img;
-    if (Math.max(width, height) > maxPx) {
-      const ratio = maxPx / Math.max(width, height);
-      width = Math.round(width * ratio);
-      height = Math.round(height * ratio);
-    }
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas 컨텍스트 실패");
-    ctx.drawImage(img, 0, 0, width, height);
-    const blob = await new Promise<Blob | null>((res) =>
-      canvas.toBlob(res, "image/webp", quality),
-    );
-    if (!blob) throw new Error("압축 실패");
-    return new File([blob], file.name.replace(/\.[^.]+$/, ".webp"), { type: "image/webp" });
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  const blob = await compressImageBlob(file, {
+    maxPx: GALLERY_MAX_PX,
+    mimeType: "image/webp",
+    quality: GALLERY_QUALITY,
+  });
+  return new File([blob], file.name.replace(/\.[^.]+$/, ".webp"), { type: "image/webp" });
+}
+
+function fmtSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)}MB`;
 }
 
 export function GalleryUploader({
@@ -47,19 +35,28 @@ export function GalleryUploader({
   const [uploading, setUploading] = useState(false);
   const [caption, setCaption] = useState("");
   const [error, setError] = useState("");
+  const [stat, setStat] = useState<{ before: number; after: number; n: number } | null>(null);
   const upload = useDataStore((s) => s.uploadTeamPhoto);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setError("");
+    setStat(null);
     setUploading(true);
+    let before = 0;
+    let after = 0;
+    let n = 0;
     try {
       for (const f of Array.from(files)) {
-        const webp = await compressToWebp(f);
+        before += f.size;
+        const webp = await compressForGallery(f);
+        after += webp.size;
+        n += 1;
         const p = await upload(teamId, webp, caption.trim() || undefined);
         onUploaded(p);
       }
       setCaption("");
+      setStat({ before, after, n });
     } catch (err) {
       setError(err instanceof Error ? err.message : "업로드 실패");
     } finally {
@@ -113,6 +110,15 @@ export function GalleryUploader({
           {error}
         </p>
       )}
+      {stat && (
+        <p className="mt-2 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>
+          {stat.n}장 자동 압축: {fmtSize(stat.before)} → {fmtSize(stat.after)} (
+          {stat.before > 0 ? Math.round((1 - stat.after / stat.before) * 100) : 0}% 절감)
+        </p>
+      )}
+      <p className="mt-2 text-[11px]" style={{ color: "var(--color-fg-ink-muted)" }}>
+        업로드 시 자동으로 webp 압축 (최대 {GALLERY_MAX_PX}px)
+      </p>
     </div>
   );
 }
