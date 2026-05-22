@@ -18,6 +18,7 @@ import { CategoryChip } from "@/components/category-chip";
 import { MentionRenderer } from "@/components/mention-renderer";
 import { MentionInput } from "@/components/mention-input";
 import { HeartButton } from "@/components/heart-button";
+import { CommentThread } from "@/components/comment-thread";
 import { mentionedUserIds } from "@/lib/mention-parser";
 import { formatDate } from "@/utils/formatters";
 import type { BoardPost, BoardComment } from "@/types";
@@ -33,7 +34,6 @@ export default function BoardDetailPage() {
   const deleteBoardPost = useDataStore((s) => s.deleteBoardPost);
   const fetchComments = useDataStore((s) => s.fetchComments);
   const addComment = useDataStore((s) => s.addComment);
-  const deleteComment = useDataStore((s) => s.deleteComment);
   const fetchMyReactions = useDataStore((s) => s.fetchMyReactions);
   const notifyMentions = useDataStore((s) => s.notifyMentions);
   const { user, player } = useAuth();
@@ -133,21 +133,25 @@ export default function BoardDetailPage() {
     }
   }
 
-  async function handleDeleteComment(commentId: string) {
-    if (!confirm("댓글을 삭제하시겠습니까?")) return;
+  async function refetchComments() {
+    if (!post) return;
     try {
-      await deleteComment(commentId);
-      if (post) {
-        const [fresh, freshPost] = await Promise.all([
-          fetchComments(post.id),
-          fetchBoardPost(post.id),
-        ]);
-        setComments(fresh);
-        if (freshPost) setPost(freshPost);
+      const [fresh, freshPost] = await Promise.all([
+        fetchComments(post.id),
+        fetchBoardPost(post.id),
+      ]);
+      setComments(fresh);
+      if (freshPost) setPost(freshPost);
+      // 새 답글의 좋아요 상태 갱신.
+      if (user) {
+        const commentSet = await fetchMyReactions(
+          "comment",
+          fresh.map((c) => c.id),
+        );
+        setCommentLiked(commentSet);
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "댓글 삭제 실패";
-      alert(msg);
+      console.error("[BoardDetail] refetchComments:", err);
     }
   }
 
@@ -282,63 +286,13 @@ export default function BoardDetailPage() {
                 <MessageSquare className="w-4 h-4" /> 댓글 {post.commentCount}
               </h2>
 
-              {comments.length === 0 ? (
-                <p className="text-sm py-4" style={{ color: "var(--color-fg-ink-muted)" }}>
-                  아직 댓글이 없습니다. 첫 댓글을 남겨보세요.
-                </p>
-              ) : (
-                <ul className="flex flex-col">
-                  {comments.map((c) => (
-                    <li
-                      key={c.id}
-                      id={`cm-${c.id}`}
-                      className="scroll-mt-24 py-4 target:rounded-md target:bg-[color:var(--color-fg-paper-3,#EEF3FF)]"
-                      style={{ borderBottom: "1px solid var(--color-fg-line-soft)" }}
-                    >
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <div
-                          className="flex items-center gap-2 text-xs"
-                          style={{ color: "var(--color-fg-ink-muted)" }}
-                        >
-                          <span className="font-semibold" style={{ color: "var(--color-fg-ink)" }}>
-                            {c.authorName ?? "익명"}
-                          </span>
-                          <span aria-hidden="true">·</span>
-                          <time dateTime={new Date(c.createdAt).toISOString()}>
-                            {formatDate(c.createdAt)}
-                          </time>
-                        </div>
-                        {(user?.uid === c.authorId || isAdmin) && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteComment(c.id)}
-                            className="text-xs font-medium"
-                            style={{ color: "var(--color-fg-red)" }}
-                            aria-label="댓글 삭제"
-                          >
-                            삭제
-                          </button>
-                        )}
-                      </div>
-                      <div
-                        className="text-sm leading-relaxed"
-                        style={{ color: "var(--color-fg-ink)" }}
-                      >
-                        <MentionRenderer body={c.body} />
-                      </div>
-                      <div className="mt-2">
-                        <HeartButton
-                          target="comment"
-                          id={c.id}
-                          initialLiked={commentLiked.has(c.id)}
-                          initialCount={c.reactionCount ?? 0}
-                          size="sm"
-                        />
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <CommentThread
+                postId={post.id}
+                comments={comments}
+                onCommentsChanged={refetchComments}
+                myReactions={commentLiked}
+              />
+
 
               {/* Comment input */}
               <div className="mt-6 pt-4" style={{ borderTop: "1px solid var(--color-fg-line-soft)" }}>
