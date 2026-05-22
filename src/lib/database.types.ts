@@ -16,6 +16,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_push_config: {
+        Row: {
+          id: boolean
+          subject: string
+          updated_at: string
+          vapid_private: string
+          vapid_public: string
+          webhook_secret: string | null
+        }
+        Insert: {
+          id?: boolean
+          subject?: string
+          updated_at?: string
+          vapid_private: string
+          vapid_public: string
+          webhook_secret?: string | null
+        }
+        Update: {
+          id?: boolean
+          subject?: string
+          updated_at?: string
+          vapid_private?: string
+          vapid_public?: string
+          webhook_secret?: string | null
+        }
+        Relationships: []
+      }
       badges: {
         Row: {
           category: string
@@ -657,6 +684,44 @@ export type Database = {
           },
         ]
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seasons: {
         Row: {
           end_date: string | null
@@ -850,6 +915,7 @@ export type Database = {
     Functions: {
       bump_post_view: { Args: { p_post_id: string }; Returns: undefined }
       end_match: { Args: { p_match_id: string }; Returns: undefined }
+      get_vapid_public_key: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_referee_or_admin: { Args: never; Returns: boolean }
       is_team_coach: { Args: { p_team_id: string }; Returns: boolean }
@@ -863,6 +929,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      safe_uuid: { Args: { p: string }; Returns: string }
     }
     Enums: {
       card_type_t: "gold" | "premium"
