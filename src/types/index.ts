@@ -229,6 +229,19 @@ export interface PlayerBadgeRow {
   earnedAt?: number;
 }
 
+// ===== Match Lineup =====
+// 매치 출전 명단 (감독·매니저·주장이 경기 시작 전 제출).
+// is_starter: 선발 5명 / 교체 등록 N (총 등록 ≤ 20).
+export interface MatchLineupEntry {
+  matchId: string;
+  teamId: string;
+  playerId: string;
+  playerName?: string;
+  isStarter: boolean;
+  jerseyNumber?: number;
+  createdAt: number;
+}
+
 // ===== Board / Notices =====
 export type PostCategory = "자유" | "매치후기" | "팁" | "모집" | "질문";
 export const POST_CATEGORIES: readonly PostCategory[] = [

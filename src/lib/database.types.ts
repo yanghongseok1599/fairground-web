@@ -277,6 +277,55 @@ export type Database = {
           },
         ]
       }
+      match_lineups: {
+        Row: {
+          created_at: string
+          is_starter: boolean
+          jersey_number: number | null
+          match_id: string
+          player_id: string
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          is_starter?: boolean
+          jersey_number?: number | null
+          match_id: string
+          player_id: string
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          is_starter?: boolean
+          jersey_number?: number | null
+          match_id?: string
+          player_id?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_lineups_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_lineups_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_lineups_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_events: {
         Row: {
           created_at: string
@@ -1047,6 +1096,7 @@ export type Database = {
       is_team_coach: { Args: { p_team_id: string }; Returns: boolean }
       is_team_manager: { Args: { p_team_id: string }; Returns: boolean }
       is_team_staff: { Args: { p_team_id: string }; Returns: boolean }
+      match_is_open: { Args: { p_match_id: string }; Returns: boolean }
       notify_mentions: {
         Args: {
           p_mentioned_user_ids: string[]

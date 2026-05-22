@@ -55,6 +55,7 @@ import type {
   SearchResults,
   BadgeMaster,
   PlayerBadgeRow,
+  MatchLineupEntry,
 } from "@/types";
 
 // 단일앱 통합 store: 공개사이트 read(RLS anon) + 운영 write(인증/RLS) 통합.
@@ -277,6 +278,22 @@ interface DataState {
   // profiles.badges 장착 슬롯 update. 최대 4개로 잘림.
   // 미획득 배지가 섞여 있으면 RLS/트리거가 거부 가능 → 호출부에서 사전 검증.
   updateEquippedBadges: (playerId: string, badgeIds: string[]) => Promise<void>;
+
+  // --- Match lineups (감독·매니저·주장 제출, status='scheduled' 만 허용) ---
+  fetchMatchLineup: (matchId: string) => Promise<MatchLineupEntry[]>;
+  upsertLineupEntry: (
+    matchId: string,
+    teamId: string,
+    playerId: string,
+    opts?: { isStarter?: boolean; jerseyNumber?: number }
+  ) => Promise<void>;
+  removeLineupEntry: (matchId: string, teamId: string, playerId: string) => Promise<void>;
+  setLineupStarter: (
+    matchId: string,
+    teamId: string,
+    playerId: string,
+    isStarter: boolean
+  ) => Promise<void>;
 }
 
 /** SQL 예외 메시지 → 사용자용 한국어. raise(message) 패턴을 파싱한다. */
@@ -1473,5 +1490,70 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       console.error("[dataStore] updateEquippedBadges:", error.message);
       throw new Error(error.message);
     }
+  },
+
+  // ===== Match lineups =====
+  fetchMatchLineup: async (matchId) => {
+    const { data, error } = await supabase
+      .from("match_lineups")
+      .select("match_id, team_id, player_id, is_starter, jersey_number, created_at, profiles:player_id(name)")
+      .eq("match_id", matchId)
+      .order("is_starter", { ascending: false })
+      .order("jersey_number", { ascending: true, nullsFirst: false });
+    if (error) {
+      console.error("[dataStore] fetchMatchLineup:", error.message);
+      return [];
+    }
+    type Row = {
+      match_id: string; team_id: string; player_id: string;
+      is_starter: boolean; jersey_number: number | null; created_at: string;
+      profiles?: { name: string } | { name: string }[] | null;
+    };
+    return ((data ?? []) as unknown as Row[]).map((r) => {
+      const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+      return {
+        matchId: r.match_id,
+        teamId: r.team_id,
+        playerId: r.player_id,
+        playerName: p?.name,
+        isStarter: r.is_starter,
+        jerseyNumber: r.jersey_number ?? undefined,
+        createdAt: new Date(r.created_at).getTime(),
+      };
+    });
+  },
+
+  upsertLineupEntry: async (matchId, teamId, playerId, opts) => {
+    const { error } = await supabase.from("match_lineups").upsert(
+      {
+        match_id: matchId,
+        team_id: teamId,
+        player_id: playerId,
+        is_starter: opts?.isStarter ?? false,
+        jersey_number: opts?.jerseyNumber ?? null,
+      },
+      { onConflict: "match_id,team_id,player_id" }
+    );
+    if (error) throw new Error(friendlyError(error.message));
+  },
+
+  removeLineupEntry: async (matchId, teamId, playerId) => {
+    const { error } = await supabase
+      .from("match_lineups")
+      .delete()
+      .eq("match_id", matchId)
+      .eq("team_id", teamId)
+      .eq("player_id", playerId);
+    if (error) throw new Error(friendlyError(error.message));
+  },
+
+  setLineupStarter: async (matchId, teamId, playerId, isStarter) => {
+    const { error } = await supabase
+      .from("match_lineups")
+      .update({ is_starter: isStarter })
+      .eq("match_id", matchId)
+      .eq("team_id", teamId)
+      .eq("player_id", playerId);
+    if (error) throw new Error(friendlyError(error.message));
   },
 }));
