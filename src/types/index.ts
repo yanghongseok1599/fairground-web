@@ -303,6 +303,38 @@ export interface TeamPhoto {
   createdAt: number;
 }
 
+// ===== Search =====
+export interface SearchHitPost {
+  id: string;
+  title: string;
+  authorName?: string;
+  createdAt: number;
+}
+export interface SearchHitNotice {
+  id: string;
+  title: string;
+  isImportant?: boolean;
+  createdAt: number;
+}
+export interface SearchHitTeam {
+  id: string;
+  name: string;
+  logo?: string;
+}
+export interface SearchHitPlayer {
+  id: string;
+  name: string;
+  photoUrl?: string;
+  number?: number;
+  teamId?: string;
+}
+export interface SearchResults {
+  posts: SearchHitPost[];
+  notices: SearchHitNotice[];
+  teams: SearchHitTeam[];
+  players: SearchHitPlayer[];
+}
+
 // ===== Moderation =====
 export type ReportTarget = "post" | "comment" | "photo";
 export type ReportReason = "spam" | "abuse" | "sexual" | "illegal" | "other";

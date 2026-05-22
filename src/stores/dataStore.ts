@@ -52,6 +52,7 @@ import type {
   Report,
   ReportReason,
   ReportTarget,
+  SearchResults,
 } from "@/types";
 
 // 단일앱 통합 store: 공개사이트 read(RLS anon) + 운영 write(인증/RLS) 통합.
@@ -263,6 +264,8 @@ interface DataState {
   fetchTeamPhotos: (teamId: string, limit?: number) => Promise<TeamPhoto[]>;
   // 전체 활동 피드. cursor 는 createdAt unix ms; 그보다 과거 행을 페이지로 반환.
   fetchActivityFeed: (opts?: { cursor?: number; limit?: number }) => Promise<ActivityEvent[]>;
+  // 통합 검색 (글·공지·팀·플레이어 병렬, 각 카테고리 최대 5건)
+  searchAll: (q: string) => Promise<SearchResults>;
 }
 
 /** SQL 예외 메시지 → 사용자용 한국어. raise(message) 패턴을 파싱한다. */
@@ -1332,5 +1335,71 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       return [];
     }
     return (data ?? []).map(rowToActivityEvent);
+  },
+
+  searchAll: async (q) => {
+    const empty: SearchResults = { posts: [], notices: [], teams: [], players: [] };
+    const query = q.trim();
+    if (query.length < 1) return empty;
+    const escaped = query.replace(/[%_\\]/g, (c) => `\\${c}`);
+    const pattern = `%${escaped}%`;
+    const limit = 5;
+
+    const [postsRes, noticesRes, teamsRes, playersRes] = await Promise.all([
+      supabase
+        .from("board_posts")
+        .select("id, title, created_at, profiles:author_id(name)")
+        .eq("is_hidden", false)
+        .or(`title.ilike.${pattern},body.ilike.${pattern}`)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      supabase
+        .from("notices")
+        .select("id, title, is_important, created_at")
+        .or(`title.ilike.${pattern},body.ilike.${pattern}`)
+        .order("created_at", { ascending: false })
+        .limit(limit),
+      supabase
+        .from("teams")
+        .select("id, name, logo")
+        .eq("is_approved", true)
+        .ilike("name", pattern)
+        .limit(limit),
+      supabase
+        .from("profiles")
+        .select("id, name, photo_url, number, team_id")
+        .eq("is_approved", true)
+        .ilike("name", pattern)
+        .limit(limit),
+    ]);
+
+    type PostRow = { id: string; title: string; created_at: string; profiles?: { name: string } | { name: string }[] | null };
+    type NoticeRow = { id: string; title: string; is_important: boolean; created_at: string };
+    type TeamRow = { id: string; name: string; logo: string };
+    type PlayerRow = { id: string; name: string; photo_url: string; number: number; team_id: string | null };
+
+    const posts = ((postsRes.data ?? []) as unknown as PostRow[]).map((r) => {
+      const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+      return {
+        id: r.id,
+        title: r.title,
+        authorName: p?.name,
+        createdAt: new Date(r.created_at).getTime(),
+      };
+    });
+    const notices = ((noticesRes.data ?? []) as unknown as NoticeRow[]).map((r) => ({
+      id: r.id,
+      title: r.title,
+      isImportant: r.is_important,
+      createdAt: new Date(r.created_at).getTime(),
+    }));
+    const teams = ((teamsRes.data ?? []) as unknown as TeamRow[]).map((r) => ({
+      id: r.id, name: r.name, logo: r.logo,
+    }));
+    const players = ((playersRes.data ?? []) as unknown as PlayerRow[]).map((r) => ({
+      id: r.id, name: r.name, photoUrl: r.photo_url, number: r.number, teamId: r.team_id ?? undefined,
+    }));
+
+    return { posts, notices, teams, players };
   },
 }));
