@@ -170,3 +170,61 @@ async function staleWhileRevalidate(req, cacheName) {
     .catch(() => undefined);
   return cached || (await network) || Response.error();
 }
+
+/*
+ * Web Push 핸들러 — sw-push.js 와 동기 유지 (정본은 sw-push.js).
+ * 기존 /sw.js 가 이미 scope='/' 점유 → 별도 SW 등록은 충돌하므로 본 SW 에 병합.
+ * 페이로드: { title, body, url, kind } (JSON 문자열, push-dispatch Edge Function).
+ */
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    if (event.data) payload = event.data.json();
+  } catch {
+    // 비정형 페이로드는 무시 — userVisibleOnly 의무는 아래 fallback 알림으로 충족.
+  }
+  const title = payload.title || "FairGround";
+  const body = payload.body || "새 알림이 있습니다.";
+  const url = payload.url || "/";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      const sameOrigin = all.filter((c) => {
+        try {
+          return new URL(c.url).origin === self.location.origin;
+        } catch {
+          return false;
+        }
+      });
+      if (sameOrigin.length > 0) {
+        const client = sameOrigin[0];
+        try {
+          await client.focus();
+          if ("navigate" in client) {
+            await client.navigate(targetUrl);
+          }
+          return;
+        } catch {
+          // focus/navigate 실패 시 새 창 폴백.
+        }
+      }
+      await self.clients.openWindow(targetUrl);
+    })()
+  );
+});

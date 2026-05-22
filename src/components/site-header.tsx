@@ -7,6 +7,7 @@ import { Menu, Shield, X, User, UserPlus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getAdminEntryLabel, isAdminLikeRole } from "@/lib/admin-access";
 import { NotificationBell } from "@/components/notification-bell";
+import { PushOptInButton } from "@/components/push-opt-in-button";
 
 const NAV_ITEMS = [
   { href: "/about", label: "소개" },
@@ -144,6 +145,7 @@ export function SiteHeader() {
         </div>
 
         <NotificationBell />
+        <PushOptInButton />
 
         <Link
           href="/my/player-setup"
