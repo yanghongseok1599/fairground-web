@@ -8,6 +8,7 @@ import { useTeam } from "@/hooks/useTeam";
 import { useDataStore } from "@/stores/dataStore";
 import { AdminHeader } from "@/components/admin-header";
 import { AdminLoading } from "@/components/admin-loading";
+import { ClubEmblem } from "@/components/club-emblem";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -160,7 +161,7 @@ export default function MyTeamPage() {
     try {
       const createdTeamId = await createTeam({
         name: name.trim(),
-        logo: logo.trim() || "/images/default-team.png",
+        logo: logo.trim(),
         isApproved: false,
         captainId: player?.id || undefined,
         foundedYear: foundedYear ? parseInt(foundedYear, 10) : undefined,
@@ -467,18 +468,7 @@ export default function MyTeamPage() {
                       className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl p-1.5"
                       style={{ background: "var(--muted)" }}
                     >
-                      {team.logo ? (
-                        <img
-                          src={team.logo}
-                          alt={team.name}
-                          className="h-full w-full object-contain"
-                        />
-                      ) : (
-                        <Shield
-                          className="h-8 w-8"
-                          style={{ color: "var(--muted-foreground)" }}
-                        />
-                      )}
+                      <ClubEmblem name={team.name} logoSrc={team.logo} />
                     </div>
                     <div className="flex-1">
                       <h2 className="text-lg font-bold">{team.name}</h2>

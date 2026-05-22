@@ -206,19 +206,10 @@ export default function HomePage() {
           aspect={1920 / 940}
           background="#ffffff"
           stickyTop={60}
+          mobileVideoSrc="/player-enters-stadium-mobile.mp4"
           reveals={HERO_REVEALS}
           staticFallback={
             <>
-              <video
-                src="/FairGroundAd.mp4"
-                autoPlay
-                loop
-                muted
-                playsInline
-                preload="auto"
-                aria-hidden
-                className="absolute inset-0 h-full w-full object-cover"
-              />
               {/* 영상 가독성 위한 약한 어둠 오버레이 */}
               <div
                 aria-hidden
@@ -228,34 +219,20 @@ export default function HomePage() {
                     "linear-gradient(180deg, rgba(13,27,42,0.18) 0%, rgba(13,27,42,0.05) 35%, rgba(13,27,42,0.45) 100%)",
                 }}
               />
-              <div className="relative text-center px-6" aria-hidden>
+              <div className="relative flex h-full w-full items-end justify-center px-6 pb-[6.5vh] text-center" aria-hidden>
                 <div
                   style={{
                     fontFamily: "var(--font-body), sans-serif",
                     fontWeight: 800,
                     color: "var(--color-fg-paper)",
-                    fontSize: "clamp(40px, 9vw, 110px)",
+                    fontSize: "clamp(20px, 5.6vw, 32px)",
                     lineHeight: 1,
-                    letterSpacing: "-0.03em",
+                    letterSpacing: "-0.01em",
                     textShadow:
                       "0 6px 28px rgba(0,0,0,0.55), 0 0 60px rgba(0,0,0,0.30)",
                   }}
                 >
-                  모두가 <span style={{ color: "#9DB8FF" }}>승리하는</span>
-                  <br />
-                  그라운드
-                </div>
-                <div
-                  className="mt-4 tracking-[0.12em]"
-                  style={{
-                    color: "rgba(255,255,255,0.85)",
-                    fontFamily: "var(--font-body)",
-                    fontWeight: 700,
-                    fontSize: "clamp(13px, 2.5vw, 20px)",
-                    textShadow: "0 4px 20px rgba(0,0,0,0.5)",
-                  }}
-                >
-                  EVERYONE WINS ON THIS GROUND
+                  모두가 승리하는 <span style={{ color: "#9DB8FF" }}>그라운드</span>
                 </div>
               </div>
             </>
