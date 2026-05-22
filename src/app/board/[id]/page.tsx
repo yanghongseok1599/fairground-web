@@ -19,6 +19,7 @@ import { MentionRenderer } from "@/components/mention-renderer";
 import { MentionInput } from "@/components/mention-input";
 import { HeartButton } from "@/components/heart-button";
 import { CommentThread } from "@/components/comment-thread";
+import { ReportButton } from "@/components/report-button";
 import { mentionedUserIds } from "@/lib/mention-parser";
 import { formatDate } from "@/utils/formatters";
 import type { BoardPost, BoardComment } from "@/types";
@@ -190,8 +191,21 @@ export default function BoardDetailPage() {
                 boxShadow: "var(--shadow-sm)",
               }}
             >
-              <div className="mb-3">
+              <div className="mb-3 flex items-center gap-2 flex-wrap">
                 <CategoryChip label={post.category} />
+                {post.isHidden && (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold"
+                    style={{
+                      background: "rgba(255,107,107,0.10)",
+                      color: "var(--color-fg-red)",
+                      border: "1px solid rgba(255,107,107,0.24)",
+                    }}
+                    aria-label="숨김 처리된 게시글"
+                  >
+                    🚫 숨김
+                  </span>
+                )}
               </div>
               <h1
                 className="font-black leading-tight mb-3"
@@ -231,12 +245,18 @@ export default function BoardDetailPage() {
                 <MentionRenderer body={post.body} />
               </div>
 
-              <div className="mt-6 flex items-center">
+              <div className="mt-6 flex items-center justify-between gap-2 flex-wrap">
                 <HeartButton
                   target="post"
                   id={post.id}
                   initialLiked={postLiked}
                   initialCount={post.reactionCount ?? 0}
+                />
+                <ReportButton
+                  targetType="post"
+                  targetId={post.id}
+                  ownerId={post.authorId}
+                  targetTitle={post.title}
                 />
               </div>
 

@@ -6,7 +6,7 @@ export interface AdminMenuItem {
   href: string;
   accent: string;
   roles: PlayerRole[];
-  metricKey: "matches" | "players" | "referees" | "teams" | "penalties" | "coaches";
+  metricKey: "matches" | "players" | "referees" | "teams" | "penalties" | "coaches" | "reports";
 }
 
 export const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
@@ -57,6 +57,14 @@ export const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
     accent: "#FF6B6B",
     roles: ["admin"],
     metricKey: "penalties",
+  },
+  {
+    title: "신고 관리",
+    description: "사용자 신고 검토, 콘텐츠 숨김 처리",
+    href: "/admin/reports",
+    accent: "#FF8A65",
+    roles: ["admin"],
+    metricKey: "reports",
   },
 ];
 

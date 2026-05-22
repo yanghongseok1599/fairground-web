@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, Gamepad2, Shield, ShieldCheck, Sparkles, UserCheck, Users } from "lucide-react";
+import { AlertTriangle, Flag, Gamepad2, Shield, ShieldCheck, Sparkles, UserCheck, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { AdminGuard } from "@/components/admin-guard";
 import { AdminShell, AdminTile } from "@/components/admin-shell";
@@ -14,6 +14,7 @@ const ICONS = {
   teams: Users,
   coaches: Shield,
   penalties: AlertTriangle,
+  reports: Flag,
 };
 
 export default function AdminPage() {

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { MentionRenderer } from "@/components/mention-renderer";
 import { MentionInput } from "@/components/mention-input";
 import { HeartButton } from "@/components/heart-button";
+import { ReportButton } from "@/components/report-button";
 import { mentionedUserIds } from "@/lib/mention-parser";
 import { formatDate } from "@/utils/formatters";
 import type { BoardComment } from "@/types";
@@ -212,6 +213,19 @@ function CommentNode({ comment, isReply, postId, myReactions, onChanged }: NodeP
           {comment.isEdited && (
             <span style={{ color: "var(--color-fg-ink-muted)" }}>(수정됨)</span>
           )}
+          {comment.isHidden && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold"
+              style={{
+                background: "rgba(255,107,107,0.10)",
+                color: "var(--color-fg-red)",
+                border: "1px solid rgba(255,107,107,0.24)",
+              }}
+              aria-label="숨김 처리된 댓글"
+            >
+              🚫 숨김
+            </span>
+          )}
         </div>
 
         {(canModify || canDelete) && !editing && (
@@ -318,7 +332,7 @@ function CommentNode({ comment, isReply, postId, myReactions, onChanged }: NodeP
         </div>
       )}
 
-      {/* Action row: heart + reply */}
+      {/* Action row: heart + reply + report */}
       {!editing && (
         <div className="mt-2 flex items-center gap-1">
           <HeartButton
@@ -340,6 +354,13 @@ function CommentNode({ comment, isReply, postId, myReactions, onChanged }: NodeP
               답글
             </button>
           )}
+          <ReportButton
+            targetType="comment"
+            targetId={comment.id}
+            ownerId={comment.authorId}
+            variant="icon"
+            className="ml-auto"
+          />
         </div>
       )}
 
