@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Menu, Shield, X, User, UserPlus } from "lucide-react";
+import { Menu, Shield, X, User, UserPlus, Search } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { getAdminEntryLabel, isAdminLikeRole } from "@/lib/admin-access";
 import { NotificationBell } from "@/components/notification-bell";
 import { PushOptInButton } from "@/components/push-opt-in-button";
+import { SearchModal } from "@/components/search-modal";
 
 const NAV_ITEMS = [
   { href: "/about", label: "소개" },
@@ -50,6 +51,7 @@ export function SiteHeader() {
   const accountLabel = showAdminEntry ? getAdminEntryLabel(player?.role) : user ? "마이페이지" : "로그인";
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // Glass header elevation: subtle at the top, lifts on scroll.
   // Static transition is acceptable under reduced-motion (no animation loop).
@@ -59,6 +61,20 @@ export function SiteHeader() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Cmd/Ctrl + K → open search (when closed). ESC handling lives inside SearchModal.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        if (!searchOpen) {
+          e.preventDefault();
+          setSearchOpen(true);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [searchOpen]);
 
   return (
     <header
@@ -145,6 +161,26 @@ export function SiteHeader() {
           </span>
         </div>
 
+        <button
+          type="button"
+          aria-label="검색 열기"
+          onClick={() => setSearchOpen(true)}
+          className="relative flex h-10 items-center gap-1.5 rounded-md px-2 hover:bg-[color:var(--color-fg-paper-3,#EEF3FF)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+          style={{ outlineColor: "var(--color-ring)" }}
+        >
+          <Search width={20} height={20} style={{ color: "var(--color-fg-ink)" }} />
+          <kbd
+            className="hidden lg:inline-flex items-center rounded border px-1.5 py-0.5 text-[10px]"
+            style={{
+              borderColor: "var(--color-fg-line-soft, rgba(13,27,42,0.12))",
+              color: "var(--color-fg-ink-muted, #6B7280)",
+            }}
+            aria-hidden="true"
+          >
+            ⌘K
+          </kbd>
+        </button>
+
         <NotificationBell />
         <PushOptInButton />
 
@@ -174,9 +210,20 @@ export function SiteHeader() {
         </Link>
       </div>
 
+      {/* Mobile search button */}
+      <button
+        type="button"
+        aria-label="검색 열기"
+        onClick={() => setSearchOpen(true)}
+        className="ml-auto md:hidden flex h-10 w-10 items-center justify-center"
+        style={{ color: "var(--foreground)" }}
+      >
+        <Search className="h-5 w-5" />
+      </button>
+
       {/* Mobile menu toggle */}
       <button
-        className="ml-auto md:hidden"
+        className="md:hidden"
         onClick={() => setOpen(!open)}
         aria-label="메뉴"
         style={{ color: "var(--foreground)" }}
@@ -260,6 +307,9 @@ export function SiteHeader() {
           </div>
         </div>
       )}
+
+      {/* Global search modal */}
+      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   );
 }
