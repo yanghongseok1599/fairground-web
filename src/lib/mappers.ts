@@ -454,11 +454,14 @@ export function rowToBoardComment(r: BoardCommentRowWithAuthor): BoardComment {
   return {
     id: r.id,
     postId: r.post_id,
+    parentCommentId: r.parent_comment_id ?? undefined,
     body: r.body,
     authorId: r.author_id,
     authorName: pickAuthorName(r.profiles),
     reactionCount: r.reaction_count ?? 0,
+    isEdited: r.is_edited ?? false,
     createdAt: ts(r.created_at),
+    updatedAt: r.updated_at ? ts(r.updated_at) : undefined,
   };
 }
 
@@ -466,6 +469,7 @@ export interface BoardCommentInputCreate {
   postId: string;
   body: string;
   authorId: string;
+  parentCommentId?: string;
 }
 
 export function boardCommentToInsert(d: BoardCommentInputCreate): BoardCommentInsert {
@@ -473,6 +477,7 @@ export function boardCommentToInsert(d: BoardCommentInputCreate): BoardCommentIn
     post_id: d.postId,
     body: d.body,
     author_id: d.authorId,
+    parent_comment_id: d.parentCommentId ?? null,
   };
 }
 

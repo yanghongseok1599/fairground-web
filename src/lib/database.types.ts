@@ -136,24 +136,33 @@ export type Database = {
           body: string
           created_at: string
           id: string
+          is_edited: boolean
+          parent_comment_id: string | null
           post_id: string
           reaction_count: number
+          updated_at: string
         }
         Insert: {
           author_id: string
           body: string
           created_at?: string
           id?: string
+          is_edited?: boolean
+          parent_comment_id?: string | null
           post_id: string
           reaction_count?: number
+          updated_at?: string
         }
         Update: {
           author_id?: string
           body?: string
           created_at?: string
           id?: string
+          is_edited?: boolean
+          parent_comment_id?: string | null
           post_id?: string
           reaction_count?: number
+          updated_at?: string
         }
         Relationships: [
           {

@@ -245,11 +245,14 @@ export interface BoardPost {
 export interface BoardComment {
   id: string;
   postId: string;
+  parentCommentId?: string;
   body: string;
   authorId: string;
   authorName?: string;
   reactionCount?: number;
+  isEdited?: boolean;
   createdAt: number;
+  updatedAt?: number;
 }
 
 export interface Notice {

@@ -196,7 +196,13 @@ interface DataState {
 
   // --- Board comments ---
   fetchComments: (postId: string) => Promise<BoardComment[]>;
-  addComment: (postId: string, body: string, authorId: string) => Promise<string>;
+  addComment: (
+    postId: string,
+    body: string,
+    authorId: string,
+    parentCommentId?: string
+  ) => Promise<string>;
+  updateComment: (commentId: string, body: string) => Promise<void>;
   deleteComment: (commentId: string) => Promise<void>;
 
   // --- Team roles & coach application ---
@@ -931,15 +937,24 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     return (data ?? []).map(rowToBoardComment);
   },
 
-  addComment: async (postId, body, authorId) => {
+  addComment: async (postId, body, authorId, parentCommentId) => {
     if (isDemoMode) throw new Error("데모 모드에서는 댓글을 작성할 수 없습니다");
     const { data, error } = await supabase
       .from("board_comments")
-      .insert(boardCommentToInsert({ postId, body, authorId }))
+      .insert(boardCommentToInsert({ postId, body, authorId, parentCommentId }))
       .select("id")
       .single();
     if (error || !data) throw new Error(error?.message ?? "addComment failed");
     return data.id;
+  },
+
+  updateComment: async (commentId, body) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 댓글을 수정할 수 없습니다");
+    const { error } = await supabase
+      .from("board_comments")
+      .update({ body })
+      .eq("id", commentId);
+    if (error) { console.error("[dataStore] updateComment:", error.message); throw new Error(error.message); }
   },
 
   deleteComment: async (commentId) => {
