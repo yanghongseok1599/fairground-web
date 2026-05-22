@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Menu, X, User, LogIn } from "lucide-react";
-import { useAuthStore } from "@/stores/authStore";
+import { Menu, Shield, X, User, UserPlus } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { getAdminEntryLabel, isAdminLikeRole } from "@/lib/admin-access";
+import { NotificationBell } from "@/components/notification-bell";
 
 const NAV_ITEMS = [
   { href: "/about", label: "소개" },
   { href: "/live", label: "라이브" },
   { href: "/tournaments", label: "대회" },
-  { href: "/standings", label: "순위" },
   { href: "/players", label: "FA선수" },
   { href: "/teams", label: "팀" },
   { href: "/notices", label: "공지사항" },
@@ -41,9 +42,12 @@ function FGMark() {
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const { user, player } = useAuth();
+  const showAdminEntry = isAdminLikeRole(player?.role);
+  const accountHref = showAdminEntry ? "/admin" : user ? "/my" : "/login";
+  const accountLabel = showAdminEntry ? getAdminEntryLabel(player?.role) : user ? "마이페이지" : "로그인";
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { user, player, initialized } = useAuthStore();
 
   // Glass header elevation: subtle at the top, lifts on scroll.
   // Static transition is acceptable under reduced-motion (no animation loop).
@@ -139,55 +143,32 @@ export function SiteHeader() {
           </span>
         </div>
 
-        {initialized &&
-          (user ? (
-            <Link
-              href="/my"
-              className="flex items-center gap-2 px-3 py-1.5 text-[13px] font-medium transition-colors border"
-              style={{
-                fontFamily: "var(--font-body)",
-                color: pathname.startsWith("/my")
-                  ? "var(--primary-foreground)"
-                  : "var(--foreground)",
-                background: pathname.startsWith("/my")
-                  ? "var(--primary)"
-                  : "transparent",
-                borderColor: pathname.startsWith("/my")
-                  ? "var(--primary)"
-                  : "var(--border)",
-              }}
-            >
-              <div
-                className="h-6 w-6 grid place-items-center text-[10px] font-bold overflow-hidden"
-                style={{
-                  background: "var(--background)",
-                  color: "var(--primary)",
-                  border: "1px solid var(--border)",
-                }}
-              >
-                {(player?.profilePhotoUrl || player?.photoUrl) ? (
-                  <img src={player.profilePhotoUrl || player.photoUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <User className="h-3 w-3" />
-                )}
-              </div>
-              <span className="fg-display tracking-wider text-[13px]">
-                {player?.name || "MY"}
-              </span>
-            </Link>
-          ) : (
-            <Link
-              href="/login"
-              className="flex items-center gap-1.5 text-[12px] font-bold px-4 py-2 transition-all fg-display tracking-[0.08em]"
-              style={{
-                background: "var(--primary)",
-                color: "var(--primary-foreground)",
-              }}
-            >
-              <LogIn className="h-3.5 w-3.5" />
-              참가 신청
-            </Link>
-          ))}
+        <NotificationBell />
+
+        <Link
+          href="/my/player-setup"
+          className="flex items-center gap-1.5 text-[12px] font-bold px-4 py-2 transition-all fg-display tracking-[0.08em]"
+          style={{
+            background: "var(--primary)",
+            color: "var(--primary-foreground)",
+          }}
+        >
+          <UserPlus className="h-3.5 w-3.5" />
+          선수등록
+        </Link>
+
+        <Link
+          href={accountHref}
+          className="flex items-center gap-1.5 text-[12px] font-bold px-4 py-2 border transition-all fg-display tracking-[0.08em]"
+          style={{
+            background: user ? "var(--foreground)" : "var(--background)",
+            borderColor: user ? "var(--foreground)" : "var(--border)",
+            color: user ? "var(--background)" : "var(--primary)",
+          }}
+        >
+          {showAdminEntry ? <Shield className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}
+          {accountLabel}
+        </Link>
       </div>
 
       {/* Mobile menu toggle */}
@@ -248,30 +229,31 @@ export function SiteHeader() {
             className="mt-3 pt-3"
             style={{ borderTop: "1px solid var(--border)" }}
           >
-            {user ? (
-              <Link
-                href="/my"
-                className="flex items-center gap-2 px-3 py-3 text-base font-medium"
-                style={{ color: "var(--primary)" }}
-                onClick={() => setOpen(false)}
-              >
-                <User className="h-4 w-4" />
-                {player?.name || "마이페이지"}
-              </Link>
-            ) : (
-              <Link
-                href="/login"
-                className="flex items-center justify-center gap-2 px-3 py-3 fg-display text-base tracking-[0.08em]"
-                style={{
-                  background: "var(--primary)",
-                  color: "var(--primary-foreground)",
-                }}
-                onClick={() => setOpen(false)}
-              >
-                <LogIn className="h-4 w-4" />
-                참가 신청
-              </Link>
-            )}
+            <Link
+              href="/my/player-setup"
+              className="flex items-center justify-center gap-2 px-3 py-3 fg-display text-base tracking-[0.08em]"
+              style={{
+                background: "var(--primary)",
+                color: "var(--primary-foreground)",
+              }}
+              onClick={() => setOpen(false)}
+            >
+              <UserPlus className="h-4 w-4" />
+              선수등록
+            </Link>
+            <Link
+              href={accountHref}
+              className="mt-2 flex items-center justify-center gap-2 px-3 py-3 fg-display text-base tracking-[0.08em] border"
+              style={{
+                background: user ? "var(--foreground)" : "var(--background)",
+                borderColor: user ? "var(--foreground)" : "var(--border)",
+                color: user ? "var(--background)" : "var(--primary)",
+              }}
+              onClick={() => setOpen(false)}
+            >
+              {showAdminEntry ? <Shield className="h-4 w-4" /> : <User className="h-4 w-4" />}
+              {accountLabel}
+            </Link>
           </div>
         </div>
       )}

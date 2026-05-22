@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
+import { NotificationRealtime } from "@/components/notification-realtime";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const init = useAuthStore((s) => s.init);
@@ -11,5 +12,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, [init]);
 
-  return <>{children}</>;
+  return (
+    <>
+      <NotificationRealtime />
+      {children}
+    </>
+  );
 }
