@@ -1,18 +1,38 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useDataStore } from "@/stores/dataStore";
 import { MatchCard } from "@/components/match-card";
 import { Section } from "@/components/section";
 import { EmptyState } from "@/components/empty-state";
-import type { Match } from "@/types";
-import { Radio } from "lucide-react";
+import type { Match, MatchLineupEntry } from "@/types";
+import { ChevronDown, ChevronUp, Loader2, Radio, Star, Users } from "lucide-react";
 import { formatTime } from "@/utils/formatters";
 
 export default function LivePage() {
   const store = useDataStore();
   const [recentMatches, setRecentMatches] = useState<Match[]>([]);
   const [elapsed, setElapsed] = useState<Record<string, number>>({});
+  // matchId → 라인업 캐시 (lazy: 토글 펼침 시 첫 로드)
+  const [lineupByMatch, setLineupByMatch] = useState<
+    Record<string, MatchLineupEntry[] | "loading">
+  >({});
+  const [expandedLineupMatchId, setExpandedLineupMatchId] = useState<
+    string | null
+  >(null);
+
+  const toggleLineup = async (matchId: string) => {
+    if (expandedLineupMatchId === matchId) {
+      setExpandedLineupMatchId(null);
+      return;
+    }
+    setExpandedLineupMatchId(matchId);
+    if (lineupByMatch[matchId] && lineupByMatch[matchId] !== "loading") return;
+    setLineupByMatch((prev) => ({ ...prev, [matchId]: "loading" }));
+    const rows = await store.fetchMatchLineup(matchId);
+    setLineupByMatch((prev) => ({ ...prev, [matchId]: rows }));
+  };
 
   useEffect(() => {
     const unsub = store.subscribeLiveMatches();
@@ -195,6 +215,50 @@ export default function LivePage() {
                         </p>
                       </div>
                     </div>
+                    {/* 라인업 토글 — lazy 로드. 양 팀 명단 readonly 표시. */}
+                    <div
+                      className="border-t"
+                      style={{ borderColor: "var(--color-fg-paper-3)" }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleLineup(m.id)}
+                        aria-expanded={expandedLineupMatchId === m.id}
+                        aria-controls={`lineup-panel-${m.id}`}
+                        className="flex w-full items-center justify-between px-6 py-3 text-xs font-medium"
+                        style={{ color: "var(--color-fg-ink-dim)" }}
+                      >
+                        <span className="inline-flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5" />
+                          출전 명단
+                        </span>
+                        {expandedLineupMatchId === m.id ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </button>
+                      {expandedLineupMatchId === m.id && (
+                        <div
+                          id={`lineup-panel-${m.id}`}
+                          className="px-6 pb-4"
+                        >
+                          <LiveLineupPanel
+                            match={m}
+                            data={lineupByMatch[m.id]}
+                          />
+                          <div className="mt-2 text-right">
+                            <Link
+                              href={`/matches/${m.id}/lineup`}
+                              className="text-[11px] underline-offset-2 hover:underline"
+                              style={{ color: "var(--muted-foreground)" }}
+                            >
+                              전체 보기 →
+                            </Link>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -212,6 +276,127 @@ export default function LivePage() {
             ))}
           </div>
         </Section>
+      )}
+    </div>
+  );
+}
+
+/** 라이브 카드용 라인업 readonly 패널. lazy 데이터 (undefined=미로드, "loading"=로딩중). */
+function LiveLineupPanel({
+  match,
+  data,
+}: {
+  match: Match;
+  data: MatchLineupEntry[] | "loading" | undefined;
+}) {
+  if (data === undefined || data === "loading") {
+    return (
+      <div
+        className="flex items-center justify-center py-4 text-xs"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+        명단을 불러오는 중…
+      </div>
+    );
+  }
+  if (data.length === 0) {
+    return (
+      <p
+        className="py-3 text-center text-xs"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        제출된 라인업이 없습니다
+      </p>
+    );
+  }
+  const homeEntries = data.filter((e) => e.teamId === match.homeTeamId);
+  const awayEntries = data.filter((e) => e.teamId === match.awayTeamId);
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <LiveLineupColumn name={match.homeTeamName} entries={homeEntries} />
+      <LiveLineupColumn name={match.awayTeamName} entries={awayEntries} />
+    </div>
+  );
+}
+
+function LiveLineupColumn({
+  name,
+  entries,
+}: {
+  name: string;
+  entries: MatchLineupEntry[];
+}) {
+  const starters = entries.filter((e) => e.isStarter);
+  const subs = entries.filter((e) => !e.isStarter);
+  return (
+    <div>
+      <div className="mb-1.5 truncate text-[11px] font-semibold">{name}</div>
+      {entries.length === 0 ? (
+        <p
+          className="text-[10px]"
+          style={{ color: "var(--muted-foreground)" }}
+        >
+          (미제출)
+        </p>
+      ) : (
+        <>
+          {starters.length > 0 && (
+            <ul className="mb-1.5 space-y-0.5">
+              {starters.map((e) => (
+                <li
+                  key={e.playerId}
+                  className="flex items-center gap-1 text-[11px]"
+                >
+                  <Star
+                    className="h-2.5 w-2.5 shrink-0"
+                    style={{
+                      color: "var(--accent-gold, var(--primary))",
+                      fill: "currentColor",
+                    }}
+                    aria-hidden
+                  />
+                  {e.jerseyNumber != null && (
+                    <span className="font-bold tabular-nums">
+                      #{e.jerseyNumber}
+                    </span>
+                  )}
+                  <span className="truncate">
+                    {e.playerName ?? e.playerId.slice(0, 8)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {subs.length > 0 && (
+            <>
+              <div
+                className="mt-1 text-[9px] uppercase tracking-wide"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                교체
+              </div>
+              <ul className="space-y-0.5">
+                {subs.map((e) => (
+                  <li
+                    key={e.playerId}
+                    className="flex items-center gap-1 text-[10px]"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    {e.jerseyNumber != null && (
+                      <span className="font-bold tabular-nums">
+                        #{e.jerseyNumber}
+                      </span>
+                    )}
+                    <span className="truncate">
+                      {e.playerName ?? e.playerId.slice(0, 8)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </>
       )}
     </div>
   );

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useMatchControl } from "@/hooks/useMatchControl";
+import { useDataStore } from "@/stores/dataStore";
 import { AdminHeader } from "@/components/admin-header";
 import { AdminLoading } from "@/components/admin-loading";
 import { AdminGuard } from "@/components/admin-guard";
@@ -35,8 +36,10 @@ import {
   Loader2,
   WifiOff,
   AlertTriangle,
+  Star,
+  Users,
 } from "lucide-react";
-import type { MatchEventType, Player } from "@/types";
+import type { MatchEventType, MatchLineupEntry, Player } from "@/types";
 
 const EVENT_TYPES: { value: MatchEventType; label: string; emoji: string }[] = [
   { value: "goal", label: "골", emoji: "⚽" },
@@ -61,6 +64,28 @@ function AdminMatchControl() {
   const tournamentId = searchParams.get("tournament") || "";
 
   const mc = useMatchControl({ tournamentId, matchId });
+  const store = useDataStore();
+
+  // Lineup state (readonly view + 이벤트 선수 드롭다운 필터링)
+  const [lineup, setLineup] = useState<MatchLineupEntry[]>([]);
+  const [lineupLoading, setLineupLoading] = useState(true);
+
+  useEffect(() => {
+    if (!matchId) return;
+    let alive = true;
+    setLineupLoading(true);
+    store
+      .fetchMatchLineup(matchId)
+      .then((rows) => {
+        if (alive) setLineup(rows);
+      })
+      .finally(() => {
+        if (alive) setLineupLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [matchId, store]);
 
   // Event input state
   const [eventTeamSide, setEventTeamSide] = useState<"home" | "away">("home");
@@ -162,14 +187,29 @@ function AdminMatchControl() {
   const homeScore = mc.liveMatch?.homeScore ?? matchData.homeScore;
   const awayScore = mc.liveMatch?.awayScore ?? matchData.awayScore;
 
-  // Players for event input
-  const activePlayers: Player[] =
-    eventTeamSide === "home" ? mc.homePlayers : mc.awayPlayers;
+  // Lineup-by-team 분리 (메모)
+  const homeLineup = lineup.filter((e) => e.teamId === matchData.homeTeamId);
+  const awayLineup = lineup.filter((e) => e.teamId === matchData.awayTeamId);
+
+  // Players for event input — 라인업 있으면 라인업 선수로 필터, 없으면 전체 멤버.
   const activeTeamId =
     eventTeamSide === "home" ? matchData.homeTeamId : matchData.awayTeamId;
+  const activeTeamMembers: Player[] =
+    eventTeamSide === "home" ? mc.homePlayers : mc.awayPlayers;
+  const activeLineup = eventTeamSide === "home" ? homeLineup : awayLineup;
+  const activeLineupIds = new Set(activeLineup.map((e) => e.playerId));
+  const activePlayers: Player[] =
+    activeLineup.length > 0
+      ? activeTeamMembers.filter((p) => activeLineupIds.has(p.id))
+      : activeTeamMembers;
 
-  // All players for MOM selection
-  const allPlayers = [...mc.homePlayers, ...mc.awayPlayers];
+  // All players for MOM selection (라인업 있으면 양 팀 라인업 합집합)
+  const allLineupIds = new Set(lineup.map((e) => e.playerId));
+  const allTeamMembers = [...mc.homePlayers, ...mc.awayPlayers];
+  const allPlayers: Player[] =
+    lineup.length > 0
+      ? allTeamMembers.filter((p) => allLineupIds.has(p.id))
+      : allTeamMembers;
 
   const handleAddEvent = async () => {
     if (!eventType || !eventPlayerId) return;
@@ -336,6 +376,46 @@ function AdminMatchControl() {
               )}
               {isScheduled ? "예정" : isLive ? "진행중" : "종료"}
             </Badge>
+          </CardContent>
+        </Card>
+
+        {/* 출전 명단 (readonly) — 라인업이 있으면 이벤트/MOM 드롭다운이 라인업 선수로 자동 필터됨 */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Users className="h-4 w-4" />
+              출전 명단
+              {lineup.length > 0 && (
+                <span
+                  className="text-[10px] font-normal"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  · 선수 드롭다운이 명단으로 필터됨
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {lineupLoading ? (
+              <div
+                className="flex items-center justify-center py-4 text-xs"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                명단 로드 중…
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <LineupReadonlyCard
+                  teamName={matchData.homeTeamName}
+                  entries={homeLineup}
+                />
+                <LineupReadonlyCard
+                  teamName={matchData.awayTeamName}
+                  entries={awayLineup}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -873,6 +953,111 @@ function AdminMatchControl() {
           </DialogContent>
         </Dialog>
       </div>
+    </div>
+  );
+}
+
+/** 심판 콘솔용 출전 명단 readonly 카드. 선발/교체 분리 표시. */
+function LineupReadonlyCard({
+  teamName,
+  entries,
+}: {
+  teamName: string;
+  entries: MatchLineupEntry[];
+}) {
+  const starters = entries.filter((e) => e.isStarter);
+  const subs = entries.filter((e) => !e.isStarter);
+
+  return (
+    <div
+      className="rounded-lg border p-2.5"
+      style={{
+        borderColor: "var(--color-fg-line-soft, var(--muted))",
+        background: "var(--background)",
+      }}
+    >
+      <div className="mb-1.5 flex items-center justify-between">
+        <div className="truncate text-xs font-semibold">{teamName}</div>
+        <span
+          className="text-[10px] tabular-nums"
+          style={{ color: "var(--muted-foreground)" }}
+        >
+          {entries.length}
+        </span>
+      </div>
+      {entries.length === 0 ? (
+        <div
+          className="rounded border border-dashed py-3 text-center text-[10px]"
+          style={{
+            borderColor: "var(--muted)",
+            color: "var(--muted-foreground)",
+          }}
+        >
+          (라인업 미제출)
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {starters.length > 0 && (
+            <ul className="space-y-1">
+              {starters.map((e) => (
+                <li
+                  key={e.playerId}
+                  className="flex items-center gap-1.5 rounded px-1.5 py-1 text-[11px]"
+                  style={{
+                    background:
+                      "color-mix(in srgb, var(--accent-gold, #d4a017) 8%, transparent)",
+                  }}
+                >
+                  <Star
+                    className="h-3 w-3 shrink-0"
+                    style={{
+                      color: "var(--accent-gold, var(--primary))",
+                      fill: "currentColor",
+                    }}
+                    aria-hidden
+                  />
+                  {e.jerseyNumber != null && (
+                    <span className="font-bold tabular-nums">
+                      #{e.jerseyNumber}
+                    </span>
+                  )}
+                  <span className="flex-1 truncate">
+                    {e.playerName ?? e.playerId.slice(0, 8)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {subs.length > 0 && (
+            <>
+              <div
+                className="border-t pt-1 text-[9px] uppercase tracking-wide"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                교체
+              </div>
+              <ul className="space-y-1">
+                {subs.map((e) => (
+                  <li
+                    key={e.playerId}
+                    className="flex items-center gap-1.5 px-1.5 py-0.5 text-[11px]"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    {e.jerseyNumber != null && (
+                      <span className="font-bold tabular-nums">
+                        #{e.jerseyNumber}
+                      </span>
+                    )}
+                    <span className="flex-1 truncate">
+                      {e.playerName ?? e.playerId.slice(0, 8)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
