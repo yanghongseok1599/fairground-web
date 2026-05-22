@@ -297,3 +297,33 @@ export interface TeamPhoto {
   matchId?: string;
   createdAt: number;
 }
+
+// ===== Activity Feed =====
+// activity_events 테이블 1행을 표현. kind 별로 사용되는 외래키 필드가 다르다.
+// 트리거가 자동 채우므로 클라이언트는 read-only.
+export type ActivityKind =
+  | "post_created"
+  | "comment_created"
+  | "match_finished"
+  | "photo_uploaded"
+  | "badge_earned"
+  | "player_joined"
+  | "tournament_created";
+
+export interface ActivityEvent {
+  id: string;
+  kind: ActivityKind;
+  actorId?: string;
+  actorName?: string;
+  postId?: string;
+  commentId?: string;
+  matchId?: string;
+  photoId?: string;
+  badgeId?: string;
+  playerId?: string;
+  teamId?: string;
+  tournamentId?: string;
+  title: string;
+  snippet?: string;
+  createdAt: number;
+}

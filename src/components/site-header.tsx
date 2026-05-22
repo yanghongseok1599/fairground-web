@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/players", label: "FA선수" },
   { href: "/teams", label: "팀" },
   { href: "/notices", label: "공지사항" },
+  { href: "/feed", label: "피드" },
   { href: "/board", label: "자유게시판" },
 ];
 

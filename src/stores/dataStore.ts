@@ -25,6 +25,7 @@ import {
   boardCommentToInsert,
   rowToNotification,
   rowToTeamPhoto,
+  rowToActivityEvent,
   type NoticeInputCreate,
   type BoardPostInputCreate,
 } from "@/lib/mappers";
@@ -46,6 +47,7 @@ import type {
   TeamRole,
   NotificationItem,
   TeamPhoto,
+  ActivityEvent,
 } from "@/types";
 
 // 단일앱 통합 store: 공개사이트 read(RLS anon) + 운영 write(인증/RLS) 통합.
@@ -234,6 +236,8 @@ interface DataState {
   ) => Promise<TeamPhoto>;
   deleteTeamPhoto: (id: string, storagePath: string) => Promise<void>;
   fetchTeamPhotos: (teamId: string, limit?: number) => Promise<TeamPhoto[]>;
+  // 전체 활동 피드. cursor 는 createdAt unix ms; 그보다 과거 행을 페이지로 반환.
+  fetchActivityFeed: (opts?: { cursor?: number; limit?: number }) => Promise<ActivityEvent[]>;
 }
 
 export const useDataStore = create<DataState>((setState, getState) => ({
@@ -1200,5 +1204,24 @@ export const useDataStore = create<DataState>((setState, getState) => ({
         .getPublicUrl(objectPath);
       return rowToTeamPhoto(r, pub.publicUrl);
     });
+  },
+
+  // activity_events 페이지네이션 read. RLS 가 anon select 를 허용.
+  // cursor(unix ms) 보다 과거의 행을 created_at desc 로 한 페이지 반환.
+  fetchActivityFeed: async (opts) => {
+    let q = supabase
+      .from("activity_events")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(opts?.limit ?? 30);
+    if (opts?.cursor) {
+      q = q.lt("created_at", new Date(opts.cursor).toISOString());
+    }
+    const { data, error } = await q;
+    if (error) {
+      console.error("[dataStore] fetchActivityFeed:", error.message);
+      return [];
+    }
+    return (data ?? []).map(rowToActivityEvent);
   },
 }));

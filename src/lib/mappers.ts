@@ -18,6 +18,8 @@ import type {
   NotificationItem,
   NotificationKind,
   TeamPhoto,
+  ActivityEvent,
+  ActivityKind,
 } from "@/types";
 import type { Database } from "@/lib/database.types";
 
@@ -45,6 +47,7 @@ type BoardCommentInsert = Database["public"]["Tables"]["board_comments"]["Insert
 
 type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 type TeamGalleryRow = Database["public"]["Tables"]["team_gallery_photos"]["Row"];
+type ActivityEventRow = Database["public"]["Tables"]["activity_events"]["Row"];
 
 const ts = (s: string | null): number => (s ? new Date(s).getTime() : 0);
 
@@ -503,6 +506,29 @@ export function rowToTeamPhoto(r: TeamGalleryRowWithUploader, publicUrl: string)
     publicUrl,
     caption: r.caption ?? undefined,
     matchId: r.match_id ?? undefined,
+    createdAt: ts(r.created_at),
+  };
+}
+
+// ===== Activity Feed =====
+// activity_events 트리거가 채운 row → 앱 ActivityEvent.
+// 모든 외래키는 nullable. createdAt 은 unix ms 로 변환(ts 헬퍼 재사용).
+export function rowToActivityEvent(r: ActivityEventRow): ActivityEvent {
+  return {
+    id: r.id,
+    kind: r.kind as ActivityKind,
+    actorId: r.actor_id ?? undefined,
+    actorName: r.actor_name ?? undefined,
+    postId: r.post_id ?? undefined,
+    commentId: r.comment_id ?? undefined,
+    matchId: r.match_id ?? undefined,
+    photoId: r.photo_id ?? undefined,
+    badgeId: r.badge_id ?? undefined,
+    playerId: r.player_id ?? undefined,
+    teamId: r.team_id ?? undefined,
+    tournamentId: r.tournament_id ?? undefined,
+    title: r.title,
+    snippet: r.snippet ?? undefined,
     createdAt: ts(r.created_at),
   };
 }
