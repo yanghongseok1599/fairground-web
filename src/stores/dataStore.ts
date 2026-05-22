@@ -265,6 +265,15 @@ interface DataState {
   fetchActivityFeed: (opts?: { cursor?: number; limit?: number }) => Promise<ActivityEvent[]>;
 }
 
+/** SQL 예외 메시지 → 사용자용 한국어. raise(message) 패턴을 파싱한다. */
+function friendlyError(raw: string | undefined | null): string {
+  const m = (raw ?? "").toLowerCase();
+  if (m.includes("rate_limit_exceeded")) {
+    return "짧은 시간에 너무 많이 시도했어요. 잠시 후 다시 시도해주세요.";
+  }
+  return raw && raw.length > 0 ? raw : "알 수 없는 오류가 발생했습니다";
+}
+
 export const useDataStore = create<DataState>((setState, getState) => ({
   players: {},
   teams: {},
@@ -922,7 +931,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       .insert(boardPostToInsert(input))
       .select("id")
       .single();
-    if (error || !data) throw new Error(error?.message ?? "createBoardPost failed");
+    if (error || !data) throw new Error(friendlyError(error?.message ?? "createBoardPost failed"));
     return data.id;
   },
 
@@ -963,7 +972,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       .insert(boardCommentToInsert({ postId, body, authorId, parentCommentId }))
       .select("id")
       .single();
-    if (error || !data) throw new Error(error?.message ?? "addComment failed");
+    if (error || !data) throw new Error(friendlyError(error?.message ?? "addComment failed"));
     return data.id;
   },
 
@@ -998,7 +1007,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       if (error.code === "23505") {
         throw new Error("이미 신고하신 내용입니다");
       }
-      throw new Error(error.message);
+      throw new Error(friendlyError(error.message));
     }
   },
 
@@ -1111,7 +1120,8 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       if (existing) {
         await supabase.from("post_reactions").delete().eq("post_id", id).eq("user_id", userId);
       } else {
-        await supabase.from("post_reactions").insert({ post_id: id, user_id: userId });
+        const { error: insErr } = await supabase.from("post_reactions").insert({ post_id: id, user_id: userId });
+        if (insErr) throw new Error(friendlyError(insErr.message));
       }
       const { data: parent } = await supabase
         .from("board_posts")
@@ -1133,7 +1143,10 @@ export const useDataStore = create<DataState>((setState, getState) => ({
           .eq("comment_id", id)
           .eq("user_id", userId);
       } else {
-        await supabase.from("comment_reactions").insert({ comment_id: id, user_id: userId });
+        const { error: insErr } = await supabase
+          .from("comment_reactions")
+          .insert({ comment_id: id, user_id: userId });
+        if (insErr) throw new Error(friendlyError(insErr.message));
       }
       const { data: parent } = await supabase
         .from("board_comments")
@@ -1264,7 +1277,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     if (insErr || !ins) {
       // 롤백: Storage 파일 삭제
       await supabase.storage.from("team-galleries").remove([objectPath]);
-      throw new Error(`메타 저장 실패: ${insErr?.message ?? "unknown"}`);
+      throw new Error(friendlyError(insErr?.message ?? "메타 저장 실패"));
     }
     const { data: pub } = supabase.storage
       .from("team-galleries")
