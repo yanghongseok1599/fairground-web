@@ -15,6 +15,9 @@ import type {
   BoardComment,
   Notice,
   PostCategory,
+  NotificationItem,
+  NotificationKind,
+  TeamPhoto,
 } from "@/types";
 import type { Database } from "@/lib/database.types";
 
@@ -39,6 +42,9 @@ type BoardPostInsert = Database["public"]["Tables"]["board_posts"]["Insert"];
 type BoardPostUpdate = Database["public"]["Tables"]["board_posts"]["Update"];
 type BoardCommentRow = Database["public"]["Tables"]["board_comments"]["Row"];
 type BoardCommentInsert = Database["public"]["Tables"]["board_comments"]["Insert"];
+
+type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
+type TeamGalleryRow = Database["public"]["Tables"]["team_gallery_photos"]["Row"];
 
 const ts = (s: string | null): number => (s ? new Date(s).getTime() : 0);
 
@@ -93,7 +99,7 @@ export function playerToInsert(p: Player): ProfileInsert {
     profile_photo_url: p.profilePhotoUrl ?? null,
     photo_scale: p.photoScale ?? null,
     photo_offset_x: p.photoOffsetX ?? null,
-    card_type: p.cardType,
+    card_type: p.cardType === "premium" ? "premium" : "gold",
     card_rating: p.cardRating,
     goals: p.stats.goals,
     assists: p.stats.assists,
@@ -130,7 +136,7 @@ export function playerPatchToRow(d: Partial<Player>): ProfileUpdate {
   if (d.profilePhotoUrl !== undefined) u.profile_photo_url = d.profilePhotoUrl ?? null;
   if (d.photoScale !== undefined) u.photo_scale = d.photoScale ?? null;
   if (d.photoOffsetX !== undefined) u.photo_offset_x = d.photoOffsetX ?? null;
-  if (d.cardType !== undefined) u.card_type = d.cardType;
+  if (d.cardType !== undefined) u.card_type = d.cardType === "premium" ? "premium" : "gold";
   if (d.badges !== undefined) u.badges = d.badges;
   if (d.role !== undefined) u.role = d.role;
   if (d.phone !== undefined) u.phone = d.phone ?? null;
@@ -402,6 +408,7 @@ export function rowToBoardPost(r: BoardPostRowWithAuthor): BoardPost {
     authorName: pickAuthorName(r.profiles),
     viewCount: r.view_count,
     commentCount: r.comment_count,
+    reactionCount: r.reaction_count ?? 0,
     teamId: r.team_id ?? undefined,
     createdAt: ts(r.created_at),
     updatedAt: ts(r.updated_at),
@@ -447,6 +454,7 @@ export function rowToBoardComment(r: BoardCommentRowWithAuthor): BoardComment {
     body: r.body,
     authorId: r.author_id,
     authorName: pickAuthorName(r.profiles),
+    reactionCount: r.reaction_count ?? 0,
     createdAt: ts(r.created_at),
   };
 }
@@ -462,5 +470,39 @@ export function boardCommentToInsert(d: BoardCommentInputCreate): BoardCommentIn
     post_id: d.postId,
     body: d.body,
     author_id: d.authorId,
+  };
+}
+
+// ===== Community Engine =====
+type NotificationRowWithActor = NotificationRow & { profiles?: AuthorJoin };
+export function rowToNotification(r: NotificationRowWithActor): NotificationItem {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    kind: r.kind as NotificationKind,
+    actorId: r.actor_id ?? undefined,
+    actorName: pickAuthorName(r.profiles),
+    postId: r.post_id ?? undefined,
+    commentId: r.comment_id ?? undefined,
+    teamId: r.team_id ?? undefined,
+    title: r.title,
+    snippet: r.snippet ?? undefined,
+    readAt: r.read_at ? new Date(r.read_at).getTime() : undefined,
+    createdAt: ts(r.created_at),
+  };
+}
+
+type TeamGalleryRowWithUploader = TeamGalleryRow & { profiles?: AuthorJoin };
+export function rowToTeamPhoto(r: TeamGalleryRowWithUploader, publicUrl: string): TeamPhoto {
+  return {
+    id: r.id,
+    teamId: r.team_id,
+    uploadedBy: r.uploaded_by ?? undefined,
+    uploadedByName: pickAuthorName(r.profiles),
+    storagePath: r.storage_path,
+    publicUrl,
+    caption: r.caption ?? undefined,
+    matchId: r.match_id ?? undefined,
+    createdAt: ts(r.created_at),
   };
 }
