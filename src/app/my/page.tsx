@@ -17,6 +17,7 @@ import type { Gender, Player } from "@/types";
 import { buildEditableProfileUpdate, isValidRegistrationProfile } from "@/lib/registration-profile";
 import { downloadElementAsPng } from "@/lib/card-download";
 import { getAdminEntryLabel, isAdminLikeRole } from "@/lib/admin-access";
+import { CardProgress } from "@/components/card-progress";
 
 /* ===========================================================
  * Light theme (White&Blue) — FairGround BrandKit 2026
@@ -523,6 +524,11 @@ export default function MyPage() {
                     style={{ width: `${player.cardRating}%`, background: "var(--color-fg-paper)" }}
                   />
                 </div>
+              </div>
+
+              {/* 다음 등급 진행률 */}
+              <div className="mt-4">
+                <CardProgress rating={player.cardRating} stats={player.stats} />
               </div>
 
             </section>
