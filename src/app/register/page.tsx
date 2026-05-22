@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, Shield } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useAuthStore } from "@/stores/authStore";
+import { useDataStore } from "@/stores/dataStore";
 import { buildRegistrationProfile, isValidRegistrationProfile } from "@/lib/registration-profile";
-import type { Gender } from "@/types";
+import type { Gender, Team } from "@/types";
 
 /* ===========================================================
  * Light theme (White&Blue) — FairGround BrandKit 2026
@@ -40,6 +42,8 @@ const helperStyle: React.CSSProperties = {
 export default function RegisterPage() {
   const router = useRouter();
   const { register, loginWithGoogle, loading, error, clearError, updatePlayer } = useAuth();
+  const fetchTeams = useDataStore((s) => s.fetchTeams);
+  const updatePlayerTeamRole = useDataStore((s) => s.updatePlayerTeamRole);
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -55,10 +59,31 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [formError, setFormError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [coachApplied, setCoachApplied] = useState(false);
   const [invitedTeamId] = useState(() => {
     if (typeof window === "undefined") return "";
     return new URLSearchParams(window.location.search).get("teamId") || "";
   });
+
+  // 감독 신청 토글 & 신청 팀 선택.
+  const [applyAsCoach, setApplyAsCoach] = useState(false);
+  const [coachTeamId, setCoachTeamId] = useState("");
+  const [teamsForCoach, setTeamsForCoach] = useState<Team[]>([]);
+
+  // 토글 on 시 팀 목록 1회 로드.
+  useEffect(() => {
+    if (!applyAsCoach) return;
+    if (teamsForCoach.length > 0) return;
+    let active = true;
+    void fetchTeams().then((list) => {
+      if (!active) return;
+      // 승인된 팀만 신청 가능 — UX.
+      setTeamsForCoach(list.filter((t) => t.isApproved).sort((a, b) => a.name.localeCompare(b.name)));
+    });
+    return () => {
+      active = false;
+    };
+  }, [applyAsCoach, teamsForCoach.length, fetchTeams]);
 
   const isFreeAgent = !invitedTeamId;
 
@@ -89,6 +114,12 @@ export default function RegisterPage() {
       return;
     }
 
+    // 감독 신청 모드: 팀 선택 필수.
+    if (applyAsCoach && !coachTeamId) {
+      setFormError("감독으로 가입하려면 신청할 팀을 선택해주세요");
+      return;
+    }
+
     try {
       await register({
         email: profile.email,
@@ -98,7 +129,8 @@ export default function RegisterPage() {
         gender: profile.gender as Gender,
         birthDate: profile.birthDate,
         hasPlayerExperience: profile.hasPlayerExperience,
-        teamId: invitedTeamId,
+        // 감독 신청은 신청 팀을 우선 — 초대 teamId 가 있으면 그것 사용.
+        teamId: applyAsCoach ? coachTeamId : invitedTeamId,
       });
 
       // 신규 프로필 필드는 store 시그니처 영향 없이 가입 직후 후속 저장으로 결선.
@@ -106,7 +138,7 @@ export default function RegisterPage() {
       if (mbti.trim()) extraUpdate.mbti = mbti.trim();
       if (disposition.trim()) extraUpdate.disposition = disposition.trim();
       if (personalValues.trim()) extraUpdate.personalValues = personalValues.trim();
-      if (isFreeAgent && bio.trim()) extraUpdate.bio = bio.trim();
+      if (isFreeAgent && !applyAsCoach && bio.trim()) extraUpdate.bio = bio.trim();
       if (Object.keys(extraUpdate).length > 0) {
         try {
           await updatePlayer(extraUpdate);
@@ -114,6 +146,21 @@ export default function RegisterPage() {
           // 보조 저장 실패는 가입 자체를 막지 않음 — 마이페이지에서 재시도 가능.
           console.warn("[register] optional profile fields update skipped:", extraErr);
         }
+      }
+
+      // 감독 신청 시 team_role='coach' 시도.
+      // 정책: coach 부여는 admin 만 → 트리거가 거부할 가능성. 거부되면 사용자에게 친절히 안내.
+      // 거부되지 않은 경우(트리거 예외/정책 변경)에도 is_approved=false 유지로 운영자 승인이 필요.
+      if (applyAsCoach) {
+        const uid = useAuthStore.getState().user?.uid;
+        if (uid) {
+          try {
+            await updatePlayerTeamRole(uid, "coach");
+          } catch {
+            // 무시 — 트리거 거부 시에도 운영자 승인 큐(별도 흐름)로 처리.
+          }
+        }
+        setCoachApplied(true);
       }
 
       // 가입 후 관리자 승인 안내(운영 플로우) — fairground 이식.
@@ -144,15 +191,25 @@ export default function RegisterPage() {
           <CheckCircle className="mx-auto h-16 w-16" style={{ color: "var(--primary)" }} />
           <div>
             <h2 className="text-xl font-bold" style={{ color: "var(--color-fg-ink)" }}>
-              가입 완료!
+              {coachApplied ? "감독 신청 접수!" : "가입 완료!"}
             </h2>
             <p
               className="mt-3 text-sm leading-relaxed"
               style={{ color: "var(--color-fg-ink-muted)" }}
             >
-              계정이 생성되었습니다. 마이페이지에서 선수 정보를 등록할 수 있습니다.
-              <br />
-              일부 운영 기능은 관리자 승인 후 활성화됩니다.
+              {coachApplied ? (
+                <>
+                  계정이 생성되었고 감독 신청이 접수되었습니다.
+                  <br />
+                  운영자가 검토 후 감독 권한을 부여하면 팀 관리 기능을 사용할 수 있습니다.
+                </>
+              ) : (
+                <>
+                  계정이 생성되었습니다. 마이페이지에서 선수 정보를 등록할 수 있습니다.
+                  <br />
+                  일부 운영 기능은 관리자 승인 후 활성화됩니다.
+                </>
+              )}
             </p>
           </div>
           <button
@@ -372,6 +429,73 @@ export default function RegisterPage() {
             </div>
           </div>
 
+          {/* ── 감독으로 가입(선택) ── */}
+          <div
+            className="space-y-3 rounded-2xl px-4 py-3.5"
+            style={{
+              border: "1px solid var(--color-fg-line-soft)",
+              background: applyAsCoach ? "var(--color-fg-paper-3, #EEF3FF)" : "var(--color-fg-paper-2)",
+            }}
+          >
+            <label className="inline-flex items-start gap-2.5 cursor-pointer w-full">
+              <input
+                type="checkbox"
+                checked={applyAsCoach}
+                onChange={(e) => {
+                  setApplyAsCoach(e.target.checked);
+                  if (!e.target.checked) setCoachTeamId("");
+                }}
+                className="mt-0.5 w-4 h-4"
+                style={{ accentColor: "var(--primary)" }}
+                aria-describedby="coach-apply-help"
+              />
+              <span className="flex-1">
+                <span
+                  className="flex items-center gap-1.5 text-sm font-bold"
+                  style={{ color: "var(--color-fg-ink)" }}
+                >
+                  <Shield className="w-4 h-4" style={{ color: "var(--primary)" }} />
+                  감독으로 가입
+                </span>
+                <span
+                  id="coach-apply-help"
+                  className="block mt-1 text-[11px] leading-relaxed"
+                  style={{ color: "var(--color-fg-ink-muted)" }}
+                >
+                  팀의 감독 권한을 신청합니다. 운영자 승인 후 팀 공지·멤버 관리가 활성화됩니다.
+                </span>
+              </span>
+            </label>
+
+            {applyAsCoach && (
+              <div className="space-y-1.5 pl-7">
+                <label htmlFor="register-coach-team" className={labelClass} style={labelStyle}>
+                  신청할 팀
+                </label>
+                <select
+                  id="register-coach-team"
+                  value={coachTeamId}
+                  onChange={(e) => setCoachTeamId(e.target.value)}
+                  required={applyAsCoach}
+                  className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
+                  style={inputStyle}
+                >
+                  <option value="">팀 선택</option>
+                  {teamsForCoach.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+                {teamsForCoach.length === 0 && (
+                  <p className="text-[11px] pl-1" style={helperStyle}>
+                    팀 목록을 불러오는 중…
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* ── 프로필 보강(선택 입력) ── */}
           <div className="space-y-1.5">
             <label htmlFor="register-mbti" className={labelClass} style={labelStyle}>
@@ -431,8 +555,8 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          {/* ── FA(팀 미초대) 전용 자기소개 ── */}
-          {isFreeAgent && (
+          {/* ── FA(팀 미초대) 전용 자기소개 — 감독 신청 시 숨김 ── */}
+          {isFreeAgent && !applyAsCoach && (
             <div className="space-y-1.5">
               <label htmlFor="register-bio" className={labelClass} style={labelStyle}>
                 자기소개 (FA)

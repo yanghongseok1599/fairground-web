@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
 import { PlayerCard } from "@/components/player-card";
+import { ClubEmblem } from "@/components/club-emblem";
 import type { Team, Player } from "@/types";
 import { buildRosterInsights } from "@/lib/team-finance";
 import { buildTeamClubhouseAnchor, buildTeamRecordLine, getRosterFilterCount, type RosterFilter } from "@/lib/team-home";
@@ -65,14 +66,7 @@ function TeamEmblem({ team }: { team: Team }) {
   return (
     <div className="relative flex aspect-square w-full max-w-[260px] items-center justify-center border p-6" style={{ background: "linear-gradient(145deg, #ffffff, #EEF3FF)", borderColor: "rgba(0,71,171,0.18)", boxShadow: "0 30px 80px rgba(0,71,171,0.14)" }}>
       <div className="absolute inset-3 border" style={{ borderColor: "rgba(0,71,171,0.10)" }} />
-      {team.logo ? (
-        <img src={team.logo} alt={team.name} className="relative h-full w-full object-contain" />
-      ) : (
-        <div className="relative text-center">
-          <Shield className="mx-auto h-16 w-16" style={{ color: "var(--primary)" }} />
-          <div className="mt-4 fg-display text-3xl font-black" style={{ color: "var(--primary)" }}>{team.name.slice(0, 2)}</div>
-        </div>
-      )}
+      <ClubEmblem name={team.name} logoSrc={team.logo} className="relative h-full w-full" />
     </div>
   );
 }
@@ -112,10 +106,25 @@ export default function TeamDetailPage() {
     [players, position]
   );
   const topScorer = players.find((player) => player.id === rosterInsights.topScorerId);
+  // 팀 관리 권한 UX 가드:
+  //  - admin
+  //  - 본인이 팀 captain 컬럼에 지정된 사람
+  //  - 본인이 이 팀의 captain/manager/coach (team_role)
+  // 최종 강제는 RLS+트리거.
+  const isTeamStaff = Boolean(
+    currentPlayer &&
+      team &&
+      currentPlayer.teamId === team.id &&
+      (currentPlayer.teamRole === "captain" ||
+        currentPlayer.teamRole === "manager" ||
+        currentPlayer.teamRole === "coach")
+  );
   const canManageTeam = Boolean(
     currentPlayer &&
       team &&
-      (currentPlayer.id === team.captainId || currentPlayer.role === "admin")
+      (currentPlayer.id === team.captainId ||
+        currentPlayer.role === "admin" ||
+        isTeamStaff)
   );
   const topAssist = players.find((player) => player.id === rosterInsights.topAssistId);
   const recordLine = team ? buildTeamRecordLine(team.seasonStats) : "0W 0D 0L";
@@ -180,10 +189,30 @@ export default function TeamDetailPage() {
 
           <div className="grid gap-10 lg:grid-cols-[1fr_340px] lg:items-end">
             <div>
-              <div className="mb-5 flex items-center gap-3">
+              <div className="mb-5 flex items-center gap-3 flex-wrap">
                 <span className="fg-mono text-[11px]" style={{ color: "var(--primary)" }}>CLUB</span>
                 <span className="h-2 w-2" style={{ background: "var(--primary)" }} />
                 <span className="fg-label" style={{ color: "var(--color-fg-blue)" }}>{team.isApproved ? "OFFICIAL TEAM HOME" : "PENDING TEAM HOME"}</span>
+                {isTeamStaff && currentPlayer?.teamRole && (
+                  <span
+                    className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded"
+                    style={{ background: "var(--primary)", color: "#fff" }}
+                    aria-label={`내 팀 역할: ${
+                      currentPlayer.teamRole === "coach"
+                        ? "감독"
+                        : currentPlayer.teamRole === "manager"
+                          ? "운영자"
+                          : "주장"
+                    }`}
+                  >
+                    <Shield className="h-3 w-3" />
+                    {currentPlayer.teamRole === "coach"
+                      ? "감독"
+                      : currentPlayer.teamRole === "manager"
+                        ? "운영자"
+                        : "주장"}
+                  </span>
+                )}
               </div>
               <h1 className="fg-display font-black" style={{ fontSize: "clamp(56px, 10vw, 132px)", lineHeight: 0.86, letterSpacing: "-0.045em", color: "var(--color-fg-blue-deep)", textShadow: "0 8px 22px rgba(0,71,171,0.10)" }}>
                 {team.name}

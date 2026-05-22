@@ -1,5 +1,5 @@
-// 자동 생성: Supabase project ovtnmslyjzvghirdvife (2026-05-18)
-// 재생성: supabase gen types typescript --project-id ovtnmslyjzvghirdvife
+// 자동 생성: Supabase project ovtnmslyjzvghirdvife
+// 재생성: npx supabase gen types typescript --project-id ovtnmslyjzvghirdvife
 // 손으로 수정하지 말 것 — 스키마 변경 시 재생성한다.
 export type Json =
   | string
@@ -47,6 +47,99 @@ export type Database = {
           unlock_condition?: string | null
         }
         Relationships: []
+      }
+      board_comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+          post_id: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+          post_id: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "board_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "board_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "board_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      board_posts: {
+        Row: {
+          author_id: string
+          body: string
+          category: Database["public"]["Enums"]["post_category_t"]
+          comment_count: number
+          created_at: string
+          id: string
+          team_id: string | null
+          title: string
+          updated_at: string
+          view_count: number
+        }
+        Insert: {
+          author_id: string
+          body: string
+          category?: Database["public"]["Enums"]["post_category_t"]
+          comment_count?: number
+          created_at?: string
+          id?: string
+          team_id?: string | null
+          title: string
+          updated_at?: string
+          view_count?: number
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          category?: Database["public"]["Enums"]["post_category_t"]
+          comment_count?: number
+          created_at?: string
+          id?: string
+          team_id?: string | null
+          title?: string
+          updated_at?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "board_posts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "board_posts_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       match_events: {
         Row: {
@@ -201,6 +294,63 @@ export type Database = {
           },
         ]
       }
+      notices: {
+        Row: {
+          author_id: string | null
+          body: string
+          category: string
+          created_at: string
+          id: string
+          is_important: boolean
+          is_pinned: boolean
+          published_at: string
+          team_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          category?: string
+          created_at?: string
+          id?: string
+          is_important?: boolean
+          is_pinned?: boolean
+          published_at?: string
+          team_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          category?: string
+          created_at?: string
+          id?: string
+          is_important?: boolean
+          is_pinned?: boolean
+          published_at?: string
+          team_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notices_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notices_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       player_badges: {
         Row: {
           badge_id: string
@@ -245,10 +395,12 @@ export type Database = {
           assists: number
           badges: string[]
           ban_matches_remaining: number
+          bio: string | null
           birth_date: string | null
           card_rating: number
           card_type: Database["public"]["Enums"]["card_type_t"]
           created_at: string
+          disposition: string | null
           email: string | null
           games: number
           gender: string | null
@@ -257,10 +409,12 @@ export type Database = {
           id: string
           is_approved: boolean
           is_banned: boolean
+          mbti: string | null
           mom: number
           name: string
           nationality: string
           number: number
+          personal_values: string | null
           phone: string | null
           photo_offset_x: number | null
           photo_scale: number | null
@@ -270,19 +424,18 @@ export type Database = {
           role: Database["public"]["Enums"]["player_role_t"]
           season_yellow_cards: number
           team_id: string | null
-                  bio: string | null
-          disposition: string | null
-          mbti: string | null
-          personal_values: string | null
+          team_role: Database["public"]["Enums"]["team_role_t"] | null
         }
         Insert: {
           assists?: number
           badges?: string[]
           ban_matches_remaining?: number
+          bio?: string | null
           birth_date?: string | null
           card_rating?: number
           card_type?: Database["public"]["Enums"]["card_type_t"]
           created_at?: string
+          disposition?: string | null
           email?: string | null
           games?: number
           gender?: string | null
@@ -291,10 +444,12 @@ export type Database = {
           id: string
           is_approved?: boolean
           is_banned?: boolean
+          mbti?: string | null
           mom?: number
           name: string
           nationality?: string
           number?: number
+          personal_values?: string | null
           phone?: string | null
           photo_offset_x?: number | null
           photo_scale?: number | null
@@ -304,19 +459,18 @@ export type Database = {
           role?: Database["public"]["Enums"]["player_role_t"]
           season_yellow_cards?: number
           team_id?: string | null
-                  bio?: string | null
-          disposition?: string | null
-          mbti?: string | null
-          personal_values?: string | null
+          team_role?: Database["public"]["Enums"]["team_role_t"] | null
         }
         Update: {
           assists?: number
           badges?: string[]
           ban_matches_remaining?: number
+          bio?: string | null
           birth_date?: string | null
           card_rating?: number
           card_type?: Database["public"]["Enums"]["card_type_t"]
           created_at?: string
+          disposition?: string | null
           email?: string | null
           games?: number
           gender?: string | null
@@ -325,10 +479,12 @@ export type Database = {
           id?: string
           is_approved?: boolean
           is_banned?: boolean
+          mbti?: string | null
           mom?: number
           name?: string
           nationality?: string
           number?: number
+          personal_values?: string | null
           phone?: string | null
           photo_offset_x?: number | null
           photo_scale?: number | null
@@ -338,10 +494,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["player_role_t"]
           season_yellow_cards?: number
           team_id?: string | null
-                  bio?: string | null
-          disposition?: string | null
-          mbti?: string | null
-          personal_values?: string | null
+          team_role?: Database["public"]["Enums"]["team_role_t"] | null
         }
         Relationships: [
           {
@@ -490,9 +643,13 @@ export type Database = {
     }
     Views: { [_ in never]: never }
     Functions: {
+      bump_post_view: { Args: { p_post_id: string }; Returns: undefined }
       end_match: { Args: { p_match_id: string }; Returns: undefined }
       is_admin: { Args: never; Returns: boolean }
       is_referee_or_admin: { Args: never; Returns: boolean }
+      is_team_coach: { Args: { p_team_id: string }; Returns: boolean }
+      is_team_manager: { Args: { p_team_id: string }; Returns: boolean }
+      is_team_staff: { Args: { p_team_id: string }; Returns: boolean }
     }
     Enums: {
       card_type_t: "gold" | "premium"
@@ -506,6 +663,8 @@ export type Database = {
       match_status_t: "scheduled" | "live" | "finished" | "cancelled"
       player_role_t: "player" | "captain" | "referee" | "admin"
       position_t: "GK" | "FIXO" | "ALA" | "PIVO"
+      post_category_t: "자유" | "매치후기" | "팁" | "모집" | "질문"
+      team_role_t: "member" | "captain" | "manager" | "coach"
     }
     CompositeTypes: { [_ in never]: never }
   }

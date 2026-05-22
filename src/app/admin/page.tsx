@@ -12,6 +12,7 @@ const ICONS = {
   players: UserCheck,
   referees: ShieldCheck,
   teams: Users,
+  coaches: Shield,
   penalties: AlertTriangle,
 };
 

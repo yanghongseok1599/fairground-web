@@ -41,6 +41,7 @@ import type {
   BoardPost,
   BoardComment,
   PostCategory,
+  TeamRole,
 } from "@/types";
 
 // 단일앱 통합 store: 공개사이트 read(RLS anon) + 운영 write(인증/RLS) 통합.
@@ -164,14 +165,21 @@ interface DataState {
   setMatchMom: (tournamentId: string, matchId: string, playerId: string) => Promise<void>;
 
   // --- Notices (운영 → 회원 일방향, RLS: 누구나 read / is_referee_or_admin 만 write) ---
-  fetchNotices: (opts?: { category?: string }) => Promise<Notice[]>;
+  // teamId 옵션: null 명시 = 글로벌만(team_id IS NULL),
+  //   id 문자열 = 해당 팀 공지만, 미지정(undefined) = 글로벌만(기존 호환).
+  fetchNotices: (opts?: { category?: string; teamId?: string | null }) => Promise<Notice[]>;
   fetchNotice: (id: string) => Promise<Notice | null>;
   createNotice: (input: NoticeInputCreate) => Promise<string>;
   updateNotice: (id: string, patch: Partial<NoticeInputCreate>) => Promise<void>;
   deleteNotice: (id: string) => Promise<void>;
 
   // --- Board posts (자유게시판, RLS: 누구나 read / 본인만 write·update / 본인+admin delete) ---
-  fetchBoardPosts: (opts?: { category?: PostCategory; sort?: "recent" | "comments" }) => Promise<BoardPost[]>;
+  // teamId 시맨틱은 fetchNotices와 동일.
+  fetchBoardPosts: (opts?: {
+    category?: PostCategory;
+    sort?: "recent" | "comments";
+    teamId?: string | null;
+  }) => Promise<BoardPost[]>;
   fetchBoardPost: (id: string, opts?: { bumpView?: boolean }) => Promise<BoardPost | null>;
   createBoardPost: (input: BoardPostInputCreate) => Promise<string>;
   updateBoardPost: (
@@ -184,6 +192,17 @@ interface DataState {
   fetchComments: (postId: string) => Promise<BoardComment[]>;
   addComment: (postId: string, body: string, authorId: string) => Promise<string>;
   deleteComment: (commentId: string) => Promise<void>;
+
+  // --- Team roles & coach application ---
+  // 팀 멤버 조회 (fetchTeamPlayers의 의미적 별칭).
+  fetchTeamMembers: (teamId: string) => Promise<Player[]>;
+  // 멤버의 팀 역할 변경. 권한은 RLS+trg_guard_team_role 가 강제.
+  updatePlayerTeamRole: (playerId: string, teamRole: TeamRole | null) => Promise<void>;
+  // 감독으로 신청 (회원가입 직후 profiles insert).
+  // team_role='coach' + team_id + is_approved=false 로 신청 상태 저장.
+  // 트리거가 admin 외 직접 부여를 거부할 경우 호출자에게 에러 전파 → 운영자 수동 승인 안내.
+  fetchPendingCoachApplications: () => Promise<Player[]>;
+  approveCoach: (playerId: string) => Promise<void>;
 }
 
 export const useDataStore = create<DataState>((setState, getState) => ({
@@ -747,6 +766,13 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       .order("is_pinned", { ascending: false })
       .order("published_at", { ascending: false });
     if (opts?.category) q = q.eq("category", opts.category);
+    // teamId 시맨틱: 미지정(undefined) 또는 null → 글로벌만(team_id IS NULL).
+    //   문자열 id → 해당 팀 스코프만(team_id = id).
+    if (typeof opts?.teamId === "string") {
+      q = q.eq("team_id", opts.teamId);
+    } else {
+      q = q.is("team_id", null);
+    }
     const { data, error } = await q;
     if (error) {
       console.error("[dataStore] fetchNotices:", error.message);
@@ -798,6 +824,13 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       .select("*, profiles:author_id(name)")
       .order(sortField, { ascending: false });
     if (opts?.category) q = q.eq("category", opts.category);
+    // teamId 시맨틱: 미지정(undefined) 또는 null → 글로벌만(team_id IS NULL).
+    //   문자열 id → 해당 팀 스코프만(team_id = id).
+    if (typeof opts?.teamId === "string") {
+      q = q.eq("team_id", opts.teamId);
+    } else {
+      q = q.is("team_id", null);
+    }
     const { data, error } = await q;
     if (error) {
       console.error("[dataStore] fetchBoardPosts:", error.message);
@@ -878,5 +911,56 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     if (isDemoMode) throw new Error("데모 모드에서는 댓글을 삭제할 수 없습니다");
     const { error } = await supabase.from("board_comments").delete().eq("id", commentId);
     if (error) { console.error("[dataStore] deleteComment:", error.message); throw new Error(error.message); }
+  },
+
+  // ===== Team roles =====
+  // fetchTeamMembers: 의미 명확성을 위한 별칭. 권한·필터는 RLS·UI 가드에서 처리.
+  fetchTeamMembers: async (teamId) => {
+    return getState().fetchTeamPlayers(teamId);
+  },
+
+  // 멤버 역할 변경. 최종 강제는 RLS+trg_guard_team_role.
+  // - 본인이 본인 team_role 변경 → 트리거 거부
+  // - coach 부여 → admin 만 허용 (UI는 노출 안 함)
+  // - 같은 팀 coach 가 member/captain/manager 지정 가능
+  updatePlayerTeamRole: async (playerId, teamRole) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 팀 역할을 변경할 수 없습니다");
+    const { error } = await supabase
+      .from("profiles")
+      .update({ team_role: teamRole })
+      .eq("id", playerId);
+    if (error) {
+      console.error("[dataStore] updatePlayerTeamRole:", error.message);
+      throw new Error(error.message);
+    }
+  },
+
+  // 코치 신청 대기 큐 (admin 전용 UX, RLS 가 anon/일반에 차단).
+  // 조건: team_role='coach' AND is_approved=false.
+  fetchPendingCoachApplications: async () => {
+    if (isDemoMode) return [];
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("team_role", "coach")
+      .eq("is_approved", false);
+    if (error) {
+      console.error("[dataStore] fetchPendingCoachApplications:", error.message);
+      return [];
+    }
+    return (data ?? []).map(rowToPlayer);
+  },
+
+  // 코치 승인 — admin 전용. RLS 가 차단 시 호출부에서 에러 표시.
+  approveCoach: async (playerId) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 승인을 할 수 없습니다");
+    const { error } = await supabase
+      .from("profiles")
+      .update({ is_approved: true })
+      .eq("id", playerId);
+    if (error) {
+      console.error("[dataStore] approveCoach:", error.message);
+      throw new Error(error.message);
+    }
   },
 }));

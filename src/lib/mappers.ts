@@ -75,6 +75,7 @@ export function rowToPlayer(r: ProfileRow): Player {
     disposition: r.disposition ?? undefined,
     personalValues: r.personal_values ?? undefined,
     bio: r.bio ?? undefined,
+    teamRole: r.team_role ?? undefined,
     createdAt: new Date(r.created_at).getTime(),
   };
 }
@@ -112,6 +113,7 @@ export function playerToInsert(p: Player): ProfileInsert {
     disposition: p.disposition ?? null,
     personal_values: p.personalValues ?? null,
     bio: p.bio ?? null,
+    team_role: p.teamRole ?? null,
   };
 }
 
@@ -140,6 +142,7 @@ export function playerPatchToRow(d: Partial<Player>): ProfileUpdate {
   if (d.disposition !== undefined) u.disposition = d.disposition?.trim() || null;
   if (d.personalValues !== undefined) u.personal_values = d.personalValues?.trim() || null;
   if (d.bio !== undefined) u.bio = d.bio?.trim() || null;
+  if (d.teamRole !== undefined) u.team_role = d.teamRole ?? null;
   return u;
 }
 
@@ -345,6 +348,7 @@ export function rowToNotice(r: NoticeRowWithAuthor): Notice {
     isImportant: r.is_important,
     authorId: r.author_id ?? undefined,
     authorName: pickAuthorName(r.profiles),
+    teamId: r.team_id ?? undefined,
     publishedAt: ts(r.published_at),
     createdAt: ts(r.created_at),
     updatedAt: ts(r.updated_at),
@@ -358,6 +362,7 @@ export interface NoticeInputCreate {
   isPinned?: boolean;
   isImportant?: boolean;
   authorId?: string | null;
+  teamId?: string | null;
 }
 
 export function noticeToInsert(d: NoticeInputCreate): NoticeInsert {
@@ -368,6 +373,7 @@ export function noticeToInsert(d: NoticeInputCreate): NoticeInsert {
     is_pinned: d.isPinned ?? false,
     is_important: d.isImportant ?? false,
     author_id: d.authorId ?? null,
+    team_id: d.teamId ?? null,
   };
 }
 
@@ -396,6 +402,7 @@ export function rowToBoardPost(r: BoardPostRowWithAuthor): BoardPost {
     authorName: pickAuthorName(r.profiles),
     viewCount: r.view_count,
     commentCount: r.comment_count,
+    teamId: r.team_id ?? undefined,
     createdAt: ts(r.created_at),
     updatedAt: ts(r.updated_at),
   };
@@ -406,6 +413,7 @@ export interface BoardPostInputCreate {
   body: string;
   category: PostCategory;
   authorId: string;
+  teamId?: string | null;
 }
 
 export function boardPostToInsert(d: BoardPostInputCreate): BoardPostInsert {
@@ -414,6 +422,7 @@ export function boardPostToInsert(d: BoardPostInputCreate): BoardPostInsert {
     body: d.body,
     category: d.category,
     author_id: d.authorId,
+    team_id: d.teamId ?? null,
   };
 }
 
