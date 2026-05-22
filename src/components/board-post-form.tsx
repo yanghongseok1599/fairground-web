@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { POST_CATEGORIES, type PostCategory } from "@/types";
 import { Button } from "@/components/ui/button";
+import { MentionInput } from "@/components/mention-input";
 
 const TITLE_MAX = 200;
 const BODY_MAX = 8000;
@@ -136,29 +137,21 @@ export function BoardPostForm({
         >
           본문 <span style={{ color: "var(--color-fg-red)" }}>*</span>
         </label>
-        <textarea
+        <MentionInput
           id="post-body"
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={setBody}
           maxLength={BODY_MAX}
-          required
           rows={14}
           aria-describedby="post-body-help"
-          className="px-3 py-3 rounded-md text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 resize-y"
-          style={{
-            background: "var(--color-fg-paper)",
-            color: "var(--color-fg-ink)",
-            border: "1px solid var(--color-fg-line-soft)",
-            ['--tw-ring-color' as string]: "var(--primary)",
-            minHeight: "240px",
-          }}
+          className="px-3 py-3 rounded-md text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 resize-y w-full"
         />
         <p
           id="post-body-help"
           className="text-[11px]"
           style={{ color: "var(--color-fg-ink-muted)" }}
         >
-          {body.length} / {BODY_MAX} · 일반 텍스트만 지원합니다
+          {body.length} / {BODY_MAX} · 일반 텍스트만 지원합니다 · @를 입력하면 멤버를 멘션할 수 있습니다
         </p>
       </div>
 

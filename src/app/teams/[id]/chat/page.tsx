@@ -11,6 +11,7 @@ import { CategoryChip } from "@/components/category-chip";
 import { BoardPostForm } from "@/components/board-post-form";
 import { POST_CATEGORIES, type BoardPost, type PostCategory, type Team } from "@/types";
 import { formatDate } from "@/utils/formatters";
+import { mentionedUserIds } from "@/lib/mention-parser";
 
 type Filter = "전체" | PostCategory;
 const FILTERS: readonly Filter[] = ["전체", ...POST_CATEGORIES] as const;
@@ -30,6 +31,7 @@ export default function TeamBoardPage() {
   const fetchTeam = useDataStore((s) => s.fetchTeam);
   const fetchBoardPosts = useDataStore((s) => s.fetchBoardPosts);
   const createBoardPost = useDataStore((s) => s.createBoardPost);
+  const notifyMentions = useDataStore((s) => s.notifyMentions);
   const { user, player } = useAuth();
 
   const [team, setTeam] = useState<Team | null>(null);
@@ -203,13 +205,17 @@ export default function TeamBoardPage() {
               submitLabel="등록"
               cancelHref={`/teams/${teamId}/chat`}
               onSubmit={async (values) => {
-                await createBoardPost({
+                const newId = await createBoardPost({
                   title: values.title,
                   body: values.body,
                   category: values.category,
                   authorId: user.uid,
                   teamId,
                 });
+                const ids = mentionedUserIds(values.body);
+                if (ids.length > 0) {
+                  await notifyMentions("post", newId, ids);
+                }
                 setShowForm(false);
                 await reload();
               }}

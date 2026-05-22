@@ -7,11 +7,13 @@ import { ArrowLeft } from "lucide-react";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
 import { BoardPostForm } from "@/components/board-post-form";
+import { mentionedUserIds } from "@/lib/mention-parser";
 
 export default function BoardNewPage() {
   const router = useRouter();
   const { user, initialized } = useAuth();
   const createBoardPost = useDataStore((s) => s.createBoardPost);
+  const notifyMentions = useDataStore((s) => s.notifyMentions);
 
   // 미로그인 → 로그인 페이지 (returnTo 보존).
   useEffect(() => {
@@ -73,6 +75,10 @@ export default function BoardNewPage() {
                 category: values.category,
                 authorId: user.uid,
               });
+              const ids = mentionedUserIds(values.body);
+              if (ids.length > 0) {
+                await notifyMentions("post", id, ids);
+              }
               router.push(`/board/${id}`);
             }}
           />

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { NOTICE_CATEGORIES } from "@/types";
 import { Button } from "@/components/ui/button";
+import { MentionInput } from "@/components/mention-input";
 
 const TITLE_MAX = 200;
 const BODY_MAX = 8000;
@@ -174,22 +175,14 @@ export function NoticeForm({
         >
           본문 <span style={{ color: "var(--color-fg-red)" }}>*</span>
         </label>
-        <textarea
+        <MentionInput
           id="notice-body"
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={setBody}
           maxLength={BODY_MAX}
-          required
           rows={14}
           aria-describedby="notice-body-help"
-          className="px-3 py-3 rounded-md text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 resize-y"
-          style={{
-            background: "var(--color-fg-paper)",
-            color: "var(--color-fg-ink)",
-            border: "1px solid var(--color-fg-line-soft)",
-            ['--tw-ring-color' as string]: "var(--primary)",
-            minHeight: "240px",
-          }}
+          className="px-3 py-3 rounded-md text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 resize-y w-full"
         />
         <p
           id="notice-body-help"

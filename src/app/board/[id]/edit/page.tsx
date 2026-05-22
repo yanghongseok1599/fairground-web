@@ -8,6 +8,7 @@ import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
 import { BoardPostForm } from "@/components/board-post-form";
 import { Button } from "@/components/ui/button";
+import { mentionedUserIds } from "@/lib/mention-parser";
 import type { BoardPost } from "@/types";
 
 export default function BoardEditPage() {
@@ -18,6 +19,7 @@ export default function BoardEditPage() {
   const { user, initialized } = useAuth();
   const fetchBoardPost = useDataStore((s) => s.fetchBoardPost);
   const updateBoardPost = useDataStore((s) => s.updateBoardPost);
+  const notifyMentions = useDataStore((s) => s.notifyMentions);
 
   const [post, setPost] = useState<BoardPost | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,6 +142,10 @@ export default function BoardEditPage() {
             cancelHref={`/board/${post.id}`}
             onSubmit={async (values) => {
               await updateBoardPost(post.id, values);
+              const ids = mentionedUserIds(values.body);
+              if (ids.length > 0) {
+                await notifyMentions("post", post.id, ids);
+              }
               router.push(`/board/${post.id}`);
             }}
           />
