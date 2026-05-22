@@ -50,22 +50,25 @@ export function MentionInput({
     setQuery(m ? m[1] : null);
   }, [value]);
 
-  // 검색
+  // 검색 — 200ms 디바운스로 키 입력당 DB 호출 폭주 방지
   useEffect(() => {
     if (query === null) {
       setCandidates([]);
       return;
     }
     let cancelled = false;
-    (async () => {
-      const r = await search(query);
-      if (!cancelled) {
-        setCandidates(r);
-        setHighlight(0);
-      }
-    })();
+    const t = setTimeout(() => {
+      void (async () => {
+        const r = await search(query);
+        if (!cancelled) {
+          setCandidates(r);
+          setHighlight(0);
+        }
+      })();
+    }, 200);
     return () => {
       cancelled = true;
+      clearTimeout(t);
     };
   }, [query, search]);
 

@@ -11,8 +11,10 @@ interface Props {
 }
 
 function targetHref(n: NotificationItem): string {
+  // 댓글 알림: 부모 글로 점프 + 댓글 해시
+  if (n.postId && n.commentId) return `/board/${n.postId}#cm-${n.commentId}`;
   if (n.postId) return `/board/${n.postId}`;
-  if (n.commentId) return `/board?cm=${n.commentId}`;
+  if (n.kind === "team_notice" && n.teamId) return `/teams/${n.teamId}/notices`;
   if (n.teamId) return `/teams/${n.teamId}`;
   return "/";
 }

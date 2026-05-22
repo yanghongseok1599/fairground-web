@@ -291,7 +291,8 @@ export default function BoardDetailPage() {
                   {comments.map((c) => (
                     <li
                       key={c.id}
-                      className="py-4"
+                      id={`cm-${c.id}`}
+                      className="scroll-mt-24 py-4 target:rounded-md target:bg-[color:var(--color-fg-paper-3,#EEF3FF)]"
                       style={{ borderBottom: "1px solid var(--color-fg-line-soft)" }}
                     >
                       <div className="flex items-center justify-between gap-2 mb-1">
