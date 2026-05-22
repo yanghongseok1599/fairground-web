@@ -7,6 +7,7 @@ import {
   LogOut, ChevronRight, Users, Mail, Flag, Hash,
   Shield, Target, Handshake, Gamepad2, Star, CreditCard,
   Download, Share2, Loader2, Pencil, Save, X, Phone, Calendar, UserRound,
+  Award,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
@@ -377,7 +378,7 @@ export default function MyPage() {
                   {ROLE_LABELS[player.role] || player.role}
                 </span>
               )}
-              {player?.cardType === "premium" && (
+              {player && player.cardRating >= 100 && (
                 <span
                   className="text-[11px] px-2.5 py-1 rounded-full font-bold"
                   style={{
@@ -640,6 +641,48 @@ export default function MyPage() {
           </div>
         );
       })()}
+
+      {/* ── 내 배지 진입 카드 ── */}
+      {player && (
+        <div className="px-6 max-w-4xl mx-auto mt-10">
+          <SectionLabel text="Badges" />
+          <Link
+            href="/my/badges"
+            aria-label={`내 배지 인벤토리 — 장착 ${(player.badges ?? []).length}/4`}
+          >
+            <div
+              className="rounded-2xl p-5 flex items-center gap-4 transition-all hover:opacity-80"
+              style={{
+                background: "var(--color-fg-paper)",
+                border: "1px solid var(--color-fg-line-soft)",
+                boxShadow: "var(--shadow-sm)",
+              }}
+            >
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center"
+                style={{
+                  background: "var(--color-fg-paper-3)",
+                  border: "1px solid var(--color-fg-blue-soft)",
+                }}
+              >
+                <Award className="w-5 h-5" style={{ color: "var(--primary)" }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-sm mb-0.5" style={{ color: "var(--color-fg-ink)" }}>
+                  내 배지
+                </p>
+                <p className="text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>
+                  획득한 배지 · 카드에 표시할 배지 {(player.badges ?? []).length}/4 장착
+                </p>
+              </div>
+              <ChevronRight
+                className="w-4 h-4 flex-shrink-0"
+                style={{ color: "var(--color-fg-ink-muted)" }}
+              />
+            </div>
+          </Link>
+        </div>
+      )}
 
       {/* ── Team + Profile Row ── */}
       <div className="px-6 max-w-4xl mx-auto mt-10">

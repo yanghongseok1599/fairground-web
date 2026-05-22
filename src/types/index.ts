@@ -209,6 +209,26 @@ export interface PlayerBadge {
   isEarned: boolean;
 }
 
+// 서버 badges 마스터 테이블 1행. 클라이언트는 read-only.
+// 트리거가 profiles 통계 update 시 player_badges 를 자동 채워줌.
+export interface BadgeMaster {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  icon: string | null;
+  maxProgress: number | null;
+  unlockCondition: string | null;
+}
+
+// player_badges 1행. 자동 트리거 채움(read-only from client).
+export interface PlayerBadgeRow {
+  badgeId: string;
+  isEarned: boolean;
+  progress: number;
+  earnedAt?: number;
+}
+
 // ===== Board / Notices =====
 export type PostCategory = "자유" | "매치후기" | "팁" | "모집" | "질문";
 export const POST_CATEGORIES: readonly PostCategory[] = [

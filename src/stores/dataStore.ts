@@ -53,6 +53,8 @@ import type {
   ReportReason,
   ReportTarget,
   SearchResults,
+  BadgeMaster,
+  PlayerBadgeRow,
 } from "@/types";
 
 // 단일앱 통합 store: 공개사이트 read(RLS anon) + 운영 write(인증/RLS) 통합.
@@ -266,6 +268,15 @@ interface DataState {
   fetchActivityFeed: (opts?: { cursor?: number; limit?: number }) => Promise<ActivityEvent[]>;
   // 통합 검색 (글·공지·팀·플레이어 병렬, 각 카테고리 최대 5건)
   searchAll: (q: string) => Promise<SearchResults>;
+
+  // === Badges ===
+  // badges 마스터 read (정적, RLS anon select 허용).
+  fetchAllBadges: () => Promise<BadgeMaster[]>;
+  // player_badges 본인 행 (자동 트리거 채움). RLS: 누구나 select.
+  fetchMyBadges: (playerId: string) => Promise<PlayerBadgeRow[]>;
+  // profiles.badges 장착 슬롯 update. 최대 4개로 잘림.
+  // 미획득 배지가 섞여 있으면 RLS/트리거가 거부 가능 → 호출부에서 사전 검증.
+  updateEquippedBadges: (playerId: string, badgeIds: string[]) => Promise<void>;
 }
 
 /** SQL 예외 메시지 → 사용자용 한국어. raise(message) 패턴을 파싱한다. */
@@ -1401,5 +1412,66 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     }));
 
     return { posts, notices, teams, players };
+  },
+
+  // ===== Badges =====
+  // badges 마스터 read. 데모 모드는 빈 배열(서버 의존 기능).
+  fetchAllBadges: async () => {
+    if (isDemoMode) return [];
+    const { data, error } = await supabase
+      .from("badges")
+      .select("id,name,description,category,icon,max_progress,unlock_condition")
+      .order("category", { ascending: true })
+      .order("id", { ascending: true });
+    if (error) {
+      console.error("[dataStore] fetchAllBadges:", error.message);
+      return [];
+    }
+    type Row = {
+      id: string; name: string; description: string; category: string;
+      icon: string | null; max_progress: number | null; unlock_condition: string | null;
+    };
+    return ((data ?? []) as unknown as Row[]).map((r) => ({
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      category: r.category,
+      icon: r.icon,
+      maxProgress: r.max_progress,
+      unlockCondition: r.unlock_condition,
+    }));
+  },
+
+  fetchMyBadges: async (playerId) => {
+    if (isDemoMode) return [];
+    const { data, error } = await supabase
+      .from("player_badges")
+      .select("badge_id,is_earned,progress,earned_at")
+      .eq("player_id", playerId);
+    if (error) {
+      console.error("[dataStore] fetchMyBadges:", error.message);
+      return [];
+    }
+    type Row = { badge_id: string; is_earned: boolean; progress: number; earned_at: string | null };
+    return ((data ?? []) as unknown as Row[]).map((r) => ({
+      badgeId: r.badge_id,
+      isEarned: r.is_earned,
+      progress: r.progress ?? 0,
+      earnedAt: r.earned_at ? new Date(r.earned_at).getTime() : undefined,
+    }));
+  },
+
+  updateEquippedBadges: async (playerId, badgeIds) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 배지를 장착할 수 없습니다");
+    // 최대 4개로 잘라서 저장. 미획득 배지 포함 검증은 호출부+RLS 양쪽에서.
+    const clipped = badgeIds.slice(0, 4);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ badges: clipped })
+      .eq("id", playerId);
+    if (error) {
+      console.error("[dataStore] updateEquippedBadges:", error.message);
+      throw new Error(error.message);
+    }
   },
 }));
