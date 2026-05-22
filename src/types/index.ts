@@ -1,6 +1,6 @@
 // ===== Player =====
 export type Position = "GK" | "FIXO" | "ALA" | "PIVO";
-export type CardType = "gold" | "premium";
+export type CardType = "bronze" | "silver" | "gold" | "premium";
 export type PlayerRole = "player" | "captain" | "referee" | "admin";
 export type TeamRole = "member" | "captain" | "manager" | "coach";
 export type Gender = "male" | "female" | "other" | "prefer_not_to_say";
@@ -236,6 +236,7 @@ export interface BoardPost {
   authorName?: string;
   viewCount: number;
   commentCount: number;
+  reactionCount?: number;
   teamId?: string;
   createdAt: number;
   updatedAt: number;
@@ -247,6 +248,7 @@ export interface BoardComment {
   body: string;
   authorId: string;
   authorName?: string;
+  reactionCount?: number;
   createdAt: number;
 }
 
@@ -264,4 +266,34 @@ export interface Notice {
   publishedAt: number;
   createdAt: number;
   updatedAt: number;
+}
+
+// ===== Community Engine =====
+export type NotificationKind = "mention" | "reply" | "reaction" | "team_notice" | "coach_approved";
+
+export interface NotificationItem {
+  id: string;
+  userId: string;
+  kind: NotificationKind;
+  actorId?: string;
+  actorName?: string;
+  postId?: string;
+  commentId?: string;
+  teamId?: string;
+  title: string;
+  snippet?: string;
+  readAt?: number;
+  createdAt: number;
+}
+
+export interface TeamPhoto {
+  id: string;
+  teamId: string;
+  uploadedBy?: string;
+  uploadedByName?: string;
+  storagePath: string;
+  publicUrl: string;
+  caption?: string;
+  matchId?: string;
+  createdAt: number;
 }
