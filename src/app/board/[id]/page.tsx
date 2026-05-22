@@ -15,6 +15,10 @@ import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { CategoryChip } from "@/components/category-chip";
+import { MentionRenderer } from "@/components/mention-renderer";
+import { MentionInput } from "@/components/mention-input";
+import { HeartButton } from "@/components/heart-button";
+import { mentionedUserIds } from "@/lib/mention-parser";
 import { formatDate } from "@/utils/formatters";
 import type { BoardPost, BoardComment } from "@/types";
 
@@ -30,10 +34,14 @@ export default function BoardDetailPage() {
   const fetchComments = useDataStore((s) => s.fetchComments);
   const addComment = useDataStore((s) => s.addComment);
   const deleteComment = useDataStore((s) => s.deleteComment);
+  const fetchMyReactions = useDataStore((s) => s.fetchMyReactions);
+  const notifyMentions = useDataStore((s) => s.notifyMentions);
   const { user, player } = useAuth();
 
   const [post, setPost] = useState<BoardPost | null>(null);
   const [comments, setComments] = useState<BoardComment[]>([]);
+  const [postLiked, setPostLiked] = useState(false);
+  const [commentLiked, setCommentLiked] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [commentInput, setCommentInput] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
@@ -52,17 +60,29 @@ export default function BoardDetailPage() {
     void Promise.all([
       fetchBoardPost(id, { bumpView: shouldBump }),
       fetchComments(id),
-    ]).then(([p, cs]) => {
-      if (active) {
-        setPost(p);
-        setComments(cs);
-        setLoading(false);
+    ]).then(async ([p, cs]) => {
+      if (!active) return;
+      setPost(p);
+      setComments(cs);
+      setLoading(false);
+      // 본인 좋아요 여부 조회 (로그인 한 경우만).
+      if (user && p) {
+        const [postSet, commentSet] = await Promise.all([
+          fetchMyReactions("post", [p.id]),
+          fetchMyReactions("comment", cs.map((c) => c.id)),
+        ]);
+        if (!active) return;
+        setPostLiked(postSet.has(p.id));
+        setCommentLiked(commentSet);
+      } else {
+        setPostLiked(false);
+        setCommentLiked(new Set());
       }
     });
     return () => {
       active = false;
     };
-  }, [id, fetchBoardPost, fetchComments]);
+  }, [id, fetchBoardPost, fetchComments, fetchMyReactions, user]);
 
   const isAuthor = !!post && !!user && post.authorId === user.uid;
   const isAdmin = player?.role === "admin";
@@ -92,7 +112,11 @@ export default function BoardDetailPage() {
     setSubmittingComment(true);
     setCommentError(null);
     try {
-      await addComment(post.id, trimmed, user.uid);
+      const newCommentId = await addComment(post.id, trimmed, user.uid);
+      const ids = mentionedUserIds(trimmed);
+      if (ids.length > 0) {
+        await notifyMentions("comment", newCommentId, ids);
+      }
       // 댓글 목록 + 댓글 수 재로딩.
       const [fresh, freshPost] = await Promise.all([
         fetchComments(post.id),
@@ -197,10 +221,19 @@ export default function BoardDetailPage() {
               </div>
 
               <div
-                className="whitespace-pre-line text-[15px] leading-relaxed"
+                className="text-[15px] leading-relaxed"
                 style={{ color: "var(--color-fg-ink)" }}
               >
-                {post.body}
+                <MentionRenderer body={post.body} />
+              </div>
+
+              <div className="mt-6 flex items-center">
+                <HeartButton
+                  target="post"
+                  id={post.id}
+                  initialLiked={postLiked}
+                  initialCount={post.reactionCount ?? 0}
+                />
               </div>
 
               {(isAuthor || isAdmin) && (
@@ -286,12 +319,21 @@ export default function BoardDetailPage() {
                           </button>
                         )}
                       </div>
-                      <p
-                        className="whitespace-pre-line text-sm leading-relaxed"
+                      <div
+                        className="text-sm leading-relaxed"
                         style={{ color: "var(--color-fg-ink)" }}
                       >
-                        {c.body}
-                      </p>
+                        <MentionRenderer body={c.body} />
+                      </div>
+                      <div className="mt-2">
+                        <HeartButton
+                          target="comment"
+                          id={c.id}
+                          initialLiked={commentLiked.has(c.id)}
+                          initialCount={c.reactionCount ?? 0}
+                          size="sm"
+                        />
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -324,22 +366,15 @@ export default function BoardDetailPage() {
                     <label htmlFor="comment-body" className="sr-only">
                       댓글 입력
                     </label>
-                    <textarea
+                    <MentionInput
                       id="comment-body"
                       value={commentInput}
-                      onChange={(e) => setCommentInput(e.target.value)}
+                      onChange={setCommentInput}
                       maxLength={COMMENT_MAX}
                       rows={3}
-                      placeholder="댓글을 입력하세요"
+                      placeholder="댓글을 입력하세요 · @로 멤버 멘션"
                       aria-describedby="comment-body-help"
-                      className="px-3 py-2 rounded-md text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 resize-y"
-                      style={{
-                        background: "var(--color-fg-paper)",
-                        color: "var(--color-fg-ink)",
-                        border: "1px solid var(--color-fg-line-soft)",
-                        ['--tw-ring-color' as string]: "var(--primary)",
-                        minHeight: "80px",
-                      }}
+                      className="px-3 py-2 rounded-md text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 resize-y w-full"
                     />
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <p

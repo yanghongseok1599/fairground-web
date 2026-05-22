@@ -8,6 +8,7 @@ import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { CategoryChip } from "@/components/category-chip";
+import { MentionRenderer } from "@/components/mention-renderer";
 import { formatDate } from "@/utils/formatters";
 import type { Notice } from "@/types";
 
@@ -139,12 +140,12 @@ export default function NoticeDetailPage() {
               </time>
             </div>
 
-            {/* plain text 본문 — XSS 방지(no HTML, no markdown). */}
+            {/* plain text + 멘션 칩만 허용 — XSS 방지(no HTML, no markdown). */}
             <div
-              className="whitespace-pre-line text-[15px] leading-relaxed"
+              className="text-[15px] leading-relaxed"
               style={{ color: "var(--color-fg-ink)" }}
             >
-              {notice.body}
+              <MentionRenderer body={notice.body} />
             </div>
 
             {canManage && (

@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { CategoryChip } from "@/components/category-chip";
 import { NoticeForm } from "@/components/notice-form";
+import { MentionRenderer } from "@/components/mention-renderer";
 import { NOTICE_CATEGORIES, type Notice, type Team } from "@/types";
 import { formatDate } from "@/utils/formatters";
 
@@ -254,12 +255,12 @@ export default function TeamNoticesPage() {
                     >
                       {n.title}
                     </h2>
-                    <p
-                      className="mt-2 whitespace-pre-line text-sm leading-relaxed"
+                    <div
+                      className="mt-2 text-sm leading-relaxed"
                       style={{ color: "var(--color-fg-ink)" }}
                     >
-                      {n.body}
-                    </p>
+                      <MentionRenderer body={n.body} />
+                    </div>
                     <div
                       className="mt-3 flex items-center gap-3 text-xs"
                       style={{ color: "var(--color-fg-ink-muted)" }}
