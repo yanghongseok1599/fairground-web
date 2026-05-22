@@ -15,6 +15,7 @@ import {
   ArrowRight,
   ClipboardList,
   CreditCard,
+  Image as ImageIcon,
   MessageSquare,
   Share2,
   Shield,
@@ -318,11 +319,12 @@ export default function TeamDetailPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
             <ModuleCard href={`/teams/${team.id}/notices`} icon={<ClipboardList className="h-5 w-5" />} index="01" title="공지사항" desc="팀 공지, 읽음 체크, 댓글을 관리합니다." />
             <ModuleCard href={`/teams/${team.id}/dues`} icon={<CreditCard className="h-5 w-5" />} index="02" title="회비 장부" desc="월별 회비, 미납자, 지출과 잔액을 확인합니다." />
             <ModuleCard href={`/teams/${team.id}/chat`} icon={<MessageSquare className="h-5 w-5" />} index="03" title="팀 게시판" desc="경기 후기, 자유글, 공지 관련 대화를 게시판으로 모읍니다." />
             <ModuleCard href={`/teams/${team.id}/members`} icon={<Users className="h-5 w-5" />} index="04" title="멤버 관리" desc="초대 링크와 선수 승인 흐름을 관리합니다." />
+            <ModuleCard href={`/teams/${team.id}/gallery`} icon={<ImageIcon className="h-5 w-5" />} index="05" title="갤러리" desc="경기·훈련 사진을 팀과 함께 남깁니다." />
           </div>
         </div>
       </section>
