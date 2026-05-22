@@ -238,6 +238,7 @@ export interface BoardPost {
   commentCount: number;
   reactionCount?: number;
   teamId?: string;
+  isHidden?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -251,6 +252,7 @@ export interface BoardComment {
   authorName?: string;
   reactionCount?: number;
   isEdited?: boolean;
+  isHidden?: boolean;
   createdAt: number;
   updatedAt?: number;
 }
@@ -298,6 +300,25 @@ export interface TeamPhoto {
   publicUrl: string;
   caption?: string;
   matchId?: string;
+  createdAt: number;
+}
+
+// ===== Moderation =====
+export type ReportTarget = "post" | "comment" | "photo";
+export type ReportReason = "spam" | "abuse" | "sexual" | "illegal" | "other";
+export type ReportStatus = "pending" | "resolved" | "dismissed";
+
+export interface Report {
+  id: string;
+  reporterId: string;
+  reporterName?: string;
+  targetType: ReportTarget;
+  targetId: string;
+  reason: ReportReason;
+  body?: string;
+  status: ReportStatus;
+  resolvedBy?: string;
+  resolvedAt?: number;
   createdAt: number;
 }
 

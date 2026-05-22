@@ -26,6 +26,7 @@ import {
   rowToNotification,
   rowToTeamPhoto,
   rowToActivityEvent,
+  rowToReport,
   type NoticeInputCreate,
   type BoardPostInputCreate,
 } from "@/lib/mappers";
@@ -48,6 +49,9 @@ import type {
   NotificationItem,
   TeamPhoto,
   ActivityEvent,
+  Report,
+  ReportReason,
+  ReportTarget,
 } from "@/types";
 
 // 단일앱 통합 store: 공개사이트 read(RLS anon) + 운영 write(인증/RLS) 통합.
@@ -204,6 +208,21 @@ interface DataState {
   ) => Promise<string>;
   updateComment: (commentId: string, body: string) => Promise<void>;
   deleteComment: (commentId: string) => Promise<void>;
+
+  // --- Moderation ---
+  createReport: (
+    targetType: ReportTarget,
+    targetId: string,
+    reason: ReportReason,
+    body?: string
+  ) => Promise<void>;
+  fetchPendingReports: () => Promise<Report[]>;
+  resolveReport: (id: string, action: "resolve" | "dismiss") => Promise<void>;
+  hideTarget: (
+    targetType: ReportTarget,
+    targetId: string,
+    hide: boolean
+  ) => Promise<void>;
 
   // --- Team roles & coach application ---
   // 팀 멤버 조회 (fetchTeamPlayers의 의미적 별칭).
@@ -961,6 +980,68 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     if (isDemoMode) throw new Error("데모 모드에서는 댓글을 삭제할 수 없습니다");
     const { error } = await supabase.from("board_comments").delete().eq("id", commentId);
     if (error) { console.error("[dataStore] deleteComment:", error.message); throw new Error(error.message); }
+  },
+
+  // ===== Moderation =====
+  createReport: async (targetType, targetId, reason, body) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 신고할 수 없습니다");
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) throw new Error("로그인이 필요합니다");
+    const { error } = await supabase.from("reports").insert({
+      reporter_id: u.user.id,
+      target_type: targetType,
+      target_id: targetId,
+      reason,
+      body: body ?? null,
+    });
+    if (error) {
+      if (error.code === "23505") {
+        throw new Error("이미 신고하신 내용입니다");
+      }
+      throw new Error(error.message);
+    }
+  },
+
+  fetchPendingReports: async () => {
+    const { data, error } = await supabase
+      .from("reports")
+      .select("*, profiles:reporter_id(name)")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+    if (error) { console.error("[dataStore] fetchPendingReports:", error.message); return []; }
+    return ((data ?? []) as unknown as Parameters<typeof rowToReport>[0][]).map(rowToReport);
+  },
+
+  resolveReport: async (id, action) => {
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) throw new Error("로그인이 필요합니다");
+    const status = action === "resolve" ? "resolved" : "dismissed";
+    const { error } = await supabase
+      .from("reports")
+      .update({
+        status,
+        resolved_by: u.user.id,
+        resolved_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+
+  hideTarget: async (targetType, targetId, hide) => {
+    const tbl =
+      targetType === "post" ? "board_posts"
+      : targetType === "comment" ? "board_comments"
+      : "team_gallery_photos";
+    const { error } = await supabase
+      .from(tbl)
+      .update({ is_hidden: hide })
+      .eq("id", targetId);
+    if (error) throw new Error(error.message);
+    // hidden 처리 시 활동 피드에서도 해당 row 제거 (admin RLS로 허용).
+    if (hide) {
+      const col = targetType === "post" ? "post_id" : targetType === "comment" ? "comment_id" : "photo_id";
+      await supabase.from("activity_events").delete().eq(col, targetId);
+    }
   },
 
   // ===== Team roles =====

@@ -16,6 +16,10 @@ import type {
   Notice,
   PostCategory,
   NotificationItem,
+  Report,
+  ReportReason,
+  ReportStatus,
+  ReportTarget,
   NotificationKind,
   TeamPhoto,
   ActivityEvent,
@@ -413,6 +417,7 @@ export function rowToBoardPost(r: BoardPostRowWithAuthor): BoardPost {
     commentCount: r.comment_count,
     reactionCount: r.reaction_count ?? 0,
     teamId: r.team_id ?? undefined,
+    isHidden: r.is_hidden ?? false,
     createdAt: ts(r.created_at),
     updatedAt: ts(r.updated_at),
   };
@@ -460,6 +465,7 @@ export function rowToBoardComment(r: BoardCommentRowWithAuthor): BoardComment {
     authorName: pickAuthorName(r.profiles),
     reactionCount: r.reaction_count ?? 0,
     isEdited: r.is_edited ?? false,
+    isHidden: r.is_hidden ?? false,
     createdAt: ts(r.created_at),
     updatedAt: r.updated_at ? ts(r.updated_at) : undefined,
   };
@@ -534,6 +540,26 @@ export function rowToActivityEvent(r: ActivityEventRow): ActivityEvent {
     tournamentId: r.tournament_id ?? undefined,
     title: r.title,
     snippet: r.snippet ?? undefined,
+    createdAt: ts(r.created_at),
+  };
+}
+
+// ===== Reports =====
+type ReportRow = Database["public"]["Tables"]["reports"]["Row"];
+type ReportRowWithReporter = ReportRow & { profiles?: AuthorJoin };
+
+export function rowToReport(r: ReportRowWithReporter): Report {
+  return {
+    id: r.id,
+    reporterId: r.reporter_id,
+    reporterName: pickAuthorName(r.profiles),
+    targetType: r.target_type as ReportTarget,
+    targetId: r.target_id,
+    reason: r.reason as ReportReason,
+    body: r.body ?? undefined,
+    status: r.status as ReportStatus,
+    resolvedBy: r.resolved_by ?? undefined,
+    resolvedAt: r.resolved_at ? ts(r.resolved_at) : undefined,
     createdAt: ts(r.created_at),
   };
 }

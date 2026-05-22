@@ -137,6 +137,7 @@ export type Database = {
           created_at: string
           id: string
           is_edited: boolean
+          is_hidden: boolean
           parent_comment_id: string | null
           post_id: string
           reaction_count: number
@@ -148,6 +149,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_edited?: boolean
+          is_hidden?: boolean
           parent_comment_id?: string | null
           post_id: string
           reaction_count?: number
@@ -159,6 +161,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_edited?: boolean
+          is_hidden?: boolean
           parent_comment_id?: string | null
           post_id?: string
           reaction_count?: number
@@ -189,6 +192,7 @@ export type Database = {
           comment_count: number
           created_at: string
           id: string
+          is_hidden: boolean
           reaction_count: number
           team_id: string | null
           title: string
@@ -202,6 +206,7 @@ export type Database = {
           comment_count?: number
           created_at?: string
           id?: string
+          is_hidden?: boolean
           reaction_count?: number
           team_id?: string | null
           title: string
@@ -215,6 +220,7 @@ export type Database = {
           comment_count?: number
           created_at?: string
           id?: string
+          is_hidden?: boolean
           reaction_count?: number
           team_id?: string | null
           title?: string
@@ -785,6 +791,60 @@ export type Database = {
           },
         ]
       }
+      reports: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          reason: Database["public"]["Enums"]["report_reason_t"]
+          reporter_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: Database["public"]["Enums"]["report_status_t"]
+          target_id: string
+          target_type: Database["public"]["Enums"]["report_target_t"]
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          reason: Database["public"]["Enums"]["report_reason_t"]
+          reporter_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["report_status_t"]
+          target_id: string
+          target_type: Database["public"]["Enums"]["report_target_t"]
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          reason?: Database["public"]["Enums"]["report_reason_t"]
+          reporter_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["report_status_t"]
+          target_id?: string
+          target_type?: Database["public"]["Enums"]["report_target_t"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seasons: {
         Row: {
           end_date: string | null
@@ -817,6 +877,7 @@ export type Database = {
           caption: string | null
           created_at: string
           id: string
+          is_hidden: boolean
           match_id: string | null
           storage_path: string
           team_id: string
@@ -826,6 +887,7 @@ export type Database = {
           caption?: string | null
           created_at?: string
           id?: string
+          is_hidden?: boolean
           match_id?: string | null
           storage_path: string
           team_id: string
@@ -835,6 +897,7 @@ export type Database = {
           caption?: string | null
           created_at?: string
           id?: string
+          is_hidden?: boolean
           match_id?: string | null
           storage_path?: string
           team_id?: string
@@ -1021,6 +1084,9 @@ export type Database = {
       player_role_t: "player" | "captain" | "referee" | "admin"
       position_t: "GK" | "FIXO" | "ALA" | "PIVO"
       post_category_t: "자유" | "매치후기" | "팁" | "모집" | "질문"
+      report_reason_t: "spam" | "abuse" | "sexual" | "illegal" | "other"
+      report_status_t: "pending" | "resolved" | "dismissed"
+      report_target_t: "post" | "comment" | "photo"
       team_role_t: "member" | "captain" | "manager" | "coach"
     }
     CompositeTypes: {
@@ -1178,6 +1244,9 @@ export const Constants = {
       player_role_t: ["player", "captain", "referee", "admin"],
       position_t: ["GK", "FIXO", "ALA", "PIVO"],
       post_category_t: ["자유", "매치후기", "팁", "모집", "질문"],
+      report_reason_t: ["spam", "abuse", "sexual", "illegal", "other"],
+      report_status_t: ["pending", "resolved", "dismissed"],
+      report_target_t: ["post", "comment", "photo"],
       team_role_t: ["member", "captain", "manager", "coach"],
     },
   },
