@@ -23,6 +23,8 @@ import {
   boardPostPatchToRow,
   rowToBoardComment,
   boardCommentToInsert,
+  rowToNotification,
+  rowToTeamPhoto,
   type NoticeInputCreate,
   type BoardPostInputCreate,
 } from "@/lib/mappers";
@@ -42,6 +44,8 @@ import type {
   BoardComment,
   PostCategory,
   TeamRole,
+  NotificationItem,
+  TeamPhoto,
 } from "@/types";
 
 // 단일앱 통합 store: 공개사이트 read(RLS anon) + 운영 write(인증/RLS) 통합.
@@ -203,6 +207,33 @@ interface DataState {
   // 트리거가 admin 외 직접 부여를 거부할 경우 호출자에게 에러 전파 → 운영자 수동 승인 안내.
   fetchPendingCoachApplications: () => Promise<Player[]>;
   approveCoach: (playerId: string) => Promise<void>;
+
+  // === Community Engine ===
+  toggleReaction: (
+    target: "post" | "comment",
+    id: string,
+  ) => Promise<{ liked: boolean; count: number }>;
+  fetchMyReactions: (target: "post" | "comment", ids: string[]) => Promise<Set<string>>;
+  fetchNotifications: (opts?: { unreadOnly?: boolean; limit?: number }) => Promise<NotificationItem[]>;
+  fetchUnreadNotificationCount: () => Promise<number>;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+  notifyMentions: (
+    targetType: "post" | "comment",
+    targetId: string,
+    userIds: string[],
+  ) => Promise<void>;
+  searchProfilesByName: (
+    query: string,
+  ) => Promise<{ id: string; name: string; photoUrl: string; teamId: string }[]>;
+  uploadTeamPhoto: (
+    teamId: string,
+    file: File,
+    caption?: string,
+    matchId?: string,
+  ) => Promise<TeamPhoto>;
+  deleteTeamPhoto: (id: string, storagePath: string) => Promise<void>;
+  fetchTeamPhotos: (teamId: string, limit?: number) => Promise<TeamPhoto[]>;
 }
 
 export const useDataStore = create<DataState>((setState, getState) => ({
@@ -605,7 +636,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
         p.stats.assists = (p.stats.assists || 0) + assists;
         if (matchData.momPlayerId === p.id) p.stats.mom = (p.stats.mom || 0) + 1;
         p.penaltyStatus.seasonYellowCards = (p.penaltyStatus.seasonYellowCards || 0) + yellows;
-        if (p.cardType === "premium") p.cardRating = calculateCardRating(p.stats);
+        p.cardRating = calculateCardRating(p.stats);
         players[p.id] = p;
       }
       saveLocalPlayers(players);
@@ -962,5 +993,212 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       console.error("[dataStore] approveCoach:", error.message);
       throw new Error(error.message);
     }
+  },
+
+  // ===== Community Engine =====
+  toggleReaction: async (target, id) => {
+    const { data: userRes } = await supabase.auth.getUser();
+    if (!userRes.user) throw new Error("로그인이 필요합니다");
+    const userId = userRes.user.id;
+
+    if (target === "post") {
+      const { data: existing } = await supabase
+        .from("post_reactions")
+        .select("user_id")
+        .eq("post_id", id)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (existing) {
+        await supabase.from("post_reactions").delete().eq("post_id", id).eq("user_id", userId);
+      } else {
+        await supabase.from("post_reactions").insert({ post_id: id, user_id: userId });
+      }
+      const { data: parent } = await supabase
+        .from("board_posts")
+        .select("reaction_count")
+        .eq("id", id)
+        .maybeSingle();
+      return { liked: !existing, count: parent?.reaction_count ?? 0 };
+    } else {
+      const { data: existing } = await supabase
+        .from("comment_reactions")
+        .select("user_id")
+        .eq("comment_id", id)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (existing) {
+        await supabase
+          .from("comment_reactions")
+          .delete()
+          .eq("comment_id", id)
+          .eq("user_id", userId);
+      } else {
+        await supabase.from("comment_reactions").insert({ comment_id: id, user_id: userId });
+      }
+      const { data: parent } = await supabase
+        .from("board_comments")
+        .select("reaction_count")
+        .eq("id", id)
+        .maybeSingle();
+      return { liked: !existing, count: parent?.reaction_count ?? 0 };
+    }
+  },
+
+  fetchMyReactions: async (target, ids) => {
+    if (ids.length === 0) return new Set();
+    const { data: userRes } = await supabase.auth.getUser();
+    if (!userRes.user) return new Set();
+    const userId = userRes.user.id;
+    if (target === "post") {
+      const { data } = await supabase
+        .from("post_reactions")
+        .select("post_id")
+        .eq("user_id", userId)
+        .in("post_id", ids);
+      return new Set((data ?? []).map((r) => r.post_id));
+    } else {
+      const { data } = await supabase
+        .from("comment_reactions")
+        .select("comment_id")
+        .eq("user_id", userId)
+        .in("comment_id", ids);
+      return new Set((data ?? []).map((r) => r.comment_id));
+    }
+  },
+
+  fetchNotifications: async (opts) => {
+    // 두 FK(actor_id, user_id)가 profiles 를 가리키므로 FK 이름으로 명시 disambiguate.
+    let q = supabase
+      .from("notifications")
+      .select("*, profiles!notifications_actor_id_fkey(name)")
+      .order("created_at", { ascending: false })
+      .limit(opts?.limit ?? 20);
+    if (opts?.unreadOnly) q = q.is("read_at", null);
+    const { data, error } = await q;
+    if (error) {
+      console.error("[dataStore] fetchNotifications:", error.message);
+      return [];
+    }
+    return (data ?? []).map(rowToNotification);
+  },
+
+  fetchUnreadNotificationCount: async () => {
+    const { count } = await supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .is("read_at", null);
+    return count ?? 0;
+  },
+
+  markNotificationRead: async (id) => {
+    await supabase
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("id", id);
+  },
+
+  markAllNotificationsRead: async () => {
+    await supabase
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .is("read_at", null);
+  },
+
+  notifyMentions: async (targetType, targetId, userIds) => {
+    if (userIds.length === 0) return;
+    const { error } = await supabase.rpc("notify_mentions", {
+      p_target_type: targetType,
+      p_target_id: targetId,
+      p_mentioned_user_ids: userIds,
+    });
+    if (error) console.error("[dataStore] notifyMentions:", error.message);
+  },
+
+  searchProfilesByName: async (query) => {
+    if (!query.trim()) return [];
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id,name,photo_url,team_id")
+      .ilike("name", `%${query.trim()}%`)
+      .limit(8);
+    if (error) {
+      console.error("[dataStore] searchProfilesByName:", error.message);
+      return [];
+    }
+    return (data ?? []).map((r) => ({
+      id: r.id,
+      name: r.name,
+      photoUrl: r.photo_url ?? "",
+      teamId: r.team_id ?? "",
+    }));
+  },
+
+  uploadTeamPhoto: async (teamId, file, caption, matchId) => {
+    const { data: userRes } = await supabase.auth.getUser();
+    if (!userRes.user) throw new Error("로그인이 필요합니다");
+    const photoId = crypto.randomUUID();
+    const ext = file.type === "image/webp" ? "webp" : "jpg";
+    // 버킷 내부 경로: 버킷명 프리픽스 제외.
+    const objectPath = `${teamId}/${photoId}.${ext}`;
+    const storagePath = `team-galleries/${objectPath}`;
+    const { error: upErr } = await supabase.storage
+      .from("team-galleries")
+      .upload(objectPath, file, {
+        contentType: file.type,
+        cacheControl: "31536000",
+        upsert: false,
+      });
+    if (upErr) throw new Error(`업로드 실패: ${upErr.message}`);
+    const { data: ins, error: insErr } = await supabase
+      .from("team_gallery_photos")
+      .insert({
+        id: photoId,
+        team_id: teamId,
+        uploaded_by: userRes.user.id,
+        storage_path: storagePath,
+        caption: caption ?? null,
+        match_id: matchId ?? null,
+      })
+      .select("*, profiles:uploaded_by(name)")
+      .single();
+    if (insErr || !ins) {
+      // 롤백: Storage 파일 삭제
+      await supabase.storage.from("team-galleries").remove([objectPath]);
+      throw new Error(`메타 저장 실패: ${insErr?.message ?? "unknown"}`);
+    }
+    const { data: pub } = supabase.storage
+      .from("team-galleries")
+      .getPublicUrl(objectPath);
+    return rowToTeamPhoto(ins, pub.publicUrl);
+  },
+
+  deleteTeamPhoto: async (id, storagePath) => {
+    const { error: dbErr } = await supabase
+      .from("team_gallery_photos")
+      .delete()
+      .eq("id", id);
+    if (dbErr) throw new Error(dbErr.message);
+    const objectPath = storagePath.replace(/^team-galleries\//, "");
+    await supabase.storage.from("team-galleries").remove([objectPath]);
+  },
+
+  fetchTeamPhotos: async (teamId, limit) => {
+    const { data, error } = await supabase
+      .from("team_gallery_photos")
+      .select("*, profiles:uploaded_by(name)")
+      .eq("team_id", teamId)
+      .order("created_at", { ascending: false })
+      .limit(limit ?? 60);
+    if (error) {
+      console.error("[dataStore] fetchTeamPhotos:", error.message);
+      return [];
+    }
+    return (data ?? []).map((r) => {
+      const objectPath = (r.storage_path as string).replace(/^team-galleries\//, "");
+      const { data: pub } = supabase.storage
+        .from("team-galleries")
+        .getPublicUrl(objectPath);
+      return rowToTeamPhoto(r, pub.publicUrl);
+    });
   },
 }));
