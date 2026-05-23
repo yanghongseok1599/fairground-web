@@ -531,6 +531,42 @@ export default function MyPage() {
                 <CardProgress rating={player.cardRating} stats={player.stats} />
               </div>
 
+              {/* 연속 출전 streak */}
+              {((player.attendanceStreak ?? 0) > 0 || (player.attendanceStreakBest ?? 0) > 0) && (
+                <div
+                  className="mt-3 rounded-xl border p-4 flex items-center justify-between"
+                  style={{
+                    borderColor: "var(--color-fg-line-soft)",
+                    background: "var(--color-fg-paper)",
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex h-10 w-10 items-center justify-center rounded-full text-xl"
+                      style={{ background: "color-mix(in srgb, #FF6B35 14%, transparent)" }}
+                    >
+                      🔥
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-[2px]" style={{ color: "var(--color-fg-ink-muted)" }}>
+                        Streak
+                      </div>
+                      <div className="font-black text-xl" style={{ color: "var(--color-fg-ink)" }}>
+                        {player.attendanceStreak ?? 0}경기 연속
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] uppercase tracking-[2px]" style={{ color: "var(--color-fg-ink-muted)" }}>
+                      Best
+                    </div>
+                    <div className="font-bold text-sm tabular-nums" style={{ color: "var(--color-fg-ink-muted)" }}>
+                      {player.attendanceStreakBest ?? 0}
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </section>
 
           </div>

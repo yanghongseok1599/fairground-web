@@ -689,6 +689,8 @@ export type Database = {
       profiles: {
         Row: {
           assists: number
+          attendance_streak: number
+          attendance_streak_best: number
           badges: string[]
           ban_matches_remaining: number
           bio: string | null
@@ -724,6 +726,8 @@ export type Database = {
         }
         Insert: {
           assists?: number
+          attendance_streak?: number
+          attendance_streak_best?: number
           badges?: string[]
           ban_matches_remaining?: number
           bio?: string | null
@@ -759,6 +763,8 @@ export type Database = {
         }
         Update: {
           assists?: number
+          attendance_streak?: number
+          attendance_streak_best?: number
           badges?: string[]
           ban_matches_remaining?: number
           bio?: string | null

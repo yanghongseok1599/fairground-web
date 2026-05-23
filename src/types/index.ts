@@ -48,6 +48,8 @@ export interface Player {
   personalValues?: string;
   bio?: string;
   teamRole?: TeamRole;
+  attendanceStreak?: number;
+  attendanceStreakBest?: number;
   createdAt: number;
 }
 

@@ -89,6 +89,8 @@ export function rowToPlayer(r: ProfileRow): Player {
     personalValues: r.personal_values ?? undefined,
     bio: r.bio ?? undefined,
     teamRole: r.team_role ?? undefined,
+    attendanceStreak: r.attendance_streak ?? 0,
+    attendanceStreakBest: r.attendance_streak_best ?? 0,
     createdAt: new Date(r.created_at).getTime(),
   };
 }
