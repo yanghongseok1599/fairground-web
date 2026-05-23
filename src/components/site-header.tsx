@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: "/about", label: "소개" },
   { href: "/live", label: "라이브" },
   { href: "/tournaments", label: "대회" },
+  { href: "/leaderboard", label: "랭킹" },
   { href: "/players", label: "FA선수" },
   { href: "/teams", label: "팀" },
   { href: "/notices", label: "공지사항" },

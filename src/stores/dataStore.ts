@@ -294,6 +294,12 @@ interface DataState {
     playerId: string,
     isStarter: boolean
   ) => Promise<void>;
+
+  // --- Leaderboard ---
+  fetchLeaderboard: (
+    category: "goals" | "assists" | "mom" | "games" | "streak" | "rating",
+    limit?: number
+  ) => Promise<Player[]>;
 }
 
 /** SQL 예외 메시지 → 사용자용 한국어. raise(message) 패턴을 파싱한다. */
@@ -1555,5 +1561,30 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       .eq("team_id", teamId)
       .eq("player_id", playerId);
     if (error) throw new Error(friendlyError(error.message));
+  },
+
+  fetchLeaderboard: async (category, limit) => {
+    const orderCol =
+      category === "goals" ? "goals"
+      : category === "assists" ? "assists"
+      : category === "mom" ? "mom"
+      : category === "games" ? "games"
+      : category === "streak" ? "attendance_streak"
+      : "card_rating";
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("is_approved", true)
+      .eq("is_banned", false)
+      .gt(orderCol, 0)
+      .order(orderCol, { ascending: false })
+      .order("name", { ascending: true })
+      .limit(limit ?? 20);
+    if (error) {
+      console.error("[dataStore] fetchLeaderboard:", error.message);
+      return [];
+    }
+    return (data ?? []).map(rowToPlayer);
   },
 }));
