@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { formatTime } from "@/utils/formatters";
+import { halfControlButtons, canStartSecondHalf } from "@/lib/match-half-control";
+import type { HalfAction } from "@/lib/match-half-control";
 import {
   Play,
   Pause,
@@ -471,87 +473,60 @@ function AdminMatchControl() {
               </div>
             </div>
 
-            {/* 컨트롤 행 — 상태별 버튼 노출. 위험 액션(종료)은 우측 분리. */}
-            {!isFinished && (
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border-t pt-3">
-                {isScheduled && (
-                  <Button
-                    onClick={() => mc.startMatch()}
-                    className="min-h-[44px] bg-green-600 px-5 text-white hover:bg-green-700"
-                    disabled={mc.pendingAction !== null}
-                    aria-busy={mc.pendingAction === "start"}
-                  >
-                    {mc.pendingAction === "start" ? (
-                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Play className="mr-1 h-4 w-4" />
-                    )}
-                    {mc.pendingAction === "start" ? "시작 처리중…" : "경기 시작"}
-                  </Button>
-                )}
-                {isLive && mc.isRunning && (
-                  <Button
-                    onClick={() => mc.pauseMatch()}
-                    variant="secondary"
-                    className="min-h-[44px] px-5"
-                    disabled={mc.pendingAction !== null}
-                    aria-busy={mc.pendingAction === "pause"}
-                  >
-                    {mc.pendingAction === "pause" ? (
-                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Pause className="mr-1 h-4 w-4" />
-                    )}
-                    {mc.pendingAction === "pause" ? "처리중…" : "일시정지"}
-                  </Button>
-                )}
-                {isLive && !mc.isRunning && (
-                  <Button
-                    onClick={() => mc.resumeMatch()}
-                    className="min-h-[44px] px-5"
-                    disabled={mc.pendingAction !== null}
-                    aria-busy={mc.pendingAction === "resume"}
-                  >
-                    {mc.pendingAction === "resume" ? (
-                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Play className="mr-1 h-4 w-4" />
-                    )}
-                    {mc.pendingAction === "resume" ? "처리중…" : "재개"}
-                  </Button>
-                )}
-                {isLive && mc.currentHalf === 1 && !mc.isRunning && (
-                  <Button
-                    onClick={() => mc.startSecondHalf()}
-                    variant="outline"
-                    className="min-h-[44px] px-5"
-                    disabled={mc.pendingAction !== null}
-                    aria-busy={mc.pendingAction === "secondHalf"}
-                  >
-                    {mc.pendingAction === "secondHalf" && (
-                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                    )}
-                    {mc.pendingAction === "secondHalf" ? "처리중…" : "후반 시작"}
-                  </Button>
-                )}
-                {isLive && (
-                  <Button
-                    onClick={() => setEndDialogOpen(true)}
-                    variant="destructive"
-                    className="min-h-[44px] px-5"
-                    disabled={mc.pendingAction !== null}
-                    aria-busy={endPending}
-                  >
-                    {endPending ? (
-                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Square className="mr-1 h-4 w-4" />
-                    )}
-                    {endPending ? "종료 처리중…" : "경기 종료"}
-                  </Button>
-                )}
-              </div>
-            )}
+            {/* 컨트롤 행 — 4단계 진행버튼(전반 시작/종료 · 후반 시작/종료). */}
+            {(() => {
+              const progress = {
+                status: matchData.status,
+                currentHalf: mc.currentHalf,
+                isRunning: mc.isRunning,
+              };
+              const runHalf = (a: HalfAction) => {
+                if (a === "startFirst") return mc.startMatch();
+                if (a === "pause") return mc.pauseMatch();
+                if (a === "resume") return mc.resumeMatch();
+                if (a === "startSecond") return mc.startSecondHalf();
+                if (a === "endMatch") return setEndDialogOpen(true);
+              };
+              const buttons = halfControlButtons(progress);
+              if (buttons.length === 0 && !canStartSecondHalf(progress)) return null;
+              return (
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border-t pt-3">
+                  {buttons.map((b) => (
+                    <Button
+                      key={b.id}
+                      onClick={() => runHalf(b.action)}
+                      disabled={mc.pendingAction !== null}
+                      className="min-h-[44px] px-5"
+                      variant={
+                        b.variant === "danger"
+                          ? "destructive"
+                          : b.variant === "secondary"
+                            ? "secondary"
+                            : "default"
+                      }
+                    >
+                      {mc.pendingAction !== null ? (
+                        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      ) : null}
+                      {b.label}
+                    </Button>
+                  ))}
+                  {canStartSecondHalf(progress) && (
+                    <Button
+                      onClick={() => mc.startSecondHalf()}
+                      variant="outline"
+                      className="min-h-[44px] px-5"
+                      disabled={mc.pendingAction !== null}
+                    >
+                      {mc.pendingAction !== null && (
+                        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      )}
+                      후반 시작
+                    </Button>
+                  )}
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
 
