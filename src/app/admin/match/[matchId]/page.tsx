@@ -76,9 +76,25 @@ function AdminMatchControl() {
   const store = useDataStore();
   const { player } = useAuth();
 
-  // 심판 전체화면 경기장 모드 토글 — 심판 트랙 + 진행중일 때 기본 진입,
-  // 직접 닫고 일반 카드 레이아웃으로 되돌릴 수 있다(트랩 방지).
-  const [refereeFullscreen, setRefereeFullscreen] = useState(true);
+  // 전체화면 경기장 모드 토글 — 관리자·심판 모두 진행중 경기에서 코트를
+  // 탭해 전체화면으로 운영한다. 기본은 클릭 진입(자동 진입 안 함), 닫으면 일반 카드로.
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
+
+  // 전체화면 코트에서 선수 탭 → 액션 팝업(이벤트 기록 / 교체) 상태.
+  const [actionTarget, setActionTarget] = useState<{ player: Player; teamId: string } | null>(null);
+  const [subPicking, setSubPicking] = useState(false); // true=교체 선수 선택 모드
+  const [subError, setSubError] = useState<string | null>(null);
+  const [subBusy, setSubBusy] = useState(false);
+  const openActionMenu = (player: Player, teamId: string) => {
+    setActionTarget({ player, teamId });
+    setSubPicking(false);
+    setSubError(null);
+  };
+  const closeActionMenu = () => {
+    setActionTarget(null);
+    setSubPicking(false);
+    setSubError(null);
+  };
 
   // Lineup state (readonly view + 이벤트 선수 드롭다운 필터링)
   const [lineup, setLineup] = useState<MatchLineupEntry[]>([]);
@@ -202,9 +218,9 @@ function AdminMatchControl() {
   const isFinished = matchData.status === "finished";
 
   // 경기운영 진입 트랙 — AdminGuard 통과이므로 "admin" 또는 "referee".
-  // 심판은 진행중 경기를 전체화면 경기장 한 화면에서 운영한다.
+  // 관리자·심판 모두 진행중 경기를 전체화면 경기장 한 화면에서 운영할 수 있다.
   const track = resolveMatchTrack(player, matchData);
-  const isRefereeFullscreen = track === "referee" && isLive && refereeFullscreen;
+  const isFullscreen = isLive && fullscreenOpen;
 
   const homeScore = mc.liveMatch?.homeScore ?? matchData.homeScore;
   const awayScore = mc.liveMatch?.awayScore ?? matchData.awayScore;
@@ -553,9 +569,14 @@ function AdminMatchControl() {
   // overlay: 코트 상단 중앙에 띄울 노드(전체화면에선 전광판).
   // homeOnGrass: true 면 홈 포메이션도 코트 홈 칸에 직접 띄운다(전체화면 전용).
   //   일반 레이아웃에선 홈 포메이션을 코트 위(별도 FormationControls 스트립)에 두므로 false.
-  const renderCourt = (opts?: { overlay?: ReactNode; homeOnGrass?: boolean }) => (
+  const renderCourt = (opts?: {
+    overlay?: ReactNode;
+    homeOnGrass?: boolean;
+    forceLandscape?: boolean;
+    onPlayerTap?: (player: Player, teamId: string) => void;
+  }) => (
     <div className="relative h-full w-full overflow-hidden rounded-xl">
-      <CourtBackdrop />
+      <CourtBackdrop forceLandscape={opts?.forceLandscape} />
       {opts?.overlay ?? (
         <div className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2">
           <div
@@ -574,37 +595,26 @@ function AdminMatchControl() {
           </div>
         </div>
       )}
-      <div className="absolute inset-0 z-10 grid grid-cols-1 grid-rows-2 landscape:grid-cols-2 landscape:grid-rows-1 md:grid-cols-2 md:grid-rows-1">
+      <div
+        className={`absolute inset-0 z-10 grid ${
+          opts?.forceLandscape
+            ? "grid-cols-2 grid-rows-1"
+            : "grid-cols-1 grid-rows-2 landscape:grid-cols-2 landscape:grid-rows-1 md:grid-cols-2 md:grid-rows-1"
+        }`}
+      >
         {/* 홈 칸 — 전체화면(homeOnGrass)에선 잔디 위 홈 포메이션, 아니면 정보 스트립만 */}
         {opts?.homeOnGrass ? (
           <div className="relative h-full w-full">
-            {/* 홈 누적 스탯 — 좌상단 코너(팀명·점수는 상단 전광판 오버레이가 표시) */}
-            <div className="absolute left-2 top-1 z-20 flex flex-wrap gap-1">
-              {[
-                { e: "⚽", n: homeSide.tally.goals },
-                { e: "🅰️", n: homeSide.tally.assists },
-                { e: "🚫", n: homeSide.tally.fouls },
-                { e: "🟨", n: homeSide.tally.yellow },
-                { e: "🟥", n: homeSide.tally.red },
-              ].map((it, i) => (
-                <span
-                  key={i}
-                  className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-bold tabular-nums"
-                  style={{ background: "rgba(8,20,12,0.6)", color: "#fff" }}
-                >
-                  <span aria-hidden>{it.e}</span>
-                  <span>{it.n}</span>
-                </span>
-              ))}
-            </div>
+            {/* 전체화면: 팀명·점수·집계는 상단 전광판이 표시 → 잔디엔 선수만 */}
             <FormationControls
               team={homeSide}
               isAway={false}
               eventType={eventType}
               pending={mc.pendingAction !== null}
-              onRecord={recordPlayerEvent}
+              onRecord={opts?.onPlayerTap ?? recordPlayerEvent}
               playerStat={playerStat}
               onGrass
+              forceTappable={!!opts?.onPlayerTap}
             />
           </div>
         ) : (
@@ -612,17 +622,21 @@ function AdminMatchControl() {
             team={homeSide}
             eventType={eventType}
             pending={mc.pendingAction !== null}
-            onRecord={recordPlayerEvent}
+            onRecord={opts?.onPlayerTap ?? recordPlayerEvent}
             playerStat={playerStat}
+            forceTappable={!!opts?.onPlayerTap}
           />
         )}
-        {/* 어웨이 칸 — 항상 잔디 위 포메이션(PitchFormation 내부에서 처리) */}
+        {/* 어웨이 칸 — 항상 잔디 위 포메이션. 전체화면(homeOnGrass)에선
+            코너 팀명/점수/집계 숨김(상단 전광판이 대신 표시). */}
         <PitchFormation
           team={awaySide}
           eventType={eventType}
           pending={mc.pendingAction !== null}
-          onRecord={recordPlayerEvent}
+          onRecord={opts?.onPlayerTap ?? recordPlayerEvent}
           playerStat={playerStat}
+          hideHeader={!!opts?.homeOnGrass}
+          forceTappable={!!opts?.onPlayerTap}
         />
       </div>
     </div>
@@ -646,7 +660,43 @@ function AdminMatchControl() {
   // ── 심판 전체화면 경기장 모드 (7b) ───────────────────────────────
   // 진행중 경기를 한 화면에서: 상단 전광판 오버레이가 떠 있는 코트(flex-1) +
   // 하단 컨트롤바(이벤트 유형 4종 · 4단계 진행버튼) + 벤치. 좌상단 닫기 버튼.
-  if (isRefereeFullscreen) {
+  if (isFullscreen) {
+    const benchForTarget = actionTarget
+      ? (actionTarget.teamId === homeSide.id ? homeSide : awaySide).bench
+      : [];
+    const handleEventAction = async (type: MatchEventType) => {
+      if (!actionTarget || mc.pendingAction !== null) return;
+      await mc.addEvent({
+        type,
+        playerId: actionTarget.player.id,
+        playerName: actionTarget.player.name,
+        teamId: actionTarget.teamId,
+      });
+      closeActionMenu();
+    };
+    const handleSubstitute = async (inPlayer: Player) => {
+      if (!actionTarget || subBusy) return;
+      setSubBusy(true);
+      setSubError(null);
+      try {
+        await store.substitutePlayer(
+          matchId,
+          actionTarget.teamId,
+          actionTarget.player.id,
+          inPlayer.id,
+          inPlayer.name,
+          Math.floor(mc.elapsedSeconds / 60),
+          mc.currentHalf,
+        );
+        setLineup(await store.fetchMatchLineup(matchId));
+        closeActionMenu();
+      } catch (e) {
+        setSubError(e instanceof Error ? e.message : "교체에 실패했습니다. 다시 시도해주세요.");
+      } finally {
+        setSubBusy(false);
+      }
+    };
+
     return (
       <div className="fixed inset-0 z-40 flex flex-col bg-black text-white">
         {!mc.isOnline && (
@@ -659,11 +709,28 @@ function AdminMatchControl() {
           </div>
         )}
 
+        {/* 상단 슬림 바 — 진행버튼(전반/후반 시작·종료) + 전체화면 종료 X */}
+        <div className="flex shrink-0 items-center gap-2 border-b border-white/15 bg-neutral-950/95 px-2 py-1.5">
+          <div className="min-w-0 flex-1 overflow-x-auto">
+            {renderProgressButtons()}
+          </div>
+          <button
+            type="button"
+            onClick={() => setFullscreenOpen(false)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white"
+            aria-label="전체화면 종료"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
         {/* 코트 영역 — 남는 공간 전부. 상단 중앙에 타이머 중심 전광판 오버레이.
-            홈·어웨이 모두 잔디 위에 배치(homeOnGrass)해 심판이 한 화면에서 양팀을 탭. */}
+            홈·어웨이 모두 잔디 위에 배치(homeOnGrass)해 한 화면에서 양팀을 탭.
+            선수 탭 → 액션 팝업(이벤트/교체). 회전 없이 기기 방향 그대로 표시. */}
         <div className="relative min-h-0 flex-1">
           {renderCourt({
             homeOnGrass: true,
+            onPlayerTap: openActionMenu,
             overlay: (
               <div className="absolute left-1/2 top-2 z-20 w-[min(92%,640px)] -translate-x-1/2">
                 <div
@@ -679,36 +746,11 @@ function AdminMatchControl() {
             ),
           })}
 
-          {/* 닫기 — 전체화면 종료(트랩 방지) */}
-          <button
-            type="button"
-            onClick={() => setRefereeFullscreen(false)}
-            className="absolute right-2 top-2 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white shadow-lg"
-            aria-label="전체화면 종료"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* 하단 컨트롤바 — 이벤트 유형 + 안내 + 4단계 진행버튼 + 벤치 */}
-        <div className="max-h-[46vh] shrink-0 space-y-2 overflow-y-auto border-t border-white/15 bg-neutral-950/95 px-3 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2">
-          {renderEventTypeGrid(true)}
-          <p className="text-center text-[11px] text-white/70">
-            {eventType ? "선수를 탭하면 즉시 기록됩니다" : "이벤트 유형을 먼저 선택하세요"}
-          </p>
-          {mc.pendingAction === "event" && (
-            <p className="flex items-center justify-center gap-1.5 text-xs text-white/70">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> 기록 처리중…
-            </p>
-          )}
-          {renderBench()}
-          <div className="border-t border-white/15 pt-2">{renderProgressButtons()}</div>
-
-          {/* 위치별 에러(종료 제외) — 전체화면 안에서도 재시도 가능 */}
+          {/* 위치별 에러(종료 제외) — 코트 위 하단 토스트로 표시(재시도 가능) */}
           {mc.actionError && mc.actionError.scope !== "end" && (
             <div
               role="alert"
-              className="flex items-start gap-2 rounded-lg border border-red-400/50 bg-red-500/15 p-2.5 text-sm"
+              className="absolute bottom-2 left-1/2 z-30 flex w-[min(92%,520px)] -translate-x-1/2 items-start gap-2 rounded-lg border border-red-400/50 bg-red-950/90 p-2.5 text-sm shadow-lg"
             >
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
               <div className="flex-1">
@@ -741,6 +783,109 @@ function AdminMatchControl() {
             </div>
           )}
         </div>
+
+        {/* 선수 탭 액션 팝업 — 이벤트 기록 / 교체 */}
+        <Dialog
+          open={!!actionTarget}
+          onOpenChange={(open) => {
+            if (mc.pendingAction !== null || subBusy) return;
+            if (!open) closeActionMenu();
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {subPicking
+                  ? `교체 — ${actionTarget?.player.name} 대신 들어올 선수`
+                  : actionTarget
+                    ? `#${actionTarget.player.number} ${actionTarget.player.name}`
+                    : ""}
+              </DialogTitle>
+            </DialogHeader>
+
+            {!subPicking ? (
+              <div className="space-y-3 pt-2">
+                <div className="grid grid-cols-2 gap-2">
+                  {EVENT_TYPES.map((et) => (
+                    <Button
+                      key={et.value}
+                      variant="outline"
+                      className="min-h-[52px] justify-center text-base"
+                      onClick={() => handleEventAction(et.value)}
+                      disabled={mc.pendingAction !== null}
+                    >
+                      <span className="mr-1.5">{et.emoji}</span>
+                      {et.label}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="secondary"
+                    className="col-span-2 min-h-[52px] justify-center text-base"
+                    onClick={() => {
+                      setSubError(null);
+                      setSubPicking(true);
+                    }}
+                    disabled={mc.pendingAction !== null}
+                  >
+                    🔄 교체
+                  </Button>
+                </div>
+                {mc.pendingAction === "event" && (
+                  <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> 기록 처리중…
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3 pt-2">
+                {benchForTarget.length === 0 ? (
+                  <p
+                    className="py-4 text-center text-sm"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    교체 가능한 후보 선수가 없습니다.
+                  </p>
+                ) : (
+                  <div className="grid max-h-[50vh] grid-cols-2 gap-2 overflow-y-auto">
+                    {benchForTarget.map((p) => (
+                      <Button
+                        key={p.id}
+                        variant="outline"
+                        className="min-h-[44px] justify-start"
+                        onClick={() => handleSubstitute(p)}
+                        disabled={subBusy}
+                      >
+                        <span className="font-bold tabular-nums">#{p.number}</span>
+                        <span className="ml-1.5 truncate">{p.name}</span>
+                      </Button>
+                    ))}
+                  </div>
+                )}
+                {subError && (
+                  <p role="alert" className="text-sm text-red-600">
+                    {subError}
+                  </p>
+                )}
+                {subBusy && (
+                  <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> 교체 처리중…
+                  </p>
+                )}
+                <Button
+                  variant="ghost"
+                  className="min-h-[44px] w-full"
+                  onClick={() => {
+                    setSubError(null);
+                    setSubPicking(false);
+                  }}
+                  disabled={subBusy}
+                >
+                  뒤로
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* 경기 종료 확인 — 전체화면에서도 동일 다이얼로그 사용 */}
         <Dialog
@@ -879,13 +1024,13 @@ function AdminMatchControl() {
               </div>
             </div>
 
-            {/* 심판이 전체화면을 닫았을 때 다시 진입 */}
-            {track === "referee" && isLive && (
+            {/* 전체화면 경기장 모드 진입 — 관리자·심판 공용(진행중 경기). */}
+            {isLive && (
               <div className="mt-3 flex justify-center border-t pt-3">
                 <Button
                   variant="secondary"
                   className="min-h-[44px] px-5"
-                  onClick={() => setRefereeFullscreen(true)}
+                  onClick={() => setFullscreenOpen(true)}
                 >
                   <Maximize2 className="mr-1.5 h-4 w-4" />
                   전체화면 경기장 모드
@@ -1018,6 +1163,19 @@ function AdminMatchControl() {
                   유형 선택 후 선수 칩을 탭하면 즉시 기록. 칩에는 골/어시/경고/퇴장 배지 표시. */}
               <div className="relative mx-auto aspect-[3/4] max-h-[62vh] w-full rounded-xl landscape:aspect-[2/1] md:aspect-[2/1]">
                 {renderCourt()}
+                {/* 코트 코너 전체화면 진입 — 선수 칩 탭과 겹치지 않게 우상단 버튼만. */}
+                {isLive && (
+                  <button
+                    type="button"
+                    onClick={() => setFullscreenOpen(true)}
+                    aria-label="전체화면으로 보기"
+                    className="absolute right-2 top-2 z-30 flex min-h-[40px] items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-white shadow-lg"
+                    style={{ background: "rgba(8,20,12,0.7)", border: "1px solid rgba(255,255,255,0.3)" }}
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                    전체화면
+                  </button>
+                )}
               </div>
 
               {/* 대기선수 — 경기장 밖, 팀별 원형 번호 토큰 */}
@@ -1345,6 +1503,7 @@ function PlayerToken({
   playerStat,
   accent,
   onGrass,
+  forceTappable,
 }: {
   player: Player;
   teamId: string;
@@ -1354,17 +1513,20 @@ function PlayerToken({
   playerStat: (pid: string, type: MatchEventType) => number;
   accent: Accent;
   onGrass: boolean;
+  // true=이벤트 유형 선택과 무관하게 탭 가능(전체화면 액션 팝업 진입용).
+  forceTappable?: boolean;
 }) {
   const g = playerStat(player.id, "goal");
   const y = playerStat(player.id, "yellow_card");
   const r = playerStat(player.id, "red_card");
+  const tappable = forceTappable || !!eventType;
   return (
     <button
       type="button"
       onClick={() => void onRecord(player, teamId)}
-      disabled={!eventType || pending}
+      disabled={!tappable || pending}
       className="flex flex-col items-center gap-0.5 transition disabled:opacity-50"
-      title={eventType ? `#${player.number} ${player.name} 기록` : `#${player.number} ${player.name}`}
+      title={tappable ? `#${player.number} ${player.name}` : `#${player.number} ${player.name}`}
     >
       <span
         className={`relative flex items-center justify-center rounded-full border-2 font-black tabular-nums shadow-md ${
@@ -1416,6 +1578,7 @@ function FormationControls({
   onRecord,
   playerStat,
   onGrass,
+  forceTappable,
 }: {
   team: TeamSide;
   isAway: boolean;
@@ -1426,6 +1589,8 @@ function FormationControls({
   // 잔디 위 흰 텍스트 토큰 여부 — 미지정 시 isAway(원정만 잔디) 기준.
   // 전체화면 모드에선 홈도 코트 잔디 위에 배치하므로 true 로 강제.
   onGrass?: boolean;
+  // true=이벤트 유형 미선택이어도 탭 가능(전체화면 액션 팝업).
+  forceTappable?: boolean;
 }) {
   const accent = teamAccent(team.side);
   const grass = onGrass ?? isAway;
@@ -1468,6 +1633,7 @@ function FormationControls({
               playerStat={playerStat}
               accent={accent}
               onGrass={grass}
+              forceTappable={forceTappable}
             />
           ))}
         </div>
@@ -1484,56 +1650,64 @@ function PitchFormation({
   pending,
   onRecord,
   playerStat,
+  hideHeader,
+  forceTappable,
 }: {
   team: TeamSide;
   eventType: MatchEventType | "";
   pending: boolean;
   onRecord: (player: Player, teamId: string) => void | Promise<void>;
   playerStat: (pid: string, type: MatchEventType) => number;
+  /** true 면 코너의 팀명·점수·집계 스트립을 숨긴다(전체화면: 상단 전광판이 대신 표시). */
+  hideHeader?: boolean;
+  /** true=이벤트 유형 미선택이어도 탭 가능(전체화면 액션 팝업). */
+  forceTappable?: boolean;
 }) {
   const isAway = team.side === "away";
 
   return (
     <div className="relative h-full w-full">
-      {/* 정보 스트립 — 코너 */}
-      <div
-        className={`absolute top-1 z-20 flex flex-col gap-0.5 ${
-          isAway ? "right-2 items-end text-right" : "left-2 items-start text-left"
-        }`}
-      >
-        <div className="flex items-center gap-1.5">
-          <span
-            className="max-w-[130px] truncate text-sm font-bold"
-            style={{ color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}
-          >
-            {team.name}
-          </span>
-          <span
-            className="text-xl font-black tabular-nums"
-            style={{ color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}
-          >
-            {team.score}
-          </span>
-        </div>
-        <div className={`flex flex-wrap gap-1 ${isAway ? "justify-end" : ""}`}>
-          {[
-            { e: "⚽", n: team.tally.goals },
-            { e: "🅰️", n: team.tally.assists },
-            { e: "🚫", n: team.tally.fouls },
-            { e: "🟨", n: team.tally.yellow },
-            { e: "🟥", n: team.tally.red },
-          ].map((it, i) => (
+      {/* 정보 스트립 — 코너 (전체화면에선 숨김) */}
+      {!hideHeader && (
+        <div
+          className={`absolute top-1 z-20 flex flex-col gap-0.5 ${
+            isAway ? "right-2 items-end text-right" : "left-2 items-start text-left"
+          }`}
+        >
+          <div className="flex items-center gap-1.5">
             <span
-              key={i}
-              className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-bold tabular-nums"
-              style={{ background: "rgba(8,20,12,0.6)", color: "#fff" }}
+              className="max-w-[130px] truncate text-sm font-bold"
+              style={{ color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}
             >
-              <span aria-hidden>{it.e}</span>
-              <span>{it.n}</span>
+              {team.name}
             </span>
-          ))}
+            <span
+              className="text-xl font-black tabular-nums"
+              style={{ color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}
+            >
+              {team.score}
+            </span>
+          </div>
+          <div className={`flex flex-wrap gap-1 ${isAway ? "justify-end" : ""}`}>
+            {[
+              { e: "⚽", n: team.tally.goals },
+              { e: "🅰️", n: team.tally.assists },
+              { e: "🚫", n: team.tally.fouls },
+              { e: "🟨", n: team.tally.yellow },
+              { e: "🟥", n: team.tally.red },
+            ].map((it, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-bold tabular-nums"
+                style={{ background: "rgba(8,20,12,0.6)", color: "#fff" }}
+              >
+                <span aria-hidden>{it.e}</span>
+                <span>{it.n}</span>
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 포메이션 — 원정만 코트 위. 홈은 페이지 상단 FormationControls */}
       {isAway ? (
@@ -1544,6 +1718,7 @@ function PitchFormation({
           pending={pending}
           onRecord={onRecord}
           playerStat={playerStat}
+          forceTappable={forceTappable}
         />
       ) : null}
     </div>
