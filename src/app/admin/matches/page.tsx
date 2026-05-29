@@ -463,10 +463,10 @@ function AdminMatches() {
                             return (
                               <div className="flex gap-1 text-xs">
                                 <span className={home.ready ? "text-green-700" : "text-amber-600"}>
-                                  HOME {home.ready ? "✅" : "⏳"}
+                                  HOME {home.ready ? "✅" : "⏳"} {home.label}
                                 </span>
                                 <span className={away.ready ? "text-green-700" : "text-amber-600"}>
-                                  AWAY {away.ready ? "✅" : "⏳"}
+                                  AWAY {away.ready ? "✅" : "⏳"} {away.label}
                                 </span>
                               </div>
                             );
