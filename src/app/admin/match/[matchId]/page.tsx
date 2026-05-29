@@ -31,13 +31,13 @@ import { halfControlButtons, canStartSecondHalf } from "@/lib/match-half-control
 import type { HalfAction } from "@/lib/match-half-control";
 import { useAuth } from "@/hooks/useAuth";
 import { resolveMatchTrack } from "@/lib/match-operation-access";
+import { EventTimeline } from "@/components/match/event-timeline";
 import {
   Play,
   Pause,
   Square,
   Plus,
   Trophy,
-  Undo2,
   Circle,
   Loader2,
   WifiOff,
@@ -48,7 +48,7 @@ import {
   Maximize2,
   X,
 } from "lucide-react";
-import type { MatchEventType, MatchLineupEntry, Player } from "@/types";
+import type { MatchEvent, MatchEventType, MatchLineupEntry, Player } from "@/types";
 
 const EVENT_TYPES: { value: MatchEventType; label: string; emoji: string }[] = [
   { value: "goal", label: "골", emoji: "⚽" },
@@ -108,6 +108,9 @@ function AdminMatchControl() {
 
   // MOM state
   const [momPlayerId, setMomPlayerId] = useState("");
+
+  // 어시스트 추가 — 선택한 골 이벤트(해당 팀 선수 중 어시스트 기록자 선택)
+  const [assistGoal, setAssistGoal] = useState<MatchEvent | null>(null);
 
   // End match dialog
   const [endDialogOpen, setEndDialogOpen] = useState(false);
@@ -304,6 +307,30 @@ function AdminMatchControl() {
     if (ok) setMomPlayerId("");
   };
 
+  // 어시스트 추가 — 골 이벤트 선택 시 해당 팀 선수 picker 오픈.
+  const openAssistPicker = (goal: MatchEvent) => setAssistGoal(goal);
+
+  // picker 에서 선수 선택 → 골과 동일 팀으로 어시스트 기록 후 닫기.
+  const handleAddAssist = async (assistPlayer: Player) => {
+    if (!assistGoal || mc.pendingAction !== null) return;
+    const ok = await mc.addEvent({
+      type: "assist",
+      playerId: assistPlayer.id,
+      playerName: assistPlayer.name,
+      teamId: assistGoal.teamId,
+    });
+    if (ok) setAssistGoal(null);
+  };
+
+  // 골과 동일 팀의 출전+대기 선수 후보 — picker 목록.
+  const assistCandidates: Player[] = assistGoal
+    ? assistGoal.teamId === homeSide.id
+      ? [...homeSide.onCourt, ...homeSide.bench]
+      : assistGoal.teamId === awaySide.id
+        ? [...awaySide.onCourt, ...awaySide.bench]
+        : []
+    : [];
+
   const handleEndMatch = async () => {
     // Q5 — endMatch 는 runAction 가드로 재진입 차단됨. 성공 시에만 다이얼로그 닫고,
     // 실패 시 다이얼로그 유지 + 위치별 에러를 다이얼로그 내에서 노출(재시도 가능).
@@ -357,44 +384,6 @@ function AdminMatchControl() {
         return () => handleSetMom();
       default:
         return null;
-    }
-  };
-
-  const eventEmoji = (type: string) => {
-    switch (type) {
-      case "goal":
-        return "⚽";
-      case "assist":
-        return "🅰️";
-      case "foul":
-        return "🚫";
-      case "yellow_card":
-        return "🟨";
-      case "red_card":
-        return "🟥";
-      case "mom":
-        return "⭐";
-      default:
-        return "📝";
-    }
-  };
-
-  const eventLabel = (type: string) => {
-    switch (type) {
-      case "goal":
-        return "골";
-      case "assist":
-        return "어시스트";
-      case "foul":
-        return "반칙";
-      case "yellow_card":
-        return "경고";
-      case "red_card":
-        return "퇴장";
-      case "mom":
-        return "MOM";
-      default:
-        return type;
     }
   };
 
@@ -1043,68 +1032,27 @@ function AdminMatchControl() {
           </Card>
         )}
 
-        {/* Event Timeline */}
-        {mc.events.length > 0 && (
+        {/* 이벤트 타임라인 — 관리자 관리뷰. 골에 어시스트 추가 + 누락/실수 이벤트 취소.
+            (심판은 코트 탭으로 골/반칙/카드 기록, 관리자는 여기서 어시스트 보강·정정) */}
+        {(isLive || isFinished) && mc.events.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">이벤트 타임라인</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                {mc.events.map((event) => (
-                  <div
-                    key={event.id}
-                    className={`flex items-center gap-3 rounded-lg border p-2.5 ${
-                      event.isCancelled ? "opacity-50" : ""
-                    }`}
-                  >
-                    <div className="text-lg">{eventEmoji(event.type)}</div>
-                    <div className="flex-1">
-                      <div
-                        className={`text-sm font-medium ${
-                          event.isCancelled ? "line-through" : ""
-                        }`}
-                      >
-                        {event.playerName}
-                      </div>
-                      <div
-                        className="flex items-center gap-1.5 text-[10px]"
-                        style={{ color: "var(--muted-foreground)" }}
-                      >
-                        <span>{eventLabel(event.type)}</span>
-                        <span>·</span>
-                        <span>
-                          {event.half === 1 ? "전반" : "후반"} {event.minute}분
-                        </span>
-                        {event.isCancelled && (
-                          <>
-                            <span>·</span>
-                            <span className="text-red-500">취소됨</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    {isLive && !event.isCancelled && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-11 w-11 shrink-0 hover:text-red-500"
-                        style={{ color: "var(--muted-foreground)" }}
-                        onClick={() => mc.cancelEvent(event.id)}
-                        disabled={mc.pendingAction !== null}
-                        aria-busy={mc.pendingAction === "cancelEvent"}
-                        aria-label={`${event.playerName} ${eventLabel(event.type)} 기록 취소`}
-                      >
-                        {mc.pendingAction === "cancelEvent" ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Undo2 className="h-4 w-4" />
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <EventTimeline
+                events={mc.events}
+                onCancel={(id) => mc.cancelEvent(id)}
+                onAddAssist={openAssistPicker}
+              />
+              {mc.pendingAction === "cancelEvent" && (
+                <p
+                  className="mt-2 flex items-center justify-center gap-1.5 text-xs"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> 취소 처리중…
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
@@ -1176,6 +1124,66 @@ function AdminMatchControl() {
             </CardContent>
           </Card>
         )}
+
+        {/* 어시스트 추가 picker — 타임라인의 골 "어시스트 추가" 클릭 시 오픈.
+            골과 동일 팀(출전+대기) 선수 중 어시스트 기록자를 선택. */}
+        <Dialog
+          open={assistGoal !== null}
+          onOpenChange={(open) => {
+            if (mc.pendingAction !== null) return;
+            if (!open) setAssistGoal(null);
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                어시스트 추가
+                {assistGoal ? ` — ${assistGoal.playerName} 골` : ""}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 pt-2">
+              <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                {assistGoal?.teamId === homeSide.id
+                  ? homeSide.name
+                  : assistGoal?.teamId === awaySide.id
+                    ? awaySide.name
+                    : ""}{" "}
+                선수 중 어시스트한 선수를 선택하세요.
+              </p>
+              {assistCandidates.length === 0 ? (
+                <p
+                  className="py-4 text-center text-sm"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  선택할 수 있는 선수가 없습니다.
+                </p>
+              ) : (
+                <div className="grid max-h-[50vh] grid-cols-2 gap-2 overflow-y-auto">
+                  {assistCandidates.map((p) => (
+                    <Button
+                      key={p.id}
+                      variant="outline"
+                      className="min-h-[44px] justify-start"
+                      onClick={() => handleAddAssist(p)}
+                      disabled={mc.pendingAction !== null}
+                    >
+                      <span className="font-bold tabular-nums">#{p.number}</span>
+                      <span className="ml-1.5 truncate">{p.name}</span>
+                    </Button>
+                  ))}
+                </div>
+              )}
+              {mc.pendingAction === "event" && (
+                <p
+                  className="flex items-center justify-center gap-1.5 text-xs"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> 기록 처리중…
+                </p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* 경기 종료 확인 — 포커스 트랩 모달(Radix, ESC 취소 내장).
             종료 처리 중에는 외부클릭/ESC 로 닫히지 않도록 가드(더블집계 방지). */}
