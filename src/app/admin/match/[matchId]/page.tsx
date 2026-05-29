@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useMatchControl } from "@/hooks/useMatchControl";
 import { useDataStore } from "@/stores/dataStore";
 import { AdminHeader } from "@/components/admin-header";
 import { AdminLoading } from "@/components/admin-loading";
 import { AdminGuard } from "@/components/admin-guard";
+import { CourtBackdrop } from "@/components/court-backdrop";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,12 +39,13 @@ import {
   AlertTriangle,
   Star,
   Users,
+  RotateCw,
 } from "lucide-react";
 import type { MatchEventType, MatchLineupEntry, Player } from "@/types";
 
 const EVENT_TYPES: { value: MatchEventType; label: string; emoji: string }[] = [
   { value: "goal", label: "골", emoji: "⚽" },
-  { value: "assist", label: "어시스트", emoji: "🅰️" },
+  { value: "foul", label: "반칙", emoji: "🚫" },
   { value: "yellow_card", label: "경고", emoji: "🟨" },
   { value: "red_card", label: "퇴장", emoji: "🟥" },
 ];
@@ -88,9 +90,9 @@ function AdminMatchControl() {
   }, [matchId, store]);
 
   // Event input state
-  const [eventTeamSide, setEventTeamSide] = useState<"home" | "away">("home");
   const [eventType, setEventType] = useState<MatchEventType | "">("");
-  const [eventPlayerId, setEventPlayerId] = useState("");
+  // 가로 분할 tap-to-record 의 마지막 시도 — 실패 시 재시도 재실행용.
+  const lastEventAttempt = useRef<{ type: MatchEventType; playerId: string; playerName: string; teamId: string } | null>(null);
 
   // MOM state
   const [momPlayerId, setMomPlayerId] = useState("");
@@ -191,17 +193,17 @@ function AdminMatchControl() {
   const homeLineup = lineup.filter((e) => e.teamId === matchData.homeTeamId);
   const awayLineup = lineup.filter((e) => e.teamId === matchData.awayTeamId);
 
-  // Players for event input — 라인업 있으면 라인업 선수로 필터, 없으면 전체 멤버.
-  const activeTeamId =
-    eventTeamSide === "home" ? matchData.homeTeamId : matchData.awayTeamId;
-  const activeTeamMembers: Player[] =
-    eventTeamSide === "home" ? mc.homePlayers : mc.awayPlayers;
-  const activeLineup = eventTeamSide === "home" ? homeLineup : awayLineup;
-  const activeLineupIds = new Set(activeLineup.map((e) => e.playerId));
-  const activePlayers: Player[] =
-    activeLineup.length > 0
-      ? activeTeamMembers.filter((p) => activeLineupIds.has(p.id))
-      : activeTeamMembers;
+  // 가로 분할용 — 양 팀 각각의 출전 가능 선수 목록(라인업 우선, 없으면 전체).
+  const homeLineupIds = new Set(homeLineup.map((e) => e.playerId));
+  const awayLineupIds = new Set(awayLineup.map((e) => e.playerId));
+  const homeActivePlayers: Player[] =
+    homeLineup.length > 0
+      ? mc.homePlayers.filter((p) => homeLineupIds.has(p.id))
+      : mc.homePlayers;
+  const awayActivePlayers: Player[] =
+    awayLineup.length > 0
+      ? mc.awayPlayers.filter((p) => awayLineupIds.has(p.id))
+      : mc.awayPlayers;
 
   // All players for MOM selection (라인업 있으면 양 팀 라인업 합집합)
   const allLineupIds = new Set(lineup.map((e) => e.playerId));
@@ -211,23 +213,72 @@ function AdminMatchControl() {
       ? allTeamMembers.filter((p) => allLineupIds.has(p.id))
       : allTeamMembers;
 
-  const handleAddEvent = async () => {
-    if (!eventType || !eventPlayerId) return;
-    const player = activePlayers.find((p) => p.id === eventPlayerId);
-    if (!player) return;
+  // ── 경기 대시보드 집계 ──────────────────────────────────────────
+  // 취소되지 않은 이벤트만 집계.
+  const liveEvents = mc.events.filter((e) => !e.isCancelled);
+  const teamTally = (teamId: string) => ({
+    goals: liveEvents.filter((e) => e.teamId === teamId && e.type === "goal").length,
+    assists: liveEvents.filter((e) => e.teamId === teamId && e.type === "assist").length,
+    fouls: liveEvents.filter((e) => e.teamId === teamId && e.type === "foul").length,
+    yellow: liveEvents.filter((e) => e.teamId === teamId && e.type === "yellow_card").length,
+    red: liveEvents.filter((e) => e.teamId === teamId && e.type === "red_card").length,
+  });
+  const homeTally = teamTally(matchData.homeTeamId);
+  const awayTally = teamTally(matchData.awayTeamId);
+  const playerStat = (pid: string, type: MatchEventType) =>
+    liveEvents.filter((e) => e.playerId === pid && e.type === type).length;
 
-    const ok = await mc.addEvent({
-      type: eventType,
-      playerId: eventPlayerId,
-      playerName: player.name,
-      teamId: activeTeamId,
-    });
+  // 출전(코트)·대기(벤치) 선수 분리 — 라인업 제출 시 선발/교체, 아니면 전원 출전.
+  const toPlayers = (entries: MatchLineupEntry[], pool: Player[]): Player[] =>
+    entries
+      .map((e) => pool.find((p) => p.id === e.playerId))
+      .filter((p): p is Player => Boolean(p));
+  const homeOnCourt =
+    homeLineup.length > 0
+      ? toPlayers(homeLineup.filter((e) => e.isStarter), mc.homePlayers)
+      : homeActivePlayers;
+  const homeBench =
+    homeLineup.length > 0 ? toPlayers(homeLineup.filter((e) => !e.isStarter), mc.homePlayers) : [];
+  const awayOnCourt =
+    awayLineup.length > 0
+      ? toPlayers(awayLineup.filter((e) => e.isStarter), mc.awayPlayers)
+      : awayActivePlayers;
+  const awayBench =
+    awayLineup.length > 0 ? toPlayers(awayLineup.filter((e) => !e.isStarter), mc.awayPlayers) : [];
 
-    // 성공 시에만 입력 초기화 — 실패 시 입력 유지로 재시도 가능
-    if (ok) {
-      setEventType("");
-      setEventPlayerId("");
-    }
+  const homeSide = {
+    side: "home" as const,
+    name: matchData.homeTeamName,
+    id: matchData.homeTeamId,
+    score: homeScore,
+    tally: homeTally,
+    onCourt: homeOnCourt,
+    bench: homeBench,
+  };
+  const awaySide = {
+    side: "away" as const,
+    name: matchData.awayTeamName,
+    id: matchData.awayTeamId,
+    score: awayScore,
+    tally: awayTally,
+    onCourt: awayOnCourt,
+    bench: awayBench,
+  };
+
+  // 가로 분할 모델 — 선택된 이벤트 유형으로 특정 선수+팀에 즉시 기록.
+  // 유형은 유지(연속 동일 이벤트 빠른 기록). 유형 미선택 시 무시.
+  const recordPlayerEvent = async (player: Player, teamId: string) => {
+    if (!eventType || mc.pendingAction !== null) return;
+    const payload = { type: eventType, playerId: player.id, playerName: player.name, teamId };
+    lastEventAttempt.current = payload; // 실패 시 재시도용
+    await mc.addEvent(payload);
+  };
+
+  // 이벤트 기록 실패 시 재시도 — 마지막 시도 payload 재실행.
+  const retryLastEvent = async () => {
+    const last = lastEventAttempt.current;
+    if (!last) return;
+    await mc.addEvent(last);
   };
 
   const handleSetMom = async () => {
@@ -284,7 +335,7 @@ function AdminMatchControl() {
       case "secondHalf":
         return () => mc.startSecondHalf();
       case "event":
-        return () => handleAddEvent();
+        return () => retryLastEvent();
       case "mom":
         return () => handleSetMom();
       default:
@@ -298,6 +349,8 @@ function AdminMatchControl() {
         return "⚽";
       case "assist":
         return "🅰️";
+      case "foul":
+        return "🚫";
       case "yellow_card":
         return "🟨";
       case "red_card":
@@ -315,6 +368,8 @@ function AdminMatchControl() {
         return "골";
       case "assist":
         return "어시스트";
+      case "foul":
+        return "반칙";
       case "yellow_card":
         return "경고";
       case "red_card":
@@ -341,79 +396,160 @@ function AdminMatchControl() {
         </div>
       )}
 
-      <div className="mx-auto max-w-md space-y-4 p-4">
-        {/* Match Info Bar */}
+      {/* 가로 모드 권장 안내 — 모바일 세로(portrait)에서만 노출. 가로로 돌리면
+          타이머·점수·이벤트 기록이 한 화면에 넓게 들어와 경기 운영이 편하다. */}
+      <div className="portrait:flex landscape:hidden md:hidden items-center justify-center gap-2 bg-[color:var(--primary)] px-4 py-2 text-sm font-semibold text-white">
+        <RotateCw className="h-4 w-4" />
+        가로로 돌리면 더 편하게 경기를 운영할 수 있어요
+      </div>
+
+      {/* 홈 팀 출전 선수 — 코트 카드 밖 전체 너비(브라우저 프리뷰 DOM 순서 반영) */}
+      {isLive && (
+        <FormationControls
+          team={homeSide}
+          isAway={false}
+          eventType={eventType}
+          pending={mc.pendingAction !== null}
+          onRecord={recordPlayerEvent}
+          playerStat={playerStat}
+        />
+      )}
+
+      {/* 경기 운영 컨테이너 — 세로는 max-w-md, 가로(landscape)·데스크탑은
+          더 넓게 펼쳐 타이머/스코어/이벤트 영역을 여유 있게 배치. */}
+      <div className="mx-auto max-w-md landscape:max-w-5xl md:max-w-3xl space-y-4 p-4">
+        {/* 스코어보드 — 점수·경기시간·전후반·팀별 골/어시/반칙/경고/퇴장을 한눈에.
+            아래 컨트롤 행으로 시작/일시정지/재개/후반/종료까지 한 카드에서 운영. */}
         <Card style={{ borderColor: "var(--accent-gold)" }}>
-          <CardContent className="flex items-center justify-between py-3">
-            <div className="flex items-center gap-3">
-              <div className="text-center">
-                <div className="text-sm font-bold">
-                  {matchData.homeTeamName}
+          <CardContent className="py-3">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+              {/* HOME */}
+              <div className="min-w-0 text-left">
+                <div className="truncate text-sm font-bold">{matchData.homeTeamName}</div>
+                <div className="mt-1">
+                  <StatPills tally={homeTally} />
                 </div>
               </div>
-              <div className="flex items-center gap-1 text-2xl font-black tabular-nums">
-                <span>{homeScore}</span>
-                <span style={{ color: "var(--muted-foreground)" }}>:</span>
-                <span>{awayScore}</span>
+              {/* CENTER: 시간 + 점수 + 전후반 + 상태 */}
+              <div className="flex flex-col items-center px-1">
+                <div
+                  className="flex items-center gap-1 text-[11px] font-semibold tabular-nums"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  {isLive && (
+                    <Circle
+                      className={`h-1.5 w-1.5 fill-current ${mc.isRunning ? "animate-pulse text-red-500" : "text-amber-500"}`}
+                    />
+                  )}
+                  <span>{formatTime(mc.elapsedSeconds)}</span>
+                  <span>·</span>
+                  <span>{mc.currentHalf === 1 ? "전반" : "후반"}</span>
+                </div>
+                <div className="flex items-center gap-2 text-3xl font-black leading-none tabular-nums">
+                  <span>{homeScore}</span>
+                  <span style={{ color: "var(--muted-foreground)" }}>:</span>
+                  <span>{awayScore}</span>
+                </div>
+                <Badge
+                  className={`mt-1 ${
+                    isLive
+                      ? "bg-red-100 text-red-700"
+                      : isFinished
+                        ? "bg-gray-100 text-gray-700"
+                        : "bg-blue-100 text-blue-700"
+                  }`}
+                >
+                  {isScheduled ? "예정" : isLive ? "진행중" : "종료"}
+                </Badge>
               </div>
-              <div className="text-center">
-                <div className="text-sm font-bold">
-                  {matchData.awayTeamName}
+              {/* AWAY */}
+              <div className="min-w-0 text-right">
+                <div className="truncate text-sm font-bold">{matchData.awayTeamName}</div>
+                <div className="mt-1 flex justify-end">
+                  <StatPills tally={awayTally} />
                 </div>
               </div>
             </div>
-            <Badge
-              className={
-                isLive
-                  ? "bg-red-100 text-red-700"
-                  : isFinished
-                    ? "bg-gray-100 text-gray-700"
-                    : "bg-blue-100 text-blue-700"
-              }
-            >
-              {isLive && (
-                <Circle className="mr-1 h-2 w-2 animate-pulse fill-red-500 text-red-500" />
-              )}
-              {isScheduled ? "예정" : isLive ? "진행중" : "종료"}
-            </Badge>
-          </CardContent>
-        </Card>
 
-        {/* 출전 명단 (readonly) — 라인업이 있으면 이벤트/MOM 드롭다운이 라인업 선수로 자동 필터됨 */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Users className="h-4 w-4" />
-              출전 명단
-              {lineup.length > 0 && (
-                <span
-                  className="text-[10px] font-normal"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  · 선수 드롭다운이 명단으로 필터됨
-                </span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {lineupLoading ? (
-              <div
-                className="flex items-center justify-center py-4 text-xs"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                명단 로드 중…
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                <LineupReadonlyCard
-                  teamName={matchData.homeTeamName}
-                  entries={homeLineup}
-                />
-                <LineupReadonlyCard
-                  teamName={matchData.awayTeamName}
-                  entries={awayLineup}
-                />
+            {/* 컨트롤 행 — 상태별 버튼 노출. 위험 액션(종료)은 우측 분리. */}
+            {!isFinished && (
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border-t pt-3">
+                {isScheduled && (
+                  <Button
+                    onClick={() => mc.startMatch()}
+                    className="min-h-[44px] bg-green-600 px-5 text-white hover:bg-green-700"
+                    disabled={mc.pendingAction !== null}
+                    aria-busy={mc.pendingAction === "start"}
+                  >
+                    {mc.pendingAction === "start" ? (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="mr-1 h-4 w-4" />
+                    )}
+                    {mc.pendingAction === "start" ? "시작 처리중…" : "경기 시작"}
+                  </Button>
+                )}
+                {isLive && mc.isRunning && (
+                  <Button
+                    onClick={() => mc.pauseMatch()}
+                    variant="secondary"
+                    className="min-h-[44px] px-5"
+                    disabled={mc.pendingAction !== null}
+                    aria-busy={mc.pendingAction === "pause"}
+                  >
+                    {mc.pendingAction === "pause" ? (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Pause className="mr-1 h-4 w-4" />
+                    )}
+                    {mc.pendingAction === "pause" ? "처리중…" : "일시정지"}
+                  </Button>
+                )}
+                {isLive && !mc.isRunning && (
+                  <Button
+                    onClick={() => mc.resumeMatch()}
+                    className="min-h-[44px] px-5"
+                    disabled={mc.pendingAction !== null}
+                    aria-busy={mc.pendingAction === "resume"}
+                  >
+                    {mc.pendingAction === "resume" ? (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="mr-1 h-4 w-4" />
+                    )}
+                    {mc.pendingAction === "resume" ? "처리중…" : "재개"}
+                  </Button>
+                )}
+                {isLive && mc.currentHalf === 1 && !mc.isRunning && (
+                  <Button
+                    onClick={() => mc.startSecondHalf()}
+                    variant="outline"
+                    className="min-h-[44px] px-5"
+                    disabled={mc.pendingAction !== null}
+                    aria-busy={mc.pendingAction === "secondHalf"}
+                  >
+                    {mc.pendingAction === "secondHalf" && (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    )}
+                    {mc.pendingAction === "secondHalf" ? "처리중…" : "후반 시작"}
+                  </Button>
+                )}
+                {isLive && (
+                  <Button
+                    onClick={() => setEndDialogOpen(true)}
+                    variant="destructive"
+                    className="min-h-[44px] px-5"
+                    disabled={mc.pendingAction !== null}
+                    aria-busy={endPending}
+                  >
+                    {endPending ? (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Square className="mr-1 h-4 w-4" />
+                    )}
+                    {endPending ? "종료 처리중…" : "경기 종료"}
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
@@ -463,126 +599,39 @@ function AdminMatchControl() {
           </div>
         )}
 
-        {/* Timer Card */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">타이머</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="text-center">
-              <div className="text-5xl font-black tabular-nums tracking-tight">
-                {formatTime(mc.elapsedSeconds)}
-              </div>
-              <div
-                className="mt-1 text-sm"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                {mc.currentHalf === 1 ? "전반" : "후반"}
-                {mc.isRunning && (
-                  <span className="ml-2 inline-flex items-center text-red-500">
-                    <Circle className="mr-0.5 h-1.5 w-1.5 animate-pulse fill-current" />
-                    진행중
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* 주요 액션 — 터치타깃 44px+, 진행 중 disabled+스피너+aria-busy.
-                위험 액션(경기 종료)은 시각·위치 분리 (A10 / SC 2.5.5). */}
-            <div className="flex flex-wrap justify-center gap-2">
-              {isScheduled && (
-                <Button
-                  onClick={() => mc.startMatch()}
-                  className="min-h-[44px] bg-green-600 px-5 text-white hover:bg-green-700"
-                  disabled={mc.pendingAction !== null}
-                  aria-busy={mc.pendingAction === "start"}
+        {/* 출전 명단 (readonly) — 경기 전(예정)에만. 진행 중엔 아래 코트 대시보드에서 번호 확인 */}
+        {isScheduled && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Users className="h-4 w-4" />
+                출전 명단
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {lineupLoading ? (
+                <div
+                  className="flex items-center justify-center py-4 text-xs"
+                  style={{ color: "var(--muted-foreground)" }}
                 >
-                  {mc.pendingAction === "start" ? (
-                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Play className="mr-1 h-4 w-4" />
-                  )}
-                  {mc.pendingAction === "start" ? "시작 처리중…" : "경기 시작"}
-                </Button>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  명단 로드 중…
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <LineupReadonlyCard
+                    teamName={matchData.homeTeamName}
+                    entries={homeLineup}
+                  />
+                  <LineupReadonlyCard
+                    teamName={matchData.awayTeamName}
+                    entries={awayLineup}
+                  />
+                </div>
               )}
-
-              {isLive && mc.isRunning && (
-                <Button
-                  onClick={() => mc.pauseMatch()}
-                  variant="secondary"
-                  className="min-h-[44px] px-5"
-                  disabled={mc.pendingAction !== null}
-                  aria-busy={mc.pendingAction === "pause"}
-                >
-                  {mc.pendingAction === "pause" ? (
-                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Pause className="mr-1 h-4 w-4" />
-                  )}
-                  {mc.pendingAction === "pause" ? "처리중…" : "일시정지"}
-                </Button>
-              )}
-
-              {isLive && !mc.isRunning && (
-                <Button
-                  onClick={() => mc.resumeMatch()}
-                  className="min-h-[44px] px-5"
-                  disabled={mc.pendingAction !== null}
-                  aria-busy={mc.pendingAction === "resume"}
-                >
-                  {mc.pendingAction === "resume" ? (
-                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Play className="mr-1 h-4 w-4" />
-                  )}
-                  {mc.pendingAction === "resume" ? "처리중…" : "재개"}
-                </Button>
-              )}
-
-              {isLive && mc.currentHalf === 1 && !mc.isRunning && (
-                <Button
-                  onClick={() => mc.startSecondHalf()}
-                  variant="outline"
-                  className="min-h-[44px] px-5"
-                  disabled={mc.pendingAction !== null}
-                  aria-busy={mc.pendingAction === "secondHalf"}
-                >
-                  {mc.pendingAction === "secondHalf" && (
-                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                  )}
-                  {mc.pendingAction === "secondHalf"
-                    ? "처리중…"
-                    : "후반 시작"}
-                </Button>
-              )}
-            </div>
-
-            {/* 위험 액션 분리 영역 — 실수 방지 위해 별도 행·상단 구분선 */}
-            {isLive && (
-              <div className="mt-1 flex justify-center border-t pt-3">
-                <Button
-                  onClick={() => setEndDialogOpen(true)}
-                  variant="destructive"
-                  className="min-h-[44px] px-6"
-                  disabled={mc.pendingAction !== null}
-                  aria-busy={endPending}
-                >
-                  {endPending ? (
-                    <>
-                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                      종료 처리중…
-                    </>
-                  ) : (
-                    <>
-                      <Square className="mr-1 h-4 w-4" />
-                      경기 종료
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Event Input - only during live */}
         {isLive && (
@@ -594,57 +643,14 @@ function AdminMatchControl() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {/* Team toggle */}
-              <div className="flex overflow-hidden rounded-lg border">
-                <button
-                  className="flex-1 py-3 text-sm font-medium transition-colors"
-                  style={
-                    eventTeamSide === "home"
-                      ? {
-                          background: "var(--primary)",
-                          color: "var(--primary-foreground)",
-                        }
-                      : {
-                          background: "var(--background)",
-                          color: "var(--muted-foreground)",
-                        }
-                  }
-                  onClick={() => {
-                    setEventTeamSide("home");
-                    setEventPlayerId("");
-                  }}
-                >
-                  {matchData.homeTeamName}
-                </button>
-                <button
-                  className="flex-1 py-3 text-sm font-medium transition-colors"
-                  style={
-                    eventTeamSide === "away"
-                      ? {
-                          background: "var(--primary)",
-                          color: "var(--primary-foreground)",
-                        }
-                      : {
-                          background: "var(--background)",
-                          color: "var(--muted-foreground)",
-                        }
-                  }
-                  onClick={() => {
-                    setEventTeamSide("away");
-                    setEventPlayerId("");
-                  }}
-                >
-                  {matchData.awayTeamName}
-                </button>
-              </div>
-
-              {/* Event type */}
+              {/* 이벤트 유형 선택 (공유) — 선택 후 아래 양팀 선수 칩을 탭하면 즉시
+                  기록. 유형은 유지돼 연속 기록(여러 반칙 등)이 빠르다. */}
               <div className="space-y-1">
                 <label
                   className="text-xs font-medium"
                   style={{ color: "var(--muted-foreground)" }}
                 >
-                  이벤트 유형
+                  ① 이벤트 유형 선택
                 </label>
                 <div className="grid grid-cols-4 gap-1.5">
                   {EVENT_TYPES.map((et) => (
@@ -660,7 +666,8 @@ function AdminMatchControl() {
                             }
                           : undefined
                       }
-                      onClick={() => setEventType(et.value)}
+                      onClick={() => setEventType(eventType === et.value ? "" : et.value)}
+                      aria-pressed={eventType === et.value}
                     >
                       <div className="text-base">{et.emoji}</div>
                       <div className="mt-0.5">{et.label}</div>
@@ -669,51 +676,64 @@ function AdminMatchControl() {
                 </div>
               </div>
 
-              {/* Player select */}
-              <div className="space-y-1">
-                <label
-                  className="text-xs font-medium"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  선수
-                </label>
-                <Select
-                  value={eventPlayerId}
-                  onValueChange={setEventPlayerId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="선수 선택" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activePlayers.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        #{p.number} {p.name} ({p.position})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                ② {eventType ? "선수를 탭하면 즉시 기록됩니다" : "먼저 이벤트 유형을 선택하세요"}
+              </p>
+
+              {/* 실제 구장 비율(2:1) 녹색 코트 위 양팀 출전/대기 번호 대시보드.
+                  유형 선택 후 선수 칩을 탭하면 즉시 기록. 칩에는 골/어시/경고/퇴장 배지 표시. */}
+              <div className="relative mx-auto aspect-[3/4] max-h-[62vh] w-full overflow-hidden rounded-xl landscape:aspect-[2/1] md:aspect-[2/1]">
+                <CourtBackdrop />
+                {/* 전광판 시계 — 코트 상단 중앙(하프라인 위)에 떠 경기시간·전후반·진행상태 표시 */}
+                <div className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2">
+                  <div
+                    className="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-black tabular-nums shadow-lg"
+                    style={{ background: "rgba(8,20,12,0.78)", color: "#fff", border: "1px solid rgba(255,255,255,0.25)" }}
+                  >
+                    {isLive && (
+                      <Circle
+                        className={`h-2 w-2 fill-current ${mc.isRunning ? "animate-pulse text-red-400" : "text-amber-400"}`}
+                      />
+                    )}
+                    <span>{formatTime(mc.elapsedSeconds)}</span>
+                    <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.75)" }}>
+                      {mc.currentHalf === 1 ? "전반" : "후반"}
+                    </span>
+                  </div>
+                </div>
+                <div className="absolute inset-0 z-10 grid grid-cols-1 grid-rows-2 landscape:grid-cols-2 landscape:grid-rows-1 md:grid-cols-2 md:grid-rows-1">
+                  {[homeSide, awaySide].map((team) => (
+                    <PitchFormation
+                      key={team.side}
+                      team={team}
+                      eventType={eventType}
+                      pending={mc.pendingAction !== null}
+                      onRecord={recordPlayerEvent}
+                      playerStat={playerStat}
+                    />
+                  ))}
+                </div>
               </div>
 
-              <Button
-                className="min-h-[44px] w-full"
-                onClick={handleAddEvent}
-                disabled={
-                  !eventType || !eventPlayerId || mc.pendingAction !== null
-                }
-                aria-busy={mc.pendingAction === "event"}
-              >
-                {mc.pendingAction === "event" ? (
-                  <>
-                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                    기록 처리중…
-                  </>
-                ) : (
-                  <>
-                    <Plus className="mr-1 h-4 w-4" />
-                    이벤트 기록
-                  </>
-                )}
-              </Button>
+              {/* 대기선수 — 경기장 밖, 팀별 원형 번호 토큰 */}
+              <div className="grid grid-cols-2 gap-2">
+                {[homeSide, awaySide].map((team) => (
+                  <BenchStrip
+                    key={team.side}
+                    team={team}
+                    eventType={eventType}
+                    pending={mc.pendingAction !== null}
+                    onRecord={recordPlayerEvent}
+                    playerStat={playerStat}
+                  />
+                ))}
+              </div>
+
+              {mc.pendingAction === "event" && (
+                <p className="flex items-center justify-center gap-1.5 text-xs" style={{ color: "var(--muted-foreground)" }}>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> 기록 처리중…
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
@@ -953,6 +973,313 @@ function AdminMatchControl() {
           </DialogContent>
         </Dialog>
       </div>
+    </div>
+  );
+}
+
+type Tally = { goals: number; assists: number; fouls: number; yellow: number; red: number };
+
+type TeamSide = {
+  side: "home" | "away";
+  name: string;
+  id: string;
+  score: number;
+  tally: Tally;
+  onCourt: Player[];
+  bench: Player[];
+};
+
+/** 스코어보드용 팀 누적 스탯 알약 — 골/어시/반칙/경고/퇴장. */
+function StatPills({ tally }: { tally: Tally }) {
+  const items: { e: string; n: number; label: string }[] = [
+    { e: "⚽", n: tally.goals, label: "골" },
+    { e: "🅰️", n: tally.assists, label: "어시스트" },
+    { e: "🚫", n: tally.fouls, label: "반칙" },
+    { e: "🟨", n: tally.yellow, label: "경고" },
+    { e: "🟥", n: tally.red, label: "퇴장" },
+  ];
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {items.map((it) => (
+        <span
+          key={it.label}
+          className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
+          style={{ background: "var(--secondary)", color: "var(--foreground)" }}
+          title={`${it.label} ${it.n}`}
+        >
+          <span aria-hidden>{it.e}</span>
+          <span>{it.n}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+type Accent = { bg: string; fg: string; ring: string };
+const teamAccent = (side: "home" | "away"): Accent =>
+  side === "away"
+    ? { bg: "#b91c1c", fg: "#fff", ring: "rgba(255,255,255,0.92)" }
+    : { bg: "#1d4ed8", fg: "#fff", ring: "rgba(255,255,255,0.92)" };
+
+/** 선수 원형 번호 토큰 — 번호를 큰 원으로, 아래 이름. 탭하면 선택 이벤트 기록.
+    골(⚽n)·경고(🟨)·퇴장(🟥)을 토큰 위 배지로 표시. onGrass=잔디 위(흰 이름). */
+function PlayerToken({
+  player,
+  teamId,
+  eventType,
+  pending,
+  onRecord,
+  playerStat,
+  accent,
+  onGrass,
+}: {
+  player: Player;
+  teamId: string;
+  eventType: MatchEventType | "";
+  pending: boolean;
+  onRecord: (player: Player, teamId: string) => void | Promise<void>;
+  playerStat: (pid: string, type: MatchEventType) => number;
+  accent: Accent;
+  onGrass: boolean;
+}) {
+  const g = playerStat(player.id, "goal");
+  const y = playerStat(player.id, "yellow_card");
+  const r = playerStat(player.id, "red_card");
+  return (
+    <button
+      type="button"
+      onClick={() => void onRecord(player, teamId)}
+      disabled={!eventType || pending}
+      className="flex flex-col items-center gap-0.5 transition disabled:opacity-50"
+      title={eventType ? `#${player.number} ${player.name} 기록` : `#${player.number} ${player.name}`}
+    >
+      <span
+        className={`relative flex items-center justify-center rounded-full border-2 font-black tabular-nums shadow-md ${
+          onGrass ? "h-11 w-11 text-base" : "h-9 w-9 text-sm"
+        }`}
+        style={{ background: accent.bg, color: accent.fg, borderColor: accent.ring }}
+      >
+        {player.number}
+        {r > 0 ? (
+          <span
+            className="absolute -right-1 -top-1 h-3.5 w-2.5 rounded-[2px]"
+            style={{ background: "#dc2626", border: "1px solid #fff" }}
+          />
+        ) : y > 0 ? (
+          <span
+            className="absolute -right-1 -top-1 h-3.5 w-2.5 rounded-[2px]"
+            style={{ background: "#facc15", border: "1px solid #fff" }}
+          />
+        ) : null}
+        {g > 0 && (
+          <span
+            className="absolute -bottom-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-bold"
+            style={{ background: "#fff", color: "#0d1b2a", border: "1px solid rgba(0,0,0,0.2)" }}
+          >
+            ⚽{g > 1 ? g : ""}
+          </span>
+        )}
+      </span>
+      <span
+        className="max-w-[72px] truncate text-[10px] font-semibold"
+        style={
+          onGrass
+            ? { color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,0.85)" }
+            : { color: "var(--foreground)" }
+        }
+      >
+        {player.name}
+      </span>
+    </button>
+  );
+}
+
+/** 출전 선수 포메이션 — GK·수비·공격 라인. 홈은 페이지 상단, 원정은 코트 안. */
+function FormationControls({
+  team,
+  isAway,
+  eventType,
+  pending,
+  onRecord,
+  playerStat,
+}: {
+  team: TeamSide;
+  isAway: boolean;
+  eventType: MatchEventType | "";
+  pending: boolean;
+  onRecord: (player: Player, teamId: string) => void | Promise<void>;
+  playerStat: (pid: string, type: MatchEventType) => number;
+}) {
+  const accent = teamAccent(team.side);
+  const five = [...team.onCourt]
+    .sort((a, b) => (a.position === "GK" ? -1 : 0) - (b.position === "GK" ? -1 : 0))
+    .slice(0, 5);
+  const lines = [five.slice(0, 1), five.slice(1, 3), five.slice(3, 5)].filter((l) => l.length > 0);
+
+  if (five.length === 0) {
+    return (
+      <div className="flex h-full w-full items-center justify-center px-4 py-3">
+        <span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
+          {team.name} — 출전 선수 없음
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex h-full w-full items-center justify-around gap-1 px-1 pb-2 pt-14 ${
+        isAway
+          ? "flex-col-reverse landscape:flex-row-reverse md:flex-row-reverse"
+          : "flex-col landscape:flex-row md:flex-row"
+      }`}
+    >
+      {lines.map((line, i) => (
+        <div
+          key={i}
+          className="flex flex-row items-center justify-around gap-3 landscape:flex-col md:flex-col"
+        >
+          {line.map((p) => (
+            <PlayerToken
+              key={p.id}
+              player={p}
+              teamId={team.id}
+              eventType={eventType}
+              pending={pending}
+              onRecord={onRecord}
+              playerStat={playerStat}
+              accent={accent}
+              onGrass={isAway}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 코트 절반(한 팀) — 잔디 위 포메이션. 최대 5명을 GK·수비·공격 라인으로 배치.
+    좌상단(home)·우상단(away) 코너에 팀명/점수/누적 스탯 스트립. */
+function PitchFormation({
+  team,
+  eventType,
+  pending,
+  onRecord,
+  playerStat,
+}: {
+  team: TeamSide;
+  eventType: MatchEventType | "";
+  pending: boolean;
+  onRecord: (player: Player, teamId: string) => void | Promise<void>;
+  playerStat: (pid: string, type: MatchEventType) => number;
+}) {
+  const isAway = team.side === "away";
+
+  return (
+    <div className="relative h-full w-full">
+      {/* 정보 스트립 — 코너 */}
+      <div
+        className={`absolute top-1 z-20 flex flex-col gap-0.5 ${
+          isAway ? "right-2 items-end text-right" : "left-2 items-start text-left"
+        }`}
+      >
+        <div className="flex items-center gap-1.5">
+          <span
+            className="max-w-[130px] truncate text-sm font-bold"
+            style={{ color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}
+          >
+            {team.name}
+          </span>
+          <span
+            className="text-xl font-black tabular-nums"
+            style={{ color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}
+          >
+            {team.score}
+          </span>
+        </div>
+        <div className={`flex flex-wrap gap-1 ${isAway ? "justify-end" : ""}`}>
+          {[
+            { e: "⚽", n: team.tally.goals },
+            { e: "🅰️", n: team.tally.assists },
+            { e: "🚫", n: team.tally.fouls },
+            { e: "🟨", n: team.tally.yellow },
+            { e: "🟥", n: team.tally.red },
+          ].map((it, i) => (
+            <span
+              key={i}
+              className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-bold tabular-nums"
+              style={{ background: "rgba(8,20,12,0.6)", color: "#fff" }}
+            >
+              <span aria-hidden>{it.e}</span>
+              <span>{it.n}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* 포메이션 — 원정만 코트 위. 홈은 페이지 상단 FormationControls */}
+      {isAway ? (
+        <FormationControls
+          team={team}
+          isAway
+          eventType={eventType}
+          pending={pending}
+          onRecord={onRecord}
+          playerStat={playerStat}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/** 경기장 밖 대기선수 — 팀별 원형 번호 토큰 행. */
+function BenchStrip({
+  team,
+  eventType,
+  pending,
+  onRecord,
+  playerStat,
+}: {
+  team: TeamSide;
+  eventType: MatchEventType | "";
+  pending: boolean;
+  onRecord: (player: Player, teamId: string) => void | Promise<void>;
+  playerStat: (pid: string, type: MatchEventType) => number;
+}) {
+  const accent = teamAccent(team.side);
+  return (
+    <div
+      className="rounded-lg border p-2"
+      style={{ borderColor: "var(--border)", background: "var(--background)" }}
+    >
+      <div
+        className="mb-2 flex items-center gap-1.5 text-xs font-semibold"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        <span className="truncate">{team.name}</span>
+        <span>· 대기 {team.bench.length}</span>
+      </div>
+      {team.bench.length === 0 ? (
+        <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+          대기 선수 없음
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {team.bench.map((p) => (
+            <PlayerToken
+              key={p.id}
+              player={p}
+              teamId={team.id}
+              eventType={eventType}
+              pending={pending}
+              onRecord={onRecord}
+              playerStat={playerStat}
+              accent={accent}
+              onGrass={false}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
