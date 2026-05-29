@@ -48,6 +48,12 @@ import type {
   TeamRole,
   NotificationItem,
   TeamPhoto,
+  TeamJoinRequest,
+  TeamJoinRequestStatus,
+  TeamDuesPeriod,
+  TeamDuesPayment,
+  TeamDuesPaymentStatus,
+  TeamDuesExpense,
   ActivityEvent,
   Report,
   ReportReason,
@@ -163,12 +169,26 @@ interface DataState {
   // --- Write (운영/심판 콘솔 — fairground 풀 구현 이식) ---
   createTeam: (team: Omit<Team, "id">) => Promise<string>;
   updateTeam: (id: string, data: Partial<Team>) => Promise<void>;
+  // 리그 승강 (admin 정산) — RPC 호출.
+  recordParticipation: (teamId: string) => Promise<void>;       // 연속 streak +1 (cap 4)
+  resetParticipationStreak: (teamId: string) => Promise<void>;  // 불참/끊김 → 0
+  promoteTeam: (teamId: string) => Promise<void>;               // 시즌 상위 2팀 → 한 단계 위 + streak 0
+  relegateTeam: (teamId: string) => Promise<void>;              // 시즌 하위 2팀 → 한 단계 아래
   createTournament: (tournament: Omit<Tournament, "id">) => Promise<string>;
   createMatch: (tournamentId: string, match: Omit<Match, "id">) => Promise<string>;
   startMatch: (tournamentId: string, matchId: string) => Promise<void>;
   pauseMatch: (matchId: string) => Promise<void>;
   resumeMatch: (matchId: string) => Promise<void>;
   endMatch: (tournamentId: string, matchId: string) => Promise<void>;
+  substitutePlayer: (
+    matchId: string,
+    teamId: string,
+    outId: string,
+    inId: string,
+    inName: string,
+    minute: number,
+    half: number,
+  ) => Promise<void>;
   addMatchEvent: (
     tournamentId: string,
     matchId: string,
@@ -265,6 +285,47 @@ interface DataState {
   ) => Promise<TeamPhoto>;
   deleteTeamPhoto: (id: string, storagePath: string) => Promise<void>;
   fetchTeamPhotos: (teamId: string, limit?: number) => Promise<TeamPhoto[]>;
+
+  // ===== Team join requests =====
+  requestJoinTeam: (teamId: string, message?: string) => Promise<string>;
+  fetchTeamJoinRequests: (
+    teamId: string,
+    status?: TeamJoinRequestStatus,
+  ) => Promise<TeamJoinRequest[]>;
+  fetchMyJoinRequests: (playerId: string) => Promise<TeamJoinRequest[]>;
+  setTeamJoinRequestStatus: (
+    requestId: string,
+    status: TeamJoinRequestStatus,
+  ) => Promise<void>;
+  cancelMyJoinRequest: (requestId: string) => Promise<void>;
+
+  // ===== Team dues (회비) =====
+  fetchTeamDuesPeriods: (teamId: string) => Promise<TeamDuesPeriod[]>;
+  createTeamDuesPeriod: (input: {
+    teamId: string;
+    periodMonth: string;
+    monthlyAmount: number;
+    dueDate?: string;
+    memo?: string;
+  }) => Promise<string>;
+  deleteTeamDuesPeriod: (periodId: string) => Promise<void>;
+  fetchTeamDuesPayments: (periodId: string) => Promise<TeamDuesPayment[]>;
+  fetchMyDuesPayments: (playerId: string) => Promise<TeamDuesPayment[]>;
+  setTeamDuesPaymentStatus: (
+    paymentId: string,
+    status: TeamDuesPaymentStatus,
+    amountPaid?: number,
+  ) => Promise<void>;
+  fetchTeamDuesExpenses: (teamId: string) => Promise<TeamDuesExpense[]>;
+  addTeamDuesExpense: (input: {
+    teamId: string;
+    occurredOn: string;
+    amount: number;
+    category?: string;
+    memo?: string;
+  }) => Promise<string>;
+  deleteTeamDuesExpense: (expenseId: string) => Promise<void>;
+
   // 전체 활동 피드. cursor 는 createdAt unix ms; 그보다 과거 행을 페이지로 반환.
   fetchActivityFeed: (opts?: { cursor?: number; limit?: number }) => Promise<ActivityEvent[]>;
   // 통합 검색 (글·공지·팀·플레이어 병렬, 각 카테고리 최대 5건)
@@ -303,6 +364,111 @@ interface DataState {
 }
 
 /** SQL 예외 메시지 → 사용자용 한국어. raise(message) 패턴을 파싱한다. */
+type JoinReqRow = {
+  id: string;
+  team_id: string;
+  player_id: string;
+  message: string | null;
+  status: TeamJoinRequestStatus;
+  created_at: string;
+  processed_at: string | null;
+  processed_by: string | null;
+  profiles?: { name: string | null } | null;
+  teams?: { name: string | null } | null;
+};
+
+function rowToTeamJoinRequest(r: JoinReqRow): TeamJoinRequest {
+  return {
+    id: r.id,
+    teamId: r.team_id,
+    teamName: r.teams?.name ?? undefined,
+    playerId: r.player_id,
+    playerName: r.profiles?.name ?? undefined,
+    message: r.message ?? undefined,
+    status: r.status,
+    createdAt: new Date(r.created_at).getTime(),
+    processedAt: r.processed_at ? new Date(r.processed_at).getTime() : undefined,
+    processedBy: r.processed_by ?? undefined,
+  };
+}
+
+// ── Team-dues row mappers ─────────────────────────────────────────────────
+type DuesPeriodRow = {
+  id: string;
+  team_id: string;
+  period_month: string;
+  monthly_amount: number;
+  due_date: string | null;
+  memo: string | null;
+  created_at: string;
+  created_by: string | null;
+};
+
+function rowToDuesPeriod(r: DuesPeriodRow): TeamDuesPeriod {
+  return {
+    id: r.id,
+    teamId: r.team_id,
+    periodMonth: r.period_month,
+    monthlyAmount: r.monthly_amount,
+    dueDate: r.due_date ?? undefined,
+    memo: r.memo ?? undefined,
+    createdAt: new Date(r.created_at).getTime(),
+    createdBy: r.created_by ?? undefined,
+  };
+}
+
+type DuesPaymentRow = {
+  id: string;
+  period_id: string;
+  player_id: string;
+  status: TeamDuesPaymentStatus;
+  amount_paid: number;
+  paid_at: string | null;
+  memo: string | null;
+  recorded_by: string | null;
+  updated_at: string;
+  profiles?: { name: string | null } | null;
+};
+
+function rowToDuesPayment(r: DuesPaymentRow): TeamDuesPayment {
+  return {
+    id: r.id,
+    periodId: r.period_id,
+    playerId: r.player_id,
+    playerName: r.profiles?.name ?? undefined,
+    status: r.status,
+    amountPaid: r.amount_paid,
+    paidAt: r.paid_at ? new Date(r.paid_at).getTime() : undefined,
+    memo: r.memo ?? undefined,
+    recordedBy: r.recorded_by ?? undefined,
+    updatedAt: new Date(r.updated_at).getTime(),
+  };
+}
+
+type DuesExpenseRow = {
+  id: string;
+  team_id: string;
+  occurred_on: string;
+  category: string | null;
+  amount: number;
+  memo: string | null;
+  created_at: string;
+  created_by: string | null;
+};
+
+function rowToDuesExpense(r: DuesExpenseRow): TeamDuesExpense {
+  return {
+    id: r.id,
+    teamId: r.team_id,
+    occurredOn: r.occurred_on,
+    category: r.category ?? undefined,
+    amount: r.amount,
+    memo: r.memo ?? undefined,
+    createdAt: new Date(r.created_at).getTime(),
+    createdBy: r.created_by ?? undefined,
+  };
+}
+
 function friendlyError(raw: string | undefined | null): string {
   const m = (raw ?? "").toLowerCase();
   if (m.includes("rate_limit_exceeded")) {
@@ -497,11 +663,15 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       .map((row) => {
         const t = rowToTeam(row);
         const ss = t.seasonStats;
+        // 연속참여 보너스(0–3)를 경기 승점에 가산 → 랭킹 기준 points.
+        const bonus = Math.max(0, Math.min(t.participationStreak - 1, 3));
         return {
           teamId: t.id,
           teamName: t.name,
           teamLogo: t.logo,
-          points: ss.points,
+          matchPoints: ss.points,
+          participationBonus: bonus,
+          points: ss.points + bonus,
           rank: ss.rank,
           wins: ss.wins,
           draws: ss.draws,
@@ -586,6 +756,39 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     setState((s) => ({
       teams: { ...s.teams, [id]: s.teams[id] ? { ...s.teams[id], ...data } : s.teams[id] },
     }));
+  },
+
+  // 승강 RPC 공통 처리 — 호출 후 해당 팀 재조회로 상태 반영. admin 검증은 RPC 내부.
+  recordParticipation: async (teamId) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 처리할 수 없습니다");
+    const { error } = await supabase.rpc("record_participation", { p_team_id: teamId });
+    if (error) { console.error("[dataStore] recordParticipation:", error.message); throw new Error(friendlyError(error.message)); }
+    const fresh = await getState().fetchTeam(teamId);
+    if (fresh) setState((s) => ({ teams: { ...s.teams, [teamId]: fresh } }));
+  },
+
+  resetParticipationStreak: async (teamId) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 처리할 수 없습니다");
+    const { error } = await supabase.rpc("reset_participation_streak", { p_team_id: teamId });
+    if (error) { console.error("[dataStore] resetParticipationStreak:", error.message); throw new Error(friendlyError(error.message)); }
+    const fresh = await getState().fetchTeam(teamId);
+    if (fresh) setState((s) => ({ teams: { ...s.teams, [teamId]: fresh } }));
+  },
+
+  promoteTeam: async (teamId) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 처리할 수 없습니다");
+    const { error } = await supabase.rpc("promote_team", { p_team_id: teamId });
+    if (error) { console.error("[dataStore] promoteTeam:", error.message); throw new Error(friendlyError(error.message)); }
+    const fresh = await getState().fetchTeam(teamId);
+    if (fresh) setState((s) => ({ teams: { ...s.teams, [teamId]: fresh } }));
+  },
+
+  relegateTeam: async (teamId) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 처리할 수 없습니다");
+    const { error } = await supabase.rpc("relegate_team", { p_team_id: teamId });
+    if (error) { console.error("[dataStore] relegateTeam:", error.message); throw new Error(friendlyError(error.message)); }
+    const fresh = await getState().fetchTeam(teamId);
+    if (fresh) setState((s) => ({ teams: { ...s.teams, [teamId]: fresh } }));
   },
 
   createTournament: async (tournament) => {
@@ -727,6 +930,29 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     }
     // NOTE(후속): premium 카드 cardRating 재계산은 RPC에 미포함(스키마 주석 참조).
     // card_rating 은 RLS 트리거가 클라 변경 차단 → 서버 RPC 확장으로 처리 예정.
+  },
+
+  substitutePlayer: async (matchId, teamId, outId, inId, inName, minute, half) => {
+    if (isDemoMode) {
+      // 데모 모드에는 라인업 로컬 저장소가 없음(match_lineups 는 Supabase 전용).
+      // 교체할 로컬 상태가 없으므로 no-op 으로 둔다.
+      return;
+    }
+    // Supabase: 서버 RPC 가 권한(팀 스태프/admin)·라이브 상태·OUT 선발/IN 벤치 검증,
+    // is_starter 스왑 + substitution 이벤트 삽입을 단일 트랜잭션으로 처리.
+    const { error } = await supabase.rpc("substitute_player", {
+      p_match_id: matchId,
+      p_team_id: teamId,
+      p_out_player_id: outId,
+      p_in_player_id: inId,
+      p_in_player_name: inName,
+      p_minute: minute,
+      p_half: half,
+    });
+    if (error) {
+      console.error("[dataStore] substitutePlayer RPC:", error.message);
+      throw new Error(error.message);
+    }
   },
 
   addMatchEvent: async (tournamentId, matchId, eventData) => {
@@ -1350,6 +1576,226 @@ export const useDataStore = create<DataState>((setState, getState) => ({
         .getPublicUrl(objectPath);
       return rowToTeamPhoto(r, pub.publicUrl);
     });
+  },
+
+  // ===== Team join requests =====
+  // Row → domain. Inline (no shared mapper) because the table is single-purpose.
+  requestJoinTeam: async (teamId, message) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 가입 신청을 보낼 수 없습니다");
+    const { data: { user } } = await supabase.auth.getUser();
+    const uid = user?.id;
+    if (!uid) throw new Error("로그인이 필요합니다");
+    const { data, error } = await supabase
+      .from("team_join_requests")
+      .insert({
+        team_id: teamId,
+        player_id: uid,
+        message: message?.trim() || null,
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "가입 신청에 실패했습니다");
+    return data.id;
+  },
+
+  fetchTeamJoinRequests: async (teamId, status) => {
+    if (isDemoMode) return [];
+    let q = supabase
+      .from("team_join_requests")
+      .select("*, profiles:player_id(name), teams:team_id(name)")
+      .eq("team_id", teamId)
+      .order("created_at", { ascending: false });
+    if (status) q = q.eq("status", status);
+    const { data, error } = await q;
+    if (error) {
+      console.error("[dataStore] fetchTeamJoinRequests:", error.message);
+      return [];
+    }
+    return (data ?? []).map((r) => rowToTeamJoinRequest(r as unknown as JoinReqRow));
+  },
+
+  fetchMyJoinRequests: async (playerId) => {
+    if (isDemoMode) return [];
+    const { data, error } = await supabase
+      .from("team_join_requests")
+      .select("*, profiles:player_id(name), teams:team_id(name)")
+      .eq("player_id", playerId)
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("[dataStore] fetchMyJoinRequests:", error.message);
+      return [];
+    }
+    return (data ?? []).map((r) => rowToTeamJoinRequest(r as unknown as JoinReqRow));
+  },
+
+  setTeamJoinRequestStatus: async (requestId, status) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 처리할 수 없습니다");
+    const { error } = await supabase
+      .from("team_join_requests")
+      .update({ status })
+      .eq("id", requestId);
+    if (error) {
+      console.error("[dataStore] setTeamJoinRequestStatus:", error.message);
+      throw new Error(error.message);
+    }
+  },
+
+  // 본인이 제출한 pending 신청을 취소(DELETE). RLS DELETE 정책이
+  // (auth.uid() = player_id AND status='pending')일 때만 허용하므로 다른
+  // 상태/타인의 행은 서버에서 거부된다.
+  cancelMyJoinRequest: async (requestId) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 처리할 수 없습니다");
+    const { error } = await supabase
+      .from("team_join_requests")
+      .delete()
+      .eq("id", requestId)
+      .eq("status", "pending");
+    if (error) {
+      console.error("[dataStore] cancelMyJoinRequest:", error.message);
+      throw new Error(error.message);
+    }
+  },
+
+  // ===== Team dues =====
+  // periods: 월별 회비 사이클. 디렉터만 mutate, 멤버는 read.
+  fetchTeamDuesPeriods: async (teamId) => {
+    if (isDemoMode) return [];
+    const { data, error } = await supabase
+      .from("team_dues_periods")
+      .select("*")
+      .eq("team_id", teamId)
+      .order("period_month", { ascending: false });
+    if (error) {
+      console.error("[dataStore] fetchTeamDuesPeriods:", error.message);
+      return [];
+    }
+    return (data ?? []).map((r) => rowToDuesPeriod(r as DuesPeriodRow));
+  },
+
+  createTeamDuesPeriod: async ({ teamId, periodMonth, monthlyAmount, dueDate, memo }) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 처리할 수 없습니다");
+    const auth = await supabase.auth.getUser();
+    const uid = auth.data.user?.id ?? null;
+    const { data, error } = await supabase
+      .from("team_dues_periods")
+      .insert({
+        team_id: teamId,
+        period_month: periodMonth,
+        monthly_amount: monthlyAmount,
+        due_date: dueDate ?? null,
+        memo: memo ?? null,
+        created_by: uid,
+      })
+      .select("id")
+      .single();
+    if (error) {
+      console.error("[dataStore] createTeamDuesPeriod:", error.message);
+      throw new Error(friendlyError(error.message));
+    }
+    return data.id;
+  },
+
+  deleteTeamDuesPeriod: async (periodId) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 처리할 수 없습니다");
+    const { error } = await supabase
+      .from("team_dues_periods")
+      .delete()
+      .eq("id", periodId);
+    if (error) {
+      console.error("[dataStore] deleteTeamDuesPeriod:", error.message);
+      throw new Error(error.message);
+    }
+  },
+
+  fetchTeamDuesPayments: async (periodId) => {
+    if (isDemoMode) return [];
+    const { data, error } = await supabase
+      .from("team_dues_payments")
+      .select("*, profiles:player_id(name)")
+      .eq("period_id", periodId)
+      .order("updated_at", { ascending: false });
+    if (error) {
+      console.error("[dataStore] fetchTeamDuesPayments:", error.message);
+      return [];
+    }
+    return (data ?? []).map((r) => rowToDuesPayment(r as unknown as DuesPaymentRow));
+  },
+
+  fetchMyDuesPayments: async (playerId) => {
+    if (isDemoMode) return [];
+    const { data, error } = await supabase
+      .from("team_dues_payments")
+      .select("*, profiles:player_id(name)")
+      .eq("player_id", playerId)
+      .order("updated_at", { ascending: false });
+    if (error) {
+      console.error("[dataStore] fetchMyDuesPayments:", error.message);
+      return [];
+    }
+    return (data ?? []).map((r) => rowToDuesPayment(r as unknown as DuesPaymentRow));
+  },
+
+  setTeamDuesPaymentStatus: async (paymentId, status, amountPaid) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 처리할 수 없습니다");
+    const patch: { status: TeamDuesPaymentStatus; amount_paid?: number } = { status };
+    if (typeof amountPaid === "number") patch.amount_paid = amountPaid;
+    const { error } = await supabase
+      .from("team_dues_payments")
+      .update(patch)
+      .eq("id", paymentId);
+    if (error) {
+      console.error("[dataStore] setTeamDuesPaymentStatus:", error.message);
+      throw new Error(error.message);
+    }
+  },
+
+  fetchTeamDuesExpenses: async (teamId) => {
+    if (isDemoMode) return [];
+    const { data, error } = await supabase
+      .from("team_dues_expenses")
+      .select("*")
+      .eq("team_id", teamId)
+      .order("occurred_on", { ascending: false });
+    if (error) {
+      console.error("[dataStore] fetchTeamDuesExpenses:", error.message);
+      return [];
+    }
+    return (data ?? []).map((r) => rowToDuesExpense(r as DuesExpenseRow));
+  },
+
+  addTeamDuesExpense: async ({ teamId, occurredOn, amount, category, memo }) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 처리할 수 없습니다");
+    const auth = await supabase.auth.getUser();
+    const uid = auth.data.user?.id ?? null;
+    const { data, error } = await supabase
+      .from("team_dues_expenses")
+      .insert({
+        team_id: teamId,
+        occurred_on: occurredOn,
+        amount,
+        category: category ?? null,
+        memo: memo ?? null,
+        created_by: uid,
+      })
+      .select("id")
+      .single();
+    if (error) {
+      console.error("[dataStore] addTeamDuesExpense:", error.message);
+      throw new Error(friendlyError(error.message));
+    }
+    return data.id;
+  },
+
+  deleteTeamDuesExpense: async (expenseId) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 처리할 수 없습니다");
+    const { error } = await supabase
+      .from("team_dues_expenses")
+      .delete()
+      .eq("id", expenseId);
+    if (error) {
+      console.error("[dataStore] deleteTeamDuesExpense:", error.message);
+      throw new Error(error.message);
+    }
   },
 
   // activity_events 페이지네이션 read. RLS 가 anon select 를 허용.
