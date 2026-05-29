@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import type { ReactNode } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useMatchControl } from "@/hooks/useMatchControl";
 import { useDataStore } from "@/stores/dataStore";
@@ -28,6 +29,8 @@ import { Separator } from "@/components/ui/separator";
 import { formatTime } from "@/utils/formatters";
 import { halfControlButtons, canStartSecondHalf } from "@/lib/match-half-control";
 import type { HalfAction } from "@/lib/match-half-control";
+import { useAuth } from "@/hooks/useAuth";
+import { resolveMatchTrack } from "@/lib/match-operation-access";
 import {
   Play,
   Pause,
@@ -42,6 +45,8 @@ import {
   Star,
   Users,
   RotateCw,
+  Maximize2,
+  X,
 } from "lucide-react";
 import type { MatchEventType, MatchLineupEntry, Player } from "@/types";
 
@@ -69,6 +74,11 @@ function AdminMatchControl() {
 
   const mc = useMatchControl({ tournamentId, matchId });
   const store = useDataStore();
+  const { player } = useAuth();
+
+  // 심판 전체화면 경기장 모드 토글 — 심판 트랙 + 진행중일 때 기본 진입,
+  // 직접 닫고 일반 카드 레이아웃으로 되돌릴 수 있다(트랩 방지).
+  const [refereeFullscreen, setRefereeFullscreen] = useState(true);
 
   // Lineup state (readonly view + 이벤트 선수 드롭다운 필터링)
   const [lineup, setLineup] = useState<MatchLineupEntry[]>([]);
@@ -187,6 +197,11 @@ function AdminMatchControl() {
   const isScheduled = matchData.status === "scheduled";
   const isLive = matchData.status === "live";
   const isFinished = matchData.status === "finished";
+
+  // 경기운영 진입 트랙 — AdminGuard 통과이므로 "admin" 또는 "referee".
+  // 심판은 진행중 경기를 전체화면 경기장 한 화면에서 운영한다.
+  const track = resolveMatchTrack(player, matchData);
+  const isRefereeFullscreen = track === "referee" && isLive && refereeFullscreen;
 
   const homeScore = mc.liveMatch?.homeScore ?? matchData.homeScore;
   const awayScore = mc.liveMatch?.awayScore ?? matchData.awayScore;
@@ -383,6 +398,444 @@ function AdminMatchControl() {
     }
   };
 
+  // ── 타이머 중심 전광판 (7a) ─────────────────────────────────────
+  // [HOME 이름+점수] [중앙: 시간·전후반·라이브닷·상태] [AWAY 점수+이름]
+  // dark=전체화면 코트 위 오버레이용(어두운 배경/흰 글자).
+  const renderScoreboardRow = (dark: boolean) => {
+    const nameColor = dark
+      ? { color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.7)" }
+      : undefined;
+    const dimColor = dark
+      ? { color: "rgba(255,255,255,0.7)" }
+      : { color: "var(--muted-foreground)" };
+    return (
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        {/* HOME 이름 + 점수 (왼쪽) */}
+        <div className="flex min-w-0 items-center justify-end gap-2 text-right">
+          <span className="truncate text-sm font-bold" style={nameColor}>
+            {matchData.homeTeamName}
+          </span>
+          <span
+            className="text-3xl font-black leading-none tabular-nums"
+            style={nameColor}
+          >
+            {homeScore}
+          </span>
+        </div>
+        {/* CENTER: 라이브닷 + 시간 + 전후반 + 상태 */}
+        <div className="flex flex-col items-center px-2">
+          <div className="flex items-center gap-1.5">
+            {isLive && (
+              <Circle
+                className={`h-2 w-2 fill-current ${mc.isRunning ? "animate-pulse text-red-500" : "text-amber-500"}`}
+              />
+            )}
+            <span
+              className="text-lg font-black tabular-nums"
+              style={nameColor}
+            >
+              {formatTime(mc.elapsedSeconds)}
+            </span>
+          </div>
+          <span
+            className="text-[11px] font-semibold tabular-nums"
+            style={dimColor}
+          >
+            {mc.currentHalf === 1 ? "전반" : "후반"}
+          </span>
+          <Badge
+            className={`mt-1 ${
+              isLive
+                ? "bg-red-100 text-red-700"
+                : isFinished
+                  ? "bg-gray-100 text-gray-700"
+                  : "bg-blue-100 text-blue-700"
+            }`}
+          >
+            {isScheduled ? "예정" : isLive ? "진행중" : "종료"}
+          </Badge>
+        </div>
+        {/* AWAY 점수 + 이름 (오른쪽) */}
+        <div className="flex min-w-0 items-center justify-start gap-2 text-left">
+          <span
+            className="text-3xl font-black leading-none tabular-nums"
+            style={nameColor}
+          >
+            {awayScore}
+          </span>
+          <span className="truncate text-sm font-bold" style={nameColor}>
+            {matchData.awayTeamName}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  // 4단계 진행버튼(전반 시작/종료 · 후반 시작/종료) — 일반·전체화면 공용.
+  const renderProgressButtons = () => {
+    const progress = {
+      status: matchData.status,
+      currentHalf: mc.currentHalf,
+      isRunning: mc.isRunning,
+    };
+    const runHalf = (a: HalfAction) => {
+      if (a === "startFirst") return mc.startMatch();
+      if (a === "pause") return mc.pauseMatch();
+      if (a === "resume") return mc.resumeMatch();
+      if (a === "startSecond") return mc.startSecondHalf();
+      if (a === "endMatch") return setEndDialogOpen(true);
+    };
+    const buttons = halfControlButtons(progress);
+    if (buttons.length === 0 && !canStartSecondHalf(progress)) return null;
+    return (
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {buttons.map((b) => (
+          <Button
+            key={b.id}
+            onClick={() => runHalf(b.action)}
+            disabled={mc.pendingAction !== null}
+            className="min-h-[44px] px-5"
+            variant={
+              b.variant === "danger"
+                ? "destructive"
+                : b.variant === "secondary"
+                  ? "secondary"
+                  : "default"
+            }
+          >
+            {mc.pendingAction !== null ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            ) : null}
+            {b.label}
+          </Button>
+        ))}
+        {canStartSecondHalf(progress) && (
+          <Button
+            onClick={() => mc.startSecondHalf()}
+            variant="outline"
+            className="min-h-[44px] px-5"
+            disabled={mc.pendingAction !== null}
+          >
+            {mc.pendingAction !== null && (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            )}
+            후반 시작
+          </Button>
+        )}
+      </div>
+    );
+  };
+
+  // 이벤트 유형 4종 그리드 — 일반·전체화면 공용. dark=어두운 배경용.
+  const renderEventTypeGrid = (dark: boolean) => (
+    <div className="grid grid-cols-4 gap-1.5">
+      {EVENT_TYPES.map((et) => (
+        <button
+          key={et.value}
+          className={`min-h-[44px] rounded-lg border py-2 text-center text-xs transition-all ${
+            dark ? "border-white/25 text-white" : ""
+          }`}
+          style={
+            eventType === et.value
+              ? dark
+                ? {
+                    borderColor: "var(--accent-gold)",
+                    background: "rgba(212,160,23,0.25)",
+                    fontWeight: 600,
+                  }
+                : {
+                    borderColor: "var(--accent-gold)",
+                    background: "var(--secondary)",
+                    fontWeight: 600,
+                  }
+              : undefined
+          }
+          onClick={() => setEventType(eventType === et.value ? "" : et.value)}
+          aria-pressed={eventType === et.value}
+        >
+          <div className="text-base">{et.emoji}</div>
+          <div className="mt-0.5">{et.label}</div>
+        </button>
+      ))}
+    </div>
+  );
+
+  // 코트 대시보드(녹색 코트 + 양팀 포메이션 + 시계 오버레이) — 일반·전체화면 공용.
+  // overlay: 코트 상단 중앙에 띄울 노드(전체화면에선 전광판).
+  // homeOnGrass: true 면 홈 포메이션도 코트 홈 칸에 직접 띄운다(전체화면 전용).
+  //   일반 레이아웃에선 홈 포메이션을 코트 위(별도 FormationControls 스트립)에 두므로 false.
+  const renderCourt = (opts?: { overlay?: ReactNode; homeOnGrass?: boolean }) => (
+    <div className="relative h-full w-full overflow-hidden rounded-xl">
+      <CourtBackdrop />
+      {opts?.overlay ?? (
+        <div className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2">
+          <div
+            className="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-black tabular-nums shadow-lg"
+            style={{ background: "rgba(8,20,12,0.78)", color: "#fff", border: "1px solid rgba(255,255,255,0.25)" }}
+          >
+            {isLive && (
+              <Circle
+                className={`h-2 w-2 fill-current ${mc.isRunning ? "animate-pulse text-red-400" : "text-amber-400"}`}
+              />
+            )}
+            <span>{formatTime(mc.elapsedSeconds)}</span>
+            <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.75)" }}>
+              {mc.currentHalf === 1 ? "전반" : "후반"}
+            </span>
+          </div>
+        </div>
+      )}
+      <div className="absolute inset-0 z-10 grid grid-cols-1 grid-rows-2 landscape:grid-cols-2 landscape:grid-rows-1 md:grid-cols-2 md:grid-rows-1">
+        {/* 홈 칸 — 전체화면(homeOnGrass)에선 잔디 위 홈 포메이션, 아니면 정보 스트립만 */}
+        {opts?.homeOnGrass ? (
+          <div className="relative h-full w-full">
+            {/* 홈 누적 스탯 — 좌상단 코너(팀명·점수는 상단 전광판 오버레이가 표시) */}
+            <div className="absolute left-2 top-1 z-20 flex flex-wrap gap-1">
+              {[
+                { e: "⚽", n: homeSide.tally.goals },
+                { e: "🅰️", n: homeSide.tally.assists },
+                { e: "🚫", n: homeSide.tally.fouls },
+                { e: "🟨", n: homeSide.tally.yellow },
+                { e: "🟥", n: homeSide.tally.red },
+              ].map((it, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-bold tabular-nums"
+                  style={{ background: "rgba(8,20,12,0.6)", color: "#fff" }}
+                >
+                  <span aria-hidden>{it.e}</span>
+                  <span>{it.n}</span>
+                </span>
+              ))}
+            </div>
+            <FormationControls
+              team={homeSide}
+              isAway={false}
+              eventType={eventType}
+              pending={mc.pendingAction !== null}
+              onRecord={recordPlayerEvent}
+              playerStat={playerStat}
+              onGrass
+            />
+          </div>
+        ) : (
+          <PitchFormation
+            team={homeSide}
+            eventType={eventType}
+            pending={mc.pendingAction !== null}
+            onRecord={recordPlayerEvent}
+            playerStat={playerStat}
+          />
+        )}
+        {/* 어웨이 칸 — 항상 잔디 위 포메이션(PitchFormation 내부에서 처리) */}
+        <PitchFormation
+          team={awaySide}
+          eventType={eventType}
+          pending={mc.pendingAction !== null}
+          onRecord={recordPlayerEvent}
+          playerStat={playerStat}
+        />
+      </div>
+    </div>
+  );
+
+  const renderBench = () => (
+    <div className="grid grid-cols-2 gap-2">
+      {[homeSide, awaySide].map((team) => (
+        <BenchStrip
+          key={team.side}
+          team={team}
+          eventType={eventType}
+          pending={mc.pendingAction !== null}
+          onRecord={recordPlayerEvent}
+          playerStat={playerStat}
+        />
+      ))}
+    </div>
+  );
+
+  // ── 심판 전체화면 경기장 모드 (7b) ───────────────────────────────
+  // 진행중 경기를 한 화면에서: 상단 전광판 오버레이가 떠 있는 코트(flex-1) +
+  // 하단 컨트롤바(이벤트 유형 4종 · 4단계 진행버튼) + 벤치. 좌상단 닫기 버튼.
+  if (isRefereeFullscreen) {
+    return (
+      <div className="fixed inset-0 z-40 flex flex-col bg-black text-white">
+        {!mc.isOnline && (
+          <div
+            role="status"
+            className="flex items-center justify-center gap-2 bg-amber-500 px-4 py-1.5 text-sm font-semibold text-white"
+          >
+            <WifiOff className="h-4 w-4" />
+            오프라인 — 네트워크 복구 시 기록을 다시 시도하세요
+          </div>
+        )}
+
+        {/* 코트 영역 — 남는 공간 전부. 상단 중앙에 타이머 중심 전광판 오버레이.
+            홈·어웨이 모두 잔디 위에 배치(homeOnGrass)해 심판이 한 화면에서 양팀을 탭. */}
+        <div className="relative min-h-0 flex-1">
+          {renderCourt({
+            homeOnGrass: true,
+            overlay: (
+              <div className="absolute left-1/2 top-2 z-20 w-[min(92%,640px)] -translate-x-1/2">
+                <div
+                  className="rounded-2xl px-3 py-2 shadow-lg"
+                  style={{
+                    background: "rgba(8,20,12,0.82)",
+                    border: "1px solid rgba(255,255,255,0.22)",
+                  }}
+                >
+                  {renderScoreboardRow(true)}
+                </div>
+              </div>
+            ),
+          })}
+
+          {/* 닫기 — 전체화면 종료(트랩 방지) */}
+          <button
+            type="button"
+            onClick={() => setRefereeFullscreen(false)}
+            className="absolute right-2 top-2 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 text-white shadow-lg"
+            aria-label="전체화면 종료"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* 하단 컨트롤바 — 이벤트 유형 + 안내 + 4단계 진행버튼 + 벤치 */}
+        <div className="max-h-[46vh] shrink-0 space-y-2 overflow-y-auto border-t border-white/15 bg-neutral-950/95 px-3 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2">
+          {renderEventTypeGrid(true)}
+          <p className="text-center text-[11px] text-white/70">
+            {eventType ? "선수를 탭하면 즉시 기록됩니다" : "이벤트 유형을 먼저 선택하세요"}
+          </p>
+          {mc.pendingAction === "event" && (
+            <p className="flex items-center justify-center gap-1.5 text-xs text-white/70">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> 기록 처리중…
+            </p>
+          )}
+          {renderBench()}
+          <div className="border-t border-white/15 pt-2">{renderProgressButtons()}</div>
+
+          {/* 위치별 에러(종료 제외) — 전체화면 안에서도 재시도 가능 */}
+          {mc.actionError && mc.actionError.scope !== "end" && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-lg border border-red-400/50 bg-red-500/15 p-2.5 text-sm"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
+              <div className="flex-1">
+                <p className="font-semibold text-red-300">
+                  {scopeLabel(mc.actionError.scope)} 실패
+                </p>
+                <p className="mt-0.5 text-red-200">{mc.actionError.message}</p>
+                <div className="mt-1.5 flex gap-2">
+                  {retryForScope(mc.actionError.scope) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-[40px] border-red-400/50 text-red-100"
+                      onClick={retryForScope(mc.actionError.scope)!}
+                      disabled={mc.pendingAction !== null}
+                    >
+                      다시 시도
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="min-h-[40px] text-white/80"
+                    onClick={mc.clearError}
+                  >
+                    닫기
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 경기 종료 확인 — 전체화면에서도 동일 다이얼로그 사용 */}
+        <Dialog
+          open={endDialogOpen}
+          onOpenChange={(open) => {
+            if (endPending) return;
+            setEndDialogOpen(open);
+          }}
+        >
+          <DialogContent
+            onEscapeKeyDown={(e) => {
+              if (endPending) e.preventDefault();
+            }}
+            onInteractOutside={(e) => {
+              if (endPending) e.preventDefault();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>경기를 종료하시겠습니까?</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="rounded-lg border p-4 text-center">
+                <div className="mb-2 text-sm" style={{ color: "var(--muted-foreground)" }}>
+                  최종 스코어
+                </div>
+                <div className="flex items-center justify-center gap-3">
+                  <div>
+                    <div className="text-sm font-medium">{matchData.homeTeamName}</div>
+                    <div className="text-3xl font-black">{homeScore}</div>
+                  </div>
+                  <span className="text-xl" style={{ color: "var(--muted-foreground)" }}>
+                    :
+                  </span>
+                  <div>
+                    <div className="text-sm font-medium">{matchData.awayTeamName}</div>
+                    <div className="text-3xl font-black">{awayScore}</div>
+                  </div>
+                </div>
+              </div>
+              {mc.actionError && mc.actionError.scope === "end" && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm"
+                >
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                  <span className="text-red-700">
+                    {mc.actionError.message} 다시 시도해주세요.
+                  </span>
+                </div>
+              )}
+              <Separator />
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="min-h-[44px] flex-1"
+                  onClick={() => setEndDialogOpen(false)}
+                  disabled={endPending}
+                >
+                  취소
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="min-h-[44px] flex-1"
+                  onClick={handleEndMatch}
+                  disabled={mc.pendingAction !== null}
+                  aria-busy={endPending}
+                >
+                  {endPending ? (
+                    <>
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      종료 처리중…
+                    </>
+                  ) : (
+                    "경기 종료"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen pb-8" style={{ background: "var(--background)" }}>
       <AdminHeader title="경기 운영" />
@@ -424,54 +877,32 @@ function AdminMatchControl() {
             아래 컨트롤 행으로 시작/일시정지/재개/후반/종료까지 한 카드에서 운영. */}
         <Card style={{ borderColor: "var(--accent-gold)" }}>
           <CardContent className="py-3">
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-              {/* HOME */}
-              <div className="min-w-0 text-left">
-                <div className="truncate text-sm font-bold">{matchData.homeTeamName}</div>
-                <div className="mt-1">
-                  <StatPills tally={homeTally} />
-                </div>
+            {/* 타이머 중심 전광판 (7a) — 시간이 가운데, 양옆에 팀 이름+점수 */}
+            {renderScoreboardRow(false)}
+
+            {/* 팀별 누적 스탯(골/어시/반칙/경고/퇴장) */}
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <div className="min-w-0">
+                <StatPills tally={homeTally} />
               </div>
-              {/* CENTER: 시간 + 점수 + 전후반 + 상태 */}
-              <div className="flex flex-col items-center px-1">
-                <div
-                  className="flex items-center gap-1 text-[11px] font-semibold tabular-nums"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  {isLive && (
-                    <Circle
-                      className={`h-1.5 w-1.5 fill-current ${mc.isRunning ? "animate-pulse text-red-500" : "text-amber-500"}`}
-                    />
-                  )}
-                  <span>{formatTime(mc.elapsedSeconds)}</span>
-                  <span>·</span>
-                  <span>{mc.currentHalf === 1 ? "전반" : "후반"}</span>
-                </div>
-                <div className="flex items-center gap-2 text-3xl font-black leading-none tabular-nums">
-                  <span>{homeScore}</span>
-                  <span style={{ color: "var(--muted-foreground)" }}>:</span>
-                  <span>{awayScore}</span>
-                </div>
-                <Badge
-                  className={`mt-1 ${
-                    isLive
-                      ? "bg-red-100 text-red-700"
-                      : isFinished
-                        ? "bg-gray-100 text-gray-700"
-                        : "bg-blue-100 text-blue-700"
-                  }`}
-                >
-                  {isScheduled ? "예정" : isLive ? "진행중" : "종료"}
-                </Badge>
-              </div>
-              {/* AWAY */}
-              <div className="min-w-0 text-right">
-                <div className="truncate text-sm font-bold">{matchData.awayTeamName}</div>
-                <div className="mt-1 flex justify-end">
-                  <StatPills tally={awayTally} />
-                </div>
+              <div className="flex min-w-0 justify-end">
+                <StatPills tally={awayTally} />
               </div>
             </div>
+
+            {/* 심판이 전체화면을 닫았을 때 다시 진입 */}
+            {track === "referee" && isLive && (
+              <div className="mt-3 flex justify-center border-t pt-3">
+                <Button
+                  variant="secondary"
+                  className="min-h-[44px] px-5"
+                  onClick={() => setRefereeFullscreen(true)}
+                >
+                  <Maximize2 className="mr-1.5 h-4 w-4" />
+                  전체화면 경기장 모드
+                </Button>
+              </div>
+            )}
 
             {/* 컨트롤 행 — 4단계 진행버튼(전반 시작/종료 · 후반 시작/종료). */}
             {(() => {
@@ -480,51 +911,11 @@ function AdminMatchControl() {
                 currentHalf: mc.currentHalf,
                 isRunning: mc.isRunning,
               };
-              const runHalf = (a: HalfAction) => {
-                if (a === "startFirst") return mc.startMatch();
-                if (a === "pause") return mc.pauseMatch();
-                if (a === "resume") return mc.resumeMatch();
-                if (a === "startSecond") return mc.startSecondHalf();
-                if (a === "endMatch") return setEndDialogOpen(true);
-              };
-              const buttons = halfControlButtons(progress);
-              if (buttons.length === 0 && !canStartSecondHalf(progress)) return null;
+              const hasButtons =
+                halfControlButtons(progress).length > 0 || canStartSecondHalf(progress);
+              if (!hasButtons) return null;
               return (
-                <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border-t pt-3">
-                  {buttons.map((b) => (
-                    <Button
-                      key={b.id}
-                      onClick={() => runHalf(b.action)}
-                      disabled={mc.pendingAction !== null}
-                      className="min-h-[44px] px-5"
-                      variant={
-                        b.variant === "danger"
-                          ? "destructive"
-                          : b.variant === "secondary"
-                            ? "secondary"
-                            : "default"
-                      }
-                    >
-                      {mc.pendingAction !== null ? (
-                        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                      ) : null}
-                      {b.label}
-                    </Button>
-                  ))}
-                  {canStartSecondHalf(progress) && (
-                    <Button
-                      onClick={() => mc.startSecondHalf()}
-                      variant="outline"
-                      className="min-h-[44px] px-5"
-                      disabled={mc.pendingAction !== null}
-                    >
-                      {mc.pendingAction !== null && (
-                        <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                      )}
-                      후반 시작
-                    </Button>
-                  )}
-                </div>
+                <div className="mt-3 border-t pt-3">{renderProgressButtons()}</div>
               );
             })()}
           </CardContent>
@@ -627,28 +1018,7 @@ function AdminMatchControl() {
                 >
                   ① 이벤트 유형 선택
                 </label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {EVENT_TYPES.map((et) => (
-                    <button
-                      key={et.value}
-                      className="min-h-[44px] rounded-lg border py-2 text-center text-xs transition-all"
-                      style={
-                        eventType === et.value
-                          ? {
-                              borderColor: "var(--accent-gold)",
-                              background: "var(--secondary)",
-                              fontWeight: 600,
-                            }
-                          : undefined
-                      }
-                      onClick={() => setEventType(eventType === et.value ? "" : et.value)}
-                      aria-pressed={eventType === et.value}
-                    >
-                      <div className="text-base">{et.emoji}</div>
-                      <div className="mt-0.5">{et.label}</div>
-                    </button>
-                  ))}
-                </div>
+                {renderEventTypeGrid(false)}
               </div>
 
               <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
@@ -657,52 +1027,12 @@ function AdminMatchControl() {
 
               {/* 실제 구장 비율(2:1) 녹색 코트 위 양팀 출전/대기 번호 대시보드.
                   유형 선택 후 선수 칩을 탭하면 즉시 기록. 칩에는 골/어시/경고/퇴장 배지 표시. */}
-              <div className="relative mx-auto aspect-[3/4] max-h-[62vh] w-full overflow-hidden rounded-xl landscape:aspect-[2/1] md:aspect-[2/1]">
-                <CourtBackdrop />
-                {/* 전광판 시계 — 코트 상단 중앙(하프라인 위)에 떠 경기시간·전후반·진행상태 표시 */}
-                <div className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2">
-                  <div
-                    className="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-black tabular-nums shadow-lg"
-                    style={{ background: "rgba(8,20,12,0.78)", color: "#fff", border: "1px solid rgba(255,255,255,0.25)" }}
-                  >
-                    {isLive && (
-                      <Circle
-                        className={`h-2 w-2 fill-current ${mc.isRunning ? "animate-pulse text-red-400" : "text-amber-400"}`}
-                      />
-                    )}
-                    <span>{formatTime(mc.elapsedSeconds)}</span>
-                    <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.75)" }}>
-                      {mc.currentHalf === 1 ? "전반" : "후반"}
-                    </span>
-                  </div>
-                </div>
-                <div className="absolute inset-0 z-10 grid grid-cols-1 grid-rows-2 landscape:grid-cols-2 landscape:grid-rows-1 md:grid-cols-2 md:grid-rows-1">
-                  {[homeSide, awaySide].map((team) => (
-                    <PitchFormation
-                      key={team.side}
-                      team={team}
-                      eventType={eventType}
-                      pending={mc.pendingAction !== null}
-                      onRecord={recordPlayerEvent}
-                      playerStat={playerStat}
-                    />
-                  ))}
-                </div>
+              <div className="relative mx-auto aspect-[3/4] max-h-[62vh] w-full rounded-xl landscape:aspect-[2/1] md:aspect-[2/1]">
+                {renderCourt()}
               </div>
 
               {/* 대기선수 — 경기장 밖, 팀별 원형 번호 토큰 */}
-              <div className="grid grid-cols-2 gap-2">
-                {[homeSide, awaySide].map((team) => (
-                  <BenchStrip
-                    key={team.side}
-                    team={team}
-                    eventType={eventType}
-                    pending={mc.pendingAction !== null}
-                    onRecord={recordPlayerEvent}
-                    playerStat={playerStat}
-                  />
-                ))}
-              </div>
+              {renderBench()}
 
               {mc.pendingAction === "event" && (
                 <p className="flex items-center justify-center gap-1.5 text-xs" style={{ color: "var(--muted-foreground)" }}>
@@ -1077,6 +1407,7 @@ function FormationControls({
   pending,
   onRecord,
   playerStat,
+  onGrass,
 }: {
   team: TeamSide;
   isAway: boolean;
@@ -1084,8 +1415,12 @@ function FormationControls({
   pending: boolean;
   onRecord: (player: Player, teamId: string) => void | Promise<void>;
   playerStat: (pid: string, type: MatchEventType) => number;
+  // 잔디 위 흰 텍스트 토큰 여부 — 미지정 시 isAway(원정만 잔디) 기준.
+  // 전체화면 모드에선 홈도 코트 잔디 위에 배치하므로 true 로 강제.
+  onGrass?: boolean;
 }) {
   const accent = teamAccent(team.side);
+  const grass = onGrass ?? isAway;
   const five = [...team.onCourt]
     .sort((a, b) => (a.position === "GK" ? -1 : 0) - (b.position === "GK" ? -1 : 0))
     .slice(0, 5);
@@ -1124,7 +1459,7 @@ function FormationControls({
               onRecord={onRecord}
               playerStat={playerStat}
               accent={accent}
-              onGrass={isAway}
+              onGrass={grass}
             />
           ))}
         </div>
