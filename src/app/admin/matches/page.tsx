@@ -32,6 +32,7 @@ import { buildAutoGroups, buildGroupRoundRobinMatches, recommendGroupCount } fro
 import { buildTournamentDraft, isValidTournamentDraft } from "@/lib/tournament-admin";
 import { setTournamentGroups } from "@/lib/admin-actions";
 import { computeLineupReadiness } from "@/lib/lineup-readiness";
+import { resolveMatchTrack } from "@/lib/match-operation-access";
 
 type MatchFilter = "all" | "scheduled" | "live" | "finished";
 
@@ -472,11 +473,16 @@ function AdminMatches() {
                             );
                           })()}
                         </div>
-                        <Badge
-                          className={`text-[10px] ${statusColor(match.status)}`}
-                        >
-                          {statusLabel(match.status)}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-1">
+                          <Badge
+                            className={`text-[10px] ${statusColor(match.status)}`}
+                          >
+                            {statusLabel(match.status)}
+                          </Badge>
+                          <span className="text-[10px] font-medium" style={{ color: "var(--muted-foreground)" }}>
+                            {resolveMatchTrack(player, match) === "referee" ? "경기 운영" : "관리"}
+                          </span>
+                        </div>
                       </button>
                     ))
                   )}
