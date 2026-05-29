@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resolveMatchTrack } from "../src/lib/match-operation-access.ts";
 
-const match = { homeTeamId: "H", awayTeamId: "A", status: "live" as const };
+const match = { homeTeamId: "H", awayTeamId: "A" };
 
 test("admin → admin 관리뷰", () => {
   const p = { role: "admin" } as any;
@@ -31,3 +31,5 @@ test("일반 선수 → none", () => {
 test("null player → none", () => {
   assert.equal(resolveMatchTrack(null, match), "none");
 });
+
+console.log("match-operation-access tests passed");

@@ -1,13 +1,12 @@
-import type { Player } from "../types";
+import type { Player, TeamRole } from "../types";
 
 export type MatchTrack = "referee" | "coach" | "admin" | "none";
 
-const STAFF_ROLES = ["captain", "manager", "coach"] as const;
+const STAFF_ROLES = ["captain", "manager", "coach"] as const satisfies readonly Exclude<TeamRole, "member">[];
 
 interface TrackMatch {
   homeTeamId: string;
   awayTeamId: string;
-  status: string;
 }
 
 /** player 와 match 를 받아 경기운영 진입 트랙을 결정한다. */
