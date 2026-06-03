@@ -20,6 +20,7 @@ import { MentionInput } from "@/components/mention-input";
 import { HeartButton } from "@/components/heart-button";
 import { CommentThread } from "@/components/comment-thread";
 import { ReportButton } from "@/components/report-button";
+import { AuthorRoleBadge } from "@/components/author-role-badge";
 import { mentionedUserIds } from "@/lib/mention-parser";
 import { formatDate } from "@/utils/formatters";
 import type { BoardPost, BoardComment } from "@/types";
@@ -184,7 +185,7 @@ export default function BoardDetailPage() {
           <>
             {/* Post */}
             <article
-              className="rounded-2xl px-6 md:px-10 py-8 md:py-10"
+              className="rounded-2xl px-5 sm:px-6 md:px-10 py-8 md:py-10"
               style={{
                 background: "var(--color-fg-paper)",
                 border: "1px solid var(--color-fg-line-soft)",
@@ -224,7 +225,10 @@ export default function BoardDetailPage() {
                   borderBottom: "1px solid var(--color-fg-line-soft)",
                 }}
               >
-                <span>{post.authorName ?? "익명"}</span>
+                <span className="inline-flex items-center gap-1.5">
+                  {post.authorName ?? "익명"}
+                  <AuthorRoleBadge role={post.authorRole} />
+                </span>
                 <span aria-hidden="true">·</span>
                 <time dateTime={new Date(post.createdAt).toISOString()}>{formatDate(post.createdAt)}</time>
                 <span aria-hidden="true">·</span>
@@ -239,8 +243,8 @@ export default function BoardDetailPage() {
               </div>
 
               <div
-                className="text-[15px] leading-relaxed"
-                style={{ color: "var(--color-fg-ink)" }}
+                className="text-[15px] leading-relaxed break-words whitespace-pre-wrap"
+                style={{ color: "var(--color-fg-ink)", overflowWrap: "anywhere" }}
               >
                 <MentionRenderer body={post.body} />
               </div>

@@ -147,7 +147,7 @@ export function MatchCard({ match, showTimer }: MatchCardProps) {
               borderTop: "1px solid var(--color-fg-line-soft)",
             }}
           >
-            <span>{(match as LiveMatch).currentHalf === 1 ? "FIRST HALF" : "SECOND HALF"}</span>
+            <span>LIVE · 15:00</span>
           </div>
         )}
       </div>

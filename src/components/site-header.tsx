@@ -23,13 +23,14 @@ const NAV_ITEMS = [
 ];
 
 function FGMark() {
+  // 모바일에서 헤더(h=60px) 대비 로고(28px) 위아래 16px 여백이 시각상 과해 보임.
+  // 모바일은 38px(여백 11px), 데스크탑은 28px(여백 16px) 로 분기해 컴팩트하게.
   return (
     <div
       role="img"
       aria-label="FairGround"
+      className="h-[38px] w-[170px] md:h-[28px] md:w-[150px]"
       style={{
-        width: 150,
-        height: 28,
         background: "var(--primary)",
         WebkitMaskImage: "url(/images/logo-horizontal.png)",
         WebkitMaskRepeat: "no-repeat",
@@ -50,6 +51,7 @@ export function SiteHeader() {
   const showAdminEntry = isAdminLikeRole(player?.role);
   const accountHref = showAdminEntry ? "/admin" : user ? "/my" : "/login";
   const accountLabel = showAdminEntry ? getAdminEntryLabel(player?.role) : user ? "마이페이지" : "로그인";
+  const playerSetupHref = user ? "/my/player-setup" : "/login?returnTo=/my/player-setup";
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -80,12 +82,16 @@ export function SiteHeader() {
   return (
     <header
       data-scrolled={scrolled ? "true" : "false"}
-      className="fg-glass-header fixed top-0 left-0 w-full z-50 h-[60px] flex items-center px-5 md:px-10 gap-8"
+      // 모바일 메뉴(open)가 열리면 backdrop-blur 글래스를 끄고 솔리드 배경으로
+      // 전환 — 메뉴와 헤더가 한 덩어리 솔리드 패널처럼 보이게(뒤 비침 제거).
+      className={`${open ? "" : "fg-glass-header"} fixed top-0 left-0 w-full z-50 h-[60px] flex items-center px-5 md:px-10 gap-8`}
       style={{
-        background: scrolled
-          ? "rgba(255, 255, 255, 0.85)"
-          : "rgba(255, 255, 255, 0.72)",
-        borderBottom: scrolled
+        background: open
+          ? "var(--color-fg-paper, #ffffff)"
+          : scrolled
+            ? "rgba(255, 255, 255, 0.85)"
+            : "rgba(255, 255, 255, 0.72)",
+        borderBottom: scrolled || open
           ? "1px solid rgba(13, 27, 42, 0.10)"
           : "1px solid rgba(13, 27, 42, 0.06)",
         boxShadow: scrolled ? "var(--shadow-sm)" : "none",
@@ -186,7 +192,7 @@ export function SiteHeader() {
         <PushOptInButton />
 
         <Link
-          href="/my/player-setup"
+          href={playerSetupHref}
           className="flex items-center gap-1.5 text-[12px] font-bold px-4 py-2 transition-all fg-display tracking-[0.08em]"
           style={{
             background: "var(--primary)",
@@ -232,12 +238,25 @@ export function SiteHeader() {
         {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </button>
 
+      {/* Mobile nav backdrop — 메뉴 아래 영역을 어둡게 덮어 뒤 페이지를 가리고,
+          탭하면 메뉴를 닫는다. 헤더(z-50) 아래, 페이지 위. */}
+      {open && (
+        <div
+          className="fixed inset-0 top-[60px] z-40 md:hidden"
+          style={{ background: "rgba(13, 27, 42, 0.45)" }}
+          aria-hidden="true"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
       {/* Mobile nav */}
       {open && (
         <div
-          className="fg-glass-header absolute top-[60px] left-0 w-full md:hidden flex flex-col py-4 px-5 gap-1"
+          className="absolute top-[60px] left-0 w-full md:hidden flex flex-col py-4 px-5 gap-1 z-50"
           style={{
-            background: "rgba(255, 255, 255, 0.85)",
+            // 불투명 배경 — 이전 0.85 alpha + backdrop-blur 로는 뒤 페이지(랭킹
+            // 리스트 등)가 비쳐 가독성이 떨어졌다. 솔리드 배경으로 차단.
+            background: "var(--color-fg-paper, #ffffff)",
             borderBottom: "1px solid rgba(13, 27, 42, 0.10)",
             boxShadow: "var(--shadow-md)",
           }}
@@ -281,7 +300,7 @@ export function SiteHeader() {
             style={{ borderTop: "1px solid var(--border)" }}
           >
             <Link
-              href="/my/player-setup"
+              href={playerSetupHref}
               className="flex items-center justify-center gap-2 px-3 py-3 fg-display text-base tracking-[0.08em]"
               style={{
                 background: "var(--primary)",

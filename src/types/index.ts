@@ -66,6 +66,16 @@ export interface TeamSeasonStats {
   gamesPlayed: number;
 }
 
+// 팀 운영 형태.
+//  - community: 동호회. 모든 멤버가 회비/지출/잔액 전체 공개(투명 운영).
+//  - club: 개인 운영자(감독) 의 수익형 클럽. 멤버는 본인 내역만 보이고
+//          전체 장부는 디렉터 전용.
+export type TeamType = "community" | "club";
+
+// 리그 단계 — 4단계 메탈 등급. 꾸준한 참가(3회)로 한 단계 승업, 성적 하위로 강등.
+// bronze(신규/최하위) → silver → gold → premium(최상위).
+export type LeagueTier = "bronze" | "silver" | "gold" | "premium";
+
 export interface Team {
   id: string;
   name: string;
@@ -79,6 +89,10 @@ export interface Team {
   description?: string;
   introSubtitle?: string;
   bannerUrl?: string;
+  teamType: TeamType;
+  // 리그 승강
+  leagueTier: LeagueTier;
+  participationStreak: number; // 연속 대회 참여 수 0–4 (대진 편성 시 휴식 시드 우선권)
 }
 
 // ===== Match =====
@@ -88,6 +102,7 @@ export type MatchEventType =
   | "assist"
   | "yellow_card"
   | "red_card"
+  | "foul"
   | "substitution"
   | "mom";
 
@@ -179,7 +194,9 @@ export interface TeamStanding {
   teamId: string;
   teamName: string;
   teamLogo: string;
-  points: number;
+  points: number; // 경기 승점 (랭킹 기준)
+  matchPoints: number; // 경기로 얻은 순수 승점
+  participationBonus: number; // deprecated: 순위에는 반영하지 않음
   rank: number;
   wins: number;
   draws: number;
@@ -269,6 +286,7 @@ export interface BoardPost {
   category: PostCategory;
   authorId: string;
   authorName?: string;
+  authorRole?: PlayerRole;
   viewCount: number;
   commentCount: number;
   reactionCount?: number;
@@ -285,6 +303,7 @@ export interface BoardComment {
   body: string;
   authorId: string;
   authorName?: string;
+  authorRole?: PlayerRole;
   reactionCount?: number;
   isEdited?: boolean;
   isHidden?: boolean;
@@ -302,6 +321,7 @@ export interface Notice {
   isImportant: boolean;
   authorId?: string;
   authorName?: string;
+  authorRole?: PlayerRole;
   teamId?: string;
   publishedAt: number;
   createdAt: number;
@@ -336,6 +356,61 @@ export interface TeamPhoto {
   caption?: string;
   matchId?: string;
   createdAt: number;
+}
+
+// ===== Team join request =====
+export type TeamJoinRequestStatus = "pending" | "approved" | "rejected";
+
+export interface TeamJoinRequest {
+  id: string;
+  teamId: string;
+  teamName?: string;
+  playerId: string;
+  playerName?: string;
+  message?: string;
+  status: TeamJoinRequestStatus;
+  createdAt: number;
+  processedAt?: number;
+  processedBy?: string;
+}
+
+// ===== Team Dues (회비) =====
+// periodMonth: ISO date string "YYYY-MM-01" — always the first of the month.
+export interface TeamDuesPeriod {
+  id: string;
+  teamId: string;
+  periodMonth: string;
+  monthlyAmount: number;
+  dueDate?: string;
+  memo?: string;
+  createdAt: number;
+  createdBy?: string;
+}
+
+export type TeamDuesPaymentStatus = "unpaid" | "paid" | "exempt" | "partial";
+
+export interface TeamDuesPayment {
+  id: string;
+  periodId: string;
+  playerId: string;
+  playerName?: string;
+  status: TeamDuesPaymentStatus;
+  amountPaid: number;
+  paidAt?: number;
+  memo?: string;
+  recordedBy?: string;
+  updatedAt: number;
+}
+
+export interface TeamDuesExpense {
+  id: string;
+  teamId: string;
+  occurredOn: string;
+  category?: string;
+  amount: number;
+  memo?: string;
+  createdAt: number;
+  createdBy?: string;
 }
 
 // ===== Search =====

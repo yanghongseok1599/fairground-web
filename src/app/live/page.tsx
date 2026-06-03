@@ -135,7 +135,7 @@ export default function LivePage() {
                     }}
                   >
                     <div
-                      className="flex items-center justify-between px-6 py-4"
+                      className="flex items-center justify-center px-6 py-3"
                       style={{
                         borderBottom: "1px solid var(--color-fg-paper-3)",
                         background: "color-mix(in srgb, var(--destructive) 6%, transparent)",
@@ -147,34 +147,22 @@ export default function LivePage() {
                           style={{ background: "var(--destructive)" }}
                         />
                         <span className="fg-label" style={{ color: "var(--destructive)" }}>
-                          LIVE · {m.currentHalf === 1 ? "전반" : "후반"}
+                          LIVE
                         </span>
                       </div>
-                      {/* Elapsed time updates every second — announced politely. */}
-                      <span
-                        role="status"
-                        aria-live="polite"
-                        className="tabular-nums font-bold text-lg"
-                        style={{
-                          color: "var(--primary)",
-                          fontFamily: "var(--font-body)",
-                        }}
-                      >
-                        <span className="sr-only">경과 시간 </span>
-                        {formatTime(totalElapsed)}
-                      </span>
                     </div>
-                    {/* Score changes are conveyed via this status region so
-                        screen readers hear updates without a page reload (A9). */}
+                    {/* 팀명+스코어를 타이머 좌우에 배치. 점수/시간 변동은
+                        status 영역으로 화면낭독기에 안내(A9). */}
                     <div
                       role="status"
                       aria-live="polite"
                       aria-atomic="true"
-                      className="flex items-center justify-between gap-4 px-6 py-6"
+                      className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-6 py-6"
                     >
-                      <div className="flex-1 text-right">
+                      {/* HOME 팀명 + 점수 (왼쪽) */}
+                      <div className="flex min-w-0 items-center justify-end gap-2 text-right">
                         <p
-                          className="text-lg font-bold"
+                          className="truncate text-lg font-bold"
                           style={{
                             color: "var(--color-fg-ink)",
                             fontFamily: "var(--font-body)",
@@ -182,30 +170,52 @@ export default function LivePage() {
                         >
                           {m.homeTeamName}
                         </p>
-                      </div>
-                      <div
-                        className="flex items-center gap-2 tabular-nums"
-                        style={{
-                          fontFamily: "var(--font-body)",
-                          fontWeight: 800,
-                          fontSize: 40,
-                          letterSpacing: "-0.02em",
-                          color: "var(--color-fg-ink)",
-                        }}
-                      >
-                        <span>{m.homeScore}</span>
                         <span
-                          style={{ color: "var(--color-fg-ink-ghost)", fontSize: 24 }}
-                          aria-hidden
+                          className="tabular-nums leading-none"
+                          style={{
+                            fontFamily: "var(--font-body)",
+                            fontWeight: 800,
+                            fontSize: 36,
+                            letterSpacing: "-0.02em",
+                            color: "var(--color-fg-ink)",
+                          }}
                         >
-                          :
+                          {m.homeScore}
                         </span>
-                        <span className="sr-only"> 대 </span>
-                        <span>{m.awayScore}</span>
                       </div>
-                      <div className="flex-1">
+                      {/* CENTER: 타이머 (단일 15분) */}
+                      <div className="flex flex-col items-center px-1">
+                        {/* Elapsed time updates every second — announced politely. */}
+                        <span
+                          className="tabular-nums font-bold text-lg"
+                          style={{
+                            color: "var(--primary)",
+                            fontFamily: "var(--font-body)",
+                          }}
+                        >
+                          <span className="sr-only">경과 시간 </span>
+                          {formatTime(totalElapsed)}
+                        </span>
+                        <span className="fg-label" style={{ color: "var(--destructive)" }}>
+                          LIVE
+                        </span>
+                      </div>
+                      {/* AWAY 점수 + 팀명 (오른쪽) */}
+                      <div className="flex min-w-0 items-center justify-start gap-2 text-left">
+                        <span
+                          className="tabular-nums leading-none"
+                          style={{
+                            fontFamily: "var(--font-body)",
+                            fontWeight: 800,
+                            fontSize: 36,
+                            letterSpacing: "-0.02em",
+                            color: "var(--color-fg-ink)",
+                          }}
+                        >
+                          {m.awayScore}
+                        </span>
                         <p
-                          className="text-lg font-bold"
+                          className="truncate text-lg font-bold"
                           style={{
                             color: "var(--color-fg-ink)",
                             fontFamily: "var(--font-body)",

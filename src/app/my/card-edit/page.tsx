@@ -262,7 +262,7 @@ export default function CardEditPage() {
     photoUrl: currentCardPhoto,
     photoScale,
     cardType: player?.cardType ?? "gold",
-    cardRating: player?.cardRating ?? 90,
+    cardRating: player?.cardRating ?? 70,
     stats: player?.stats ?? { goals: 0, assists: 0, games: 0, mom: 0 },
     badges,
     penaltyStatus: player?.penaltyStatus ?? { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
@@ -296,7 +296,7 @@ export default function CardEditPage() {
 
       {/* Header */}
       <div
-        className="px-6 pt-8 pb-6 max-w-lg mx-auto"
+        className="px-5 pt-8 pb-6 sm:px-8 md:px-10 max-w-lg mx-auto"
         style={{ borderBottom: "1px solid var(--color-fg-line-soft)" }}
       >
         <h1
@@ -314,7 +314,7 @@ export default function CardEditPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="px-6 py-8 max-w-lg mx-auto space-y-6">
+      <form onSubmit={handleSubmit} className="px-5 py-8 sm:px-8 md:px-10 max-w-lg mx-auto space-y-6">
 
         {/* 카드 미리보기 + 사진 업로드 */}
         <div className="flex items-center justify-between py-2">
@@ -513,7 +513,7 @@ export default function CardEditPage() {
         {/* 뱃지 선택 */}
         <div>
           <FieldLabel>뱃지 <span style={{ color: "var(--color-fg-ink-muted)" }}>({badges.length}/4)</span></FieldLabel>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
             {BADGES.filter((b) => {
               if (position === "GK") return b.category === "field" || b.category === "goalkeeper";
               if (player?.role === "referee") return b.category === "referee";

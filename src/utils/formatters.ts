@@ -22,9 +22,9 @@ export function calculateCardRating(stats: {
   assists: number;
   mom: number;
 }): number {
-  const base = 90;
+  const base = 70;
   const bonus = stats.mom * 3 + stats.goals + stats.assists;
-  return Math.min(100, base + bonus);
+  return Math.min(110, base + bonus);
 }
 
 export function positionLabel(pos: string): string {

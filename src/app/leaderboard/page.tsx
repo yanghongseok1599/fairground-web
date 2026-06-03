@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Target, Sparkles, Star, Gamepad2, Flame, Award } from "lucide-react";
 import { useDataStore } from "@/stores/dataStore";
 import type { Player } from "@/types";
 
@@ -11,19 +10,20 @@ type Category = "goals" | "assists" | "mom" | "games" | "streak" | "rating";
 interface Tab {
   key: Category;
   label: string;
+  // fg-mono 단축 코드 — 탭 라벨 좌측 칩에 노출. lucide 이모티콘을 stat code 로
+  // 대체해 FairGround 의 데이터-스코어보드 톤(예: HUD/통계 박스)에 맞춘다.
   short: string;
-  icon: typeof Target;
   getValue: (p: Player) => number;
   unit: string;
 }
 
 const TABS: Tab[] = [
-  { key: "rating",  label: "오버롤",     short: "OVR",   icon: Award,     getValue: (p) => p.cardRating ?? 70, unit: "" },
-  { key: "goals",   label: "득점",       short: "G",     icon: Target,    getValue: (p) => p.stats.goals,  unit: "골" },
-  { key: "assists", label: "어시스트",   short: "A",     icon: Sparkles,  getValue: (p) => p.stats.assists, unit: "어시" },
-  { key: "mom",     label: "MOM",        short: "MOM",   icon: Star,      getValue: (p) => p.stats.mom,    unit: "회" },
-  { key: "games",   label: "출전",       short: "GP",    icon: Gamepad2,  getValue: (p) => p.stats.games,  unit: "경기" },
-  { key: "streak",  label: "연속 출전",  short: "🔥",    icon: Flame,     getValue: (p) => p.attendanceStreak ?? 0, unit: "연속" },
+  { key: "rating",  label: "오버롤",     short: "OVR",  getValue: (p) => p.cardRating ?? 70,             unit: "" },
+  { key: "goals",   label: "득점",       short: "G",    getValue: (p) => p.stats.goals,                  unit: "골" },
+  { key: "assists", label: "어시스트",   short: "A",    getValue: (p) => p.stats.assists,                unit: "어시" },
+  { key: "mom",     label: "MOM",        short: "MOM",  getValue: (p) => p.stats.mom,                    unit: "회" },
+  { key: "games",   label: "출전",       short: "GP",   getValue: (p) => p.stats.games,                  unit: "경기" },
+  { key: "streak",  label: "연속 출전",  short: "STR",  getValue: (p) => p.attendanceStreak ?? 0,        unit: "연속" },
 ];
 
 export default function LeaderboardPage() {
@@ -65,9 +65,10 @@ export default function LeaderboardPage() {
           </p>
         </header>
 
-        {/* 탭 */}
+        {/* 탭 — 모바일 2열 그리드(좌우 라인 정렬), 태블릿 3열, 데스크탑 6열 1행.
+            flex-wrap은 칩 시작 위치가 들쭉날쭉했어서 grid로 균일 정렬. */}
         <div
-          className="mb-6 flex flex-wrap gap-2 rounded-2xl border p-2"
+          className="mb-6 grid grid-cols-2 gap-2 rounded-2xl border p-2 sm:grid-cols-3 md:grid-cols-6"
           style={{
             background: "var(--color-fg-paper)",
             borderColor: "var(--color-fg-line-soft)",
@@ -75,7 +76,6 @@ export default function LeaderboardPage() {
           role="tablist"
         >
           {TABS.map((t) => {
-            const Icon = t.icon;
             const isActive = t.key === active;
             return (
               <button
@@ -84,14 +84,23 @@ export default function LeaderboardPage() {
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => setActive(t.key)}
-                className="flex flex-1 min-w-[100px] items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-bold transition-colors"
+                className="flex w-full items-center justify-start gap-2 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-bold transition-colors md:justify-center"
                 style={{
                   background: isActive ? "var(--primary)" : "transparent",
-                  color: isActive ? "var(--primary-foreground, #fff)" : "var(--color-fg-ink-muted)",
+                  color: isActive ? "#fff" : "var(--color-fg-ink-muted)",
                 }}
               >
-                <Icon width={14} height={14} />
-                <span>{t.label}</span>
+                <span
+                  className="fg-mono inline-flex h-6 min-w-[32px] shrink-0 items-center justify-center rounded px-1.5 text-[11px] font-bold tracking-wide"
+                  style={{
+                    background: isActive ? "rgba(255,255,255,0.18)" : "rgba(0,71,171,0.08)",
+                    color: isActive ? "rgba(255,255,255,0.95)" : "var(--primary)",
+                    letterSpacing: "1px",
+                  }}
+                >
+                  {t.short}
+                </span>
+                <span className="whitespace-nowrap">{t.label}</span>
               </button>
             );
           })}
@@ -125,17 +134,43 @@ export default function LeaderboardPage() {
                       borderColor: "var(--color-fg-line-soft)",
                     }}
                   >
-                    {/* 순위 */}
+                    {/* 순위 패드 — gold/silver/bronze 원형 메달 대신 FairGround
+                        스코어보드 톤의 사각 패드. 1위 primary fill, 2~3위
+                        primary soft, 4위~ 라인만. 모든 숫자는 fg-display 로
+                        헤더(h1 "랭킹") 와 같은 활자 체계. */}
                     <div
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black tabular-nums"
+                      className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg"
                       style={{
-                        background: isTopThree
-                          ? rank === 1 ? "#FFD700" : rank === 2 ? "#C0C0C0" : "#CD7F32"
-                          : "var(--color-fg-paper-3, #EEF3FF)",
-                        color: isTopThree ? "#0D1B2A" : "var(--color-fg-ink-muted)",
+                        background:
+                          rank === 1
+                            ? "var(--primary)"
+                            : isTopThree
+                              ? "rgba(0,71,171,0.10)"
+                              : "transparent",
+                        border:
+                          rank === 1
+                            ? "none"
+                            : isTopThree
+                              ? "1px solid rgba(0,71,171,0.22)"
+                              : "1px solid var(--color-fg-line-soft)",
+                        color:
+                          rank === 1
+                            ? "#fff"
+                            : isTopThree
+                              ? "var(--primary)"
+                              : "var(--color-fg-ink-muted)",
                       }}
+                      aria-label={`${rank}위`}
                     >
-                      {rank}
+                      <span
+                        className="fg-mono text-[8px] font-bold tracking-wider opacity-70 leading-none"
+                        style={{ letterSpacing: "1.2px" }}
+                      >
+                        RANK
+                      </span>
+                      <span className="fg-display text-base font-black tabular-nums leading-tight">
+                        {rank}
+                      </span>
                     </div>
 
                     {/* 아바타 */}
@@ -151,7 +186,10 @@ export default function LeaderboardPage() {
                         <img
                           src={p.profilePhotoUrl || p.photoUrl}
                           alt={p.name}
-                          className="h-full w-full object-cover"
+                          // 원형 트림에서 머리가 잘리지 않게 상단 정렬.
+                          // 일반적으로 인물 사진은 상반신 위주라 object-top 이
+                          // object-center 보다 face-safe.
+                          className="h-full w-full object-cover object-top"
                         />
                       ) : (
                         <span className="text-sm font-bold" style={{ color: "var(--color-fg-ink-muted)" }}>

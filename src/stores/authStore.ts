@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { supabase, isDemoMode } from "@/config/supabase";
 import { rowToPlayer, playerToInsert, playerPatchToRow } from "@/lib/mappers";
-import type { Player, Position } from "@/types";
+import type { Gender, Player, PlayerRole, Position } from "@/types";
 
 // Supabase auth.users 를 앱 전반이 쓰는 최소 형태로 노출.
 // Firebase User.uid 호환을 위해 Supabase user.id 를 uid 로 매핑.
@@ -16,6 +16,7 @@ export interface AuthUser {
 const LS_USERS = "fg_users";
 const LS_PLAYERS = "fg_players";
 const LS_SESSION = "fg_session";
+const SHORT_ID_DOMAIN = "fairground.local";
 
 interface LocalUser {
   uid: string;
@@ -66,29 +67,52 @@ function generateUid(): string {
   return "local_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
 }
 
+function generatePublicPlayerId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 function makeUser(uid: string, email: string | null): AuthUser {
   return { uid, email };
 }
 
-function makePlayer(uid: string, name: string, phone: string): Player {
+function normalizeLoginId(value: string): string {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return trimmed;
+  return trimmed.includes("@") ? trimmed : `${trimmed}@${SHORT_ID_DOMAIN}`;
+}
+
+function makePlayer(
+  uid: string,
+  name: string,
+  phone: string,
+  teamId = "",
+  extra: Partial<Pick<Player, "email" | "gender" | "birthDate" | "hasPlayerExperience">> = {},
+): Player {
   return {
     id: uid,
     uid,
     name,
     number: 0,
     position: "ALA" as Position,
-    teamId: "",
+    teamId,
     nationality: "KOR",
     photoUrl: "",
     photoScale: 1,
     cardType: "gold",
-    cardRating: 90,
+    cardRating: 70,
     stats: { goals: 0, assists: 0, games: 0, mom: 0 },
     badges: [],
     penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
     isApproved: false,
     role: "player",
     phone,
+    email: extra.email,
+    gender: extra.gender,
+    birthDate: extra.birthDate,
+    hasPlayerExperience: extra.hasPlayerExperience ?? false,
     createdAt: Date.now(),
   };
 }
@@ -109,12 +133,17 @@ interface RegisterData {
   password: string;
   name: string;
   phone: string;
+  gender: Gender;
+  birthDate: string;
+  hasPlayerExperience: boolean;
+  teamId?: string;
 }
 
 interface CreatePlayerData {
   name: string;
   number: number;
   position: Position;
+  role?: Exclude<PlayerRole, "admin">;
   teamId: string;
   nationality: string;
   photoUrl?: string;
@@ -139,7 +168,7 @@ interface AuthState {
   init: () => () => void;
 }
 
-export const useAuthStore = create<AuthState>((setState) => ({
+export const useAuthStore = create<AuthState>((setState, getState) => ({
   user: null,
   player: null,
   loading: false,
@@ -149,23 +178,28 @@ export const useAuthStore = create<AuthState>((setState) => ({
   login: async (email, password) => {
     setState({ loading: true, error: null });
     try {
+      const normalizedEmail = normalizeLoginId(email);
+      const normalizedPassword = password.trim();
       if (isDemoMode) {
         const users = getLocalUsers();
-        const found = users.find((u) => u.email === email && u.password === password);
+        const found = users.find((u) => u.email === normalizedEmail && u.password === normalizedPassword);
         if (!found) {
-          throw new Error("이메일 또는 비밀번호가 올바르지 않습니다");
+          throw new Error("아이디 또는 비밀번호가 올바르지 않습니다");
         }
         const players = getLocalPlayers();
         const player = players[found.uid] || null;
         saveSession(found.uid);
-        setState({ user: makeUser(found.uid, email), player, loading: false });
+        setState({ user: makeUser(found.uid, normalizedEmail), player, loading: false });
         return;
       }
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw new Error(error.message);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password: normalizedPassword,
+      });
+      if (error) throw new Error("아이디 또는 비밀번호가 올바르지 않습니다");
       const uid = data.user.id;
       const player = await fetchProfile(uid);
-      setState({ user: makeUser(uid, data.user.email ?? email), player, loading: false });
+      setState({ user: makeUser(uid, data.user.email ?? normalizedEmail), player, loading: false });
     } catch (e) {
       setState({ error: (e as Error).message, loading: false });
       throw e;
@@ -175,35 +209,46 @@ export const useAuthStore = create<AuthState>((setState) => ({
   register: async (data) => {
     setState({ loading: true, error: null });
     try {
+      const normalizedEmail = normalizeLoginId(data.email);
       if (isDemoMode) {
         const users = getLocalUsers();
-        if (users.find((u) => u.email === data.email)) {
-          throw new Error("이미 등록된 이메일입니다");
+        if (users.find((u) => u.email === normalizedEmail)) {
+          throw new Error("이미 등록된 아이디입니다");
         }
         const uid = generateUid();
-        users.push({ uid, email: data.email, password: data.password });
+        users.push({ uid, email: normalizedEmail, password: data.password });
         saveLocalUsers(users);
         saveSession(uid);
-        const player = makePlayer(uid, data.name, data.phone);
+        const player = makePlayer(uid, data.name, data.phone, data.teamId, {
+          email: normalizedEmail,
+          gender: data.gender,
+          birthDate: data.birthDate,
+          hasPlayerExperience: data.hasPlayerExperience,
+        });
         const players = getLocalPlayers();
         players[uid] = player;
         saveLocalPlayers(players);
-        setState({ user: makeUser(uid, data.email), player, loading: false });
+        setState({ user: makeUser(uid, normalizedEmail), player, loading: false });
         return;
       }
       const { data: signUp, error } = await supabase.auth.signUp({
-        email: data.email,
+        email: normalizedEmail,
         password: data.password,
       });
       if (error) throw new Error(error.message);
       if (!signUp.user) throw new Error("가입에 실패했습니다");
       const uid = signUp.user.id;
-      const player = makePlayer(uid, data.name, data.phone);
+      const player = makePlayer(uid, data.name, data.phone, data.teamId, {
+        email: normalizedEmail,
+        gender: data.gender,
+        birthDate: data.birthDate,
+        hasPlayerExperience: data.hasPlayerExperience,
+      });
       // RLS: id = auth.uid() 인 행만 INSERT 허용. role/is_approved 는 DB 기본값.
       const { error: insErr } = await supabase.from("profiles").insert(playerToInsert(player));
       if (insErr) throw new Error(insErr.message);
       setState({
-        user: makeUser(uid, signUp.user.email ?? data.email),
+        user: makeUser(uid, signUp.user.email ?? normalizedEmail),
         player,
         loading: false,
       });
@@ -216,9 +261,12 @@ export const useAuthStore = create<AuthState>((setState) => ({
   createPlayer: async (data) => {
     setState({ loading: true, error: null });
     try {
-      const state = useAuthStore.getState();
-      if (!state.user) throw new Error("로그인이 필요합니다");
-      const uid = state.user.uid;
+      const currentUser = getState().user;
+      const existingPlayer = getState().player;
+      const uid = isDemoMode ? generateUid() : currentUser?.uid;
+      if (!uid) {
+        throw new Error("로그인이 필요합니다");
+      }
       const player: Player = {
         id: uid,
         uid,
@@ -229,26 +277,39 @@ export const useAuthStore = create<AuthState>((setState) => ({
         photoUrl: data.photoUrl || "",
         profilePhotoUrl: data.profilePhotoUrl || data.photoUrl || "",
         photoScale: data.photoScale ?? 1,
-        cardType: "gold",
-        cardRating: 90,
-        stats: { goals: 0, assists: 0, games: 0, mom: 0 },
-        badges: [],
-        penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
-        isApproved: false,
-        role: "player",
+        cardType: existingPlayer?.cardType ?? "gold",
+        cardRating: existingPlayer?.cardRating ?? 70,
+        stats: existingPlayer?.stats ?? { goals: 0, assists: 0, games: 0, mom: 0 },
+        badges: existingPlayer?.badges ?? [],
+        penaltyStatus: existingPlayer?.penaltyStatus ?? {
+          isBanned: false,
+          banMatchesRemaining: 0,
+          seasonYellowCards: 0,
+        },
+        isApproved: existingPlayer?.isApproved ?? false,
+        role: data.role ?? existingPlayer?.role ?? "player",
         nationality: data.nationality || "KOR",
-        createdAt: Date.now(),
+        createdAt: existingPlayer?.createdAt ?? Date.now(),
       };
       if (isDemoMode) {
         const players = getLocalPlayers();
         players[uid] = player;
         saveLocalPlayers(players);
-        setState({ player, loading: false });
+        saveSession(uid);
+        setState({ user: makeUser(uid, `${uid}@anonymous.local`), player, loading: false });
         return;
       }
-      // upsert: 가입 시 행이 이미 있으면 갱신, 없으면 생성.
-      const { error } = await supabase.from("profiles").upsert(playerToInsert(player));
-      if (error) throw new Error(error.message);
+      const existing = existingPlayer ?? await fetchProfile(uid);
+      if (existing) {
+        const { error } = await supabase
+          .from("profiles")
+          .update(playerPatchToRow(player))
+          .eq("id", uid);
+        if (error) throw new Error(error.message);
+      } else {
+        const { error } = await supabase.from("profiles").insert(playerToInsert(player));
+        if (error) throw new Error(error.message);
+      }
       setState({ player, loading: false });
     } catch (e) {
       setState({ error: (e as Error).message, loading: false });
@@ -323,8 +384,6 @@ export const useAuthStore = create<AuthState>((setState) => ({
   },
 
   uploadPlayerPhoto: async (file) => {
-    const state = useAuthStore.getState();
-    if (!state.user) return "";
     // NOTE(상용화 후속): 현재는 base64 data URL 반환(원 동작 보존).
     // Supabase Storage 버킷 업로드로 교체 예정 — DB에 대용량 base64 저장은 비효율.
     return new Promise<string>((resolve) => {
@@ -356,39 +415,53 @@ export const useAuthStore = create<AuthState>((setState) => ({
       return () => {};
     }
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       const sUser = session?.user;
       if (sUser) {
-        try {
-          let player = await fetchProfile(sUser.id);
-          // OAuth 최초 로그인 시 프로필 자동 생성.
-          if (!player) {
-            const created = makePlayer(
-              sUser.id,
-              (sUser.user_metadata?.full_name as string) || sUser.email || "",
-              ""
-            );
-            const { error } = await supabase.from("profiles").insert(playerToInsert(created));
-            if (error) {
-              console.error("[authStore] auto-create profile failed:", error.message);
-            } else {
-              player = created;
+        setState({
+          user: makeUser(sUser.id, sUser.email ?? null),
+          loading: false,
+          initialized: true,
+        });
+
+        // Supabase auth callbacks must not await Supabase calls directly.
+        // Defer profile I/O so signInWithPassword can resolve instead of hanging.
+        setTimeout(() => {
+          void (async () => {
+            try {
+              let player = await fetchProfile(sUser.id);
+              // OAuth 최초 로그인 시 프로필 자동 생성.
+              if (!player) {
+                const created = makePlayer(
+                  sUser.id,
+                  (sUser.user_metadata?.full_name as string) || sUser.email || "",
+                  "",
+                  "",
+                  { email: sUser.email ?? undefined }
+                );
+                const { error } = await supabase.from("profiles").insert(playerToInsert(created));
+                if (error) {
+                  console.error("[authStore] auto-create profile failed:", error.message);
+                } else {
+                  player = created;
+                }
+              }
+              setState({
+                user: makeUser(sUser.id, sUser.email ?? null),
+                player,
+                loading: false,
+                initialized: true,
+              });
+            } catch {
+              setState({
+                user: makeUser(sUser.id, sUser.email ?? null),
+                player: null,
+                loading: false,
+                initialized: true,
+              });
             }
-          }
-          setState({
-            user: makeUser(sUser.id, sUser.email ?? null),
-            player,
-            loading: false,
-            initialized: true,
-          });
-        } catch {
-          setState({
-            user: makeUser(sUser.id, sUser.email ?? null),
-            player: null,
-            loading: false,
-            initialized: true,
-          });
-        }
+          })();
+        }, 0);
       } else {
         setState({ user: null, player: null, loading: false, initialized: true });
       }

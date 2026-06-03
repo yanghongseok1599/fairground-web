@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Users, Shield, UserCheck } from "lucide-react";
+import { Users, Shield, UserCheck } from "lucide-react";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
+import { canManageTeamMembers } from "@/lib/team-permissions";
 import type { Player, Team, TeamRole } from "@/types";
 
 /**
@@ -68,13 +68,12 @@ export default function TeamMembersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId]);
 
-  // 권한 UX 가드.
-  const canManage = useMemo(() => {
-    if (!currentPlayer) return false;
-    if (currentPlayer.role === "admin") return true;
-    if (currentPlayer.teamId !== teamId) return false;
-    return currentPlayer.teamRole === "manager" || currentPlayer.teamRole === "coach";
-  }, [currentPlayer, teamId]);
+  // 권한 UX 가드 — admin 또는 본인 팀의 manager/coach. 가드는
+  // lib/team-permissions.canManageTeamMembers 한 곳에서 관리.
+  const canManage = useMemo(
+    () => canManageTeamMembers(currentPlayer, team),
+    [currentPlayer, team],
+  );
 
   const isAdmin = currentPlayer?.role === "admin";
 
@@ -107,91 +106,78 @@ export default function TeamMembersPage() {
 
   if (!canManage) {
     return (
-      <main className="min-h-screen pt-[60px] px-5 md:px-10 py-12" style={{ background: "var(--color-fg-paper-2)" }}>
-        <div className="mx-auto max-w-3xl">
-          <Link
-            href={`/teams/${teamId}`}
-            className="inline-flex items-center gap-1 text-sm font-medium mb-6"
-            style={{ color: "var(--primary)" }}
-          >
-            <ArrowLeft className="w-4 h-4" /> 팀 홈
-          </Link>
-          <div
-            className="rounded-2xl px-6 py-12 text-center"
-            style={{
-              background: "var(--color-fg-paper)",
-              border: "1px solid var(--color-fg-line-soft)",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
-            <Shield className="w-10 h-10 mx-auto mb-3" style={{ color: "var(--color-fg-ink-muted)" }} />
-            <h1 className="font-bold text-lg mb-1" style={{ color: "var(--color-fg-ink)" }}>
-              접근 권한이 없습니다
-            </h1>
-            <p className="text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>
-              멤버 관리는 팀의 감독·운영자 또는 관리자만 사용할 수 있습니다.
-            </p>
-          </div>
-        </div>
-      </main>
+      <div
+        className="rounded-2xl px-6 py-12 text-center"
+        style={{
+          background: "var(--color-fg-paper)",
+          border: "1px solid var(--color-fg-line-soft)",
+          boxShadow: "var(--shadow-sm)",
+        }}
+      >
+        <Shield
+          className="w-10 h-10 mx-auto mb-3"
+          style={{ color: "var(--color-fg-ink-muted)" }}
+        />
+        <h1
+          className="font-bold text-lg mb-1"
+          style={{ color: "var(--color-fg-ink)" }}
+        >
+          접근 권한이 없습니다
+        </h1>
+        <p className="text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>
+          멤버 관리는 팀의 감독·운영자 또는 관리자만 사용할 수 있습니다.
+        </p>
+      </div>
     );
   }
 
   return (
-    <div className="pt-[60px] min-h-screen" style={{ background: "var(--color-fg-paper-2)" }}>
-      <header className="px-5 md:px-10 pt-10 pb-7" style={{ background: "var(--color-fg-paper)" }}>
-        <div className="max-w-4xl mx-auto">
-          <Link
-            href={`/teams/${teamId}`}
-            className="inline-flex items-center gap-1 text-sm font-medium mb-5"
-            style={{ color: "var(--primary)" }}
-          >
-            <ArrowLeft className="w-4 h-4" /> 팀 홈
-          </Link>
-          <p className="fg-label mb-3" style={{ color: "var(--primary)" }}>
-            TEAM MEMBERS
-          </p>
-          <h1
-            className="font-black leading-none"
-            style={{
-              fontSize: "clamp(28px, 5vw, 44px)",
-              letterSpacing: "-1.2px",
-              color: "var(--color-fg-ink)",
-            }}
-          >
-            {team?.name ? `${team.name} 멤버` : "멤버 관리"}
-          </h1>
-          <p className="mt-3 text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>
-            팀 운영자·감독은 멤버 역할을 지정할 수 있습니다. 감독 지정은 관리자만 수행합니다.
-          </p>
+    <div className="space-y-4">
+      {/* One-line page header — the surrounding TeamAdminLayout shell
+          provides the sidebar, back link, and padding. */}
+      <div>
+        <h1
+          className="fg-display text-2xl font-black md:text-3xl"
+          style={{
+            color: "var(--color-fg-ink)",
+            fontFamily: "var(--font-outfit)",
+            letterSpacing: "-0.8px",
+          }}
+        >
+          {team?.name ? `${team.name} · 멤버 관리` : "멤버 관리"}
+        </h1>
+        <p
+          className="mt-1 text-sm"
+          style={{ color: "var(--color-fg-ink-muted)" }}
+        >
+          팀 운영자·감독은 멤버 역할을 지정할 수 있습니다. 감독 지정은 관리자만
+          수행합니다.
+        </p>
+      </div>
+
+      {error && (
+        <div
+          role="alert"
+          className="px-4 py-3 rounded-md text-sm font-medium"
+          style={{
+            background: "rgba(255,59,48,0.08)",
+            border: "1px solid rgba(255,59,48,0.20)",
+            color: "var(--destructive)",
+          }}
+        >
+          {error}
         </div>
-      </header>
+      )}
 
-      <main className="px-5 md:px-10 py-10">
-        <div className="max-w-4xl mx-auto">
-          {error && (
-            <div
-              role="alert"
-              className="mb-4 px-4 py-3 rounded-md text-sm font-medium"
-              style={{
-                background: "rgba(255,59,48,0.08)",
-                border: "1px solid rgba(255,59,48,0.20)",
-                color: "var(--destructive)",
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          <section
-            className="rounded-2xl"
-            style={{
-              background: "var(--color-fg-paper)",
-              border: "1px solid var(--color-fg-line-soft)",
-              boxShadow: "var(--shadow-sm)",
-            }}
-            aria-labelledby="members-heading"
-          >
+      <section
+        className="rounded-2xl"
+        style={{
+          background: "var(--color-fg-paper)",
+          border: "1px solid var(--color-fg-line-soft)",
+          boxShadow: "var(--shadow-sm)",
+        }}
+        aria-labelledby="members-heading"
+      >
             <div
               className="px-5 py-4 flex items-center justify-between gap-3 border-b"
               style={{ borderColor: "var(--color-fg-line-soft)" }}
@@ -210,8 +196,22 @@ export default function TeamMembersPage() {
                 불러오는 중…
               </div>
             ) : members.length === 0 ? (
-              <div className="p-12 text-center text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>
-                팀에 소속된 멤버가 없습니다.
+              <div className="p-12 text-center" style={{ color: "var(--color-fg-ink-muted)" }}>
+                <div
+                  className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full"
+                  style={{ background: "var(--color-fg-paper-3, #EEF3FF)", color: "var(--primary)" }}
+                  aria-hidden
+                >
+                  <Users className="h-5 w-5" />
+                </div>
+                <p className="text-sm font-bold" style={{ color: "var(--color-fg-ink)" }}>
+                  아직 등록된 멤버가 없습니다
+                </p>
+                <p className="mt-1 text-xs leading-relaxed">
+                  {canManage
+                    ? "팀 가입 신청을 승인하거나, 선수에게 팀홈 링크를 공유해 합류시키세요."
+                    : "선수가 가입 신청을 보내면 멤버 명단에 표시됩니다."}
+                </p>
               </div>
             ) : (
               <ul className="divide-y" style={{ borderColor: "var(--color-fg-line-soft)" }}>
@@ -305,13 +305,14 @@ export default function TeamMembersPage() {
             )}
           </section>
 
-          <p className="mt-4 text-xs leading-relaxed" style={{ color: "var(--color-fg-ink-muted)" }}>
-            · 본인 역할은 보안상 직접 변경할 수 없습니다. 다른 운영자에게 요청하세요.
-            <br />
-            · 감독(coach) 부여/회수는 관리자만 수행할 수 있습니다.
-          </p>
-        </div>
-      </main>
+      <p
+        className="text-xs leading-relaxed"
+        style={{ color: "var(--color-fg-ink-muted)" }}
+      >
+        · 본인 역할은 보안상 직접 변경할 수 없습니다. 다른 운영자에게 요청하세요.
+        <br />
+        · 감독(coach) 부여/회수는 관리자만 수행할 수 있습니다.
+      </p>
     </div>
   );
 }

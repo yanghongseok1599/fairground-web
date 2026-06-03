@@ -93,6 +93,22 @@ export function LineupEditor({
   const startersFull = starters.length >= MAX_STARTERS;
   const rosterFull = lineup.length >= MAX_REGISTERED;
 
+  // 성비 검증 — 대회 규정 제21조: 선발 출전은 남자 3명·여자 2명 고정.
+  const genderCount = useMemo(() => {
+    let male = 0, female = 0, unknown = 0;
+    for (const e of starters) {
+      const g = memberById[e.playerId]?.gender;
+      if (g === "male") male += 1;
+      else if (g === "female") female += 1;
+      else unknown += 1; // other / prefer_not_to_say / 미입력
+    }
+    return { male, female, unknown };
+  }, [starters, memberById]);
+  const genderOk =
+    starters.length === MAX_STARTERS &&
+    genderCount.male === 3 &&
+    genderCount.female === 2;
+
   const runAction = async (key: string, fn: () => Promise<void>) => {
     setActionError(null);
     setPendingId(key);
@@ -333,7 +349,29 @@ export function LineupEditor({
                   >
                     {starters.length}/{MAX_STARTERS}
                   </Badge>
+                  {/* 성비(남3·여2) 배지 — 규정 제21조 */}
+                  <Badge
+                    className={`ml-1 ${genderOk ? "bg-blue-100 text-blue-700" : "bg-red-100 text-red-700"}`}
+                    aria-label={`성비 남 ${genderCount.male} 여 ${genderCount.female}`}
+                  >
+                    남 {genderCount.male} · 여 {genderCount.female}
+                    {genderOk ? " ✓" : ""}
+                  </Badge>
                 </h3>
+                {/* 성비 경고 — 선발 5인 구성됐는데 남3·여2 아니면 안내 (제21조). */}
+                {starters.length === MAX_STARTERS && !genderOk && (
+                  <p
+                    role="alert"
+                    className="mb-2 flex items-start gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] leading-relaxed"
+                    style={{ borderColor: "rgba(255,59,48,0.35)", background: "rgba(255,59,48,0.06)", color: "var(--destructive)" }}
+                  >
+                    <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                    <span>
+                      성별 구성은 <b>남자 3명 · 여자 2명</b>으로 고정입니다(제21조).
+                      {genderCount.unknown > 0 && " 성별 미입력 선수가 있어 정확한 검증이 어렵습니다."}
+                    </span>
+                  </p>
+                )}
                 <ul className="space-y-1.5">
                   {Array.from({ length: MAX_STARTERS }).map((_, idx) => {
                     const entry = starters[idx];

@@ -1,4 +1,5 @@
-import { Fragment } from "react";
+"use client";
+
 import Image from "next/image";
 import type { TeamStanding } from "@/types";
 
@@ -6,24 +7,66 @@ interface StandingsTableProps {
   standings: TeamStanding[];
   limit?: number;
   /**
-   * Show the promotion / relegation split line at the top 50% boundary.
-   * Off for the compact landing preview (limited rows make a split noise).
+   * When enabled, the leading rail uses one color for the upper half and
+   * another for the lower half. The split label itself stays hidden so the
+   * table remains visually quiet.
    */
   showPromotionSplit?: boolean;
 }
 
-const COLUMNS: { key: string; label: string; long: string }[] = [
-  { key: "rank", label: "#", long: "순위" },
-  { key: "team", label: "팀", long: "팀" },
-  { key: "gp", label: "경기", long: "경기 수" },
-  { key: "w", label: "승", long: "승" },
-  { key: "d", label: "무", long: "무" },
-  { key: "l", label: "패", long: "패" },
-  { key: "gf", label: "득점", long: "득점" },
-  { key: "ga", label: "실점", long: "실점" },
-  { key: "gd", label: "득실", long: "득실차" },
-  { key: "pts", label: "승점", long: "승점" },
-];
+const COLUMNS = [
+  { key: "rank", label: "순위", align: "left" },
+  { key: "team", label: "팀명", align: "left" },
+  { key: "played", label: "경기수", align: "center" },
+  { key: "wins", label: "승", align: "center" },
+  { key: "draws", label: "무", align: "center" },
+  { key: "losses", label: "패", align: "center" },
+  { key: "goalsFor", label: "득점", align: "center" },
+  { key: "goalsAgainst", label: "실점", align: "center" },
+  { key: "goalDifference", label: "득실차", align: "center" },
+  { key: "points", label: "승점", align: "center" },
+] as const;
+
+function TeamLogo({ team, size = 36 }: { team: TeamStanding; size?: number }) {
+  if (team.teamLogo) {
+    return (
+      <Image
+        src={team.teamLogo}
+        alt=""
+        width={size}
+        height={size}
+        className="shrink-0 object-contain"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="grid shrink-0 place-items-center rounded-sm text-[10px] font-black"
+      style={{
+        width: size,
+        height: size,
+        background: "var(--color-fg-paper-2)",
+        color: "var(--color-fg-ink-dim)",
+      }}
+      aria-hidden
+    >
+      {team.teamName.slice(0, 2).toUpperCase()}
+    </div>
+  );
+}
+
+function getRailColor(index: number, upperCount: number) {
+  if (upperCount < 0) return "var(--primary)";
+  return index < upperCount ? "var(--primary)" : "#27c77a";
+}
+
+function getRankColor(index: number, upperCount: number) {
+  if (index === 0) return "#ff4050";
+  if (upperCount > 0 && index < upperCount) return "var(--primary)";
+  return "var(--color-fg-ink-dim)";
+}
 
 export function StandingsTable({
   standings,
@@ -31,175 +74,179 @@ export function StandingsTable({
   showPromotionSplit = false,
 }: StandingsTableProps) {
   const rows = limit ? standings.slice(0, limit) : standings;
-  // Upper league = top half (ceil so an odd count keeps the extra team up).
   const upperCount =
     showPromotionSplit && rows.length > 1 ? Math.ceil(rows.length / 2) : -1;
 
   return (
-    <div
-      className="overflow-x-auto border"
-      style={{
-        borderColor: "var(--color-fg-line-soft)",
-        background: "var(--color-fg-paper)",
-      }}
-    >
-      <table className="w-full text-base" style={{ fontFamily: "var(--font-body)" }}>
+    <>
+      <div
+        className="border-y md:hidden"
+        style={{
+          borderColor: "var(--color-fg-line-soft)",
+          background: "var(--color-fg-paper)",
+        }}
+      >
+        <div
+          className="grid grid-cols-[30px_minmax(104px,1fr)_30px_24px_24px_24px_36px_34px] items-center gap-1 px-2 py-3 text-[11px] font-black"
+          style={{
+            color: "var(--color-fg-ink-dim)",
+            borderBottom: "1px solid var(--color-fg-paper-3)",
+          }}
+        >
+          <span className="text-center">순위</span>
+          <span>팀명</span>
+          <span className="text-center">경기</span>
+          <span className="text-center">승</span>
+          <span className="text-center">무</span>
+          <span className="text-center">패</span>
+          <span className="text-center">득실</span>
+          <span className="text-center">승점</span>
+        </div>
+        {rows.map((team, index) => {
+          const isFirst = index === 0;
+          const railColor = getRailColor(index, upperCount);
+
+          return (
+            <div
+              key={team.teamId}
+              className="grid grid-cols-[3px_minmax(0,1fr)]"
+              style={{
+                borderTop: index === 0 ? "0" : "1px solid var(--color-fg-paper-3)",
+                background: isFirst ? "var(--color-fg-paper-2)" : "var(--color-fg-paper)",
+              }}
+            >
+              <div style={{ background: railColor }} aria-hidden />
+              <div className="grid min-w-0 grid-cols-[27px_minmax(104px,1fr)_30px_24px_24px_24px_36px_34px] items-center gap-1 px-2 py-3">
+                <span
+                  className="text-center text-[16px] font-bold leading-none tabular-nums"
+                  style={{ color: getRankColor(index, upperCount) }}
+                >
+                  {index + 1}
+                </span>
+                <div className="flex min-w-0 items-center gap-2">
+                  <TeamLogo team={team} size={24} />
+                  <span
+                    className="min-w-0 truncate text-[15px] font-black leading-tight"
+                    style={{ color: "var(--primary)" }}
+                  >
+                    {team.teamName}
+                  </span>
+                </div>
+                <span className="text-center text-[13px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
+                  {team.gamesPlayed}
+                </span>
+                <span className="text-center text-[13px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
+                  {team.wins}
+                </span>
+                <span className="text-center text-[13px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
+                  {team.draws}
+                </span>
+                <span className="text-center text-[13px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
+                  {team.losses}
+                </span>
+                <span className="text-center text-[13px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
+                  {team.goalDifference}
+                </span>
+                <span className="text-center text-[14px] font-bold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
+                  {team.points}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div
+        className="hidden w-full max-w-full overflow-x-auto border-y md:block"
+        style={{
+          borderColor: "var(--color-fg-line-soft)",
+          background: "var(--color-fg-paper)",
+        }}
+      >
+        <table className="min-w-[820px] w-full border-collapse text-base" style={{ fontFamily: "var(--font-body)" }}>
         <caption className="sr-only">
           리그 순위표. 정렬 기준: 승점 내림차순.
-          {upperCount > 0 && " 상위 절반은 다음 시즌 상위 리그, 하위 절반은 하위 리그로 배정됩니다."}
+          {upperCount > 0 && " 왼쪽 색상 막대는 상위 리그와 하위 리그 구간을 구분합니다."}
         </caption>
         <thead>
-          <tr
-            style={{
-              background: "var(--color-fg-paper-2)",
-              borderBottom: "1px solid var(--color-fg-line-soft)",
-            }}
-          >
-            {COLUMNS.map((c) => (
+          <tr style={{ borderBottom: "1px solid var(--color-fg-paper-3)" }}>
+            {COLUMNS.map((column) => (
               <th
-                key={c.key}
+                key={column.key}
                 scope="col"
-                className="py-4 px-4 fg-label text-center"
+                className={[
+                  "whitespace-nowrap px-4 py-4 text-[14px] font-black sm:text-base",
+                  column.align === "left" ? "text-left" : "text-center",
+                ].join(" ")}
                 style={{ color: "var(--color-fg-ink-dim)" }}
               >
-                {c.label}
-                <span className="sr-only"> ({c.long})</span>
+                {column.label}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((team, i) => {
-            const isTop = i === 0;
-            const isUpper = upperCount > 0 && i < upperCount;
-            // Visible boundary row right before the first lower-league team.
-            const isSplitBoundary = upperCount > 0 && i === upperCount;
+          {rows.map((team, index) => {
+            const isFirst = index === 0;
+            const railColor = getRailColor(index, upperCount);
+
             return (
-              <Fragment key={team.teamId}>
-                {isSplitBoundary && (
-                  <tr aria-hidden="true">
-                    <td colSpan={COLUMNS.length} className="p-0">
-                      <div
-                        className="flex items-center gap-3 px-4 py-2"
-                        style={{
-                          background: "color-mix(in srgb, var(--color-fg-ink-dim) 8%, transparent)",
-                          borderTop: "2px solid var(--color-fg-ink-dim)",
-                          borderBottom: "1px solid var(--color-fg-paper-3)",
-                        }}
-                      >
-                        <span
-                          className="fg-label"
-                          style={{ color: "var(--color-fg-ink-muted)" }}
-                        >
-                          ▼ 하위 리그 (LOWER LEAGUE)
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-                <tr
-                  className="transition-colors"
-                  style={{
-                    borderTop: "1px solid var(--color-fg-paper-3)",
-                    background: isTop
-                      ? "color-mix(in srgb, var(--primary) 4%, transparent)"
-                      : "transparent",
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "color-mix(in srgb, var(--primary) 6%, transparent)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = isTop ? "color-mix(in srgb, var(--primary) 4%, transparent)" : "transparent"; }}
+              <tr
+                key={team.teamId}
+                style={{
+                  borderTop: index === 0 ? "0" : "1px solid var(--color-fg-paper-3)",
+                  background: isFirst ? "var(--color-fg-paper-2)" : "var(--color-fg-paper)",
+                }}
+              >
+                <td
+                  className="whitespace-nowrap px-4 py-4 align-middle"
+                  style={{ borderLeft: `10px solid ${railColor}` }}
                 >
-                  <td className="py-4 px-4 text-center">
-                    <span
-                      className="tabular-nums font-bold text-[13px]"
-                      style={{
-                        color: isUpper ? "var(--primary)" : "var(--color-fg-ink-dim)",
-                        fontFamily: "var(--font-body)",
-                      }}
-                    >
-                      {String(i + 1).padStart(2, "0")}
+                  <span
+                    className="inline-block min-w-8 text-center text-[20px] font-bold tabular-nums"
+                    style={{ color: getRankColor(index, upperCount) }}
+                  >
+                    {index + 1}
+                  </span>
+                </td>
+                <th scope="row" className="min-w-[230px] whitespace-nowrap px-2 py-4 text-left align-middle font-normal">
+                  <div className="flex items-center gap-3">
+                    <TeamLogo team={team} />
+                    <span className="text-[18px] font-black tracking-normal" style={{ color: "var(--primary)" }}>
+                      {team.teamName}
                     </span>
-                  </td>
-                  <th scope="row" className="py-4 px-5 text-left font-normal">
-                    <div className="flex items-center gap-3">
-                      {team.teamLogo ? (
-                        <Image
-                          src={team.teamLogo}
-                          alt=""
-                          width={32}
-                          height={32}
-                          className="w-8 h-8 rounded-sm object-contain bg-[var(--color-fg-paper)]"
-                        />
-                      ) : (
-                        <div
-                          className="w-8 h-8 grid place-items-center text-[11px] tracking-wider"
-                          style={{
-                            background: isUpper ? "var(--primary)" : "var(--color-fg-paper-2)",
-                            color: isUpper ? "var(--primary-foreground)" : "var(--color-fg-ink-dim)",
-                            fontFamily: "var(--font-body)",
-                            fontWeight: 800,
-                          }}
-                          aria-hidden
-                        >
-                          {team.teamName.slice(0, 2).toUpperCase()}
-                        </div>
-                      )}
-                      <span
-                        className="tracking-wider"
-                        style={{
-                          color: "var(--color-fg-ink)",
-                          fontSize: 15,
-                          fontFamily: "var(--font-body)",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {team.teamName}
-                      </span>
-                      {upperCount > 0 && (
-                        <span
-                          className="fg-label text-[9px] px-1.5 py-0.5"
-                          style={{
-                            color: isUpper ? "var(--primary)" : "var(--color-fg-ink-dim)",
-                            border: `1px solid ${isUpper ? "color-mix(in srgb, var(--primary) 40%, transparent)" : "var(--color-fg-line-soft)"}`,
-                            background: isUpper ? "color-mix(in srgb, var(--primary) 6%, transparent)" : "transparent",
-                          }}
-                        >
-                          {isUpper ? "상위" : "하위"}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                  {[team.gamesPlayed, team.wins, team.draws, team.losses, team.goalsFor, team.goalsAgainst, team.goalDifference].map((v, idx) => (
-                    <td
-                      key={idx}
-                      className="py-4 px-4 text-center tabular-nums text-[13px]"
-                      style={{
-                        color: "var(--color-fg-ink-muted)",
-                        fontFamily: "var(--font-body)",
-                      }}
-                    >
-                      {v}
-                    </td>
-                  ))}
-                  <td className="py-4 px-4 text-center">
-                    <span
-                      className="tabular-nums"
-                      style={{
-                        fontSize: 22,
-                        color: isTop ? "var(--primary)" : "var(--color-fg-ink)",
-                        lineHeight: 1,
-                        fontFamily: "var(--font-body)",
-                        fontWeight: 800,
-                      }}
-                    >
-                      {team.points}
-                    </span>
-                  </td>
-                </tr>
-              </Fragment>
+                  </div>
+                </th>
+                <td className="px-4 py-4 text-center text-[17px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
+                  {team.gamesPlayed}
+                </td>
+                <td className="px-4 py-4 text-center text-[17px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
+                  {team.wins}
+                </td>
+                <td className="px-4 py-4 text-center text-[17px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
+                  {team.draws}
+                </td>
+                <td className="px-4 py-4 text-center text-[17px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
+                  {team.losses}
+                </td>
+                <td className="px-4 py-4 text-center text-[17px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
+                  {team.goalsFor}
+                </td>
+                <td className="px-4 py-4 text-center text-[17px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
+                  {team.goalsAgainst}
+                </td>
+                <td className="px-4 py-4 text-center text-[17px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
+                  {team.goalDifference}
+                </td>
+                <td className="px-4 py-4 text-center text-[17px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
+                  {team.points}
+                </td>
+              </tr>
             );
           })}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }

@@ -50,3 +50,11 @@ public/images/badges/_originals/
 
 # Firebase CORS config
 cors.json
+
+# local backups / temp / scratch (do not deploy)
+/tmp
+*.bak
+*.bak.*
+*.before-*
+.vercel.bak*
+supabase/.temp

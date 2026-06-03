@@ -3,6 +3,7 @@
 import React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Team } from "@/types";
+import { ClubEmblem } from "@/components/club-emblem";
 
 const CARD_COLORS = [
   "#00C853", "#4FC3F7", "#FFD700", "#FF6B6B", "#CE93D8",
@@ -81,21 +82,14 @@ export function TeamCarousel({ teams, selectedId, onSelect }: TeamCarouselProps)
                   : "none",
               }}
             >
-              {/* Logo */}
               <div
                 className="w-36 h-36 rounded-2xl flex items-center justify-center font-black text-4xl"
                 style={{
-                  background: team.logo ? "transparent" : `linear-gradient(135deg, ${color}35 0%, ${color}10 100%)`,
+                  background: "transparent",
                   border: `1.5px solid ${color}60`,
                 }}
               >
-                {team.logo ? (
-                  <img src={team.logo} alt={team.name} className="w-full h-full object-contain rounded-2xl" />
-                ) : (
-                  <span style={{ color, fontFamily: "var(--font-outfit)", letterSpacing: "-2px" }}>
-                    {team.name.slice(0, 2)}
-                  </span>
-                )}
+                <ClubEmblem name={team.name} logoSrc={team.logo} index={index} />
               </div>
 
               {/* Name */}

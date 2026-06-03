@@ -9,6 +9,7 @@ import { MentionRenderer } from "@/components/mention-renderer";
 import { MentionInput } from "@/components/mention-input";
 import { HeartButton } from "@/components/heart-button";
 import { ReportButton } from "@/components/report-button";
+import { AuthorRoleBadge } from "@/components/author-role-badge";
 import { mentionedUserIds } from "@/lib/mention-parser";
 import { formatDate } from "@/utils/formatters";
 import type { BoardComment } from "@/types";
@@ -206,6 +207,7 @@ function CommentNode({ comment, isReply, postId, myReactions, onChanged }: NodeP
           <span className="font-semibold" style={{ color: "var(--color-fg-ink)" }}>
             {comment.authorName ?? "익명"}
           </span>
+          <AuthorRoleBadge role={comment.authorRole} />
           <span aria-hidden="true">·</span>
           <time dateTime={new Date(comment.createdAt).toISOString()}>
             {formatDate(comment.createdAt)}

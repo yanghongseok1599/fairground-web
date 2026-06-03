@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle, ChevronDown, Camera, X, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
@@ -23,9 +23,9 @@ const POSITIONS: { value: Position; label: string; desc: string }[] = [
 ];
 
 const ROLE_OPTIONS: { value: Exclude<PlayerRole, "admin">; label: string; desc: string }[] = [
-  { value: "player", label: "선수", desc: "선수 카드와 FA/팀 선수로 등록" },
-  { value: "captain", label: "감독", desc: "팀 홈페이지 관리 가능 · 전체 관리자는 아님" },
-  { value: "referee", label: "심판", desc: "승인 후 경기 운영 메뉴 접근" },
+  { value: "player", label: "선수", desc: "선수 카드를 만들고 팀에 합류해 활동합니다" },
+  { value: "captain", label: "감독", desc: "팀을 직접 만들고 멤버·공지·갤러리를 운영합니다" },
+  { value: "referee", label: "심판", desc: "승인 후 경기 운영 메뉴에 접근합니다" },
 ];
 
 function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: React.ReactNode }) {
@@ -52,14 +52,42 @@ const CARD_H = Math.round(CARD_W * 1240 / 1080);
 const PHOTO_OVERLAY = { x: 47, y: 14.5, w: 27, h: 38 };
 
 export default function PlayerSetupPage() {
+  return (
+    <Suspense fallback={<PlayerSetupFallback />}>
+      <PlayerSetupContent />
+    </Suspense>
+  );
+}
+
+function PlayerSetupFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center" style={{ background: "var(--color-fg-paper)" }}>
+      <div
+        className="h-8 w-8 rounded-full border-2 animate-spin"
+        style={{ borderColor: "var(--primary)", borderTopColor: "transparent" }}
+      />
+    </div>
+  );
+}
+
+function PlayerSetupContent() {
   const router = useRouter();
-  const { loading, error, clearError, createPlayer, uploadPlayerPhoto, initialized } = useAuth();
+  const searchParams = useSearchParams();
+  const { user, loading, error, clearError, createPlayer, uploadPlayerPhoto, initialized } = useAuth();
   const { teams, fetchTeams } = useDataStore();
+
+  // /onboarding으로부터 ?role=captain|player 를 받으면 디폴트로 선택.
+  // 잘못된 값은 무시하고 'player'로 폴백.
+  const presetRole: Exclude<PlayerRole, "admin"> = (() => {
+    const v = searchParams?.get("role");
+    if (v === "captain" || v === "player" || v === "referee") return v;
+    return "player";
+  })();
 
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
   const [position, setPosition] = useState<Position | "">("");
-  const [role, setRole] = useState<Exclude<PlayerRole, "admin">>("player");
+  const [role, setRole] = useState<Exclude<PlayerRole, "admin">>(presetRole);
   const [teamId, setTeamId] = useState("");
   const [nationality, setNationality] = useState("KOR");
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);         // 배경제거본 (카드용)
@@ -80,6 +108,12 @@ export default function PlayerSetupPage() {
   const touchStartScale = useRef(1);
 
   useEffect(() => { fetchTeams(); }, [fetchTeams]);
+
+  useEffect(() => {
+    if (initialized && !user) {
+      router.replace("/login?returnTo=/my/player-setup");
+    }
+  }, [initialized, user, router]);
 
   // 전역 마우스 이벤트 (드래그 중 커서가 벗어나도 작동)
   useEffect(() => {
@@ -188,13 +222,15 @@ export default function PlayerSetupPage() {
         photoScale,
       });
       setDone(true);
-      setTimeout(() => router.push("/players"), 1800);
+      // 가입 완료 후 마이페이지로 — 거기서 본인 카드/팀 상태를 확인할 수 있다.
+      // (이전엔 /players 전체 목록으로 가서 본인 카드가 어디 있는지 모호했음)
+      setTimeout(() => router.push("/my"), 1800);
     } catch {
       // error in store
     }
   };
 
-  if (!initialized) {
+  if (!initialized || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center" style={{ background: "var(--color-fg-paper)" }}>
         <div
@@ -254,7 +290,7 @@ export default function PlayerSetupPage() {
     photoUrl: cardPhotoPreview || photoPreview || "",
     photoScale,
     cardType: "gold",
-    cardRating: 90,
+    cardRating: 70,
     stats: { goals: 0, assists: 0, games: 0, mom: 0 },
     badges: [],
     penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
@@ -288,7 +324,7 @@ export default function PlayerSetupPage() {
 
       {/* Header */}
       <div
-        className="px-6 pt-8 pb-6 max-w-lg mx-auto"
+        className="px-5 pt-8 pb-6 sm:px-8 md:px-10 max-w-lg mx-auto"
         style={{ borderBottom: "1px solid var(--color-fg-line-soft)" }}
       >
         <p
@@ -312,10 +348,10 @@ export default function PlayerSetupPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="px-6 py-8 max-w-lg mx-auto space-y-6">
+      <form onSubmit={handleSubmit} className="mx-auto max-w-lg space-y-6 px-5 py-8 sm:px-8 md:grid md:max-w-5xl md:grid-cols-[minmax(0,460px)_320px] md:items-start md:gap-12 md:space-y-0 md:px-10">
 
-        {/* 카드 미리보기 + 사진 업로드 */}
-        <div className="flex items-center justify-between py-2">
+        {/* 모바일은 세로 스택, 데스크톱은 예전처럼 오른쪽 미리보기 컬럼. */}
+        <div className="flex flex-col items-center gap-5 py-2 md:order-2 md:sticky md:top-28">
 
           {/* 좌측: 카드 미리보기 (사진 영역 드래그로 크기 조절) */}
           <div className="relative flex-shrink-0" style={{ width: CARD_W, height: CARD_H }}>
@@ -355,10 +391,10 @@ export default function PlayerSetupPage() {
             )}
           </div>
 
-          {/* 우측: 사진 업로드 버튼 */}
-          <div className="flex flex-col items-center gap-3 pr-4">
+          {/* 하단: 사진 업로드 버튼 */}
+          <div className="flex flex-col items-center gap-3">
             <p
-              className="text-[10px] uppercase tracking-[2px] self-start"
+              className="text-[10px] uppercase tracking-[2px] self-center"
               style={{ color: "var(--color-fg-ink-muted)", fontFamily: "var(--font-space-mono)" }}
             >
               프로필 사진 <span style={{ color: "var(--color-fg-ink-muted)" }}>(선택)</span>
@@ -436,193 +472,195 @@ export default function PlayerSetupPage() {
           </div>
         </div>
 
-        {/* 이름 */}
-        <div>
-          <FieldLabel htmlFor="setup-name">이름</FieldLabel>
-          <input
-            id="setup-name"
-            type="text"
-            placeholder="선수 이름 입력"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="w-full px-4 py-3 rounded-2xl text-sm outline-none"
-            style={inputStyle}
-          />
-        </div>
-
-        {/* 등록 유형 */}
-        <div>
-          <FieldLabel>등록 유형</FieldLabel>
-          <div className="grid grid-cols-3 gap-2">
-            {ROLE_OPTIONS.map((option) => {
-              const selected = role === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setRole(option.value)}
-                  className="px-3 py-3 rounded-2xl text-left transition-all"
-                  style={{
-                    background: selected ? "var(--color-fg-paper-3)" : "var(--color-fg-paper)",
-                    border: `1.5px solid ${selected ? "var(--primary)" : "var(--color-fg-line-soft)"}`,
-                  }}
-                >
-                  <div
-                    className="font-black text-sm leading-none mb-1"
-                    style={{
-                      fontFamily: "var(--font-pretendard)",
-                      color: selected ? "var(--primary)" : "var(--color-fg-ink)",
-                    }}
-                  >
-                    {option.label}
-                  </div>
-                  <div className="text-[10px] leading-snug" style={{ color: "var(--color-fg-ink-muted)" }}>
-                    {option.desc}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 등번호 */}
-        <div>
-          <FieldLabel htmlFor="setup-number">등번호</FieldLabel>
-          <input
-            id="setup-number"
-            type="number"
-            placeholder="1 – 99"
-            min={1}
-            max={99}
-            value={number}
-            onChange={(e) => setNumber(e.target.value)}
-            required
-            className="w-full px-4 py-3 rounded-2xl text-sm outline-none"
-            style={inputStyle}
-          />
-        </div>
-
-        {/* 포지션 */}
-        <div>
-          <FieldLabel>포지션</FieldLabel>
-          <div className="grid grid-cols-2 gap-2">
-            {POSITIONS.map((pos) => {
-              const selected = position === pos.value;
-              return (
-                <button
-                  key={pos.value}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setPosition(pos.value)}
-                  className="text-left px-4 py-3 rounded-2xl transition-all"
-                  style={{
-                    background: selected ? "var(--color-fg-paper-3)" : "var(--color-fg-paper)",
-                    border: `1.5px solid ${selected ? "var(--primary)" : "var(--color-fg-line-soft)"}`,
-                  }}
-                >
-                  <div
-                    className="font-black text-base leading-none mb-0.5"
-                    style={{
-                      fontFamily: "var(--font-pretendard)",
-                      color: selected ? "var(--primary)" : "var(--color-fg-ink)",
-                    }}
-                  >
-                    {pos.label}
-                  </div>
-                  <div className="text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>{pos.desc}</div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 팀 */}
-        <div>
-          <FieldLabel htmlFor="setup-team">
-            팀 <span style={{ color: "var(--color-fg-ink-muted)" }}>(선택사항)</span>
-          </FieldLabel>
-          <div className="relative">
-            <select
-              id="setup-team"
-              value={teamId}
-              onChange={(e) => setTeamId(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl text-sm outline-none appearance-none"
-              style={{ ...inputStyle, paddingRight: "2.5rem" }}
-            >
-              <option value="">팀 선택 (나중에 가입 가능)</option>
-              {Object.values(teams).map((team) => (
-                <option key={team.id} value={team.id}>{team.name}</option>
-              ))}
-            </select>
-            <ChevronDown
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
-              style={{ color: "var(--color-fg-ink-muted)" }}
+        <div className="space-y-6 md:order-1">
+          {/* 이름 */}
+          <div>
+            <FieldLabel htmlFor="setup-name">이름</FieldLabel>
+            <input
+              id="setup-name"
+              type="text"
+              placeholder="선수 이름 입력"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="w-full px-4 py-3 rounded-2xl text-sm outline-none"
+              style={inputStyle}
             />
           </div>
-        </div>
 
-        {/* 국적 */}
-        <div>
-          <FieldLabel htmlFor="setup-nationality">국적</FieldLabel>
-          <div className="relative">
-            <select
-              id="setup-nationality"
-              value={nationality}
-              onChange={(e) => setNationality(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl text-sm outline-none appearance-none"
-              style={{ ...inputStyle, paddingRight: "2.5rem" }}
-            >
-              {COUNTRIES.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-            <ChevronDown
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
-              style={{ color: "var(--color-fg-ink-muted)" }}
+          {/* 등록 유형 */}
+          <div>
+            <FieldLabel>등록 유형</FieldLabel>
+            <div className="grid grid-cols-3 gap-2">
+              {ROLE_OPTIONS.map((option) => {
+                const selected = role === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setRole(option.value)}
+                    className="px-3 py-3 rounded-2xl text-left transition-all"
+                    style={{
+                      background: selected ? "var(--color-fg-paper-3)" : "var(--color-fg-paper)",
+                      border: `1.5px solid ${selected ? "var(--primary)" : "var(--color-fg-line-soft)"}`,
+                    }}
+                  >
+                    <div
+                      className="font-black text-sm leading-none mb-1"
+                      style={{
+                        fontFamily: "var(--font-pretendard)",
+                        color: selected ? "var(--primary)" : "var(--color-fg-ink)",
+                      }}
+                    >
+                      {option.label}
+                    </div>
+                    <div className="text-[10px] leading-snug" style={{ color: "var(--color-fg-ink-muted)" }}>
+                      {option.desc}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 등번호 */}
+          <div>
+            <FieldLabel htmlFor="setup-number">등번호</FieldLabel>
+            <input
+              id="setup-number"
+              type="number"
+              placeholder="1 – 99"
+              min={1}
+              max={99}
+              value={number}
+              onChange={(e) => setNumber(e.target.value)}
+              required
+              className="w-full px-4 py-3 rounded-2xl text-sm outline-none"
+              style={inputStyle}
             />
           </div>
-        </div>
 
-        {error && (
-          <p
-            className="text-sm px-1"
-            style={{ color: "var(--destructive)" }}
-            role="alert"
-            aria-live="polite"
-          >
-            {error}
-          </p>
-        )}
+          {/* 포지션 */}
+          <div>
+            <FieldLabel>포지션</FieldLabel>
+            <div className="grid grid-cols-2 gap-2">
+              {POSITIONS.map((pos) => {
+                const selected = position === pos.value;
+                return (
+                  <button
+                    key={pos.value}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setPosition(pos.value)}
+                    className="text-left px-4 py-3 rounded-2xl transition-all"
+                    style={{
+                      background: selected ? "var(--color-fg-paper-3)" : "var(--color-fg-paper)",
+                      border: `1.5px solid ${selected ? "var(--primary)" : "var(--color-fg-line-soft)"}`,
+                    }}
+                  >
+                    <div
+                      className="font-black text-base leading-none mb-0.5"
+                      style={{
+                        fontFamily: "var(--font-pretendard)",
+                        color: selected ? "var(--primary)" : "var(--color-fg-ink)",
+                      }}
+                    >
+                      {pos.label}
+                    </div>
+                    <div className="text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>{pos.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-        <button
-          type="submit"
-          disabled={loading || bgProcessing || !position || !name.trim() || !number}
-          className="w-full py-4 rounded-2xl text-sm font-black transition-all hover:opacity-90 disabled:opacity-30"
-          style={{
-            background: "var(--primary)",
-            color: "var(--color-fg-paper)",
-            fontFamily: "var(--font-pretendard)",
-            letterSpacing: "-0.5px",
-            fontSize: 15,
-            boxShadow: "var(--shadow-sm)",
-          }}
-        >
-          {loading ? "생성 중..." : "선수 카드 생성하기"}
-        </button>
+          {/* 팀 */}
+          <div>
+            <FieldLabel htmlFor="setup-team">
+              팀 <span style={{ color: "var(--color-fg-ink-muted)" }}>(선택사항)</span>
+            </FieldLabel>
+            <div className="relative">
+              <select
+                id="setup-team"
+                value={teamId}
+                onChange={(e) => setTeamId(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl text-sm outline-none appearance-none"
+                style={{ ...inputStyle, paddingRight: "2.5rem" }}
+              >
+                <option value="">팀 선택 (나중에 가입 가능)</option>
+                {Object.values(teams).map((team) => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
+              </select>
+              <ChevronDown
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+                style={{ color: "var(--color-fg-ink-muted)" }}
+              />
+            </div>
+          </div>
 
-        <p className="text-center text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>
-          나중에 만들고 싶으면{" "}
+          {/* 국적 */}
+          <div>
+            <FieldLabel htmlFor="setup-nationality">국적</FieldLabel>
+            <div className="relative">
+              <select
+                id="setup-nationality"
+                value={nationality}
+                onChange={(e) => setNationality(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl text-sm outline-none appearance-none"
+                style={{ ...inputStyle, paddingRight: "2.5rem" }}
+              >
+                {COUNTRIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+              <ChevronDown
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+                style={{ color: "var(--color-fg-ink-muted)" }}
+              />
+            </div>
+          </div>
+
+          {error && (
+            <p
+              className="text-sm px-1"
+              style={{ color: "var(--destructive)" }}
+              role="alert"
+              aria-live="polite"
+            >
+              {error}
+            </p>
+          )}
+
           <button
-            type="button"
-            onClick={() => router.push("/my")}
-            className="font-semibold hover:opacity-80 transition-opacity"
-            style={{ color: "var(--primary)" }}
+            type="submit"
+            disabled={loading || bgProcessing || !position || !name.trim() || !number}
+            className="w-full py-4 rounded-2xl text-sm font-black transition-all hover:opacity-90 disabled:opacity-30"
+            style={{
+              background: "var(--primary)",
+              color: "var(--color-fg-paper)",
+              fontFamily: "var(--font-pretendard)",
+              letterSpacing: "-0.5px",
+              fontSize: 15,
+              boxShadow: "var(--shadow-sm)",
+            }}
           >
-            건너뛰기
+            {loading ? "생성 중..." : "선수 카드 생성하기"}
           </button>
-        </p>
+
+          <p className="text-center text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>
+            나중에 만들고 싶으면{" "}
+            <button
+              type="button"
+              onClick={() => router.push("/my")}
+              className="font-semibold hover:opacity-80 transition-opacity"
+              style={{ color: "var(--primary)" }}
+            >
+              건너뛰기
+            </button>
+          </p>
+        </div>
 
       </form>
     </div>

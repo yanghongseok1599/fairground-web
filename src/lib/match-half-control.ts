@@ -1,7 +1,7 @@
-export type HalfAction = "startFirst" | "pause" | "resume" | "startSecond" | "endMatch";
+export type HalfAction = "start" | "pause" | "resume" | "endMatch";
 
 export interface HalfButton {
-  id: "startFirst" | "pause" | "resume" | "endFirst" | "startSecond" | "endSecond";
+  id: "start" | "pause" | "resume" | "endMatch";
   label: string;
   action: HalfAction;
   variant: "primary" | "secondary" | "danger";
@@ -9,32 +9,22 @@ export interface HalfButton {
 
 interface MatchProgress {
   status: string;
-  currentHalf: 1 | 2;
   isRunning: boolean;
 }
 
 /**
- * 경기 상태 → 노출 버튼(4단계 모델).
- * 데이터 모델에 하프타임 상태가 없어 "전반 종료"=전반 pause, "후반 종료"=endMatch 로 매핑.
- * "후반 시작"은 canStartSecondHalf 로 별도 노출한다.
+ * 경기 상태 → 노출 버튼(단일 타이머 모델).
+ * 공식 규정 v2.4 제4조: 모든 경기는 전·후반 구분 없이 단일 경기 시간 15분으로 진행한다.
+ * 따라서 전반/후반 개념 없이 시작 → 일시정지/재개 → 경기 종료로 운영한다.
  */
 export function halfControlButtons(m: MatchProgress): HalfButton[] {
   if (m.status === "finished" || m.status === "cancelled") return [];
   if (m.status === "scheduled") {
-    return [{ id: "startFirst", label: "전반 시작", action: "startFirst", variant: "primary" }];
+    return [{ id: "start", label: "경기 시작", action: "start", variant: "primary" }];
   }
   // live
   const pauseOrResume: HalfButton = m.isRunning
     ? { id: "pause", label: "일시정지", action: "pause", variant: "secondary" }
     : { id: "resume", label: "재개", action: "resume", variant: "primary" };
-
-  if (m.currentHalf === 1) {
-    return [pauseOrResume, { id: "endFirst", label: "전반 종료", action: "pause", variant: "danger" }];
-  }
-  return [pauseOrResume, { id: "endSecond", label: "후반 종료", action: "endMatch", variant: "danger" }];
-}
-
-/** 전반 일시정지(=전반 종료 직후) 상태에서 '후반 시작' 버튼을 추가로 보여줄지. */
-export function canStartSecondHalf(m: MatchProgress): boolean {
-  return m.status === "live" && m.currentHalf === 1 && !m.isRunning;
+  return [pauseOrResume, { id: "endMatch", label: "경기 종료", action: "endMatch", variant: "danger" }];
 }

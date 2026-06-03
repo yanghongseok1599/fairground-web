@@ -9,6 +9,7 @@ import {
 } from "framer-motion"
 import Link from "next/link"
 import type { Team } from "@/types"
+import { ClubEmblem } from "@/components/club-emblem"
 
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect
@@ -74,25 +75,7 @@ function TeamLogoItem({
             : "0 4px 20px rgba(0,0,0,0.3)",
         }}
       >
-        {team.logo ? (
-          <img
-            src={team.logo}
-            alt={team.name}
-            className="w-full h-full object-contain p-3"
-            draggable={false}
-          />
-        ) : (
-          <span
-            className="font-black text-3xl"
-            style={{
-              fontFamily: "var(--font-outfit)",
-              color: isHighlighted ? color.text : "#D9E2EC",
-              letterSpacing: "-1px",
-            }}
-          >
-            {team.name.slice(0, 2).toUpperCase()}
-          </span>
-        )}
+        <ClubEmblem name={team.name} logoSrc={team.logo} index={colorIndex} className="h-full w-full p-3" />
       </div>
 
       {/* Team name */}

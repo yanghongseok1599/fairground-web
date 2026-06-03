@@ -6,10 +6,12 @@ import Link from "next/link";
 import { ArrowLeft, ClipboardList, Pin, AlertCircle, Plus, X } from "lucide-react";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
+import { canManageTeamMembers } from "@/lib/team-permissions";
 import { Button } from "@/components/ui/button";
 import { CategoryChip } from "@/components/category-chip";
 import { NoticeForm } from "@/components/notice-form";
 import { MentionRenderer } from "@/components/mention-renderer";
+import { AuthorRoleBadge } from "@/components/author-role-badge";
 import { NOTICE_CATEGORIES, type Notice, type Team } from "@/types";
 import { formatDate } from "@/utils/formatters";
 
@@ -55,14 +57,12 @@ export default function TeamNoticesPage() {
     return notices.filter((n) => n.category === filter);
   }, [notices, filter]);
 
-  // 클라 UX 가드: 본인이 그 팀의 manager/coach 또는 admin 만 작성 노출.
-  // 최종 강제는 RLS(is_team_manager).
-  const canWrite = useMemo(() => {
-    if (!player) return false;
-    if (player.role === "admin") return true;
-    if (player.teamId !== teamId) return false;
-    return player.teamRole === "manager" || player.teamRole === "coach";
-  }, [player, teamId]);
+  // 클라 UX 가드 — lib/team-permissions로 통일 (admin OR 본인 팀의
+  // manager/coach). 최종 강제는 RLS(is_team_manager).
+  const canWrite = useMemo(
+    () => canManageTeamMembers(player, team),
+    [player, team],
+  );
 
   return (
     <div className="pt-[60px] min-h-screen" style={{ background: "var(--color-fg-paper-2)" }}>
@@ -265,7 +265,10 @@ export default function TeamNoticesPage() {
                       className="mt-3 flex items-center gap-3 text-xs"
                       style={{ color: "var(--color-fg-ink-muted)" }}
                     >
-                      <span>{n.authorName ?? "운영"}</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        {n.authorName ?? "운영"}
+                        <AuthorRoleBadge role={n.authorRole} />
+                      </span>
                       <span aria-hidden="true">·</span>
                       <time dateTime={new Date(n.publishedAt).toISOString()}>
                         {formatDate(n.publishedAt)}

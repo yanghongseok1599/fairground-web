@@ -5,8 +5,8 @@ export const BADGES: Badge[] = [
   {
     id: "hat_trick",
     name: "해트트릭",
-    icon: "🎩",
-    imageUrl: "/images/badges/hat_trick.png?v=6",
+    icon: "⚽",
+    imageUrl: "/images/badges/hat_trick.png?v=7",
     description: "한 경기에서 3골 이상",
     unlockCondition: "한 경기 3골",
     maxProgress: 1,

@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { CategoryChip } from "@/components/category-chip";
 import { MentionRenderer } from "@/components/mention-renderer";
+import { AuthorRoleBadge } from "@/components/author-role-badge";
 import { formatDate } from "@/utils/formatters";
 import type { Notice } from "@/types";
 
@@ -88,7 +89,7 @@ export default function NoticeDetailPage() {
           </div>
         ) : (
           <article
-            className="rounded-2xl px-6 md:px-10 py-8 md:py-10"
+            className="rounded-2xl px-5 sm:px-6 md:px-10 py-8 md:py-10"
             style={{
               background: "var(--color-fg-paper)",
               border: "1px solid var(--color-fg-line-soft)",
@@ -133,7 +134,10 @@ export default function NoticeDetailPage() {
                 borderBottom: "1px solid var(--color-fg-line-soft)",
               }}
             >
-              <span>{notice.authorName ?? "운영"}</span>
+              <span className="inline-flex items-center gap-1.5">
+                {notice.authorName ?? "운영"}
+                <AuthorRoleBadge role={notice.authorRole} />
+              </span>
               <span aria-hidden="true">·</span>
               <time dateTime={new Date(notice.publishedAt).toISOString()}>
                 {formatDate(notice.publishedAt)}
@@ -142,8 +146,8 @@ export default function NoticeDetailPage() {
 
             {/* plain text + 멘션 칩만 허용 — XSS 방지(no HTML, no markdown). */}
             <div
-              className="text-[15px] leading-relaxed"
-              style={{ color: "var(--color-fg-ink)" }}
+              className="text-[15px] leading-relaxed break-words whitespace-pre-wrap"
+              style={{ color: "var(--color-fg-ink)", overflowWrap: "anywhere" }}
             >
               <MentionRenderer body={notice.body} />
             </div>

@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     template: "%s | FairGround",
   },
   description:
-    "서울 유일의 아마추어 풋살 리그. 실시간 스코어, 개인 스탯, FIFA 스타일 선수 카드까지 — 경기장 밖에서도 프로처럼.",
+    "모두가 승리하는 그라운드. 실시간 스코어·개인 스탯·선수 카드로 모든 경기가 기록됩니다.",
   alternates: {
     canonical: siteUrl,
     languages: { ko: `${siteUrl}/` },
@@ -96,11 +96,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <style>{`:root { --font-pretendard: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }`}</style>
       </head>
-      <body className="min-h-screen antialiased fg-grain">
+      <body className="min-h-screen antialiased fg-grain overflow-x-clip">
         <Providers>
           <SwRegister />
           <SiteHeader />
-          <main className="pt-[60px]">{children}</main>
+          <main className="pt-[60px] w-full overflow-x-clip">{children}</main>
           <SiteFooter />
         </Providers>
       </body>

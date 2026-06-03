@@ -1,0 +1,87 @@
+"use client";
+
+import { PlayerCard } from "@/components/player-card";
+import type { Player } from "@/types";
+
+type CardSize = "lg" | "xl" | "export";
+
+interface PlayerCardCaptureFrameProps {
+  player: Player;
+  teamLogo?: string;
+  boxSize: number;
+  cardSize: CardSize;
+  cardScale?: number;
+  logoHeight?: number;
+}
+
+export function PlayerCardCaptureFrame({
+  player,
+  teamLogo,
+  boxSize,
+  cardSize,
+  cardScale,
+  logoHeight = Math.round(boxSize * 0.055),
+}: PlayerCardCaptureFrameProps) {
+  const effectiveScale = cardScale ?? (boxSize / 280);
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl"
+      style={{ width: boxSize, height: boxSize }}
+    >
+      <img
+        src="/images/space-bg.jpg"
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
+        draggable={false}
+      />
+      <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
+      <div
+        className="absolute"
+        style={{
+          left: "50%",
+          top: "45%",
+          transform: "translate(-50%, -50%)",
+          width: "80%",
+          height: "80%",
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(201,168,76,0.28) 0%, rgba(201,168,76,0.08) 40%, transparent 65%)",
+        }}
+      />
+      {[-18, -6, 0, 6, 18].map((deg, i) => (
+        <div
+          key={i}
+          className="absolute"
+          style={{
+            left: "50%",
+            top: 0,
+            width: i === 2 ? 3 : 2,
+            height: "130%",
+            background: `linear-gradient(to bottom, transparent 0%, rgba(201,168,76,${i === 2 ? 0.1 : 0.04}) 30%, rgba(201,168,76,${i === 2 ? 0.15 : 0.06}) 48%, rgba(201,168,76,${i === 2 ? 0.1 : 0.04}) 66%, transparent 100%)`,
+            transform: `translateX(-50%) rotate(${deg}deg)`,
+            transformOrigin: "50% 45%",
+          }}
+        />
+      ))}
+      <div className="absolute inset-0 flex items-center justify-center" style={{ paddingBottom: "6%" }}>
+        <div style={{ transform: `scale(${effectiveScale})`, transformOrigin: "center center" }}>
+          <PlayerCard player={player} size={cardSize} teamLogo={teamLogo} disableHoverScale />
+        </div>
+      </div>
+      <div
+        className="absolute pointer-events-none flex justify-center"
+        style={{ left: 0, right: 0, bottom: "4%", zIndex: 3 }}
+      >
+        <img
+          src="/images/logo-horizontal.png"
+          alt="FAIRGROUND"
+          style={{ height: logoHeight, opacity: 0.9 }}
+          draggable={false}
+        />
+      </div>
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: "radial-gradient(ellipse 65% 60% at 50% 45%, transparent 35%, rgba(0,0,0,0.55) 100%)" }}
+      />
+    </div>
+  );
+}

@@ -6,11 +6,13 @@ interface SectionProps {
   dark?: boolean;
   className?: string;
   chapter?: string;
+  id?: string;
 }
 
-export function Section({ label, title, description, children, dark, className, chapter }: SectionProps) {
+export function Section({ label, title, description, children, dark, className, chapter, id }: SectionProps) {
   return (
     <section
+      id={id}
       className={`relative py-20 md:py-24 px-5 md:px-10 ${className || ""}`}
       style={{
         background: dark

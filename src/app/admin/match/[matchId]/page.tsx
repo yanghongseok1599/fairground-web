@@ -27,8 +27,8 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { formatTime } from "@/utils/formatters";
-import { halfControlButtons, canStartSecondHalf } from "@/lib/match-half-control";
-import type { HalfAction } from "@/lib/match-half-control";
+import { halfControlButtons } from "@/lib/match-half-control";
+import type { HalfAction, HalfButton } from "@/lib/match-half-control";
 import { useAuth } from "@/hooks/useAuth";
 import { resolveMatchTrack } from "@/lib/match-operation-access";
 import { EventTimeline } from "@/components/match/event-timeline";
@@ -130,6 +130,11 @@ function AdminMatchControl() {
 
   // End match dialog
   const [endDialogOpen, setEndDialogOpen] = useState(false);
+
+  // 몰수패 처리(관리자) — 지목 팀 0, 상대 3 으로 종료. 규정 제13조/대회규정 제9조.
+  const [forfeitOpen, setForfeitOpen] = useState(false);
+  const [forfeiting, setForfeiting] = useState(false);
+  const [forfeitErr, setForfeitErr] = useState("");
 
   // Q5 — 종료 성공(경기 finished) 시에만 다이얼로그 닫음. 실패 시 유지.
   const matchFinished =
@@ -264,6 +269,21 @@ function AdminMatchControl() {
   const playerStat = (pid: string, type: MatchEventType) =>
     liveEvents.filter((e) => e.playerId === pid && e.type === type).length;
 
+  // 제12조③ — 동일 경기 내 경고(옐로) 2회 누적 시 퇴장. 심판에게 '퇴장 대상' 안내.
+  // 아직 레드(퇴장) 기록이 없는 선수 중 경고 2회 이상 누적자를 집계한다.
+  const ejectionDue = (() => {
+    const acc = new Map<string, { name: string; y: number; r: number }>();
+    for (const e of liveEvents) {
+      if (e.type !== "yellow_card" && e.type !== "red_card") continue;
+      const cur = acc.get(e.playerId) ?? { name: e.playerName || "선수", y: 0, r: 0 };
+      if (e.type === "yellow_card") cur.y += 1;
+      else cur.r += 1;
+      if (e.playerName) cur.name = e.playerName;
+      acc.set(e.playerId, cur);
+    }
+    return [...acc.values()].filter((v) => v.y >= 2 && v.r === 0);
+  })();
+
   // 출전(코트)·대기(벤치) 선수 분리 — 라인업 제출 시 선발/교체, 아니면 전원 출전.
   const toPlayers = (entries: MatchLineupEntry[], pool: Player[]): Player[] =>
     entries
@@ -355,6 +375,22 @@ function AdminMatchControl() {
 
   const endPending = mc.pendingAction === "end";
 
+  // 몰수패 처리(관리자 전용) — 지목 팀이 패(0), 상대 승(3). 성공 시 경기 종료·재로드.
+  const isAdmin = player?.role === "admin";
+  const handleForfeit = async (forfeitTeamId: string) => {
+    setForfeiting(true);
+    setForfeitErr("");
+    try {
+      await store.forfeitMatch(matchData.id, forfeitTeamId);
+      setForfeitOpen(false);
+      await mc.reload();
+    } catch (err) {
+      setForfeitErr(err instanceof Error ? err.message : "몰수패 처리에 실패했습니다");
+    } finally {
+      setForfeiting(false);
+    }
+  };
+
   // A10 — 실패 위치 라벨 (이벤트/MOM/종료 구분된 메시지)
   const scopeLabel = (scope: string): string => {
     switch (scope) {
@@ -366,8 +402,6 @@ function AdminMatchControl() {
         return "일시정지";
       case "resume":
         return "재개";
-      case "secondHalf":
-        return "후반 시작";
       case "end":
         return "경기 종료";
       case "event":
@@ -392,8 +426,6 @@ function AdminMatchControl() {
         return () => mc.pauseMatch();
       case "resume":
         return () => mc.resumeMatch();
-      case "secondHalf":
-        return () => mc.startSecondHalf();
       case "event":
         return () => retryLastEvent();
       case "mom":
@@ -446,7 +478,7 @@ function AdminMatchControl() {
             className="text-[11px] font-semibold tabular-nums"
             style={dimColor}
           >
-            {mc.currentHalf === 1 ? "전반" : "후반"}
+            단일 15분
           </span>
           <Badge
             className={`mt-1 ${
@@ -476,25 +508,24 @@ function AdminMatchControl() {
     );
   };
 
-  // 4단계 진행버튼(전반 시작/종료 · 후반 시작/종료) — 일반·전체화면 공용.
+  // 진행버튼(단일 타이머: 경기 시작 · 일시정지/재개 · 경기 종료) — 일반·전체화면 공용.
+  // 공식 규정 v2.4 제4조 — 전·후반 구분 없이 단일 경기 시간 15분.
   const renderProgressButtons = () => {
     const progress = {
       status: matchData.status,
-      currentHalf: mc.currentHalf,
       isRunning: mc.isRunning,
     };
     const runHalf = (a: HalfAction) => {
-      if (a === "startFirst") return mc.startMatch();
+      if (a === "start") return mc.startMatch();
       if (a === "pause") return mc.pauseMatch();
       if (a === "resume") return mc.resumeMatch();
-      if (a === "startSecond") return mc.startSecondHalf();
       if (a === "endMatch") return setEndDialogOpen(true);
     };
     const buttons = halfControlButtons(progress);
-    if (buttons.length === 0 && !canStartSecondHalf(progress)) return null;
+    if (buttons.length === 0) return null;
     return (
       <div className="flex flex-wrap items-center justify-center gap-2">
-        {buttons.map((b) => (
+        {buttons.map((b: HalfButton) => (
           <Button
             key={b.id}
             onClick={() => runHalf(b.action)}
@@ -514,19 +545,6 @@ function AdminMatchControl() {
             {b.label}
           </Button>
         ))}
-        {canStartSecondHalf(progress) && (
-          <Button
-            onClick={() => mc.startSecondHalf()}
-            variant="outline"
-            className="min-h-[44px] px-5"
-            disabled={mc.pendingAction !== null}
-          >
-            {mc.pendingAction !== null && (
-              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-            )}
-            후반 시작
-          </Button>
-        )}
       </div>
     );
   };
@@ -573,6 +591,7 @@ function AdminMatchControl() {
     overlay?: ReactNode;
     homeOnGrass?: boolean;
     forceLandscape?: boolean;
+    balancedFormation?: boolean;
     onPlayerTap?: (player: Player, teamId: string) => void;
   }) => (
     <div className="relative h-full w-full overflow-hidden rounded-xl">
@@ -590,7 +609,7 @@ function AdminMatchControl() {
             )}
             <span>{formatTime(mc.elapsedSeconds)}</span>
             <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.75)" }}>
-              {mc.currentHalf === 1 ? "전반" : "후반"}
+              / 15:00
             </span>
           </div>
         </div>
@@ -615,6 +634,7 @@ function AdminMatchControl() {
               playerStat={playerStat}
               onGrass
               forceTappable={!!opts?.onPlayerTap}
+              balanced={opts?.balancedFormation}
             />
           </div>
         ) : (
@@ -637,6 +657,7 @@ function AdminMatchControl() {
           playerStat={playerStat}
           hideHeader={!!opts?.homeOnGrass}
           forceTappable={!!opts?.onPlayerTap}
+          balanced={opts?.balancedFormation}
         />
       </div>
     </div>
@@ -724,26 +745,69 @@ function AdminMatchControl() {
           </button>
         </div>
 
-        {/* 코트 영역 — 남는 공간 전부. 상단 중앙에 타이머 중심 전광판 오버레이.
-            홈·어웨이 모두 잔디 위에 배치(homeOnGrass)해 한 화면에서 양팀을 탭.
-            선수 탭 → 액션 팝업(이벤트/교체). 회전 없이 기기 방향 그대로 표시. */}
+        {/* 상단: 대기선수(좌) · 전광판(중) · 대기선수(우).
+            대기선수는 코트와 동일한 원형 토큰(PlayerToken)으로 표시. 교체는 코트 선수 탭→팝업. */}
+        <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-white/10 bg-neutral-950/90 px-3 py-2">
+          {/* HOME 대기 (왼쪽) */}
+          <div className="flex flex-wrap items-start justify-start gap-2">
+            {homeSide.bench.length === 0 ? (
+              <span className="text-[11px] text-white/40">대기 없음</span>
+            ) : (
+              homeSide.bench.map((p) => (
+                <PlayerToken
+                  key={p.id}
+                  player={p}
+                  teamId={homeSide.id}
+                  eventType=""
+                  pending={mc.pendingAction !== null}
+                  onRecord={recordPlayerEvent}
+                  playerStat={playerStat}
+                  accent={teamAccent("home")}
+                  onGrass
+                  forceTappable={false}
+                />
+              ))
+            )}
+          </div>
+          {/* 전광판 (가운데) */}
+          <div
+            className="rounded-2xl px-3 py-2 shadow-lg"
+            style={{ background: "rgba(8,20,12,0.82)", border: "1px solid rgba(255,255,255,0.22)" }}
+          >
+            {renderScoreboardRow(true)}
+          </div>
+          {/* AWAY 대기 (오른쪽) */}
+          <div className="flex flex-wrap items-start justify-end gap-2">
+            {awaySide.bench.length === 0 ? (
+              <span className="text-[11px] text-white/40">대기 없음</span>
+            ) : (
+              awaySide.bench.map((p) => (
+                <PlayerToken
+                  key={p.id}
+                  player={p}
+                  teamId={awaySide.id}
+                  eventType=""
+                  pending={mc.pendingAction !== null}
+                  onRecord={recordPlayerEvent}
+                  playerStat={playerStat}
+                  accent={teamAccent("away")}
+                  onGrass
+                  forceTappable={false}
+                />
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* 코트 영역 — 남는 공간 전부. 전광판은 위 상단 바가 표시하므로 코트 오버레이는 비움.
+            홈·어웨이 모두 잔디 위(homeOnGrass), 골 중심 대칭 배치(balancedFormation).
+            선수 탭 → 액션 팝업(이벤트/교체). */}
         <div className="relative min-h-0 flex-1">
           {renderCourt({
             homeOnGrass: true,
+            balancedFormation: true,
             onPlayerTap: openActionMenu,
-            overlay: (
-              <div className="absolute left-1/2 top-2 z-20 w-[min(92%,640px)] -translate-x-1/2">
-                <div
-                  className="rounded-2xl px-3 py-2 shadow-lg"
-                  style={{
-                    background: "rgba(8,20,12,0.82)",
-                    border: "1px solid rgba(255,255,255,0.22)",
-                  }}
-                >
-                  {renderScoreboardRow(true)}
-                </div>
-              </div>
-            ),
+            overlay: <></>,
           })}
 
           {/* 위치별 에러(종료 제외) — 코트 위 하단 토스트로 표시(재시도 가능) */}
@@ -992,18 +1056,6 @@ function AdminMatchControl() {
         가로로 돌리면 더 편하게 경기를 운영할 수 있어요
       </div>
 
-      {/* 홈 팀 출전 선수 — 코트 카드 밖 전체 너비(브라우저 프리뷰 DOM 순서 반영) */}
-      {isLive && (
-        <FormationControls
-          team={homeSide}
-          isAway={false}
-          eventType={eventType}
-          pending={mc.pendingAction !== null}
-          onRecord={recordPlayerEvent}
-          playerStat={playerStat}
-        />
-      )}
-
       {/* 경기 운영 컨테이너 — 세로는 max-w-md, 가로(landscape)·데스크탑은
           더 넓게 펼쳐 타이머/스코어/이벤트 영역을 여유 있게 배치. */}
       <div className="mx-auto max-w-md landscape:max-w-5xl md:max-w-3xl space-y-4 p-4">
@@ -1013,16 +1065,6 @@ function AdminMatchControl() {
           <CardContent className="py-3">
             {/* 타이머 중심 전광판 (7a) — 시간이 가운데, 양옆에 팀 이름+점수 */}
             {renderScoreboardRow(false)}
-
-            {/* 팀별 누적 스탯(골/어시/반칙/경고/퇴장) */}
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              <div className="min-w-0">
-                <StatPills tally={homeTally} />
-              </div>
-              <div className="flex min-w-0 justify-end">
-                <StatPills tally={awayTally} />
-              </div>
-            </div>
 
             {/* 전체화면 경기장 모드 진입 — 관리자·심판 공용(진행중 경기). */}
             {isLive && (
@@ -1038,22 +1080,51 @@ function AdminMatchControl() {
               </div>
             )}
 
-            {/* 컨트롤 행 — 4단계 진행버튼(전반 시작/종료 · 후반 시작/종료). */}
+            {/* 컨트롤 행 — 단일 타이머 진행버튼(경기 시작 · 일시정지/재개 · 경기 종료). */}
             {(() => {
               const progress = {
                 status: matchData.status,
-                currentHalf: mc.currentHalf,
                 isRunning: mc.isRunning,
               };
-              const hasButtons =
-                halfControlButtons(progress).length > 0 || canStartSecondHalf(progress);
-              if (!hasButtons) return null;
+              if (halfControlButtons(progress).length === 0) return null;
               return (
                 <div className="mt-3 border-t pt-3">{renderProgressButtons()}</div>
               );
             })()}
+
+            {/* 몰수패 처리 — 관리자 전용. 미종료 경기에서만. 규정 제13조/대회규정 제9조. */}
+            {isAdmin && !isFinished && (
+              <div className="mt-3 flex justify-center border-t pt-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-red-600 hover:text-red-700"
+                  onClick={() => { setForfeitErr(""); setForfeitOpen(true); }}
+                >
+                  몰수패 처리 (3:0)
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        {/* 퇴장 대상 안내 — 제12조③ 경고 2회 누적 시 퇴장. 심판에게 레드카드 기록 유도. */}
+        {isLive && ejectionDue.length > 0 && (
+          <div
+            role="alert"
+            className="flex items-start gap-3 rounded-lg border p-3"
+            style={{ borderColor: "rgba(255,59,48,0.4)", background: "rgba(255,59,48,0.08)" }}
+          >
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+            <div className="flex-1 text-sm">
+              <p className="font-semibold text-red-700">퇴장 대상 (경고 2회 누적)</p>
+              <p className="mt-0.5 text-red-700">
+                {ejectionDue.map((v) => v.name).join(", ")} — 규정 제12조③에 따라 경고 2회
+                누적 시 퇴장입니다. 🟥 퇴장을 기록해 주세요.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* 위치별 에러 — role=alert, 색+아이콘+텍스트, 재시도 (A10) */}
         {mc.actionError && mc.actionError.scope !== "end" && (
@@ -1162,7 +1233,7 @@ function AdminMatchControl() {
               {/* 실제 구장 비율(2:1) 녹색 코트 위 양팀 출전/대기 번호 대시보드.
                   유형 선택 후 선수 칩을 탭하면 즉시 기록. 칩에는 골/어시/경고/퇴장 배지 표시. */}
               <div className="relative mx-auto aspect-[3/4] max-h-[62vh] w-full rounded-xl landscape:aspect-[2/1] md:aspect-[2/1]">
-                {renderCourt()}
+                {renderCourt({ homeOnGrass: true })}
                 {/* 코트 코너 전체화면 진입 — 선수 칩 탭과 겹치지 않게 우상단 버튼만. */}
                 {isLive && (
                   <button
@@ -1228,6 +1299,18 @@ function AdminMatchControl() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {/* 혼성 풋살 리그 MOM 선정 기준 안내 — 매너플레이 우선. */}
+              <div
+                className="flex items-start gap-2 rounded-lg p-2.5 text-[12px] leading-relaxed"
+                style={{ background: "var(--secondary)", color: "var(--muted-foreground)" }}
+              >
+                <Trophy className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "var(--accent-gold)" }} />
+                <span>
+                  <b style={{ color: "var(--foreground)" }}>매너플레이가 MOM 선정의 핵심 기준</b>입니다.
+                  배려·존중, 과열 진정, 성별·체격 차 배려를 우선하세요. 골·어시는 보조이며,
+                  기록이 좋아도 매너에 어긋나면 선정 대상이 아닙니다.
+                </span>
+              </div>
               {matchData.momPlayerId && (
                 <p className="text-sm">
                   현재 MOM:{" "}
@@ -1443,6 +1526,50 @@ function AdminMatchControl() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* 몰수패 처리 다이얼로그(관리자) — 지목 팀 0, 상대 3. 규정 제13조/대회규정 제9조. */}
+        <Dialog open={forfeitOpen} onOpenChange={(open) => { if (!forfeiting) setForfeitOpen(open); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>몰수패 처리</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+                몰수패할 팀을 선택하세요. 공식 기록은 <b>3:0</b>으로 확정되며(상대 승), 개인 통계는
+                누적되지 않습니다. 무단 불참·자격 위반·팀 차원 위반 시 적용합니다.
+              </p>
+              {forfeitErr && (
+                <p role="alert" className="text-sm text-red-600">{forfeitErr}</p>
+              )}
+              <div className="grid grid-cols-1 gap-2">
+                <Button
+                  variant="destructive"
+                  className="min-h-[44px]"
+                  disabled={forfeiting}
+                  onClick={() => handleForfeit(matchData.homeTeamId)}
+                >
+                  {matchData.homeTeamName} 몰수패 → {matchData.awayTeamName} 3:0 승
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="min-h-[44px]"
+                  disabled={forfeiting}
+                  onClick={() => handleForfeit(matchData.awayTeamId)}
+                >
+                  {matchData.awayTeamName} 몰수패 → {matchData.homeTeamName} 3:0 승
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="min-h-[44px]"
+                  disabled={forfeiting}
+                  onClick={() => setForfeitOpen(false)}
+                >
+                  취소
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
@@ -1579,6 +1706,7 @@ function FormationControls({
   playerStat,
   onGrass,
   forceTappable,
+  balanced,
 }: {
   team: TeamSide;
   isAway: boolean;
@@ -1591,6 +1719,8 @@ function FormationControls({
   onGrass?: boolean;
   // true=이벤트 유형 미선택이어도 탭 가능(전체화면 액션 팝업).
   forceTappable?: boolean;
+  // true=상단 헤더가 없을 때 골 중심으로 상하 대칭 배치(전체화면). 기본은 pt-14 로 헤더 회피.
+  balanced?: boolean;
 }) {
   const accent = teamAccent(team.side);
   const grass = onGrass ?? isAway;
@@ -1611,7 +1741,9 @@ function FormationControls({
 
   return (
     <div
-      className={`flex h-full w-full items-center justify-around gap-1 px-1 pb-2 pt-14 ${
+      className={`flex h-full w-full items-stretch justify-evenly gap-1 px-2 ${
+        balanced ? "py-4" : "pb-3 pt-14"
+      } ${
         isAway
           ? "flex-col-reverse landscape:flex-row-reverse md:flex-row-reverse"
           : "flex-col landscape:flex-row md:flex-row"
@@ -1620,7 +1752,7 @@ function FormationControls({
       {lines.map((line, i) => (
         <div
           key={i}
-          className="flex flex-row items-center justify-around gap-3 landscape:flex-col md:flex-col"
+          className="flex flex-1 flex-row items-center justify-evenly gap-3 landscape:flex-col md:flex-col"
         >
           {line.map((p) => (
             <PlayerToken
@@ -1652,6 +1784,7 @@ function PitchFormation({
   playerStat,
   hideHeader,
   forceTappable,
+  balanced,
 }: {
   team: TeamSide;
   eventType: MatchEventType | "";
@@ -1662,6 +1795,8 @@ function PitchFormation({
   hideHeader?: boolean;
   /** true=이벤트 유형 미선택이어도 탭 가능(전체화면 액션 팝업). */
   forceTappable?: boolean;
+  /** true=골 중심 상하 대칭 배치(전체화면). */
+  balanced?: boolean;
 }) {
   const isAway = team.side === "away";
 
@@ -1719,6 +1854,7 @@ function PitchFormation({
           onRecord={onRecord}
           playerStat={playerStat}
           forceTappable={forceTappable}
+          balanced={balanced}
         />
       ) : null}
     </div>

@@ -8,6 +8,7 @@ import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { CategoryChip } from "@/components/category-chip";
+import { AuthorRoleBadge } from "@/components/author-role-badge";
 import { POST_CATEGORIES, type BoardPost, type PostCategory } from "@/types";
 import { formatDate } from "@/utils/formatters";
 
@@ -212,7 +213,10 @@ function BoardPageInner() {
                       className="flex items-center gap-3 text-xs flex-wrap"
                       style={{ color: "var(--color-fg-ink-muted)" }}
                     >
-                      <span>{p.authorName ?? "익명"}</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        {p.authorName ?? "익명"}
+                        <AuthorRoleBadge role={p.authorRole} />
+                      </span>
                       <span aria-hidden="true">·</span>
                       <time dateTime={new Date(p.createdAt).toISOString()}>{formatDate(p.createdAt)}</time>
                       <span aria-hidden="true">·</span>

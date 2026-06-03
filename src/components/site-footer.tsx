@@ -34,7 +34,7 @@ export function SiteFooter() {
             <span key={i} className="flex items-center gap-6 px-6">
               {[
                 "WHERE AMATEURS PLAY PRO",
-                "LIVE SCORES · REAL STATS · FIFA CARDS",
+                "LIVE SCORES · REAL STATS · GROUND CARDS",
                 "SEASON 9 · WEEK 39/14",
                 "PLAY YOUR GROWTH",
                 "FAIRGROUND.KR",
@@ -94,7 +94,7 @@ export function SiteFooter() {
                   fontFamily: "var(--font-body)",
                 }}
               >
-                서울 유일의 아마추어 풋살 리그. 실시간 스코어, 개인 스탯, FIFA 스타일 선수 카드까지 — 경기장 밖에서도 프로처럼.
+                모두가 승리하는 그라운드. 실시간 스코어·개인 스탯·선수 카드로 모든 경기가 기록됩니다.
               </p>
             </div>
 

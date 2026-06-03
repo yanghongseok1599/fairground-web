@@ -259,7 +259,7 @@ export default function CoachSubstitutionPage() {
           >
             <span className="font-medium">{ownTeamName}</span>
             <span className="mx-2">·</span>
-            {live ? `${half}H ${minute}'` : "진행중"}
+            {live ? `${minute}'` : "진행중"}
           </p>
         </div>
         <Badge className="shrink-0 bg-red-100 text-red-700">진행중</Badge>

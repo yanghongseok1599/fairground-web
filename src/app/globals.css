@@ -129,12 +129,18 @@
   }
   html {
     background: #ffffff;
+    /* 모바일에서 자식 요소가 viewport 폭을 넘겨도 가로 스크롤/잘림이 생기지
+       않도록 root 에서 가로 overflow 차단. clip 은 hidden 과 달리 새 스크롤
+       컨테이너를 만들지 않아 sticky/fixed 동작에 영향이 없다. */
+    overflow-x: clip;
   }
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-pretendard), ui-sans-serif, system-ui, sans-serif;
     font-feature-settings: "ss01", "ss02", "tnum";
     background-color: #ffffff;
+    overflow-x: clip;
+    max-width: 100vw;
     background-image:
       radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 71, 171, 0.08), transparent 60%);
     min-height: 100vh;

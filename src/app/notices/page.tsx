@@ -7,6 +7,7 @@ import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { CategoryChip } from "@/components/category-chip";
+import { AuthorRoleBadge } from "@/components/author-role-badge";
 import { NOTICE_CATEGORIES, type Notice } from "@/types";
 import { formatDate } from "@/utils/formatters";
 
@@ -175,7 +176,10 @@ export default function NoticesPage() {
                       className="mt-2 flex items-center gap-3 text-xs"
                       style={{ color: "var(--color-fg-ink-muted)" }}
                     >
-                      <span>{n.authorName ?? "운영"}</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        {n.authorName ?? "운영"}
+                        <AuthorRoleBadge role={n.authorRole} />
+                      </span>
                       <span aria-hidden="true">·</span>
                       <time dateTime={new Date(n.publishedAt).toISOString()}>
                         {formatDate(n.publishedAt)}

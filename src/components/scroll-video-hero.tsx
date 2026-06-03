@@ -49,6 +49,8 @@ interface ScrollVideoHeroProps {
   pad?: number;
   /** Poster image for instant paint + LCP */
   poster?: string;
+  /** Mobile-only MP4 shown instead of the frame poster when narrow screens use static mode. */
+  mobileVideoSrc?: string;
   /** Optional foreground content (overlay) rendered above the canvas. */
   children?: React.ReactNode;
   /** How tall the scroll region is, in viewport heights. 2 = scroll 2 screen-heights to play through. */
@@ -82,6 +84,7 @@ export function ScrollVideoHero({
   framePrefix = "/hero-seq/frame-",
   pad = 3,
   poster = "/hero-poster.webp",
+  mobileVideoSrc,
   children,
   scrollLength = 2,
   fit = "cover",
@@ -101,10 +104,14 @@ export function ScrollVideoHero({
   // Static mode is resolved on the client only (SSR renders the motion shell,
   // then we downgrade before any heavy work runs).
   const [staticMode, setStaticMode] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(false);
   const [resolved, setResolved] = useState(false);
 
   useEffect(() => {
-    const evaluate = () => setStaticMode(shouldUseStaticHero());
+    const evaluate = () => {
+      setIsNarrow(window.innerWidth < 768);
+      setStaticMode(shouldUseStaticHero());
+    };
     evaluate();
     setResolved(true);
     const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
@@ -307,26 +314,50 @@ export function ScrollVideoHero({
   // Static fallback: a single, non-scrolling stage with the poster behind
   // real-DOM copy. No canvas, no frame download, no scroll hijacking.
   if (resolved && staticMode) {
+    const useMobileVideo = Boolean(isNarrow && mobileVideoSrc);
+    const mobileStageStyle: React.CSSProperties =
+      useMobileVideo && isNarrow
+        ? { minHeight: `calc(100dvh - ${stickyTop}px)` }
+        : aspect
+          ? { width: "100%", aspectRatio: `${aspect}` }
+          : { minHeight: `calc(100vh - ${stickyTop}px)` };
+
     return (
       <div
         className="relative w-full overflow-hidden"
         style={{
           background,
-          ...(aspect
-            ? { width: "100%", aspectRatio: `${aspect}` }
-            : { minHeight: `calc(100vh - ${stickyTop}px)` }),
+          ...mobileStageStyle,
         }}
       >
-        <NextImage
-          src={poster}
-          alt=""
-          aria-hidden
-          fill
-          priority
-          sizes="100vw"
-          className="absolute inset-0"
-          style={{ objectFit: fit, background }}
-        />
+        {useMobileVideo ? (
+          <video
+            src={mobileVideoSrc}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="metadata"
+            aria-hidden
+            className="absolute inset-0 h-full w-full"
+            style={{
+              objectFit: "cover",
+              objectPosition: "center center",
+              background,
+            }}
+          />
+        ) : (
+          <NextImage
+            src={poster}
+            alt=""
+            aria-hidden
+            fill
+            priority
+            sizes="100vw"
+            className="absolute inset-0"
+            style={{ objectFit: fit, background }}
+          />
+        )}
         {staticFallback && (
           <div className="relative h-full w-full flex items-center justify-center px-6">
             {staticFallback}

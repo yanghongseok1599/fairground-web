@@ -1,11 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Shield, CheckCircle, Edit, ImageIcon, X } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle,
+  CreditCard,
+  Edit,
+  Image as ImageIcon,
+  Shield,
+  Users,
+  X,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTeam } from "@/hooks/useTeam";
 import { useDataStore } from "@/stores/dataStore";
+import {
+  canManageTeam as canManageTeamHelper,
+  isTeamMemberOf,
+} from "@/lib/team-permissions";
 import { AdminHeader } from "@/components/admin-header";
 import { AdminLoading } from "@/components/admin-loading";
 import { ClubEmblem } from "@/components/club-emblem";
@@ -90,6 +104,10 @@ export default function MyTeamPage() {
   const [name, setName] = useState("");
   const [logo, setLogo] = useState("");
   const [foundedYear, setFoundedYear] = useState("");
+  // 팀 운영 형태. community = 동호회(투명 회비 공개), club = 개인 수익형 클럽
+  // (회비 장부는 디렉터 전용). 등록 후 변경하려면 별도 마이그레이션 흐름이
+  // 필요하므로(멤버 신뢰 영향) 일단 생성 시 1회 선택.
+  const [teamType, setTeamType] = useState<"community" | "club">("community");
   const [logoProcessing, setLogoProcessing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -107,6 +125,13 @@ export default function MyTeamPage() {
 
   const isCaptainOrAdmin =
     player?.role === "captain" || player?.role === "admin";
+  // Strict + loose gates share one helper file — see lib/team-permissions.
+  // canManageTeamStrict matches RLS-aligned director permissions; the loose
+  // variant additionally lets any team member see the operations grid (RLS
+  // is the real enforcement, so visibility is safe).
+  const canManageTeamStrict = canManageTeamHelper(player, team);
+  const canManageTeam =
+    canManageTeamStrict || isTeamMemberOf(player, team);
   const isLocalRegisteredTeam =
     Boolean(registeredTeamId) && team?.id === registeredTeamId;
 
@@ -178,6 +203,9 @@ export default function MyTeamPage() {
           gamesPlayed: 0,
         },
         createdAt: Date.now(),
+        teamType,
+        leagueTier: "bronze",
+        participationStreak: 0,
       });
       if (player) {
         await updatePlayer({ teamId: createdTeamId });
@@ -324,6 +352,64 @@ export default function MyTeamPage() {
             <ArrowLeft className="h-4 w-4" />
             돌아가기
           </Button>
+
+          {/* Captain claim — when the team has no captainId yet and this user
+              is a member of the team, let them adopt the role. createTeam set
+              captain_id on the API call but the row landed without it; this
+              is the in-product self-repair. RLS still has final say. */}
+          {player &&
+            player.teamId === team.id &&
+            !team.captainId &&
+            !canManageTeamStrict && (
+              <Card>
+                <CardContent className="space-y-3 p-4">
+                  <p
+                    className="text-sm leading-relaxed"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    이 팀에 등록된 캡틴이 없습니다. 본인을 캡틴으로 등록하면
+                    팀 정보 수정·멤버 관리·공지 등의 권한이 활성화됩니다.
+                  </p>
+                  <Button
+                    className="min-h-[44px] w-full"
+                    disabled={submitting}
+                    onClick={async () => {
+                      if (!team || !player) return;
+                      setError("");
+                      setSubmitting(true);
+                      try {
+                        await updateTeam(team.id, { captainId: player.id });
+                        await updatePlayer({ teamRole: "captain" });
+                        // updateTeam already revalidates the team store; the
+                        // canManageTeamStrict flag flips on next render.
+                      } catch (err) {
+                        console.error(
+                          "[MyTeamPage] captain claim failed:",
+                          err,
+                        );
+                        const msg =
+                          err instanceof Error ? err.message : "";
+                        setError(
+                          msg.includes("row-level security") ||
+                            msg.includes("permission")
+                            ? "캡틴 등록 권한이 없습니다. 관리자에게 문의해주세요."
+                            : "캡틴 등록에 실패했습니다. 다시 시도해주세요.",
+                        );
+                      } finally {
+                        setSubmitting(false);
+                      }
+                    }}
+                  >
+                    {submitting ? "등록 중..." : "이 팀의 캡틴으로 등록"}
+                  </Button>
+                  {error && (
+                    <p className="text-xs" style={{ color: "#dc2626" }}>
+                      {error}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
           {editing ? (
             /* Edit Form */
@@ -537,8 +623,8 @@ export default function MyTeamPage() {
                 </CardContent>
               </Card>
 
-              {/* Edit Button (captain/admin only) */}
-              {isCaptainOrAdmin && (
+              {/* Edit Button (team staff / admin) */}
+              {canManageTeam && (
                 <Button
                   className="min-h-[44px] w-full"
                   onClick={startEdit}
@@ -547,7 +633,7 @@ export default function MyTeamPage() {
                   팀 정보 수정
                 </Button>
               )}
-              {isLocalRegisteredTeam && !isCaptainOrAdmin && (
+              {isLocalRegisteredTeam && !canManageTeam && (
                 <Card>
                   <CardContent className="p-4">
                     <p
@@ -559,6 +645,49 @@ export default function MyTeamPage() {
                     </p>
                   </CardContent>
                 </Card>
+              )}
+
+              {/* Team operations — only the director-only surfaces. Public
+                  boards (notices/gallery/chat) handle their own role-based
+                  edit UI on the board pages themselves, so they don't need a
+                  separate admin entry point here. */}
+              {canManageTeam && (
+                <div className="space-y-2">
+                  <p
+                    className="px-1 text-xs font-semibold tracking-wide"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    팀 운영
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      href={`/teams/${team.id}/admin`}
+                      className="flex min-h-[64px] items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm font-semibold transition-colors hover:bg-muted"
+                    >
+                      <Shield className="h-4 w-4 shrink-0" />
+                      팀 개요
+                    </Link>
+                    <Link
+                      href={`/teams/${team.id}/members`}
+                      className="flex min-h-[64px] items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm font-semibold transition-colors hover:bg-muted"
+                    >
+                      <Users className="h-4 w-4 shrink-0" />
+                      멤버 관리
+                    </Link>
+                    <Link
+                      href={`/teams/${team.id}/dues`}
+                      className="col-span-2 flex min-h-[64px] items-center gap-2 rounded-md border bg-card px-3 py-2 text-sm font-semibold transition-colors hover:bg-muted"
+                    >
+                      <CreditCard className="h-4 w-4 shrink-0" />
+                      <span className="flex flex-col items-start leading-tight">
+                        회비 장부
+                        <span className="text-[10px] font-normal opacity-70">
+                          월 회비 · 미납 · 잔액
+                        </span>
+                      </span>
+                    </Link>
+                  </div>
+                </div>
               )}
 
               {/* View Team Page */}
@@ -701,6 +830,34 @@ export default function MyTeamPage() {
                 />
               </div>
 
+              {/* 팀 운영 형태 — 회비 장부 공개 범위가 달라지는 1회 결정. */}
+              <div className="space-y-2">
+                <Label>
+                  팀 운영 형태 <span className="text-red-500">*</span>
+                </Label>
+                <p
+                  className="text-xs"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  회비 장부의 공개 범위가 달라집니다. 등록 후 변경은 신중히
+                  진행되며, 기본은 동호회형입니다.
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <TeamTypeCard
+                    selected={teamType === "community"}
+                    onClick={() => setTeamType("community")}
+                    title="동호회형"
+                    desc="모든 팀원에게 회비/지출/잔액이 투명하게 공개됩니다. 멤버 회비로 함께 운영하는 동호회에 적합."
+                  />
+                  <TeamTypeCard
+                    selected={teamType === "club"}
+                    onClick={() => setTeamType("club")}
+                    title="클럽형"
+                    desc="감독·운영자만 회비 장부 전체를 볼 수 있습니다. 본인 납부 내역은 멤버 본인에게만 노출. 개인이 수익화 목적으로 운영하는 클럽에 적합."
+                  />
+                </div>
+              </div>
+
               {error && <p className="text-sm text-red-500">{error}</p>}
 
               <Button
@@ -719,5 +876,55 @@ export default function MyTeamPage() {
         </Card>
       </main>
     </div>
+  );
+}
+
+function TeamTypeCard({
+  selected,
+  onClick,
+  title,
+  desc,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className="text-left rounded-md border p-3 transition-colors"
+      style={{
+        background: selected ? "rgba(0,71,171,0.08)" : "var(--color-fg-paper)",
+        borderColor: selected
+          ? "var(--primary)"
+          : "var(--color-fg-line-soft, var(--border))",
+        color: "var(--color-fg-ink)",
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <span
+          aria-hidden
+          className="inline-flex h-4 w-4 items-center justify-center rounded-full border"
+          style={{
+            borderColor: selected ? "var(--primary)" : "var(--color-fg-line-soft, var(--border))",
+            background: selected ? "var(--primary)" : "transparent",
+          }}
+        >
+          {selected && (
+            <span className="h-1.5 w-1.5 rounded-full bg-white" />
+          )}
+        </span>
+        <span className="font-bold text-sm">{title}</span>
+      </div>
+      <p
+        className="mt-1.5 text-[11px] leading-relaxed"
+        style={{ color: "var(--color-fg-ink-muted, var(--muted-foreground))" }}
+      >
+        {desc}
+      </p>
+    </button>
   );
 }

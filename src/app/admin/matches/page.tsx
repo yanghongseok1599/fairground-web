@@ -29,6 +29,7 @@ import { Separator } from "@/components/ui/separator";
 import { Plus, Circle, Wand2 } from "lucide-react";
 import type { Tournament, Match, Team, MatchLineupEntry } from "@/types";
 import { buildAutoGroups, buildGroupRoundRobinMatches, recommendGroupCount } from "@/lib/auto-matchmaking";
+import { buildRestOptimizedMatches } from "@/lib/fixture-scheduler";
 import { buildTournamentDraft, isValidTournamentDraft } from "@/lib/tournament-admin";
 import { setTournamentGroups } from "@/lib/admin-actions";
 import { computeLineupReadiness } from "@/lib/lineup-readiness";
@@ -82,6 +83,11 @@ function AdminMatches() {
   const [autoStartRound, setAutoStartRound] = useState("1");
   const [autoGenerating, setAutoGenerating] = useState(false);
   const [autoMessage, setAutoMessage] = useState("");
+  // 대진 모드: group=조 편성(승점 시드) / rest=휴식 최적 단일 풀리그(연속참가 시드).
+  const [autoMode, setAutoMode] = useState<"group" | "rest">("group");
+  const [restPreview, setRestPreview] = useState<
+    ReturnType<typeof buildRestOptimizedMatches>["assignments"] | null
+  >(null);
 
   useEffect(() => {
     const load = async () => {
@@ -307,12 +313,35 @@ function AdminMatches() {
       return;
     }
 
+    // 휴식 최적 모드는 짝수 팀만(써클 라운드로빈 + 피벗).
+    if (autoMode === "rest" && eligibleTeams.length % 2 !== 0) {
+      setAutoMessage(`휴식 최적 대진은 짝수 팀만 가능합니다. (현재 ${eligibleTeams.length}팀)`);
+      return;
+    }
+
     setAutoGenerating(true);
+    setRestPreview(null);
     try {
-      const groupCount = Math.max(1, Math.min(parseInt(autoGroupCount, 10) || recommendedAutoGroupCount, eligibleTeams.length));
       const startRound = parseInt(autoStartRound, 10) || 1;
-      const groups = buildAutoGroups(eligibleTeams, groupCount);
-      const generatedMatches = buildGroupRoundRobinMatches(groups, eligibleTeams, autoTournamentId, startRound);
+      let groups: ReturnType<typeof buildAutoGroups>;
+      let generatedMatches: Array<Omit<Match, "id">>;
+
+      if (autoMode === "rest") {
+        // 연속참가 시드 배정 → 휴식 최적 단일 풀리그(1개 조).
+        groups = buildAutoGroups(eligibleTeams, 1);
+        const restTeams = approvedTeamList.map((team) => ({
+          id: team.id,
+          name: team.name,
+          participationStreak: team.participationStreak ?? 0,
+        }));
+        const built = buildRestOptimizedMatches(restTeams, autoTournamentId, { startRound });
+        generatedMatches = built.matches;
+        setRestPreview(built.assignments);
+      } else {
+        const groupCount = Math.max(1, Math.min(parseInt(autoGroupCount, 10) || recommendedAutoGroupCount, eligibleTeams.length));
+        groups = buildAutoGroups(eligibleTeams, groupCount);
+        generatedMatches = buildGroupRoundRobinMatches(groups, eligibleTeams, autoTournamentId, startRound);
+      }
       const existingMatches = matchesByTournament[autoTournamentId] || [];
       const existingPairKeys = new Set(
         existingMatches.map((match) => [match.homeTeamId, match.awayTeamId].sort().join(":"))
@@ -333,7 +362,11 @@ function AdminMatches() {
         ...prev,
         [autoTournamentId]: [...(prev[autoTournamentId] || []), ...createdMatches],
       }));
-      setAutoMessage(`${groups.length}개 조 편성, 예정 경기 ${createdMatches.length}개 생성 완료`);
+      setAutoMessage(
+        autoMode === "rest"
+          ? `휴식 최적 단일 풀리그 · 예정 경기 ${createdMatches.length}개 생성 완료 (연속참가 시드)`
+          : `${groups.length}개 조 편성, 예정 경기 ${createdMatches.length}개 생성 완료`,
+      );
     } catch (error) {
       setAutoMessage(error instanceof Error ? error.message : "자동 조편성에 실패했습니다.");
     } finally {
@@ -603,10 +636,37 @@ function AdminMatches() {
                   </Select>
                 </div>
 
+                {/* 대진 모드 토글 */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">대진 방식</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { v: "group", label: "조 편성", desc: "승점 시드" },
+                      { v: "rest", label: "휴식 최적", desc: "연속참가 시드" },
+                    ] as const).map((m) => (
+                      <button
+                        key={m.v}
+                        type="button"
+                        onClick={() => { setAutoMode(m.v); setAutoMessage(""); setRestPreview(null); }}
+                        className="min-h-[44px] rounded-lg border px-3 py-2 text-left transition-colors"
+                        style={
+                          autoMode === m.v
+                            ? { borderColor: "var(--primary)", background: "var(--secondary)" }
+                            : { borderColor: "var(--border)" }
+                        }
+                        aria-pressed={autoMode === m.v}
+                      >
+                        <div className="text-sm font-semibold">{m.label}</div>
+                        <div className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>{m.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">조 개수</label>
-                    <Select value={autoGroupCount} onValueChange={setAutoGroupCount}>
+                    <Select value={autoGroupCount} onValueChange={setAutoGroupCount} disabled={autoMode === "rest"}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -637,10 +697,13 @@ function AdminMatches() {
                 </div>
 
                 <div className="rounded-lg border p-3 text-xs" style={{ color: "var(--muted-foreground)" }}>
-                  승인된 신청팀 {approvedTeamList.length}개를 시즌 승점 기준으로 시드 배정하고, 지그재그 방식으로 조를 나눈 뒤 조별 풀리그 예정 경기를 생성합니다.
+                  {autoMode === "rest"
+                    ? `승인된 신청팀 ${approvedTeamList.length}개를 연속참가 기준으로 시드 배정합니다. 연속참가가 길수록 휴식이 많은 시드를 우선 배정하고, 써클 방식 단일 풀리그(피벗 고정) 예정 경기를 생성합니다. 짝수 팀만 가능.`
+                    : `승인된 신청팀 ${approvedTeamList.length}개를 시즌 승점 기준으로 시드 배정하고, 지그재그 방식으로 조를 나눈 뒤 조별 풀리그 예정 경기를 생성합니다.`}
                   {selectedAutoTournament && (
                     <div className="mt-2 font-medium" style={{ color: "var(--foreground)" }}>
-                      대상: {selectedAutoTournament.name} · 권장 {recommendedAutoGroupCount}개 조
+                      대상: {selectedAutoTournament.name}
+                      {autoMode === "group" && ` · 권장 ${recommendedAutoGroupCount}개 조`}
                     </div>
                   )}
                 </div>
@@ -651,12 +714,41 @@ function AdminMatches() {
                   </p>
                 )}
 
+                {/* 휴식 시드 배정 미리보기 — 연속참가 시드/휴식 패턴 */}
+                {restPreview && restPreview.length > 0 && (
+                  <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)" }}>
+                    <p className="mb-2 text-xs font-semibold">휴식 시드 배정 (연속참가 순)</p>
+                    <div className="space-y-1">
+                      {[...restPreview]
+                        .sort((a, b) => b.totalRest - a.totalRest)
+                        .map((a) => (
+                          <div key={a.team.id} className="flex items-center justify-between gap-2 text-xs tabular-nums">
+                            <span className="flex min-w-0 items-center gap-2">
+                              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold" style={{ background: "var(--secondary)" }}>
+                                {a.seed}
+                              </span>
+                              <span className="truncate font-medium" style={{ color: "var(--foreground)" }}>{a.team.name}</span>
+                              <span style={{ color: "var(--muted-foreground)" }}>연속 {a.team.participationStreak ?? 0}</span>
+                            </span>
+                            <span className="shrink-0" style={{ color: "var(--muted-foreground)" }}>
+                              {a.rests.join("·")}분 · 총 {a.totalRest}분
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
                 <Button
                   className="min-h-[44px] w-full"
                   onClick={handleAutoGenerate}
                   disabled={autoGenerating || !autoTournamentId || approvedTeamList.length < 2}
                 >
-                  {autoGenerating ? "자동 생성 중..." : "조편성 + 예정 경기 생성"}
+                  {autoGenerating
+                    ? "자동 생성 중..."
+                    : autoMode === "rest"
+                      ? "휴식 최적 대진 + 예정 경기 생성"
+                      : "조편성 + 예정 경기 생성"}
                 </Button>
               </div>
             </DialogContent>

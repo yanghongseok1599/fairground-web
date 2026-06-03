@@ -180,6 +180,8 @@ interface DataState {
   pauseMatch: (matchId: string) => Promise<void>;
   resumeMatch: (matchId: string) => Promise<void>;
   endMatch: (tournamentId: string, matchId: string) => Promise<void>;
+  /** 몰수패 처리 — 공식 기록 3:0 (지목 팀 0, 상대 3). 규정 제13조/대회규정 제9조. */
+  forfeitMatch: (matchId: string, forfeitTeamId: string) => Promise<void>;
   substitutePlayer: (
     matchId: string,
     teamId: string,
@@ -663,15 +665,16 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       .map((row) => {
         const t = rowToTeam(row);
         const ss = t.seasonStats;
-        // 연속참여 보너스(0–3)를 경기 승점에 가산 → 랭킹 기준 points.
-        const bonus = Math.max(0, Math.min(t.participationStreak - 1, 3));
+        // 연속참여는 더 이상 승점에 가산하지 않는다. 대신 대진 편성 시
+        // "휴식 시드 우선권"으로 보상한다(lib/fixture-scheduler). 순위 points 는
+        // 순수 경기 승점만 반영. participationBonus 는 0으로 유지(표시 제거).
         return {
           teamId: t.id,
           teamName: t.name,
           teamLogo: t.logo,
           matchPoints: ss.points,
-          participationBonus: bonus,
-          points: ss.points + bonus,
+          participationBonus: 0,
+          points: ss.points,
           rank: ss.rank,
           wins: ss.wins,
           draws: ss.draws,
@@ -932,6 +935,38 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     // card_rating 은 RLS 트리거가 클라 변경 차단 → 서버 RPC 확장으로 처리 예정.
   },
 
+  forfeitMatch: async (matchId, forfeitTeamId) => {
+    if (isDemoMode) {
+      const live = getLocalLive();
+      const all = getLocalMatches();
+      // 데모: 토너먼트 키를 모르므로 전체에서 매치 검색.
+      for (const [tid, matches] of Object.entries(all)) {
+        const mm = matches[matchId];
+        if (!mm) continue;
+        const homeForfeit = mm.homeTeamId === forfeitTeamId;
+        all[tid][matchId] = {
+          ...mm,
+          status: "finished",
+          homeScore: homeForfeit ? 0 : 3,
+          awayScore: homeForfeit ? 3 : 0,
+        };
+        saveLocalMatches(all);
+        break;
+      }
+      if (live[matchId]) { delete live[matchId]; saveLocalLive(live); }
+      setState({ liveMatches: Object.entries(getLocalLive()).map(([id, v]) => ({ ...v, id })) });
+      return;
+    }
+    const { error } = await supabase.rpc("forfeit_match", {
+      p_match_id: matchId,
+      p_forfeit_team_id: forfeitTeamId,
+    });
+    if (error) {
+      console.error("[dataStore] forfeitMatch RPC:", error.message);
+      throw new Error(error.message);
+    }
+  },
+
   substitutePlayer: async (matchId, teamId, outId, inId, inName, minute, half) => {
     if (isDemoMode) {
       // 데모 모드에는 라인업 로컬 저장소가 없음(match_lineups 는 Supabase 전용).
@@ -1094,7 +1129,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     if (isDemoMode) return [];
     let q = supabase
       .from("notices")
-      .select("*, profiles:author_id(name)")
+      .select("*, profiles:author_id(name,role)")
       .order("is_pinned", { ascending: false })
       .order("published_at", { ascending: false });
     if (opts?.category) q = q.eq("category", opts.category);
@@ -1117,7 +1152,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     if (isDemoMode) return null;
     const { data, error } = await supabase
       .from("notices")
-      .select("*, profiles:author_id(name)")
+      .select("*, profiles:author_id(name,role)")
       .eq("id", id)
       .maybeSingle();
     if (error) { console.error("[dataStore] fetchNotice:", error.message); return null; }
@@ -1153,7 +1188,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     const sortField = opts?.sort === "comments" ? "comment_count" : "created_at";
     let q = supabase
       .from("board_posts")
-      .select("*, profiles:author_id(name)")
+      .select("*, profiles:author_id(name,role)")
       .order(sortField, { ascending: false });
     if (opts?.category) q = q.eq("category", opts.category);
     // teamId 시맨틱: 미지정(undefined) 또는 null → 글로벌만(team_id IS NULL).
@@ -1180,7 +1215,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     }
     const { data, error } = await supabase
       .from("board_posts")
-      .select("*, profiles:author_id(name)")
+      .select("*, profiles:author_id(name,role)")
       .eq("id", id)
       .maybeSingle();
     if (error) { console.error("[dataStore] fetchBoardPost:", error.message); return null; }
@@ -1218,7 +1253,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     if (isDemoMode) return [];
     const { data, error } = await supabase
       .from("board_comments")
-      .select("*, profiles:author_id(name)")
+      .select("*, profiles:author_id(name,role)")
       .eq("post_id", postId)
       .order("created_at", { ascending: true });
     if (error) {

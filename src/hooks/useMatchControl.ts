@@ -10,7 +10,6 @@ export type MatchActionScope =
   | "start"
   | "pause"
   | "resume"
-  | "secondHalf"
   | "end"
   | "event"
   | "cancelEvent"
@@ -52,7 +51,6 @@ interface MatchControlActions {
   pauseMatch: () => Promise<boolean>;
   resumeMatch: () => Promise<boolean>;
   endMatch: () => Promise<boolean>;
-  startSecondHalf: () => Promise<boolean>;
   addEvent: (event: {
     type: MatchEventType;
     playerId: string;
@@ -262,20 +260,6 @@ export function useMatchControl({
     [matchId, runAction]
   );
 
-  const startSecondHalf = useCallback(
-    () =>
-      runAction("secondHalf", "후반전 시작에 실패했습니다", async () => {
-        setLocalHalf(2);
-        setLocalElapsed(0);
-        syncCounterRef.current = 0;
-        await store.updateMatchTimer(matchId, 0, 2);
-        await store.resumeMatch(matchId);
-        setLocalRunning(true);
-      }),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-    [matchId, runAction]
-  );
-
   const endMatch = useCallback(
     () =>
       runAction("end", "경기 종료에 실패했습니다", async () => {
@@ -346,7 +330,6 @@ export function useMatchControl({
     pauseMatch,
     resumeMatch,
     endMatch,
-    startSecondHalf,
     addEvent,
     cancelEvent,
     setMom,

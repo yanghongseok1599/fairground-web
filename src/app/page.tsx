@@ -4,12 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { useDataStore } from "@/stores/dataStore";
-import { PlayerCard } from "@/components/player-card";
+import { useAuth } from "@/hooks/useAuth";
+import { PlayerCard, getCardTypeFromRating } from "@/components/player-card";
 import { EmptyState } from "@/components/empty-state";
 import { ScrollVideoHero, type HeroReveal } from "@/components/scroll-video-hero";
-import { CircularGallery, type GalleryItem } from "@/components/circular-gallery";
+import type { TeamGalleryItem } from "@/components/team-circular-gallery";
+import { getClubLogoPreset } from "@/components/club-emblem";
+import { createTeamCardCanvas } from "@/lib/team-card-canvas";
+import { leagueTierCardIndex } from "@/lib/team-home";
 import type { Team, Player } from "@/types";
 import { ArrowRight } from "lucide-react";
+import { TeamMarquee } from "@/components/team-marquee";
 
 // ─── HERO REVEAL SEQUENCE ───────────────────────────────────────────────
 // Five fade-in/fade-out overlays that play across the scroll-scrubbed hero.
@@ -80,6 +85,60 @@ const HERO_REVEALS: HeroReveal[] = [
 
 const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
   {
+    id: "showcase-bronze-1",
+    uid: "showcase-bronze-1",
+    name: "정우진",
+    number: 8,
+    position: "FIXO",
+    teamId: "showcase",
+    nationality: "KOR",
+    photoUrl: "/images/players/showcase-player-4.png",
+    cardType: "bronze",
+    cardRating: 74,
+    stats: { goals: 3, assists: 4, games: 10, mom: 0 },
+    badges: ["fair_play"],
+    penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
+    isApproved: true,
+    role: "player",
+    createdAt: 0,
+  },
+  {
+    id: "showcase-silver-1",
+    uid: "showcase-silver-1",
+    name: "이서준",
+    number: 11,
+    position: "ALA",
+    teamId: "showcase",
+    nationality: "KOR",
+    photoUrl: "/images/players/showcase-player-3.png",
+    cardType: "silver",
+    cardRating: 85,
+    stats: { goals: 6, assists: 8, games: 14, mom: 1 },
+    badges: ["playmaker", "iron_man"],
+    penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
+    isApproved: true,
+    role: "player",
+    createdAt: 0,
+  },
+  {
+    id: "showcase-gold-1",
+    uid: "showcase-gold-1",
+    name: "박지후",
+    number: 7,
+    position: "ALA",
+    teamId: "showcase",
+    nationality: "KOR",
+    photoUrl: "/images/players/showcase-player-2.png",
+    cardType: "gold",
+    cardRating: 92,
+    stats: { goals: 9, assists: 6, games: 14, mom: 2 },
+    badges: ["match_winner", "assist_king"],
+    penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
+    isApproved: true,
+    role: "player",
+    createdAt: 0,
+  },
+  {
     id: "showcase-premium-1",
     uid: "showcase-premium-1",
     name: "김도현",
@@ -89,7 +148,7 @@ const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
     nationality: "KOR",
     photoUrl: "/images/players/showcase-player-1.png",
     cardType: "premium",
-    cardRating: 92,
+    cardRating: 104,
     stats: { goals: 14, assists: 7, games: 14, mom: 5 },
     badges: ["champion", "golden_boot", "mvp"],
     penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
@@ -97,72 +156,77 @@ const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
     role: "player",
     createdAt: 0,
   },
-  {
-    id: "showcase-premium-2",
-    uid: "showcase-premium-2",
-    name: "박지후",
-    number: 7,
-    position: "ALA",
-    teamId: "showcase",
-    nationality: "KOR",
-    photoUrl: "/images/players/showcase-player-2.png",
-    cardType: "premium",
-    cardRating: 90,
-    stats: { goals: 12, assists: 5, games: 14, mom: 4 },
-    badges: ["champion", "playmaker", "assist_king"],
-    penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
-    isApproved: true,
-    role: "player",
-    createdAt: 0,
-  },
-  {
-    id: "showcase-gold-1",
-    uid: "showcase-gold-1",
-    name: "이서준",
-    number: 11,
-    position: "ALA",
-    teamId: "showcase",
-    nationality: "KOR",
-    photoUrl: "/images/players/showcase-player-3.png",
-    cardType: "gold",
-    cardRating: 90,
-    stats: { goals: 9, assists: 6, games: 14, mom: 2 },
-    badges: ["first_goal", "match_winner"],
-    penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
-    isApproved: true,
-    role: "player",
-    createdAt: 0,
-  },
-  {
-    id: "showcase-gold-2",
-    uid: "showcase-gold-2",
-    name: "정우진",
-    number: 8,
-    position: "FIXO",
-    teamId: "showcase",
-    nationality: "KOR",
-    photoUrl: "/images/players/showcase-player-4.png",
-    cardType: "gold",
-    cardRating: 90,
-    stats: { goals: 6, assists: 8, games: 14, mom: 1 },
-    badges: ["fair_play", "iron_man"],
-    penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
-    isApproved: true,
-    role: "player",
-    createdAt: 0,
-  },
 ];
+
+const SHOWCASE_TEAM_LOGOS = [
+  "/images/team-logos/ref-bulls.png",
+  "/images/team-logos/ref-blue7.png",
+  "/images/team-logos/ref-volt.png",
+  "/images/team-logos/ref-orion.png",
+];
+
+const TEAM_CARD_VARIANTS = [
+  "/images/team-cards/team-card-bronze.png?v=17",
+  "/images/team-cards/team-card-silver.png?v=17",
+  "/images/team-cards/team-card-gold.png?v=18",
+  "/images/team-cards/team-card-emerald.png?v=25",
+];
+
+const CARD_TIER_BADGE = {
+  bronze: {
+    label: "BRONZE",
+    color: "#ffd9c8",
+    background: "rgba(184, 91, 56, 0.2)",
+    border: "1px solid rgba(255, 180, 142, 0.42)",
+  },
+  silver: {
+    label: "SILVER",
+    color: "#edf6ff",
+    background: "rgba(186, 205, 224, 0.18)",
+    border: "1px solid rgba(232, 244, 255, 0.4)",
+  },
+  gold: {
+    label: "GOLD",
+    color: "var(--color-fg-blue-soft)",
+    background: "rgba(255,255,255,0.08)",
+    border: "1px solid rgba(255,255,255,0.18)",
+  },
+  premium: {
+    label: "PREMIUM",
+    color: "var(--color-fg-paper)",
+    background: "var(--color-fg-blue-deep)",
+    border: "1px solid var(--primary)",
+  },
+};
 
 export default function HomePage() {
   const store = useDataStore();
+  const { user } = useAuth();
   const prefersReducedMotion = useReducedMotion();
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamsLoaded, setTeamsLoaded] = useState(false);
   const [showcasePlayers, setShowcasePlayers] = useState<Player[]>([]);
+  // 갤러리에서 탭한 팀 — 즉시 이동하지 않고 CTA 버튼을 띄워 그 버튼으로만 이동.
+  const [selectedTeam, setSelectedTeam] = useState<{ id: string; name: string } | null>(null);
+  const teamGalleryItems = useMemo<TeamGalleryItem[]>(
+    () =>
+      teams.map((team, index) => {
+        // 카드 등급은 팀의 리그 등급(leagueTier)으로 결정 — 목록/상세 페이지와
+        // 동일한 leagueTierCardIndex 를 써서 모든 화면에서 등급이 일치하도록 통일.
+        // (기존: 배열 위치(index)로 배정해 페이지마다 등급이 달랐음)
+        const cardIndex = leagueTierCardIndex(team.leagueTier);
+        return {
+          id: team.id,
+          name: team.name,
+          logo: team.logo || getClubLogoPreset(team.name, index).asset,
+          frame: TEAM_CARD_VARIANTS[cardIndex],
+          colorIndex: cardIndex,
+        };
+      }),
+    [teams],
+  );
   const mobileShowcase = useMemo(() => {
-    const firstPremium = showcasePlayers.find((p) => p.cardType === "premium");
-    const firstGold = showcasePlayers.find((p) => p.cardType === "gold");
-    return [firstPremium, firstGold].filter((x): x is Player => Boolean(x));
+    return showcasePlayers;
   }, [showcasePlayers]);
 
   useEffect(() => {
@@ -206,37 +270,9 @@ export default function HomePage() {
           aspect={1920 / 940}
           background="#ffffff"
           stickyTop={60}
-          mobileVideoSrc="/player-enters-stadium-mobile.mp4"
+          mobileVideoSrc="/videos/hero1-mobile-muted.mp4"
           reveals={HERO_REVEALS}
-          staticFallback={
-            <>
-              {/* 영상 가독성 위한 약한 어둠 오버레이 */}
-              <div
-                aria-hidden
-                className="absolute inset-0"
-                style={{
-                  background:
-                    "linear-gradient(180deg, rgba(13,27,42,0.18) 0%, rgba(13,27,42,0.05) 35%, rgba(13,27,42,0.45) 100%)",
-                }}
-              />
-              <div className="relative flex h-full w-full items-end justify-center px-6 pb-[6.5vh] text-center" aria-hidden>
-                <div
-                  style={{
-                    fontFamily: "var(--font-body), sans-serif",
-                    fontWeight: 800,
-                    color: "var(--color-fg-paper)",
-                    fontSize: "clamp(20px, 5.6vw, 32px)",
-                    lineHeight: 1,
-                    letterSpacing: "-0.01em",
-                    textShadow:
-                      "0 6px 28px rgba(0,0,0,0.55), 0 0 60px rgba(0,0,0,0.30)",
-                  }}
-                >
-                  모두가 승리하는 <span style={{ color: "#9DB8FF" }}>그라운드</span>
-                </div>
-              </div>
-            </>
-          }
+          staticFallback={null}
         />
       </section>
 
@@ -244,7 +280,7 @@ export default function HomePage() {
           PARTICIPATING TEAMS — live Supabase roster
           ============================================================ */}
       <section
-        className="relative py-20 md:py-28 px-5 md:px-10 overflow-hidden"
+        className="relative py-20 md:py-28 px-5 sm:px-8 md:px-10 overflow-hidden"
         style={{
           background: "var(--color-fg-paper)",
           borderTop: "1px solid var(--color-fg-line-soft)",
@@ -269,21 +305,21 @@ export default function HomePage() {
                   PARTICIPATING TEAMS
                 </span>
               </div>
-              <div className="flex flex-wrap items-end justify-between gap-4">
+              <div className="flex flex-wrap items-end justify-between gap-3 sm:gap-4">
                 <h2
                   className="fg-display"
                   style={{
-                    fontSize: "clamp(36px, 6vw, 72px)",
+                    fontSize: "clamp(26px, 6vw, 72px)",
                     letterSpacing: "-0.01em",
                     color: "var(--color-fg-ink)",
                   }}
                 >
                   참가 팀 소개
                 </h2>
-                <div className="flex flex-wrap items-center justify-end gap-3 mb-2">
+                <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 mb-2">
                   <Link
                     href="/my/team"
-                    className="inline-flex items-center gap-2 px-4 py-2 fg-label border transition-colors"
+                    className="inline-flex items-center gap-2 whitespace-nowrap px-4 py-2 fg-label border transition-colors"
                     style={{
                       color: "var(--primary)",
                       borderColor: "rgba(0,71,171,0.2)",
@@ -345,25 +381,53 @@ export default function HomePage() {
               ]}
             />
           ) : (
-            <div className="relative w-full h-[440px] md:h-[460px]">
-              <div className="absolute inset-0 origin-top scale-[0.7] translate-y-16 md:scale-100 md:translate-y-0">
-                <CircularGallery
-                  items={teams.map((team, i): GalleryItem => ({
-                    id: team.id,
-                    common: team.name,
-                    binomial: `${team.seasonStats.wins}W ${team.seasonStats.draws}D ${team.seasonStats.losses}L`,
-                    photo: { url: team.logo ?? "", text: team.name, by: `${team.memberCount}명` },
-                    colorIndex: i,
-                  }))}
-                  radius={520}
-                  autoRotateSpeed={prefersReducedMotion ? 0 : 0.25}
-                  onItemClick={(item) => {
-                    const t = teams.find((x) => x.id === item.id);
-                    if (t) window.location.href = `/teams/${t.id}`;
-                  }}
-                />
+            <>
+              {/* WebGL 의존 없는 자동 회전 카드 슬라이더(TeamMarquee). 호버/포커스/
+                  드래그/카드 선택 시 일시정지. 카드 탭은 선택만 하고 아래 CTA로 이동. */}
+              <TeamMarquee
+                items={teamGalleryItems}
+                paused={!!selectedTeam}
+                reducedMotion={!!prefersReducedMotion}
+                edgeClassName="-mx-5 px-5 sm:-mx-8 sm:px-8 md:mx-0 md:px-0"
+                ariaLabel="참가 팀 카드 슬라이더"
+                renderItem={(item, key) => (
+                  <HomeTeamCard
+                    key={key}
+                    item={item}
+                    active={selectedTeam?.id === item.id}
+                    onSelect={() => {
+                      const t = teams.find((x) => x.id === item.id);
+                      if (t) setSelectedTeam({ id: t.id, name: t.name });
+                    }}
+                  />
+                )}
+              />
+              {/* 선택된 팀이 있을 때만 이동 CTA 노출 (스크롤 중 오클릭으로 인한
+                  페이지 자동 이동 방지). Link 라 SPA 이동 → 뒤로가기 정상. */}
+              <div className="mt-4 flex min-h-[52px] items-center justify-center">
+                {selectedTeam ? (
+                  <Link
+                    href={`/teams/${selectedTeam.id}`}
+                    className="inline-flex min-h-[48px] items-center gap-2 px-6 fg-display text-[14px] tracking-[0.02em] transition-transform hover:-translate-y-0.5"
+                    style={{
+                      background: "var(--primary)",
+                      color: "var(--primary-foreground)",
+                      boxShadow: "0 12px 26px rgba(0,71,171,0.28)",
+                    }}
+                  >
+                    {selectedTeam.name} 팀 페이지로 이동
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ) : (
+                  <span
+                    className="text-[13px]"
+                    style={{ color: "var(--color-fg-ink-muted)" }}
+                  >
+                    팀 카드를 탭하면 해당 팀 페이지로 이동할 수 있어요
+                  </span>
+                )}
               </div>
-            </div>
+            </>
           )}
         </div>
       </section>
@@ -372,7 +436,7 @@ export default function HomePage() {
           MAKE YOUR PLAYER CARD — showcase
           ============================================================ */}
       <section
-        className="relative py-20 md:py-28 px-5 md:px-10 overflow-hidden"
+        className="relative py-20 md:py-28 px-5 sm:px-8 md:px-10 overflow-hidden"
         style={{ background: "var(--color-fg-ink)" }}
       >
         <div
@@ -429,96 +493,105 @@ export default function HomePage() {
 
           {showcasePlayers.length > 0 ? (
             <>
-              {/* Mobile: 1 premium + 1 gold, vertical stack */}
-              <div className="md:hidden flex flex-col items-center gap-10 px-5">
-                {mobileShowcase.map((player, i) => (
-                  <motion.div
-                    key={`m-${player.id}`}
-                    className="flex flex-col items-center gap-3"
-                    initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 32 }}
-                    whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-60px" }}
-                    transition={prefersReducedMotion ? { duration: 0.2 } : { delay: i * 0.1, type: "spring", stiffness: 200, damping: 20 }}
-                  >
-                    <span
-                      className="fg-label text-[10px] px-2.5 py-1 rounded-[var(--radius-pill)]"
-                      style={{
-                        color: player.cardType === "premium" ? "var(--color-fg-paper)" : "var(--color-fg-blue-soft)",
-                        background: player.cardType === "premium" ? "var(--color-fg-blue-deep)" : "rgba(255,255,255,0.08)",
-                        border: player.cardType === "premium" ? "1px solid var(--primary)" : "1px solid rgba(255,255,255,0.18)",
-                      }}
+              <div className="md:hidden grid grid-cols-2 gap-x-4 gap-y-10 px-2">
+                {mobileShowcase.map((player, i) => {
+                  const tier = getCardTypeFromRating(player.cardRating);
+                  const badge = CARD_TIER_BADGE[tier];
+
+                  return (
+                    <motion.div
+                      key={`m-${player.id}`}
+                      className="flex flex-col items-center gap-3"
+                      initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 32 }}
+                      whileInView={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                      viewport={{ once: true, margin: "-60px" }}
+                      transition={prefersReducedMotion ? { duration: 0.2 } : { delay: i * 0.08, type: "spring", stiffness: 200, damping: 20 }}
                     >
-                      {player.cardType === "premium" ? "PREMIUM" : "GOLD"}
-                    </span>
-                    <Link
-                      href={player.id.startsWith("showcase-") ? "/players" : `/players/${player.id}`}
-                      className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
-                      style={{ outlineColor: "var(--color-ring)" }}
-                    >
-                      <PlayerCard player={player} size="lg" />
-                    </Link>
-                  </motion.div>
-                ))}
+                      <span
+                        className="fg-label text-[10px] px-2.5 py-1 rounded-[var(--radius-pill)]"
+                        style={{
+                          color: badge.color,
+                          background: badge.background,
+                          border: badge.border,
+                        }}
+                      >
+                        {badge.label}
+                      </span>
+                      <Link
+                        href={player.id.startsWith("showcase-") ? "/players" : `/players/${player.id}`}
+                        className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+                        style={{ outlineColor: "var(--color-ring)" }}
+                      >
+                        <div className="origin-top scale-[0.9]">
+                          <PlayerCard
+                            player={player}
+                            size="md"
+                            teamLogo={SHOWCASE_TEAM_LOGOS[i % SHOWCASE_TEAM_LOGOS.length]}
+                          />
+                        </div>
+                      </Link>
+                    </motion.div>
+                  );
+                })}
               </div>
-              {/* Desktop: 4 cards horizontal scroll */}
               <div className="hidden md:block -mx-5 overflow-x-auto px-5 pb-4 md:mx-0 md:px-0">
-              <div className="mx-auto flex w-max items-end justify-center gap-5 md:gap-8 lg:gap-10">
-                {showcasePlayers.map((player, i) => (
-                  <motion.div
-                    key={player.id}
-                    className="flex flex-col items-center gap-3"
-                    initial={
-                      prefersReducedMotion
-                        ? { opacity: 0 }
-                        : { opacity: 0, y: 40, rotate: i % 2 ? 3 : -3 }
-                    }
-                    whileInView={
-                      prefersReducedMotion
-                        ? { opacity: 1 }
-                        : { opacity: 1, y: 0, rotate: 0 }
-                    }
-                    viewport={{ once: true, margin: "-80px" }}
-                    transition={
-                      prefersReducedMotion
-                        ? { duration: 0.2 }
-                        : {
-                            delay: i * 0.08,
-                            type: "spring",
-                            stiffness: 200,
-                            damping: 20,
-                          }
-                    }
-                  >
-                    <span
-                      className="fg-label text-[10px] px-2.5 py-1 rounded-[var(--radius-pill)]"
-                      style={{
-                        color:
-                          player.cardType === "premium"
-                            ? "var(--color-fg-paper)"
-                            : "var(--color-fg-blue-soft)",
-                        background:
-                          player.cardType === "premium"
-                            ? "var(--color-fg-blue-deep)"
-                            : "rgba(255,255,255,0.08)",
-                        border:
-                          player.cardType === "premium"
-                            ? "1px solid var(--primary)"
-                            : "1px solid rgba(255,255,255,0.18)",
-                      }}
-                    >
-                      {player.cardType === "premium" ? "PREMIUM" : "GOLD"}
-                    </span>
-                    <Link
-                      href={player.id.startsWith("showcase-") ? "/players" : `/players/${player.id}`}
-                      className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
-                      style={{ outlineColor: "var(--color-ring)" }}
-                    >
-                      <PlayerCard player={player} size="lg" />
-                    </Link>
-                  </motion.div>
-                ))}
+                <div className="mx-auto flex w-max items-end justify-center gap-5 md:gap-8 lg:gap-10">
+                  {showcasePlayers.map((player, i) => {
+                    const tier = getCardTypeFromRating(player.cardRating);
+                    const badge = CARD_TIER_BADGE[tier];
+
+                    return (
+                      <motion.div
+                        key={player.id}
+                        className="flex flex-col items-center gap-3"
+                        initial={
+                          prefersReducedMotion
+                            ? { opacity: 0 }
+                            : { opacity: 0, y: 40, rotate: i % 2 ? 3 : -3 }
+                        }
+                        whileInView={
+                          prefersReducedMotion
+                            ? { opacity: 1 }
+                            : { opacity: 1, y: 0, rotate: 0 }
+                        }
+                        viewport={{ once: true, margin: "-80px" }}
+                        transition={
+                          prefersReducedMotion
+                            ? { duration: 0.2 }
+                            : {
+                                delay: i * 0.08,
+                                type: "spring",
+                                stiffness: 200,
+                                damping: 20,
+                              }
+                        }
+                      >
+                        <span
+                          className="fg-label text-[10px] px-2.5 py-1 rounded-[var(--radius-pill)]"
+                          style={{
+                            color: badge.color,
+                            background: badge.background,
+                            border: badge.border,
+                          }}
+                        >
+                          {badge.label}
+                        </span>
+                        <Link
+                          href={player.id.startsWith("showcase-") ? "/players" : `/players/${player.id}`}
+                          className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
+                          style={{ outlineColor: "var(--color-ring)" }}
+                        >
+                          <PlayerCard
+                            player={player}
+                            size="lg"
+                            teamLogo={SHOWCASE_TEAM_LOGOS[i % SHOWCASE_TEAM_LOGOS.length]}
+                          />
+                        </Link>
+                      </motion.div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
             </>
           ) : (
             <div
@@ -548,7 +621,7 @@ export default function HomePage() {
 
           <div className="mt-14 flex flex-wrap items-center justify-center gap-3">
             <Link
-              href="/my/player-setup"
+              href={user ? "/my/player-setup" : "/login?returnTo=/my/player-setup"}
               className="group inline-flex items-center gap-3 px-7 py-4 fg-display tracking-[0.06em] text-[15px] rounded-[var(--radius-md)] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
               style={{
                 background: "var(--primary)",
@@ -575,5 +648,60 @@ export default function HomePage() {
         </div>
       </section>
     </div>
+  );
+}
+
+// 참가 팀 카드 — createTeamCardCanvas 로 2D 캔버스 카드를 그려 <img> 로 표시.
+// WebGL(OGL) 의존이 없어 모든 기기에서 안정적으로 렌더된다. (TeamCircularGallery 대체)
+function HomeTeamCard({
+  item,
+  active,
+  onSelect,
+}: {
+  item: TeamGalleryItem;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void createTeamCardCanvas({
+      name: item.name,
+      logo: item.logo,
+      frame: item.frame,
+      colorIndex: item.colorIndex,
+    })
+      .then((canvas) => {
+        if (!cancelled) setSrc(canvas.toDataURL("image/png"));
+      })
+      .catch((err) => console.error("[HomeTeamCard] canvas failed:", err));
+    return () => {
+      cancelled = true;
+    };
+  }, [item]);
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-label={`${item.name} 선택`}
+      className="shrink-0 snap-center transition-transform active:scale-95"
+      style={{
+        width: 200,
+        borderRadius: 14,
+        outline: active ? "2px solid var(--primary)" : "none",
+        outlineOffset: 3,
+      }}
+    >
+      {src ? (
+        <img src={src} alt={item.name} className="w-full" draggable={false} />
+      ) : (
+        <div
+          className="w-full animate-pulse"
+          style={{ aspectRatio: "1080 / 1240", background: "var(--color-fg-paper-2)", borderRadius: 14 }}
+        />
+      )}
+    </button>
   );
 }

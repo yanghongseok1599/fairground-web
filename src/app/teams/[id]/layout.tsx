@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { supabaseServer, isDemoMode } from "@/lib/supabase-server";
+import { TeamAdminLayout } from "@/components/team-admin-layout";
 
 const BASE = "https://fairground-footsal.vercel.app";
 const FALLBACK: Metadata = {
@@ -46,6 +47,13 @@ export async function generateMetadata(
   };
 }
 
-export default function TeamLayout({ children }: { children: ReactNode }) {
-  return <>{children}</>;
+export default async function TeamLayout({
+  children,
+  params,
+}: {
+  children: ReactNode;
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  return <TeamAdminLayout teamId={id}>{children}</TeamAdminLayout>;
 }

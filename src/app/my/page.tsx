@@ -4,16 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  LogOut, ChevronRight, Users, Mail, Flag, Hash,
+  LogOut, ChevronRight, Users, Mail, Flag, Hash, ClipboardList,
   Shield, Target, Handshake, Gamepad2, Star, CreditCard,
   Download, Share2, Loader2, Pencil, Save, X, Phone, Calendar, UserRound,
-  Award,
+  Award, Brain,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
 import { PlayerCardCaptureFrame } from "@/components/player-card-capture-frame";
 import { BADGES } from "@/constants/badges";
-import type { Gender, Player } from "@/types";
+import type { Gender, Player, Team, TeamJoinRequest } from "@/types";
 import { buildEditableProfileUpdate, isValidRegistrationProfile } from "@/lib/registration-profile";
 import { downloadElementAsPng } from "@/lib/card-download";
 import { getAdminEntryLabel, isAdminLikeRole } from "@/lib/admin-access";
@@ -178,9 +178,12 @@ export default function MyPage() {
     personalValues: "",
     bio: "",
   });
-  const [team, setTeam] = useState<{ logo?: string } | null>(null);
+  const [team, setTeam] = useState<Team | null>(null);
   const [registeredTeamId, setRegisteredTeamId] = useState("");
+  const [joinRequests, setJoinRequests] = useState<TeamJoinRequest[]>([]);
   const showAdminEntry = isAdminLikeRole(player?.role);
+  const isAdminProfile = player?.role === "admin";
+  const managedTeamId = player?.teamId || registeredTeamId;
 
   useEffect(() => {
     if (!player) return;
@@ -207,6 +210,22 @@ export default function MyPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [player?.teamId]);
+
+  // 본인 가입 신청 상태 — pending(승인 대기) 또는 최근 rejected(7일 이내) 1건씩
+  // 노출. approved는 player.teamId가 이미 세팅되니 별도 안내 불필요.
+  useEffect(() => {
+    if (!player?.id) {
+      setJoinRequests([]);
+      return;
+    }
+    let cancelled = false;
+    void store.fetchMyJoinRequests(player.id).then((list) => {
+      if (!cancelled) setJoinRequests(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [player?.id, store]);
 
   const handleSave = async () => {
     if (!exportCardRef.current || !player) return;
@@ -301,8 +320,168 @@ export default function MyPage() {
     );
   }
 
+  // 노출용 신청 추리기: 보류는 모두, 거부는 가장 최근 1건만(7일 이내), 승인은 무시.
+  const pendingJoinRequests = joinRequests.filter((r) => r.status === "pending");
+  const recentRejected = (() => {
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - sevenDaysMs;
+    const rejected = joinRequests
+      .filter((r) => r.status === "rejected" && r.createdAt >= cutoff)
+      .sort((a, b) => b.createdAt - a.createdAt);
+    return rejected[0] ?? null;
+  })();
+
+  const cancelJoinRequest = async (req: TeamJoinRequest) => {
+    if (!confirm(`${req.teamName ?? "팀"} 가입 신청을 취소할까요?`)) return;
+    try {
+      await store.cancelMyJoinRequest(req.id);
+      if (player?.id) {
+        const list = await store.fetchMyJoinRequests(player.id);
+        setJoinRequests(list);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "취소 실패");
+    }
+  };
+
+  // 프로필 보완 — 가입 폼은 슬림화되어 phone/gender/birthDate 같은 핵심
+  // 추가 정보가 미입력 상태로 들어올 수 있다(OAuth 가입자도 마찬가지). 한 개라도
+  // 비어 있으면 안내 배너 노출, 모두 채우면 자동 숨김. MBTI/성향/가치관/자기소개는
+  // 옵션 자기표현이라 보완 알림 대상에서 제외.
+  const missingProfileFields: string[] = [];
+  if (player && !player.phone?.trim()) missingProfileFields.push("전화번호");
+  if (player && !player.gender) missingProfileFields.push("성별");
+  if (player && !player.birthDate?.trim()) missingProfileFields.push("생년월일");
+  const showProfileCompletionBanner =
+    !!player && missingProfileFields.length > 0 && !editingProfile;
+
   return (
     <div className="min-h-screen pt-[60px]" style={{ background: "var(--color-fg-paper)" }}>
+
+      {/* ── 프로필 보완 banner ──
+          phone/gender/birthDate 중 하나라도 미입력이면 안내. CTA 는 "개인정보
+          수정" 모달을 직접 열어 한 화면에서 모두 채우게 함. */}
+      {showProfileCompletionBanner && (
+        <div
+          className="px-6 pt-4"
+          style={{ background: "var(--color-fg-paper-2)" }}
+        >
+          <div className="mx-auto max-w-2xl">
+            <div
+              className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm"
+              style={{
+                background: "rgba(0,71,171,0.06)",
+                borderColor: "rgba(0,71,171,0.20)",
+                color: "var(--color-fg-ink)",
+              }}
+              role="status"
+            >
+              <div className="min-w-0">
+                <p className="font-bold">프로필을 완성해보세요</p>
+                <p
+                  className="mt-0.5 text-[11px]"
+                  style={{ color: "var(--color-fg-ink-muted)" }}
+                >
+                  미입력: {missingProfileFields.join(" · ")}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingProfile(true);
+                  setProfileMessage("");
+                }}
+                className="shrink-0 rounded-md px-3 py-1.5 text-[11px] font-bold"
+                style={{
+                  background: "var(--primary)",
+                  color: "var(--color-fg-paper)",
+                }}
+              >
+                보완하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 본인 신청 상태 banner ──
+          가입 신청이 pending이거나 최근 거부됐을 때만 노출. 이미 팀에 합류한
+          유저(player.teamId)면 과거 거부 이력은 노이즈이므로 전체 숨김. */}
+      {!player?.teamId && (pendingJoinRequests.length > 0 || recentRejected) && (
+        <div
+          className="px-6 pt-4"
+          style={{ background: "var(--color-fg-paper-2)" }}
+        >
+          <div className="mx-auto max-w-2xl space-y-2">
+            {pendingJoinRequests.map((req) => (
+              <div
+                key={req.id}
+                className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm"
+                style={{
+                  background: "rgba(0,71,171,0.06)",
+                  borderColor: "rgba(0,71,171,0.20)",
+                  color: "var(--color-fg-ink)",
+                }}
+                role="status"
+              >
+                <div className="min-w-0">
+                  <p className="font-bold">
+                    {req.teamName ?? "팀"} 가입 신청 승인 대기 중
+                  </p>
+                  <p className="mt-0.5 text-[11px]" style={{ color: "var(--color-fg-ink-muted)" }}>
+                    감독·운영자가 확인하면 자동으로 팀에 합류됩니다.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void cancelJoinRequest(req)}
+                  className="shrink-0 rounded-md border px-2.5 py-1 text-[11px] font-bold"
+                  style={{
+                    borderColor: "rgba(0,71,171,0.20)",
+                    color: "var(--primary)",
+                    background: "var(--color-fg-paper)",
+                  }}
+                >
+                  취소
+                </button>
+              </div>
+            ))}
+            {recentRejected && (
+              <div
+                className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm"
+                style={{
+                  background: "rgba(255,59,48,0.06)",
+                  borderColor: "rgba(255,59,48,0.22)",
+                  color: "var(--color-fg-ink)",
+                }}
+                role="status"
+              >
+                <div className="min-w-0">
+                  <p className="font-bold">
+                    {recentRejected.teamName ?? "팀"} 가입 신청이 거부되었습니다
+                  </p>
+                  <p
+                    className="mt-0.5 text-[11px]"
+                    style={{ color: "var(--color-fg-ink-muted)" }}
+                  >
+                    다른 팀에 다시 신청해보세요.
+                  </p>
+                </div>
+                <Link
+                  href="/teams"
+                  className="shrink-0 rounded-md px-2.5 py-1 text-[11px] font-bold"
+                  style={{
+                    background: "var(--primary)",
+                    color: "var(--color-fg-paper)",
+                  }}
+                >
+                  팀 찾기
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Hero ── */}
       <div
@@ -313,7 +492,7 @@ export default function MyPage() {
           {/* Avatar */}
           <div className="relative flex-shrink-0">
             <div
-              className="w-[72px] h-[72px] rounded-2xl overflow-hidden flex items-center justify-center font-black text-2xl"
+              className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl overflow-hidden flex items-center justify-center font-black text-2xl"
               style={{
                 background: (player?.profilePhotoUrl || player?.photoUrl) ? "transparent" : "var(--color-fg-paper-3)",
                 border: "2px solid var(--color-fg-blue-soft)",
@@ -325,7 +504,7 @@ export default function MyPage() {
                 ? <img src={player.profilePhotoUrl || player.photoUrl} alt={player.name} className="w-full h-full object-cover" />
                 : (player?.name?.slice(0, 1) || user?.email?.slice(0, 1)?.toUpperCase() || "?")}
             </div>
-            {player?.cardRating && (
+            {player?.cardRating && !isAdminProfile && (
               <div
                 className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black"
                 style={{
@@ -343,7 +522,7 @@ export default function MyPage() {
           {/* Name + badges */}
           <div className="flex-1 min-w-0">
             <h1
-              className="font-black text-[28px] leading-none mb-2 truncate"
+              className="font-black text-[22px] sm:text-[28px] leading-none mb-2 truncate"
               style={{
                 fontFamily: "var(--font-pretendard)",
                 letterSpacing: "-1.5px",
@@ -353,9 +532,9 @@ export default function MyPage() {
               {player?.name || user?.email?.split("@")[0] || "마이페이지"}
             </h1>
             <div className="flex flex-wrap gap-1.5">
-              {player?.position && (
+              {player?.position && !isAdminProfile && (
                 <span
-                  className="text-[11px] px-2.5 py-1 rounded-full font-bold"
+                  className="text-xs px-2.5 py-1.5 rounded-full font-bold"
                   style={{
                     background: "var(--color-fg-paper)",
                     color: "var(--primary)",
@@ -379,7 +558,7 @@ export default function MyPage() {
                   {ROLE_LABELS[player.role] || player.role}
                 </span>
               )}
-              {player && player.cardRating >= 100 && (
+              {player && !isAdminProfile && player.cardRating >= 100 && (
                 <span
                   className="text-[11px] px-2.5 py-1 rounded-full font-bold"
                   style={{
@@ -411,6 +590,72 @@ export default function MyPage() {
 
       {/* ── Card + Stats Row ── */}
       {player ? (
+        isAdminProfile ? (
+          <div className="px-6 max-w-4xl mx-auto mt-8">
+            <SectionLabel text="Admin Profile" />
+            <div
+              className="rounded-2xl border p-6 md:p-8"
+              style={{
+                background: "var(--color-fg-paper)",
+                borderColor: "var(--color-fg-line-soft)",
+                boxShadow: "var(--shadow-sm)",
+              }}
+            >
+              <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-4">
+                  <div
+                    className="flex h-16 w-16 items-center justify-center rounded-2xl border"
+                    style={{
+                      background: "var(--color-fg-paper-3)",
+                      borderColor: "var(--color-fg-blue-soft)",
+                      color: "var(--primary)",
+                    }}
+                  >
+                    <Shield className="h-8 w-8" />
+                  </div>
+                  <div>
+                    <div className="fg-label text-[10px]" style={{ color: "var(--primary)" }}>
+                      CONTROL ACCOUNT
+                    </div>
+                    <h2 className="mt-1 text-2xl font-black" style={{ color: "var(--color-fg-ink)" }}>
+                      {player.name || "관리자"}
+                    </h2>
+                    <p className="mt-1 text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>
+                      {player.email || user?.email || "관리자 계정"}
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/admin"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold"
+                  style={{
+                    background: "var(--primary)",
+                    color: "var(--color-fg-paper)",
+                    boxShadow: "var(--shadow-sm)",
+                  }}
+                >
+                  <Shield className="h-4 w-4" />
+                  관리자 콘솔
+                </Link>
+              </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border p-4" style={{ borderColor: "var(--color-fg-line-soft)", background: "var(--color-fg-paper-2)" }}>
+                  <div className="text-[10px] uppercase tracking-[2px]" style={{ color: "var(--color-fg-ink-muted)" }}>Role</div>
+                  <div className="mt-2 font-black" style={{ color: "var(--color-fg-ink)" }}>관리자</div>
+                </div>
+                <div className="rounded-xl border p-4" style={{ borderColor: "var(--color-fg-line-soft)", background: "var(--color-fg-paper-2)" }}>
+                  <div className="text-[10px] uppercase tracking-[2px]" style={{ color: "var(--color-fg-ink-muted)" }}>Access</div>
+                  <div className="mt-2 font-black" style={{ color: "var(--color-fg-ink)" }}>운영 전체</div>
+                </div>
+                <div className="rounded-xl border p-4" style={{ borderColor: "var(--color-fg-line-soft)", background: "var(--color-fg-paper-2)" }}>
+                  <div className="text-[10px] uppercase tracking-[2px]" style={{ color: "var(--color-fg-ink-muted)" }}>Profile</div>
+                  <div className="mt-2 font-black" style={{ color: "var(--color-fg-ink)" }}>계정 정보</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="px-6 max-w-7xl mx-auto mt-8">
           <div className="flex flex-col md:flex-row gap-10 lg:gap-20 items-start md:items-stretch">
 
@@ -479,7 +724,7 @@ export default function MyPage() {
             {/* ── Right: 개인 기록 ── */}
             <section className="flex-1 min-w-0 w-full flex flex-col">
               <SectionLabel text="Stats" />
-              <div className="grid grid-cols-4 md:grid-cols-2 md:grid-rows-2 gap-3 mb-3 md:flex-1">
+              <div className="grid grid-cols-2 md:grid-cols-2 md:grid-rows-2 gap-3 mb-3 md:flex-1">
                 <StatBox value={player.stats.goals} label="골"
                   icon={<Target className="w-4 h-4" />} />
                 <StatBox value={player.stats.assists} label="어시스트"
@@ -571,6 +816,7 @@ export default function MyPage() {
 
           </div>
         </div>
+        )
       ) : (
         <div className="px-6 max-w-2xl mx-auto mt-8">
           <section>
@@ -591,13 +837,13 @@ export default function MyPage() {
               >
                 <CreditCard className="w-6 h-6" style={{ color: "var(--primary)" }} />
               </div>
-              <p className="font-bold text-sm mb-1" style={{ color: "var(--color-fg-ink)" }}>선수 카드가 없습니다</p>
+              <p className="font-bold text-sm mb-1" style={{ color: "var(--color-fg-ink)" }}>아직 시작 전이에요</p>
               <p className="text-sm mb-5" style={{ color: "var(--color-fg-ink-muted)" }}>
-                선수 등록 후 나만의 카드가 생성됩니다
+                감독 또는 선수로 시작하면 마이페이지가 활성화됩니다
               </p>
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <Link
-                  href="/my/player-setup"
+                  href="/onboarding"
                   className="inline-flex justify-center px-5 py-2.5 rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
                   style={{
                     background: "var(--primary)",
@@ -605,7 +851,7 @@ export default function MyPage() {
                     boxShadow: "var(--shadow-sm)",
                   }}
                 >
-                  선수 카드 만들기
+                  시작하기
                 </Link>
                 <Link
                   href="/my/team"
@@ -733,34 +979,81 @@ export default function MyPage() {
           {/* ── Left: 팀 정보 ── */}
           <section className="flex-1 min-w-0">
             <SectionLabel text="Team" />
-            {player?.teamId || registeredTeamId ? (
-              <Link href={player?.teamId ? `/teams/${player.teamId}` : "/my/team"}>
+            {managedTeamId ? (
                 <div
-                  className="rounded-2xl p-5 flex items-center gap-4 transition-all hover:opacity-80"
+                  className="rounded-2xl p-5"
                   style={{
                     background: "var(--color-fg-paper)",
                     border: "1px solid var(--color-fg-line-soft)",
                     boxShadow: "var(--shadow-sm)",
                   }}
                 >
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center"
-                    style={{
-                      background: "var(--color-fg-paper-3)",
-                      border: "1px solid var(--color-fg-blue-soft)",
-                    }}
-                  >
-                    <Users className="w-5 h-5" style={{ color: "var(--primary)" }} />
+                  <Link href={player?.teamId ? `/teams/${player.teamId}` : "/my/team"} className="flex items-center gap-4 transition-all hover:opacity-80">
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center"
+                      style={{
+                        background: "var(--color-fg-paper-3)",
+                        border: "1px solid var(--color-fg-blue-soft)",
+                      }}
+                    >
+                      <Users className="w-5 h-5" style={{ color: "var(--primary)" }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm mb-0.5 truncate" style={{ color: "var(--color-fg-ink)" }}>
+                        {team?.name || "소속 팀"}
+                      </p>
+                      <p className="text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>
+                        팀 로스터 · 시즌 기록 · 팀 게시판
+                      </p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: "var(--color-fg-ink-muted)" }} />
+                  </Link>
+                  {/* Action row — 팀 카드 자체도 팀홈 Link이지만 큰 "팀 운영"
+                      버튼이 시각적으로 압도해 팀 홈 진입로가 묻혔던 문제(사용자
+                      피드백)를 해소. 좌측 secondary(팀 홈페이지) + 우측 primary
+                      (팀 운영)로 동등 가시성 확보. teamId 없을 땐 단독 가입 CTA. */}
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    {player?.teamId ? (
+                      <>
+                        <Link
+                          href={`/teams/${player.teamId}`}
+                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border px-4 py-3 text-xs font-bold transition-all hover:bg-[rgba(0,71,171,0.06)]"
+                          style={{
+                            borderColor: "rgba(0,71,171,0.20)",
+                            color: "var(--primary)",
+                            background: "var(--color-fg-paper)",
+                          }}
+                        >
+                          <Users className="h-4 w-4" />
+                          팀 홈페이지
+                        </Link>
+                        <Link
+                          href={`/teams/${player.teamId}/admin`}
+                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-xs font-bold transition-all hover:opacity-90"
+                          style={{
+                            background: "var(--primary)",
+                            color: "var(--color-fg-paper)",
+                          }}
+                        >
+                          <Shield className="h-4 w-4" />
+                          팀 운영
+                        </Link>
+                      </>
+                    ) : (
+                      <Link
+                        href="/my/team"
+                        className="col-span-2 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-xs font-bold transition-all hover:opacity-90"
+                        style={{
+                          background: "var(--primary)",
+                          color: "var(--color-fg-paper)",
+                        }}
+                      >
+                        <Shield className="h-4 w-4" />
+                        팀 등록 / 가입
+                      </Link>
+                    )}
                   </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm mb-0.5" style={{ color: "var(--color-fg-ink)" }}>소속 팀</p>
-                    <p className="text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>
-                      팀 로스터 · 시즌 기록 · 팀 게시판
-                    </p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: "var(--color-fg-ink-muted)" }} />
                 </div>
-              </Link>
             ) : (
               <div
                 className="rounded-2xl p-5 text-center"
@@ -836,25 +1129,14 @@ export default function MyPage() {
                         value={POSITION_LABELS[player.position] || player.position} />
                       <InfoRow icon={<Flag className="w-4 h-4" />} label="국적"
                         value={player.nationality} />
-                      {(player.mbti || player.disposition || player.personalValues) && (
+                      <InfoRow icon={<Brain className="w-4 h-4" />} label="MBTI"
+                        value={player.mbti || "미입력"} />
+                      {(player.disposition || player.personalValues) && (
                         <div
                           className="py-3.5 space-y-2"
                           style={{ borderBottom: "1px solid var(--color-fg-line-soft)" }}
                         >
                           <div className="flex flex-wrap gap-1.5">
-                            {player.mbti && (
-                              <span
-                                className="text-[11px] px-2.5 py-1 rounded-full font-bold"
-                                style={{
-                                  background: "var(--color-fg-paper-3)",
-                                  color: "var(--primary)",
-                                  border: "1px solid var(--color-fg-blue-soft)",
-                                  fontFamily: "var(--font-space-mono)",
-                                }}
-                              >
-                                MBTI · {player.mbti}
-                              </span>
-                            )}
                             {player.disposition && (
                               <span
                                 className="text-[11px] px-2.5 py-1 rounded-full font-bold"

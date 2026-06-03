@@ -12,15 +12,17 @@ export function useTeam(teamId?: string) {
 
   useEffect(() => {
     if (!teamId) {
-      setLoading(false);
+      queueMicrotask(() => setLoading(false));
       return;
     }
     if (cached) {
-      setTeam(cached);
-      setLoading(false);
+      queueMicrotask(() => {
+        setTeam(cached);
+        setLoading(false);
+      });
       return;
     }
-    setLoading(true);
+    queueMicrotask(() => setLoading(true));
     fetchTeam(teamId).then((t) => {
       setTeam(t);
       setLoading(false);
@@ -49,10 +51,10 @@ export function useTeamPlayers(teamId?: string) {
 
   useEffect(() => {
     if (!teamId) {
-      setLoading(false);
+      queueMicrotask(() => setLoading(false));
       return;
     }
-    setLoading(true);
+    queueMicrotask(() => setLoading(true));
     fetchTeamPlayers(teamId).then((p) => {
       setPlayers(p);
       setLoading(false);

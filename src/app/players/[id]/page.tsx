@@ -81,7 +81,7 @@ export default function PlayerDetailPage() {
 
   return (
     <div className="pt-[60px] min-h-screen flex flex-col" style={{ background: "#0D1B2A" }}>
-      <div className="flex-1 flex flex-col items-center px-6 py-10">
+      <div className="flex-1 flex flex-col items-center px-5 py-10 sm:px-8 md:px-10">
         {/* Back */}
         <div className="w-full max-w-[240px] mb-8">
           <Link

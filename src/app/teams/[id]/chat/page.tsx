@@ -6,9 +6,11 @@ import Link from "next/link";
 import { ArrowLeft, MessageSquare, Eye, Plus, X } from "lucide-react";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
+import { canPostInTeamBoard } from "@/lib/team-permissions";
 import { Button } from "@/components/ui/button";
 import { CategoryChip } from "@/components/category-chip";
 import { BoardPostForm } from "@/components/board-post-form";
+import { AuthorRoleBadge } from "@/components/author-role-badge";
 import { POST_CATEGORIES, type BoardPost, type PostCategory, type Team } from "@/types";
 import { formatDate } from "@/utils/formatters";
 import { mentionedUserIds } from "@/lib/mention-parser";
@@ -64,18 +66,19 @@ export default function TeamBoardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId, filter, sort]);
 
-  // 클라 UX 가드: 로그인 + 본인이 이 팀 멤버 또는 admin 만 작성.
-  const canWrite = useMemo(() => {
-    if (!user || !player) return false;
-    if (player.role === "admin") return true;
-    return player.teamId === teamId;
-  }, [user, player, teamId]);
+  // 클라 UX 가드 — lib/team-permissions로 통일. 최종 강제는 RLS.
+  const canWrite = useMemo(
+    () => Boolean(user) && canPostInTeamBoard(player, teamId),
+    [user, player, teamId],
+  );
 
   const sortLabel = useMemo(() => (sort === "recent" ? "최신순" : "댓글많은순"), [sort]);
 
   return (
     <div className="pt-[60px] min-h-screen" style={{ background: "var(--color-fg-paper-2)" }}>
-      {/* Header */}
+      {/* Header — text-led counterpart to the visual-led gallery header.
+          Same hierarchy depth, intentionally different visual identity:
+          MessageSquare mark + posts/authors stats on the right. */}
       <header className="px-5 md:px-10 pt-10 pb-7" style={{ background: "var(--color-fg-paper)" }}>
         <div className="max-w-4xl mx-auto">
           <Link
@@ -85,45 +88,88 @@ export default function TeamBoardPage() {
           >
             <ArrowLeft className="w-4 h-4" /> 팀 홈
           </Link>
-          <p className="fg-label mb-3" style={{ color: "var(--primary)" }}>
-            TEAM BOARD
-          </p>
-          <div className="flex items-end justify-between gap-4 flex-wrap">
-            <div>
-              <h1
-                className="font-black leading-none"
+          <div
+            className="flex flex-col gap-5 border p-6 md:flex-row md:items-end md:justify-between md:p-7"
+            style={{
+              background: "rgba(255,255,255,0.94)",
+              borderColor: "rgba(0,71,171,0.16)",
+              boxShadow: "var(--shadow-sm)",
+            }}
+          >
+            <div className="flex items-start gap-4">
+              <div
+                className="flex h-12 w-12 shrink-0 items-center justify-center border"
                 style={{
-                  fontSize: "clamp(28px, 5vw, 44px)",
-                  letterSpacing: "-1.2px",
-                  color: "var(--color-fg-ink)",
+                  background: "rgba(0,71,171,0.06)",
+                  borderColor: "rgba(0,71,171,0.18)",
+                  color: "var(--primary)",
                 }}
               >
-                {team?.name ? `${team.name} 게시판` : "팀 게시판"}
-              </h1>
-              <p className="mt-3 text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>
-                팀 멤버들이 자유롭게 소통하는 공간입니다.
-              </p>
+                <MessageSquare className="h-6 w-6" />
+              </div>
+              <div>
+                <p
+                  className="fg-label text-[10px]"
+                  style={{ color: "var(--primary)" }}
+                >
+                  TEAM BOARD
+                </p>
+                <h1
+                  className="fg-display mt-1 font-black leading-none"
+                  style={{
+                    fontSize: "clamp(22px, 4vw, 32px)",
+                    letterSpacing: "-0.6px",
+                    color: "var(--color-fg-ink)",
+                  }}
+                >
+                  {team?.name ? `${team.name} 게시판` : "팀 게시판"}
+                </h1>
+                <p
+                  className="mt-2 text-sm"
+                  style={{ color: "var(--color-fg-ink-muted)" }}
+                >
+                  팀 멤버들이 자유롭게 소통하는 공간입니다.
+                </p>
+              </div>
             </div>
-            {!showForm && (
-              <Button
-                className="min-h-[44px]"
-                style={{ background: "var(--primary)", color: "#fff" }}
-                onClick={() => {
-                  if (!user) {
-                    window.location.href = `/login?returnTo=${encodeURIComponent(`/teams/${teamId}/chat`)}`;
-                    return;
-                  }
-                  if (!canWrite) {
-                    alert("이 팀의 멤버만 글을 작성할 수 있습니다.");
-                    return;
-                  }
-                  setShowForm(true);
-                }}
-              >
-                <Plus className="w-4 h-4" />
-                글쓰기
-              </Button>
-            )}
+            <div className="flex items-end gap-4 md:gap-6">
+              <div>
+                <div className="fg-mono text-[10px]" style={{ color: "var(--color-fg-ink-muted)" }}>
+                  POSTS
+                </div>
+                <div className="fg-display text-2xl font-black tabular-nums md:text-3xl" style={{ color: "var(--color-fg-ink)" }}>
+                  {posts.length}
+                </div>
+              </div>
+              <div>
+                <div className="fg-mono text-[10px]" style={{ color: "var(--color-fg-ink-muted)" }}>
+                  AUTHORS
+                </div>
+                <div className="fg-display text-2xl font-black tabular-nums md:text-3xl" style={{ color: "var(--color-fg-ink)" }}>
+                  {new Set(posts.map((p) => p.authorId).filter(Boolean)).size || "-"}
+                </div>
+              </div>
+              {!showForm && (
+                <Button
+                  className="min-h-[44px]"
+                  style={{ background: "var(--primary)", color: "#fff" }}
+                  onClick={() => {
+                    if (!user) {
+                      window.location.href = `/login?returnTo=${encodeURIComponent(`/teams/${teamId}/chat`)}`;
+                      return;
+                    }
+                    if (!canWrite) {
+                      alert("이 팀의 멤버만 글을 작성할 수 있습니다.");
+                      return;
+                    }
+                    setShowForm(true);
+                  }}
+                >
+                  <Plus className="w-4 h-4" />
+                  글쓰기
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -279,7 +325,10 @@ export default function TeamBoardPage() {
                       className="flex items-center gap-3 text-xs flex-wrap"
                       style={{ color: "var(--color-fg-ink-muted)" }}
                     >
-                      <span>{p.authorName ?? "익명"}</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        {p.authorName ?? "익명"}
+                        <AuthorRoleBadge role={p.authorRole} />
+                      </span>
                       <span aria-hidden="true">·</span>
                       <time dateTime={new Date(p.createdAt).toISOString()}>
                         {formatDate(p.createdAt)}

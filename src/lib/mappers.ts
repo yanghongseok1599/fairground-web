@@ -24,6 +24,7 @@ import type {
   TeamPhoto,
   ActivityEvent,
   ActivityKind,
+  PlayerRole,
 } from "@/types";
 import type { Database } from "@/lib/database.types";
 
@@ -181,6 +182,9 @@ export function rowToTeam(r: TeamRow): Team {
     description: r.description ?? undefined,
     introSubtitle: r.intro_subtitle ?? undefined,
     bannerUrl: r.banner_url ?? undefined,
+    teamType: r.team_type,
+    leagueTier: r.league_tier,
+    participationStreak: r.participation_streak,
   };
 }
 
@@ -197,6 +201,9 @@ export function teamToInsert(t: Omit<Team, "id"> & { id?: string }): TeamInsert 
     description: t.description ?? null,
     intro_subtitle: t.introSubtitle ?? null,
     banner_url: t.bannerUrl ?? null,
+    team_type: t.teamType ?? "community",
+    league_tier: t.leagueTier ?? "bronze",
+    participation_streak: t.participationStreak ?? 0,
   };
 }
 
@@ -212,6 +219,7 @@ export function teamPatchToRow(d: Partial<Team>): TeamUpdate {
   if (d.description !== undefined) u.description = d.description ?? null;
   if (d.introSubtitle !== undefined) u.intro_subtitle = d.introSubtitle ?? null;
   if (d.bannerUrl !== undefined) u.banner_url = d.bannerUrl ?? null;
+  if (d.teamType !== undefined) u.team_type = d.teamType;
   return u;
 }
 
@@ -343,12 +351,18 @@ export function rowToSeason(r: SeasonRow): Season {
  * profiles 조인 결과는 select 형태에 따라 객체 또는 배열로 올 수 있어 둘 다 허용.
  * RLS·스키마 변경 없이 작성자 이름만 클라에서 표시한다.
  */
-type AuthorJoin = { name: string } | { name: string }[] | null | undefined;
+type AuthorJoin = { name: string; role?: PlayerRole | null } | { name: string; role?: PlayerRole | null }[] | null | undefined;
 
 function pickAuthorName(j: AuthorJoin): string | undefined {
   if (!j) return undefined;
   if (Array.isArray(j)) return j[0]?.name;
   return j.name;
+}
+
+function pickAuthorRole(j: AuthorJoin): PlayerRole | undefined {
+  if (!j) return undefined;
+  const role = Array.isArray(j) ? j[0]?.role : j.role;
+  return role ?? undefined;
 }
 
 type NoticeRowWithAuthor = NoticeRow & { profiles?: AuthorJoin };
@@ -363,6 +377,7 @@ export function rowToNotice(r: NoticeRowWithAuthor): Notice {
     isImportant: r.is_important,
     authorId: r.author_id ?? undefined,
     authorName: pickAuthorName(r.profiles),
+    authorRole: pickAuthorRole(r.profiles),
     teamId: r.team_id ?? undefined,
     publishedAt: ts(r.published_at),
     createdAt: ts(r.created_at),
@@ -415,6 +430,7 @@ export function rowToBoardPost(r: BoardPostRowWithAuthor): BoardPost {
     category: r.category,
     authorId: r.author_id,
     authorName: pickAuthorName(r.profiles),
+    authorRole: pickAuthorRole(r.profiles),
     viewCount: r.view_count,
     commentCount: r.comment_count,
     reactionCount: r.reaction_count ?? 0,
@@ -465,6 +481,7 @@ export function rowToBoardComment(r: BoardCommentRowWithAuthor): BoardComment {
     body: r.body,
     authorId: r.author_id,
     authorName: pickAuthorName(r.profiles),
+    authorRole: pickAuthorRole(r.profiles),
     reactionCount: r.reaction_count ?? 0,
     isEdited: r.is_edited ?? false,
     isHidden: r.is_hidden ?? false,

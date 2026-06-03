@@ -1388,6 +1388,10 @@ export type Database = {
         Returns: number
       }
       end_match: { Args: { p_match_id: string }; Returns: undefined }
+      forfeit_match: {
+        Args: { p_match_id: string; p_forfeit_team_id: string }
+        Returns: undefined
+      }
       enforce_user_rate_limit: {
         Args: {
           p_max: number

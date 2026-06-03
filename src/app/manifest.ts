@@ -16,7 +16,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "FairGround — Where Amateurs Play Pro",
     short_name: "FairGround",
     description:
-      "서울 아마추어 풋살 리그. 실시간 스코어·개인 스탯·선수 카드. 경기장 밖에서도 프로처럼.",
+      "모두가 승리하는 그라운드. 실시간 스코어·개인 스탯·선수 카드로 모든 경기가 기록됩니다.",
     start_url: "/",
     scope: "/",
     display: "standalone",
@@ -26,6 +26,12 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "ko",
     categories: ["sports"],
     icons: [
+      {
+        src: "/icons/icon-1024.png",
+        sizes: "1024x1024",
+        type: "image/png",
+        purpose: "any",
+      },
       {
         src: "/icons/icon-192.png",
         sizes: "192x192",
