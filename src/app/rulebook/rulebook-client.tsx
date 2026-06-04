@@ -42,7 +42,7 @@ const MATCH_RULES: Doc = {
   id: "match",
   tab: "경기·운영 규정",
   title: "경기 · 운영 규정",
-  sub: "Pair Ground 혼성 풋살 페스티벌 공식 규정",
+  sub: "Fair Ground 혼성 풋살 페스티벌 공식 규정",
   version: "v2.4 · 2026.06 시행",
   philosophy: PHILOSOPHY,
   blocks: [
@@ -51,7 +51,7 @@ const MATCH_RULES: Doc = {
     {
       k: "art", no: "제1조", name: "목적",
       c: [
-        "본 규정은 Pair Ground 대회 규정에 근거하여 경기장에서 적용되는 경기 운영 기준, 반칙 판단 기준 및 제재 기준을 명확히 함을 목적으로 한다.",
+        "본 규정은 Fair Ground 대회 규정에 근거하여 경기장에서 적용되는 경기 운영 기준, 반칙 판단 기준 및 제재 기준을 명확히 함을 목적으로 한다.",
         "본 규정은 “경쟁보다 존중, 승패보다 안전, 결과보다 과정”의 철학에 기반하여 공정하고 안정적인 경기 환경을 조성함을 기본 이념으로 한다.",
         "본 대회는 혼성 풋살을 통해 평화·화합·존중의 스포츠 문화를 확산하는 것을 지향한다.",
       ],
@@ -59,7 +59,7 @@ const MATCH_RULES: Doc = {
     {
       k: "art", no: "제2조", name: "적용 범위 및 효력",
       c: [
-        "본 규정은 Pair Ground가 주최·주관하는 모든 공식 경기에 적용된다.",
+        "본 규정은 Fair Ground가 주최·주관하는 모든 공식 경기에 적용된다.",
         "본 규정은 대회 규정에 종속되며, 상충되는 사항이 발생할 경우 대회 규정을 우선 적용한다.",
         "참가 신청은 본 규정에 대한 동의로 간주한다.",
         "경기 중 심판의 판정은 최종적 효력을 가지며, 모든 참가자는 이를 즉시 존중하여야 한다.",
@@ -205,7 +205,7 @@ const MATCH_RULES: Doc = {
     {
       k: "art", no: "제15조", name: "운영 주체 및 권한 분리",
       c: [
-        "대회 운영은 Pair Ground 운영팀이 총괄한다.",
+        "대회 운영은 Fair Ground 운영팀이 총괄한다.",
         "경기 판정은 심판이 독립적으로 행사한다.",
         "징계 판단은 운영위원회의 심의를 거쳐 결정한다.",
         "판정·징계·집행 권한은 기능적으로 분리한다.",
@@ -295,7 +295,7 @@ const MATCH_RULES: Doc = {
     {
       k: "art", no: "제25조", name: "초상권 및 촬영 동의",
       c: [
-        "모든 참가팀은 대회 참가 전 Pair Ground가 제공하는 초상권 및 촬영 동의서를 제출하여야 한다.",
+        "모든 참가팀은 대회 참가 전 Fair Ground가 제공하는 초상권 및 촬영 동의서를 제출하여야 한다.",
         "경기 중 촬영된 영상 및 사진은 홍보, 기록, 중계, 온라인 플랫폼 게시, SNS 활용 및 2차 저작물 제작을 포함한 콘텐츠 제작에 활용될 수 있다.",
         "동의서 미제출 시 참가 등록은 완료되지 아니한 것으로 본다.",
       ],
@@ -309,7 +309,7 @@ const MATCH_RULES: Doc = {
       k: "art", no: "제27조", name: "불가항력",
       c: ["천재지변, 시설 문제 등 불가항력 사유 발생 시 일정 변경 또는 경기 중단이 가능하다."],
     },
-    { k: "note", x: "본 규정은 2026년 6월부터 시행한다. — Pair Ground 경기·운영 규정 v2.4" },
+    { k: "note", x: "본 규정은 2026년 6월부터 시행한다. — Fair Ground 경기·운영 규정 v2.4" },
   ],
 };
 
@@ -317,7 +317,7 @@ const TOURNAMENT_RULES: Doc = {
   id: "tournament",
   tab: "대회 규정",
   title: "대회 규정",
-  sub: "Pair Ground 혼성 풋살 페스티벌 공식 대회 규정",
+  sub: "Fair Ground 혼성 풋살 페스티벌 공식 대회 규정",
   version: "v1.2 · 2026.06 시행",
   philosophy: PHILOSOPHY,
   blocks: [
@@ -325,9 +325,9 @@ const TOURNAMENT_RULES: Doc = {
     {
       k: "art", no: "제1조", name: "목적 및 철학",
       c: [
-        "Pair Ground는 남녀 혼성 풋살을 통해 “경쟁보다 존중, 승패보다 안전, 결과보다 과정”을 중시한다.",
+        "Fair Ground는 남녀 혼성 풋살을 통해 “경쟁보다 존중, 승패보다 안전, 결과보다 과정”을 중시한다.",
         "본 대회는 실력·성별·경험 차이로 인해 발생할 수 있는 신체적·정서적 위험을 최소화하고, 모든 참가자가 안전하게 경기를 마칠 수 있도록 운영된다.",
-        "Pair Ground는 단발성 이벤트가 아닌, 동일한 기준과 문화를 바탕으로 전국 어디서나 운영 가능한 지속 가능한 대회를 지향한다.",
+        "Fair Ground는 단발성 이벤트가 아닌, 동일한 기준과 문화를 바탕으로 전국 어디서나 운영 가능한 지속 가능한 대회를 지향한다.",
       ],
     },
     {
@@ -485,7 +485,7 @@ const TOURNAMENT_RULES: Doc = {
     {
       k: "art", no: "제15조", name: "초상권 및 촬영 동의",
       c: [
-        "모든 참가팀은 대회 참가 전 Pair Ground가 제공하는 초상권 및 촬영 동의서를 제출하여야 한다.",
+        "모든 참가팀은 대회 참가 전 Fair Ground가 제공하는 초상권 및 촬영 동의서를 제출하여야 한다.",
         "경기 중 촬영된 영상 및 사진은 홍보, 기록, 중계, 온라인 플랫폼 게시, SNS 활용 및 2차 저작물 제작에 활용될 수 있다.",
         "동의서 미제출 시 참가 등록은 완료되지 아니한 것으로 본다.",
       ],
@@ -494,7 +494,7 @@ const TOURNAMENT_RULES: Doc = {
     {
       k: "art", no: "제16조", name: "규정의 효력 및 개정",
       c: [
-        "본 규정은 Pair Ground 공식 대회 운영 기준으로 적용된다.",
+        "본 규정은 Fair Ground 공식 대회 운영 기준으로 적용된다.",
         "본 규정은 대회 공지 시점부터 효력을 가진다.",
         "본 규정은 운영 필요에 따라 개정될 수 있으며, 개정 시 사전에 공지하고 특별한 사정이 없는 한 차기 대회부터 적용한다.",
       ],
@@ -503,7 +503,7 @@ const TOURNAMENT_RULES: Doc = {
       k: "art", no: "제17조", name: "불가항력",
       c: ["천재지변, 시설 문제 등 불가항력 사유 발생 시 일정 변경 또는 경기 중단이 가능하다."],
     },
-    { k: "note", x: "본 규정은 2026년 6월부터 시행한다. — Pair Ground 대회 규정 v1.2" },
+    { k: "note", x: "본 규정은 2026년 6월부터 시행한다. — Fair Ground 대회 규정 v1.2" },
   ],
 };
 
@@ -511,7 +511,7 @@ const REFEREE_GUIDE: Doc = {
   id: "referee",
   tab: "심판 가이드",
   title: "심판 교육 가이드",
-  sub: "Pair Ground 혼성 풋살 페스티벌 심판 집행 매뉴얼",
+  sub: "Fair Ground 혼성 풋살 페스티벌 심판 집행 매뉴얼",
   version: "v2.3 · 2026.06 시행",
   philosophy: PHILOSOPHY,
   blocks: [
@@ -533,7 +533,7 @@ const REFEREE_GUIDE: Doc = {
       k: "clauses",
       c: [
         "경기 중 발생하는 모든 상황에 대한 1차 판단 권한은 해당 경기 심판에게 있다.",
-        "본 규정 및 경기 운영 전반에 대한 해석 권한은 Pair Ground 운영위원회에 있다.",
+        "본 규정 및 경기 운영 전반에 대한 해석 권한은 Fair Ground 운영위원회에 있다.",
         "규정에 명시되지 않은 상황 발생 시, 심판은 대회의 안전 원칙과 운영 취지에 근거하여 합리적으로 판단한다.",
         "운영위원회는 필요 시 유권해석을 통해 적용 기준을 명확히 할 수 있다.",
       ],
@@ -648,7 +648,7 @@ const REFEREE_GUIDE: Doc = {
     {
       k: "clauses",
       c: [
-        "모든 경고·퇴장·출장정지 기록은 Pair Ground 공식 전용 어플리케이션에 기록한다.",
+        "모든 경고·퇴장·출장정지 기록은 Fair Ground 공식 전용 어플리케이션에 기록한다.",
         "경기 종료 직후 심판은 기록을 입력한다.",
         "전산 장애 발생 시 서면 기록을 공식 기록으로 대체한다.",
         "기록은 향후 징계 및 참가 자격 판단의 기준이 된다.",
@@ -705,7 +705,7 @@ const REFEREE_GUIDE: Doc = {
         "필요 시 해당 개인 또는 팀에 대해 향후 대회 참가 제한 조치를 취할 수 있다.",
       ],
     },
-    { k: "note", x: "본 가이드는 2026년 6월부터 시행한다. — Pair Ground 심판 교육 가이드 v2.3" },
+    { k: "note", x: "본 가이드는 2026년 6월부터 시행한다. — Fair Ground 심판 교육 가이드 v2.3" },
   ],
 };
 
@@ -713,7 +713,7 @@ const CAPTAIN_GUIDE: Doc = {
   id: "captain",
   tab: "주장 가이드",
   title: "주장 교육 가이드",
-  sub: "Pair Ground 혼성 풋살 페스티벌 — 팀 주장을 위한 안내",
+  sub: "Fair Ground 혼성 풋살 페스티벌 — 팀 주장을 위한 안내",
   version: "v1.0 · 2026.06 시행",
   philosophy: PHILOSOPHY,
   blocks: [
@@ -778,7 +778,7 @@ const CAPTAIN_GUIDE: Doc = {
     },
     { k: "sec", x: "Ⅵ. 주장이 기억해야 할 페어그라운드의 약속" },
     { k: "note", x: "“경쟁보다 존중, 승패보다 안전, 결과보다 과정” — 우리는 이기기 위해 모이는 것이 아닙니다. 모두가 함께 웃으며 끝까지 뛸 수 있는 그라운드를 만들기 위해 모입니다. 오늘 팀 주장인 당신이 그 그라운드의 첫 번째 설계자입니다." },
-    { k: "note", x: "본 가이드는 2026년 6월부터 시행한다. — Pair Ground 주장 교육 가이드 v1.0" },
+    { k: "note", x: "본 가이드는 2026년 6월부터 시행한다. — Fair Ground 주장 교육 가이드 v1.0" },
   ],
 };
 
@@ -965,7 +965,7 @@ export function RulebookClient() {
             룰북
           </h1>
           <p className="mt-5 text-[15px] leading-relaxed" style={{ color: "var(--color-fg-ink-muted)", fontFamily: "var(--font-body)" }}>
-            Pair Ground는 “{PHILOSOPHY}”를 중시하는 남녀 혼성 풋살 페스티벌입니다. 아래 공식 규정과
+            Fair Ground는 “{PHILOSOPHY}”를 중시하는 남녀 혼성 풋살 페스티벌입니다. 아래 공식 규정과
             가이드는 이기기 위한 규칙이 아니라, 모두가 끝까지 안전하고 즐겁게 함께하기 위한 기준입니다.
           </p>
 
@@ -1018,7 +1018,7 @@ export function RulebookClient() {
             style={{ background: "var(--color-fg-paper-2)", border: "1px solid var(--color-fg-line-soft)" }}
           >
             <p className="text-[15px] font-bold" style={{ color: "var(--color-fg-ink)" }}>
-              Pair Ground는 함께 뛰고, 함께 멈추고, 함께 끝내는 대회입니다.
+              Fair Ground는 함께 뛰고, 함께 멈추고, 함께 끝내는 대회입니다.
             </p>
             <p className="mt-2 text-[13px]" style={{ color: "var(--color-fg-ink-muted)" }}>
               경기를 이기려 하지 말고, 사람을 먼저 살피세요.
