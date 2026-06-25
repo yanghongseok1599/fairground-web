@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     url: `${SITE_URL}/beach-soccer`,
     images: [
       {
-        url: "/promotions/beach-soccer-2026-3div.png",
+        url: "/promotions/beach-soccer-2026-photo.png",
         width: 1080,
         height: 1350,
         alt: "전국 비치사커대회",
@@ -110,7 +110,7 @@ export default function BeachSoccerPage() {
     >
       <section className="relative min-h-[calc(100svh-96px)] overflow-hidden bg-[#06162a] px-5 py-12 text-white sm:px-8 sm:py-16 md:px-10 md:py-20">
         <Image
-          src="/promotions/beach-soccer-2026-3div.png"
+          src="/promotions/beach-soccer-2026-photo.png"
           alt=""
           fill
           priority
@@ -364,7 +364,7 @@ export default function BeachSoccerPage() {
         <div className="mx-auto grid max-w-[1320px] gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
           <div className="relative mx-auto w-full max-w-[460px] overflow-hidden border border-[#D0D8E8] bg-[#071a2f]">
             <Image
-              src="/promotions/beach-soccer-2026-3div.png"
+              src="/promotions/beach-soccer-2026-photo.png"
               alt="전국 비치사커대회 공식 포스터"
               width={1080}
               height={1350}

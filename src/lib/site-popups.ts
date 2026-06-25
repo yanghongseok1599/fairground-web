@@ -199,7 +199,7 @@ export function getEmptyPopupDraft(): SitePopupDraft {
     detailTwo: "",
     detailThree: "",
     detailFour: "",
-    imageUrl: "/promotions/beach-soccer-2026-3div.png",
+    imageUrl: "/promotions/beach-soccer-2026-photo.png",
     ctaLabel: "자세히 보기",
     ctaHref: "/",
     secondaryLabel: "",
