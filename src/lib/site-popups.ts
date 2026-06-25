@@ -56,7 +56,7 @@ export const DEFAULT_BEACH_SOCCER_POPUP: SitePopup = {
   detailTwo: "2026년 8월 7일 금요일",
   detailThree: "총상금 200만원",
   detailFour: "참가비 30만원",
-  imageUrl: "/promotions/beach-soccer-2026-3div.png",
+  imageUrl: "/promotions/beach-soccer-2026-photo.png",
   ctaLabel: "프로젝트 보기",
   ctaHref: "/beach-soccer",
   secondaryLabel: "",
