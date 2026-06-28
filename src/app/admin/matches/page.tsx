@@ -75,6 +75,7 @@ function AdminMatches() {
   const [newAwayTeamId, setNewAwayTeamId] = useState("");
   const [newRound, setNewRound] = useState("1");
   const [creating, setCreating] = useState(false);
+  const [matchMessage, setMatchMessage] = useState("");
 
   // Auto grouping/matching dialog
   const [autoDialogOpen, setAutoDialogOpen] = useState(false);
@@ -93,12 +94,17 @@ function AdminMatches() {
     const load = async () => {
       setLoading(true);
       try {
-        const [tournamentList] = await Promise.all([
+        const [tournamentList, teamList] = await Promise.all([
           store.fetchAllTournaments(),
           store.fetchTeams(),
         ]);
         setTournaments(tournamentList);
-        setTeams(store.teams);
+        // fetchTeams 의 반환값(배열)으로 채운다. store.teams 스냅샷은 이 async
+        // 클로저에서 마운트 시점 값({})으로 고정돼 있어, 그걸 쓰면 동기화 effect가
+        // 채운 값을 빈 객체로 덮어쓴다(팀 드롭다운이 비는 원인).
+        const teamRecord: Record<string, Team> = {};
+        for (const t of teamList) teamRecord[t.id] = t;
+        setTeams(teamRecord);
 
         // Fetch matches for each tournament
         const matchMap: Record<string, Match[]> = {};
@@ -231,6 +237,7 @@ function AdminMatches() {
     if (newHomeTeamId === newAwayTeamId) return;
 
     setCreating(true);
+    setMatchMessage("");
     try {
       const homeTeam = teams[newHomeTeamId];
       const awayTeam = teams[newAwayTeamId];
@@ -274,8 +281,10 @@ function AdminMatches() {
       setNewHomeTeamId("");
       setNewAwayTeamId("");
       setNewRound("1");
-    } catch {
-      // silent
+    } catch (error) {
+      setMatchMessage(
+        error instanceof Error ? error.message : "경기 생성에 실패했습니다.",
+      );
     } finally {
       setCreating(false);
     }
@@ -295,6 +304,14 @@ function AdminMatches() {
     : [];
   const teamList = Object.values(teams);
   const approvedTeamList = teamList.filter((team) => team.isApproved);
+  // 새 경기 추가 드롭다운에 쓸 팀 목록. 선택한 대회의 그룹에 묶인 팀이 있으면 그걸,
+  // 그룹이 비었거나 묶인 팀 ID가 현재 팀 목록에서 안 풀리면(편성 전/시드 불일치)
+  // 전체 승인 팀으로 폴백한다 — 그래야 드롭다운이 비지 않는다.
+  const resolvedTournamentTeams = selectedTournamentTeamIds
+    .map((id) => teams[id])
+    .filter(Boolean);
+  const matchTeamOptions =
+    resolvedTournamentTeams.length > 0 ? resolvedTournamentTeams : approvedTeamList;
   const selectedAutoTournament = tournaments.find((t) => t.id === autoTournamentId);
   const recommendedAutoGroupCount = recommendGroupCount(approvedTeamList.length);
 
@@ -754,7 +771,13 @@ function AdminMatches() {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog
+            open={dialogOpen}
+            onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) setMatchMessage("");
+            }}
+          >
             <DialogTrigger asChild>
               <Button className="min-h-[44px] w-full">
                 <Plus className="mr-2 h-4 w-4" />새 경기 추가
@@ -816,12 +839,7 @@ function AdminMatches() {
                       <SelectValue placeholder="홈 팀 선택" />
                     </SelectTrigger>
                     <SelectContent>
-                      {(selectedTournamentTeamIds.length > 0
-                        ? selectedTournamentTeamIds
-                            .map((id) => teams[id])
-                            .filter(Boolean)
-                        : teamList
-                      ).map((t) => (
+                      {matchTeamOptions.map((t) => (
                         <SelectItem
                           key={t.id}
                           value={t.id}
@@ -844,12 +862,7 @@ function AdminMatches() {
                       <SelectValue placeholder="원정 팀 선택" />
                     </SelectTrigger>
                     <SelectContent>
-                      {(selectedTournamentTeamIds.length > 0
-                        ? selectedTournamentTeamIds
-                            .map((id) => teams[id])
-                            .filter(Boolean)
-                        : teamList
-                      ).map((t) => (
+                      {matchTeamOptions.map((t) => (
                         <SelectItem
                           key={t.id}
                           value={t.id}
@@ -875,6 +888,11 @@ function AdminMatches() {
                 >
                   {creating ? "생성 중..." : "경기 생성"}
                 </Button>
+                {matchMessage && (
+                  <p className="text-sm" style={{ color: "var(--destructive)" }}>
+                    {matchMessage}
+                  </p>
+                )}
               </div>
             </DialogContent>
           </Dialog>
