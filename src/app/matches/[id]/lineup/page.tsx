@@ -9,7 +9,8 @@ import { LineupEditor } from "@/components/lineup-editor";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
-import type { Match, MatchStatus, Player, Team } from "@/types";
+import type { Match, MatchStatus, Team } from "@/types";
+import { canOperateMatchForTeam } from "@/lib/team-permissions";
 
 /**
  * 출전 명단 제출 페이지.
@@ -17,7 +18,7 @@ import type { Match, MatchStatus, Player, Team } from "@/types";
  * - 양 팀(home/away)에 대해 LineupEditor 2개 (모바일 세로 스택, 데스크톱 2열).
  * - canEdit 판정:
  *    - admin → 양 팀 가능
- *    - player.teamId === team.id && teamRole in [captain, manager, coach] → 해당 팀만
+ *    - player.teamId === team.id && teamRole in [coach, captain] → 해당 팀만
  *    - 그 외 → readonly (관전자)
  */
 export default function MatchLineupPage() {
@@ -74,23 +75,12 @@ export default function MatchLineupPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId]);
 
-  const isStaffOf = (teamId: string, p: Player | null): boolean => {
-    if (!p) return false;
-    if (p.role === "admin") return true;
-    if (p.teamId !== teamId) return false;
-    return (
-      p.teamRole === "captain" ||
-      p.teamRole === "manager" ||
-      p.teamRole === "coach"
-    );
-  };
-
   const canEditHome = useMemo(
-    () => (match ? isStaffOf(match.homeTeamId, player ?? null) : false),
+    () => (match ? canOperateMatchForTeam(player ?? null, match.homeTeamId) : false),
     [match, player]
   );
   const canEditAway = useMemo(
-    () => (match ? isStaffOf(match.awayTeamId, player ?? null) : false),
+    () => (match ? canOperateMatchForTeam(player ?? null, match.awayTeamId) : false),
     [match, player]
   );
 
@@ -228,7 +218,7 @@ export default function MatchLineupPage() {
             color: "var(--muted-foreground)",
           }}
         >
-          편집 권한이 없어 라인업을 보기 전용으로 표시합니다. 감독·매니저·주장만
+          편집 권한이 없어 라인업을 보기 전용으로 표시합니다. 감독·캡틴만
           제출할 수 있어요.
         </div>
       )}

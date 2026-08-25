@@ -8,6 +8,7 @@ import type { NotificationItem } from "@/types";
 interface Props {
   open: boolean;
   onClose: () => void;
+  onAllRead?: () => void;
 }
 
 function targetHref(n: NotificationItem): string {
@@ -17,6 +18,9 @@ function targetHref(n: NotificationItem): string {
   if (n.kind === "team_notice" && n.teamId) return `/teams/${n.teamId}/notices`;
   if (n.kind === "tier_promoted") return `/my`;
   if (n.kind === "coach_approved") return `/my`;
+  if (n.kind === "player_approved") return n.teamId ? `/teams/${n.teamId}` : `/my`;
+  if (n.kind === "team_role_changed") return n.teamId ? `/teams/${n.teamId}` : `/my`;
+  if (n.kind === "match_ready" && n.matchId) return `/matches/${n.matchId}`;
   if (n.teamId) return `/teams/${n.teamId}`;
   return "/";
 }
@@ -32,8 +36,9 @@ function relTime(ts: number): string {
   return `${d}일 전`;
 }
 
-export function NotificationPanel({ open, onClose }: Props) {
+export function NotificationPanel({ open, onClose, onAllRead }: Props) {
   const [items, setItems] = useState<NotificationItem[]>([]);
+  const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
   const fetchN = useDataStore((s) => s.fetchNotifications);
   const markRead = useDataStore((s) => s.markNotificationRead);
   const markAll = useDataStore((s) => s.markAllNotificationsRead);
@@ -42,7 +47,7 @@ export function NotificationPanel({ open, onClose }: Props) {
     if (!open) return;
     let cancelled = false;
     (async () => {
-      const r = await fetchN({ limit: 20 });
+      const r = await fetchN({ unreadOnly: true, limit: 20 });
       if (!cancelled) setItems(r);
     })();
     return () => {
@@ -67,11 +72,21 @@ export function NotificationPanel({ open, onClose }: Props) {
         </span>
         <button
           type="button"
+          disabled={isMarkingAllRead || items.length === 0}
           onClick={async () => {
-            await markAll();
-            setItems(items.map((i) => ({ ...i, readAt: Date.now() })));
+            if (isMarkingAllRead || items.length === 0) return;
+            setIsMarkingAllRead(true);
+            try {
+              await markAll();
+              setItems([]);
+              onAllRead?.();
+            } catch (error) {
+              console.error("[NotificationPanel] markAll:", error);
+            } finally {
+              setIsMarkingAllRead(false);
+            }
           }}
-          className="text-xs"
+          className="text-xs disabled:cursor-not-allowed disabled:opacity-40"
           style={{ color: "var(--primary)" }}
         >
           모두 읽음

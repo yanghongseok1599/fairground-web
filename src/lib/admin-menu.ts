@@ -6,7 +6,17 @@ export interface AdminMenuItem {
   href: string;
   accent: string;
   roles: PlayerRole[];
-  metricKey: "matches" | "players" | "referees" | "teams" | "penalties" | "coaches" | "reports";
+  metricKey:
+    | "matches"
+    | "players"
+    | "referees"
+    | "teams"
+    | "penalties"
+    | "coaches"
+    | "reports"
+    | "skillChallenge"
+    | "popups"
+    | "push";
 }
 
 export const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
@@ -27,6 +37,14 @@ export const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
     metricKey: "players",
   },
   {
+    title: "그라운드 챌린지",
+    description: "망상 이벤트 3종 기록 입력, 점수, 이벤트 뱃지 지급",
+    href: "/admin/skill-challenge",
+    accent: "#FF3B30",
+    roles: ["admin"],
+    metricKey: "skillChallenge",
+  },
+  {
     title: "심판 관리",
     description: "심판 신청 승인, 활동 상태, 운영 권한 관리",
     href: "/admin/referees",
@@ -44,7 +62,7 @@ export const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
   },
   {
     title: "감독 승인",
-    description: "감독 신청 검토, 팀 운영 권한 부여",
+    description: "감독 신청 검토, 선수 지도·경기 운영 권한 부여",
     href: "/admin/coaches",
     accent: "#0047AB",
     roles: ["admin"],
@@ -65,6 +83,22 @@ export const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
     accent: "#FF8A65",
     roles: ["admin"],
     metricKey: "reports",
+  },
+  {
+    title: "팝업 관리",
+    description: "홈 홍보 팝업 추가, 수정, 노출 제어",
+    href: "/admin/popups",
+    accent: "#003080",
+    roles: ["admin"],
+    metricKey: "popups",
+  },
+  {
+    title: "푸시 발송",
+    description: "구독자에게 웹 푸시 알림 발송 (전체·역할·팀·개별)",
+    href: "/admin/push",
+    accent: "#00B8D4",
+    roles: ["admin"],
+    metricKey: "push",
   },
 ];
 

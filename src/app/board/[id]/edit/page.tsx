@@ -27,7 +27,9 @@ export default function BoardEditPage() {
   useEffect(() => {
     if (!id) return;
     let active = true;
-    setLoading(true);
+    queueMicrotask(() => {
+      if (active) setLoading(true);
+    });
     void fetchBoardPost(id).then((p) => {
       if (active) {
         setPost(p);

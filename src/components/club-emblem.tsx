@@ -1,5 +1,7 @@
 "use client";
 
+import { FAIRGROUND_OPS_TEAM_LOGO } from "@/lib/team-logo-assets";
+
 type ClubLogoPreset = {
   code: string;
   from: string;
@@ -10,25 +12,30 @@ type ClubLogoPreset = {
 };
 
 const CLUB_LOGO_PRESETS: Array<{ match: string; logo: ClubLogoPreset }> = [
-  { match: "블루웨이브", logo: { code: "BW", from: "#2F80ED", to: "#0B1F47", paper: "#F7FBFF", variant: 5, asset: "/images/team-logos/ref-blue7.png?v=7" } },
-  { match: "한강", logo: { code: "HU", from: "#35A7FF", to: "#063A66", paper: "#F2FBFF", variant: 0, asset: "/images/team-logos/ref-nova.png?v=7" } },
-  { match: "성수", logo: { code: "SS", from: "#F7C948", to: "#201609", paper: "#FFF9E6", variant: 2, asset: "/images/team-logos/ref-volt.png?v=7" } },
-  { match: "마포", logo: { code: "MR", from: "#FF5A5F", to: "#261016", paper: "#FFF3F0", variant: 1, asset: "/images/team-logos/ref-rift.png?v=7" } },
-  { match: "강남", logo: { code: "GS", from: "#FF8A00", to: "#2A1605", paper: "#FFF0DA", variant: 4, asset: "/images/team-logos/ref-bulls.png?v=9" } },
-  { match: "을지로", logo: { code: "EP", from: "#5B8DEF", to: "#071E49", paper: "#EDF5FF", variant: 6, asset: "/images/team-logos/ref-afc.png?v=7" } },
-  { match: "노원", logo: { code: "NT", from: "#9B5CFF", to: "#101333", paper: "#F4EDFF", variant: 3, asset: "/images/team-logos/ref-orion.png?v=8" } },
-  { match: "관악", logo: { code: "GD", from: "#18D5FF", to: "#072B3A", paper: "#EAFBFF", variant: 0, asset: "/images/team-logos/ref-nova.png?v=7" } },
+  { match: "페어그라운드", logo: { code: "FG", from: "#0047AB", to: "#071E49", paper: "#F7FBFF", variant: 5, asset: FAIRGROUND_OPS_TEAM_LOGO } },
+  { match: "FairGround", logo: { code: "FG", from: "#0047AB", to: "#071E49", paper: "#F7FBFF", variant: 5, asset: FAIRGROUND_OPS_TEAM_LOGO } },
+  { match: "관리자", logo: { code: "FG", from: "#0047AB", to: "#071E49", paper: "#F7FBFF", variant: 5, asset: FAIRGROUND_OPS_TEAM_LOGO } },
+  { match: "심판", logo: { code: "FG", from: "#0047AB", to: "#071E49", paper: "#F7FBFF", variant: 5, asset: FAIRGROUND_OPS_TEAM_LOGO } },
+  { match: "운영", logo: { code: "FG", from: "#0047AB", to: "#071E49", paper: "#F7FBFF", variant: 5, asset: FAIRGROUND_OPS_TEAM_LOGO } },
+  { match: "블루웨이브", logo: { code: "BW", from: "#2F80ED", to: "#0B1F47", paper: "#F7FBFF", variant: 5, asset: "/images/team-logos/ref-blue7.webp?v=7" } },
+  { match: "한강", logo: { code: "HU", from: "#35A7FF", to: "#063A66", paper: "#F2FBFF", variant: 0, asset: "/images/team-logos/ref-nova.webp?v=7" } },
+  { match: "성수", logo: { code: "SS", from: "#F7C948", to: "#201609", paper: "#FFF9E6", variant: 2, asset: "/images/team-logos/ref-volt.webp?v=7" } },
+  { match: "마포", logo: { code: "MR", from: "#FF5A5F", to: "#261016", paper: "#FFF3F0", variant: 1, asset: "/images/team-logos/ref-rift.webp?v=7" } },
+  { match: "강남", logo: { code: "GS", from: "#FF8A00", to: "#2A1605", paper: "#FFF0DA", variant: 4, asset: "/images/team-logos/ref-bulls.webp?v=9" } },
+  { match: "을지로", logo: { code: "EP", from: "#5B8DEF", to: "#071E49", paper: "#EDF5FF", variant: 6, asset: "/images/team-logos/ref-afc.webp?v=7" } },
+  { match: "노원", logo: { code: "NT", from: "#9B5CFF", to: "#101333", paper: "#F4EDFF", variant: 3, asset: "/images/team-logos/ref-orion.webp?v=8" } },
+  { match: "관악", logo: { code: "GD", from: "#18D5FF", to: "#072B3A", paper: "#EAFBFF", variant: 0, asset: "/images/team-logos/ref-nova.webp?v=7" } },
   { match: "ITN", logo: { code: "ITN", from: "#D872E8", to: "#18122C", paper: "#FFF1FB", variant: 4, asset: "/images/team-logo-cards/itn-fc-logo.png" } },
 ];
 
 const AUTO_TEAM_LOGO_ASSETS = [
-  "/images/team-logos/ref-blue7.png?v=7",
-  "/images/team-logos/ref-nova.png?v=7",
-  "/images/team-logos/ref-volt.png?v=7",
-  "/images/team-logos/ref-rift.png?v=7",
-  "/images/team-logos/ref-bulls.png?v=9",
-  "/images/team-logos/ref-afc.png?v=7",
-  "/images/team-logos/ref-orion.png?v=8",
+  "/images/team-logos/ref-blue7.webp?v=7",
+  "/images/team-logos/ref-nova.webp?v=7",
+  "/images/team-logos/ref-volt.webp?v=7",
+  "/images/team-logos/ref-rift.webp?v=7",
+  "/images/team-logos/ref-bulls.webp?v=9",
+  "/images/team-logos/ref-afc.webp?v=7",
+  "/images/team-logos/ref-orion.webp?v=8",
 ];
 
 function hasCustomLogo(logoSrc?: string) {

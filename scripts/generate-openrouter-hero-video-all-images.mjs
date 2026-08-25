@@ -26,7 +26,7 @@ const apiKey = process.env.OPENROUTER_API_KEY;
 if (!apiKey) throw new Error("OPENROUTER_API_KEY is missing.");
 
 const model = process.env.OPENROUTER_VIDEO_MODEL ?? "bytedance/seedance-2.0-fast";
-const siteUrl = process.env.HERO_SITE_URL ?? "https://fairground-footsal.vercel.app";
+const siteUrl = process.env.HERO_SITE_URL ?? "https://fairground-futsal.vercel.app";
 const baseUrl = `${siteUrl}/images/reveal-sequence-4k`;
 const outDir = path.resolve("public/videos/hero-seedance-all-images");
 const finalVideo = path.resolve("public/videos/fairground-mobile-hero.mp4");

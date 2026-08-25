@@ -2,41 +2,41 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { Users, Shield, UserCheck } from "lucide-react";
+import { Users, Shield } from "lucide-react";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
+import { PlayerProfilePhoto } from "@/components/player-profile-photo";
+import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 import { canManageTeamMembers } from "@/lib/team-permissions";
+import {
+  normalizeTeamRole,
+  selectableTeamRolesFor,
+  TEAM_ROLE_DESCRIPTIONS,
+  TEAM_ROLE_LABELS,
+  TEAM_ROLE_ORDER,
+} from "@/lib/team-role-policy";
 import type { Player, Team, TeamRole } from "@/types";
 
 /**
  * 팀 멤버 역할 관리.
  *
  * 권한 UX 가드:
- *  - manager/coach 본인 팀, 또는 admin 만 진입
- *  - coach 부여는 admin 만 (UI 옵션에서 노출 안 함)
- *  - captain 지명: coach 가 (DB 정책상) 같은 팀 member→captain 가능. UX에서는
- *    manager/coach 모두에게 member/captain/manager 옵션 노출 — 거부 시 RLS 가 강제.
+ *  - 감독/매니저 본인 팀, 또는 admin 만 진입
+ *  - coach: 감독. 선수 지도·경기 운영 총책임이며 모든 팀 역할을 지정 가능
+ *  - manager: 매니저. 팀 운영관리 담당이며 manager/captain/member 지정 가능
+ *  - captain: 캡틴. 경기 중 대표·보조 역할이며 멤버 권한 변경 불가
  *
- * 최종 강제: profiles RLS + trg_guard_team_role 트리거.
+ * 최종 강제: Supabase RPC(set_team_member_role) + RLS.
  *  - 본인이 본인 team_role 변경 시도 → 거부
  *  - 다른 팀 멤버 변경 시도 → 거부
  */
-
-const ROLE_LABELS: Record<TeamRole, string> = {
-  member: "멤버",
-  captain: "주장",
-  manager: "운영자",
-  coach: "감독",
-};
-
-// 일반 UX 에서 노출하는 옵션 (coach 는 admin 전용).
-const SELECTABLE_ROLES: TeamRole[] = ["member", "captain", "manager"];
 
 export default function TeamMembersPage() {
   const { id: teamId } = useParams<{ id: string }>();
   const fetchTeam = useDataStore((s) => s.fetchTeam);
   const fetchTeamMembers = useDataStore((s) => s.fetchTeamMembers);
   const updatePlayerTeamRole = useDataStore((s) => s.updatePlayerTeamRole);
+  const transferTeamOwnership = useDataStore((s) => s.transferTeamOwnership);
   const { player: currentPlayer, initialized } = useAuth();
 
   const [team, setTeam] = useState<Team | null>(null);
@@ -51,9 +51,9 @@ export default function TeamMembersPage() {
     setTeam(t);
     setMembers(
       [...list].sort((a, b) => {
-        // 감독→매니저→주장→멤버→null 순.
+        // 감독→매니저→캡틴→멤버 순.
         const rank = (r: TeamRole | undefined) =>
-          r === "coach" ? 0 : r === "manager" ? 1 : r === "captain" ? 2 : r === "member" ? 3 : 4;
+          TEAM_ROLE_ORDER.indexOf(normalizeTeamRole(r));
         const ra = rank(a.teamRole);
         const rb = rank(b.teamRole);
         if (ra !== rb) return ra - rb;
@@ -68,7 +68,7 @@ export default function TeamMembersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId]);
 
-  // 권한 UX 가드 — admin 또는 본인 팀의 manager/coach. 가드는
+  // 권한 UX 가드 — admin 또는 본인 팀의 감독/매니저. 가드는
   // lib/team-permissions.canManageTeamMembers 한 곳에서 관리.
   const canManage = useMemo(
     () => canManageTeamMembers(currentPlayer, team),
@@ -76,19 +76,54 @@ export default function TeamMembersPage() {
   );
 
   const isAdmin = currentPlayer?.role === "admin";
+  const actorForRoleOptions =
+    currentPlayer && team?.captainId === currentPlayer.id && !currentPlayer.teamRole
+      ? { ...currentPlayer, teamRole: "coach" as TeamRole }
+      : currentPlayer;
+  const selectableRoles = selectableTeamRolesFor(actorForRoleOptions);
+  const canEditCoach =
+    isAdmin ||
+    actorForRoleOptions?.teamRole === "coach" ||
+    Boolean(currentPlayer?.id && team?.captainId === currentPlayer.id);
+
+  // 소유권 이전은 현재 소유자(captain_id) 또는 admin 만. 일반 감독·매니저는 불가.
+  const isOwner = Boolean(currentPlayer?.id && team?.captainId === currentPlayer.id);
+  const canTransferOwnership = isAdmin || isOwner;
 
   // 본인 행은 권한 변경 옵션 비활성 (트리거가 self 변경 거부).
   const handleRoleChange = async (target: Player, newRole: TeamRole | "") => {
     if (!canManage) return;
+    if (!newRole) return;
     setError(null);
     setSavingId(target.id);
     try {
-      const role: TeamRole | null = newRole === "" ? null : (newRole as TeamRole);
+      const role = newRole as TeamRole;
       await updatePlayerTeamRole(target.id, role);
-      setMembers((prev) => prev.map((m) => (m.id === target.id ? { ...m, teamRole: role ?? undefined } : m)));
+      setMembers((prev) => prev.map((m) => (m.id === target.id ? { ...m, teamRole: role } : m)));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "역할 변경 실패";
       setError(msg);
+    } finally {
+      setSavingId("");
+    }
+  };
+
+  // 소유권 이전 — 현재 소유자/admin 만. 확인 후 RPC 호출, 성공 시 목록 갱신.
+  const handleTransfer = async (target: Player) => {
+    if (!canTransferOwnership) return;
+    const ok = window.confirm(
+      `'${target.name}'님에게 팀 소유권을 이전할까요?\n\n` +
+        `이전 후 ${target.name}님이 팀 정보 수정·운영형태 변경 등 소유자 권한을 갖게 됩니다. ` +
+        `되돌리려면 새 소유자가 다시 이전해야 합니다.`,
+    );
+    if (!ok) return;
+    setError(null);
+    setSavingId(target.id);
+    try {
+      await transferTeamOwnership(teamId, target.id);
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "소유권 이전에 실패했습니다");
     } finally {
       setSavingId("");
     }
@@ -125,7 +160,7 @@ export default function TeamMembersPage() {
           접근 권한이 없습니다
         </h1>
         <p className="text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>
-          멤버 관리는 팀의 감독·운영자 또는 관리자만 사용할 수 있습니다.
+          멤버 관리는 팀의 감독·매니저 또는 관리자만 사용할 수 있습니다.
         </p>
       </div>
     );
@@ -150,8 +185,7 @@ export default function TeamMembersPage() {
           className="mt-1 text-sm"
           style={{ color: "var(--color-fg-ink-muted)" }}
         >
-          팀 운영자·감독은 멤버 역할을 지정할 수 있습니다. 감독 지정은 관리자만
-          수행합니다.
+          감독은 선수 지도·경기 운영 총책임, 매니저는 팀 운영관리 담당입니다.
         </p>
       </div>
 
@@ -217,36 +251,21 @@ export default function TeamMembersPage() {
               <ul className="divide-y" style={{ borderColor: "var(--color-fg-line-soft)" }}>
                 {members.map((m) => {
                   const isSelf = currentPlayer?.id === m.id;
-                  // coach 옵션은 admin 일 때만 노출.
-                  const options = isAdmin
-                    ? (["member", "captain", "manager", "coach"] as TeamRole[])
-                    : SELECTABLE_ROLES;
-                  // 현재 역할이 coach 인데 admin 이 아니면 selectbox 비활성 (변경 권한 없음).
+                  const currentTeamRole = normalizeTeamRole(m.teamRole);
+                  const options = selectableRoles.includes(currentTeamRole)
+                    ? selectableRoles
+                    : [...selectableRoles, currentTeamRole];
                   const disableRoleChange =
-                    isSelf || savingId === m.id || (m.teamRole === "coach" && !isAdmin);
+                    isSelf || savingId === m.id || (currentTeamRole === "coach" && !canEditCoach);
                   return (
                     <li key={m.id} className="p-5">
                       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div className="flex items-center gap-3">
-                          <div
-                            className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border"
-                            style={{
-                              background: "var(--color-fg-paper-3)",
-                              borderColor: "var(--color-fg-line-soft)",
-                              color: "var(--primary)",
-                            }}
-                          >
-                            {m.profilePhotoUrl || m.photoUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={m.profilePhotoUrl || m.photoUrl}
-                                alt={m.name}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <UserCheck className="w-5 h-5" />
-                            )}
-                          </div>
+                          <PlayerProfilePhoto
+                            src={getPlayerProfilePhotoUrl(m)}
+                            alt={m.name}
+                            className="h-11 w-11 rounded-full"
+                          />
                           <div>
                             <div className="font-bold text-sm" style={{ color: "var(--color-fg-ink)" }}>
                               {m.name}
@@ -258,13 +277,21 @@ export default function TeamMembersPage() {
                                   나
                                 </span>
                               )}
+                              {m.id === team?.captainId && (
+                                <span
+                                  className="ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                  style={{ background: "rgba(0,71,171,0.10)", color: "var(--primary)" }}
+                                >
+                                  소유자
+                                </span>
+                              )}
                             </div>
                             <div
                               className="text-xs mt-0.5"
                               style={{ color: "var(--color-fg-ink-muted)" }}
                             >
                               {m.position} · #{m.number || "-"} ·{" "}
-                              {m.teamRole ? ROLE_LABELS[m.teamRole] : "역할 미지정"}
+                              {TEAM_ROLE_LABELS[currentTeamRole]} · {TEAM_ROLE_DESCRIPTIONS[currentTeamRole]}
                             </div>
                           </div>
                         </div>
@@ -274,7 +301,7 @@ export default function TeamMembersPage() {
                           </label>
                           <select
                             id={`role-${m.id}`}
-                            value={m.teamRole ?? ""}
+                            value={currentTeamRole}
                             onChange={(e) => void handleRoleChange(m, e.target.value as TeamRole | "")}
                             disabled={disableRoleChange}
                             className="min-h-[42px] px-3 text-sm font-bold rounded-md focus-visible:outline-none focus-visible:ring-2 disabled:opacity-50"
@@ -285,17 +312,27 @@ export default function TeamMembersPage() {
                               ["--tw-ring-color" as string]: "var(--primary)",
                             }}
                           >
-                            <option value="">미지정</option>
                             {options.map((opt) => (
                               <option key={opt} value={opt}>
-                                {ROLE_LABELS[opt]}
+                                {TEAM_ROLE_LABELS[opt]} · {TEAM_ROLE_DESCRIPTIONS[opt]}
                               </option>
                             ))}
-                            {/* 현재 coach 인데 admin 외에는 옵션 추가 X — 표시만. */}
-                            {m.teamRole === "coach" && !isAdmin && (
-                              <option value="coach">{ROLE_LABELS.coach}</option>
-                            )}
                           </select>
+                          {canTransferOwnership && m.id !== team?.captainId && (
+                            <button
+                              type="button"
+                              onClick={() => void handleTransfer(m)}
+                              disabled={savingId === m.id}
+                              className="min-h-[42px] whitespace-nowrap rounded-md px-3 text-xs font-bold transition-colors disabled:opacity-50"
+                              style={{
+                                background: "var(--color-fg-paper)",
+                                color: "var(--primary)",
+                                border: "1px solid var(--color-fg-line-soft)",
+                              }}
+                            >
+                              소유권 이전
+                            </button>
+                          )}
                         </div>
                       </div>
                     </li>
@@ -309,9 +346,15 @@ export default function TeamMembersPage() {
         className="text-xs leading-relaxed"
         style={{ color: "var(--color-fg-ink-muted)" }}
       >
-        · 본인 역할은 보안상 직접 변경할 수 없습니다. 다른 운영자에게 요청하세요.
+        · 본인 역할은 보안상 직접 변경할 수 없습니다. 다른 감독·매니저에게 요청하세요.
         <br />
-        · 감독(coach) 부여/회수는 관리자만 수행할 수 있습니다.
+        · 감독은 모든 역할을 지정할 수 있고, 매니저는 매니저·캡틴·멤버를 지정할 수 있습니다.
+        {canTransferOwnership && (
+          <>
+            <br />· 소유권 이전은 현재 소유자(또는 관리자)만 가능하며, 새 소유자가 팀 정보
+            수정·운영형태 변경 권한을 갖습니다.
+          </>
+        )}
       </p>
     </div>
   );

@@ -1,6 +1,7 @@
 // ===== Player =====
 export type Position = "GK" | "FIXO" | "ALA" | "PIVO";
 export type CardType = "bronze" | "silver" | "gold" | "premium";
+export type PlayerCardSkin = "standard" | "hologram";
 export type PlayerRole = "player" | "captain" | "referee" | "admin";
 export type TeamRole = "member" | "captain" | "manager" | "coach";
 export type Gender = "male" | "female" | "other" | "prefer_not_to_say";
@@ -28,10 +29,12 @@ export interface Player {
   teamName?: string;
   nationality: string;
   photoUrl: string;        // 카드용 (배경제거)
-  profilePhotoUrl?: string; // 프로필용 (원본)
+  profilePhotoUrl?: string; // 별도 변경한 프로필용 이미지
+  profilePhotoLocked?: boolean; // true면 카드 사진 변경 시 프로필 자동 동기화 제외
   photoScale?: number;
   photoOffsetX?: number;
   cardType: CardType;
+  cardSkin?: PlayerCardSkin;
   cardRating: number;
   stats: PlayerStats;
   badges: string[];
@@ -329,7 +332,16 @@ export interface Notice {
 }
 
 // ===== Community Engine =====
-export type NotificationKind = "mention" | "reply" | "reaction" | "team_notice" | "coach_approved" | "tier_promoted";
+export type NotificationKind =
+  | "mention"
+  | "reply"
+  | "reaction"
+  | "team_notice"
+  | "coach_approved"
+  | "tier_promoted"
+  | "player_approved"
+  | "team_role_changed"
+  | "match_ready";
 
 export interface NotificationItem {
   id: string;
@@ -340,6 +352,7 @@ export interface NotificationItem {
   postId?: string;
   commentId?: string;
   teamId?: string;
+  matchId?: string;
   title: string;
   snippet?: string;
   readAt?: number;
@@ -367,6 +380,12 @@ export interface TeamJoinRequest {
   teamName?: string;
   playerId: string;
   playerName?: string;
+  playerEmail?: string;
+  playerPhone?: string;
+  playerPosition?: Position;
+  playerNumber?: number;
+  playerGender?: Gender;
+  playerBirthDate?: string;
   message?: string;
   status: TeamJoinRequestStatus;
   createdAt: number;

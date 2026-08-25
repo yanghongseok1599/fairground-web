@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MessageSquare, Megaphone, Users, User, Search as SearchIcon } from "lucide-react";
 import { useDataStore } from "@/stores/dataStore";
+import { PlayerProfilePhoto } from "@/components/player-profile-photo";
 import type { SearchResults } from "@/types";
 
 interface Props {
@@ -38,9 +39,16 @@ export function SearchModal({ open, onClose }: Props) {
   // Reset state on close
   useEffect(() => {
     if (!open) {
-      setQ("");
-      setResults(EMPTY);
-      setLoading(false);
+      let active = true;
+      queueMicrotask(() => {
+        if (!active) return;
+        setQ("");
+        setResults(EMPTY);
+        setLoading(false);
+      });
+      return () => {
+        active = false;
+      };
     }
   }, [open]);
 
@@ -71,12 +79,20 @@ export function SearchModal({ open, onClose }: Props) {
     if (!open) return;
     const query = q.trim();
     if (query.length < 1) {
-      setResults(EMPTY);
-      setLoading(false);
-      return;
+      let active = true;
+      queueMicrotask(() => {
+        if (!active) return;
+        setResults(EMPTY);
+        setLoading(false);
+      });
+      return () => {
+        active = false;
+      };
     }
     let cancelled = false;
-    setLoading(true);
+    queueMicrotask(() => {
+      if (!cancelled) setLoading(true);
+    });
     const handle = window.setTimeout(async () => {
       try {
         const r = await useDataStore.getState().searchAll(query);
@@ -346,29 +362,12 @@ export function SearchModal({ open, onClose }: Props) {
                       onClick={() => go(`/players/${p.id}`)}
                       className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[color:var(--color-fg-paper-3,#EEF3FF)]"
                     >
-                      {p.photoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={p.photoUrl}
-                          alt=""
-                          width={28}
-                          height={28}
-                          className="h-7 w-7 shrink-0 rounded-full object-cover"
-                          style={{
-                            border: "1px solid var(--color-fg-line-soft, rgba(13,27,42,0.12))",
-                          }}
-                        />
-                      ) : (
-                        <div
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-                          style={{
-                            background: "var(--color-fg-paper-3, #EEF3FF)",
-                            color: "var(--color-fg-ink-muted, #6B7280)",
-                          }}
-                        >
-                          <User width={14} height={14} />
-                        </div>
-                      )}
+                      <PlayerProfilePhoto
+                        src={p.photoUrl}
+                        alt=""
+                        className="h-7 w-7 rounded-full"
+                        icon={User}
+                      />
                       <div className="min-w-0 flex-1">
                         <div
                           className="truncate text-sm font-semibold"

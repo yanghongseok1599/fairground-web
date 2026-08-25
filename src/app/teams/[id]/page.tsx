@@ -11,7 +11,8 @@ import { createTeamCardCanvas } from "@/lib/team-card-canvas";
 import type { Team, Player, Notice, BoardPost, TeamPhoto } from "@/types";
 import { buildRosterInsights } from "@/lib/team-finance";
 import { canManageTeam as canManageTeamHelper } from "@/lib/team-permissions";
-import { buildTeamRecordLine, getRosterFilterCount, leagueTierCardIndex, LEAGUE_TIER_LABEL, nextLeagueTier, type RosterFilter } from "@/lib/team-home";
+import { normalizeTeamRole, TEAM_ROLE_LABELS } from "@/lib/team-role-policy";
+import { buildTeamRecordLine, getRosterFilterCount, isFieldChampionTeam, leagueTierCardIndex, LEAGUE_TIER_LABEL, nextLeagueTier, type RosterFilter } from "@/lib/team-home";
 import {
   ArrowLeft,
   ArrowRight,
@@ -37,10 +38,10 @@ const POSITION_LABELS: Record<RosterFilter, string> = {
 const defaultTeamIntro = "선수카드, 경기 기록, 공지, 회비 장부를 한 곳에서 관리하는 FairGround 팀 홈페이지입니다.";
 
 const TEAM_CARD_VARIANTS = [
-  "/images/team-cards/team-card-bronze.png?v=17",
-  "/images/team-cards/team-card-silver.png?v=17",
-  "/images/team-cards/team-card-gold.png?v=18",
-  "/images/team-cards/team-card-emerald.png?v=25",
+  "/images/team-cards/team-card-bronze.webp?v=26",
+  "/images/team-cards/team-card-silver.webp?v=26",
+  "/images/team-cards/team-card-gold.webp?v=26",
+  "/images/team-cards/team-card-emerald.webp?v=26",
 ];
 
 // 카드 인덱스 결정은 lib/team-home.ts의 stableTeamCardIndex로 통일했다 —
@@ -57,8 +58,9 @@ function StatBlock({ index, label, value }: { index: string; label: string; valu
 }
 
 function TeamEmblem({ team }: { team: Team }) {
-  // 카드 프레임 = 리그 등급(브론즈/실버/골드/프리미엄). 등급이 곧 카드 비주얼.
+  // 카드 프레임 = 리그 등급(브론즈/실버/골드/플래티넘). 등급이 곧 카드 비주얼.
   const cardIndex = leagueTierCardIndex(team.leagueTier);
+  const isFieldChampion = isFieldChampionTeam(team);
   const [src, setSrc] = useState<string | null>(null);
 
   // 랜딩 캐러셀과 동일한 createTeamCardCanvas 함수로 카드 텍스처를 만들어
@@ -85,6 +87,7 @@ function TeamEmblem({ team }: { team: Team }) {
       logo: resolvedLogo,
       frame: TEAM_CARD_VARIANTS[cardIndex],
       colorIndex: cardIndex,
+      isFieldChampion,
     })
       .then((canvas) => {
         if (cancelled) return;
@@ -96,7 +99,7 @@ function TeamEmblem({ team }: { team: Team }) {
     return () => {
       cancelled = true;
     };
-  }, [team.id, team.name, team.logo, cardIndex]);
+  }, [team.name, team.logo, cardIndex, isFieldChampion]);
 
   return (
     <div
@@ -109,7 +112,7 @@ function TeamEmblem({ team }: { team: Team }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
-          alt={`${team.name} 카드`}
+          alt={`${team.name} 카드${isFieldChampion ? " - 필드 우승팀" : ""}`}
           className="absolute inset-0 h-full w-full select-none object-contain"
           draggable={false}
         />
@@ -182,16 +185,14 @@ export default function TeamDetailPage() {
   );
   const topScorer = players.find((player) => player.id === rosterInsights.topScorerId);
   // Director gates come from lib/team-permissions. isTeamStaff is a
-  // narrower variant used only for the inline "본인 운영자임" badge — it
+  // narrower variant used only for the inline team-role badge — it
   // does NOT include admin/captainId so the chip says what role the user
   // actually has on this team.
   const isTeamStaff = Boolean(
     currentPlayer &&
       team &&
       currentPlayer.teamId === team.id &&
-      (currentPlayer.teamRole === "captain" ||
-        currentPlayer.teamRole === "manager" ||
-        currentPlayer.teamRole === "coach"),
+      normalizeTeamRole(currentPlayer.teamRole) !== "member",
   );
   const canManageTeam = canManageTeamHelper(currentPlayer, team);
   const topAssist = players.find((player) => player.id === rosterInsights.topAssistId);
@@ -227,7 +228,7 @@ export default function TeamDetailPage() {
     }
   };
 
-  // 가입 신청 자격: 로그인 + 무소속 + 승인된 팀(운영자가 아닌 경우).
+  // 가입 신청 자격: 로그인 + 무소속 + 승인된 팀(감독/매니저가 아닌 경우).
   const canRequestJoin = Boolean(
     currentPlayer && !currentPlayer.teamId && team?.isApproved && !canManageTeam,
   );
@@ -285,20 +286,10 @@ export default function TeamDetailPage() {
                   <span
                     className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded"
                     style={{ background: "var(--primary)", color: "#fff" }}
-                    aria-label={`내 팀 역할: ${
-                      currentPlayer.teamRole === "coach"
-                        ? "감독"
-                        : currentPlayer.teamRole === "manager"
-                          ? "운영자"
-                          : "주장"
-                    }`}
+                    aria-label={`내 팀 역할: ${TEAM_ROLE_LABELS[normalizeTeamRole(currentPlayer.teamRole)]}`}
                   >
                     <Shield className="h-3 w-3" />
-                    {currentPlayer.teamRole === "coach"
-                      ? "감독"
-                      : currentPlayer.teamRole === "manager"
-                        ? "운영자"
-                        : "주장"}
+                    {TEAM_ROLE_LABELS[normalizeTeamRole(currentPlayer.teamRole)]}
                   </span>
                 )}
                 {/* 리그 단계 배지 — 4단계 메탈 등급 */}
@@ -385,8 +376,8 @@ export default function TeamDetailPage() {
                   <div className="mt-3">
                     <Link
                       href="/my/team"
-                      aria-label="이 팀 운영자로 등록"
-                      title="이 팀 운영자로 등록"
+                      aria-label="이 팀 감독으로 등록"
+                      title="이 팀 감독으로 등록"
                       className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-bold transition-colors hover:bg-[rgba(0,71,171,0.08)]"
                       style={{
                         borderColor: "rgba(0,71,171,0.20)",
@@ -395,7 +386,7 @@ export default function TeamDetailPage() {
                       }}
                     >
                       <Pencil className="h-3.5 w-3.5" />
-                      이 팀 운영자로 등록하고 편집
+                      이 팀 감독으로 등록하고 편집
                     </Link>
                   </div>
                 )

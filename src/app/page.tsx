@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { useDataStore } from "@/stores/dataStore";
+import { supabase } from "@/config/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { PlayerCard, getCardTypeFromRating } from "@/components/player-card";
 import { EmptyState } from "@/components/empty-state";
@@ -11,10 +13,27 @@ import { ScrollVideoHero, type HeroReveal } from "@/components/scroll-video-hero
 import type { TeamGalleryItem } from "@/components/team-circular-gallery";
 import { getClubLogoPreset } from "@/components/club-emblem";
 import { createTeamCardCanvas } from "@/lib/team-card-canvas";
-import { leagueTierCardIndex } from "@/lib/team-home";
+import { isFieldChampionTeam, leagueTierCardIndex } from "@/lib/team-home";
 import type { Team, Player } from "@/types";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, MapPin, Trophy, Users } from "lucide-react";
 import { TeamMarquee } from "@/components/team-marquee";
+import { HomePromotionPopup } from "@/components/home-promotion-popup";
+// 대회 정보는 전부 이 상수 모듈에서 가져온다. 날짜/장소를 홈에 문자열로
+// 하드코딩하면 대회 정보가 바뀔 때 홈만 뒤처져 잘못된 안내가 남는다.
+import {
+  MIXED_FUTSAL_APPLY_PATH,
+  MIXED_FUTSAL_EVENT_DATE_LABEL,
+  MIXED_FUTSAL_EVENT_LOCATION_FULL_LABEL,
+  MIXED_FUTSAL_EVENT_NAME,
+  MIXED_FUTSAL_EVENT_PATH,
+  MIXED_FUTSAL_EVENT_TIME_LABEL,
+  MIXED_FUTSAL_GUARANTEE_LABEL,
+  MIXED_FUTSAL_MATCH_DAY_IMAGE,
+  MIXED_FUTSAL_MATCH_FORMAT_LABEL,
+  MIXED_FUTSAL_PHOTO_HEIGHT,
+  MIXED_FUTSAL_PHOTO_WIDTH,
+  MIXED_FUTSAL_TEAM_COUNT_LABEL,
+} from "@/lib/mixed-futsal-event";
 
 // ─── HERO REVEAL SEQUENCE ───────────────────────────────────────────────
 // Five fade-in/fade-out overlays that play across the scroll-scrubbed hero.
@@ -30,7 +49,7 @@ const KR_STYLE: React.CSSProperties = {
 };
 
 const HERO_REVEALS: HeroReveal[] = [
-  { range: [0.0, 0.2], content: <div style={KR_STYLE}>모두가</div> },
+  { range: [0.0, 0.2], fadeIn: 0, content: <div style={KR_STYLE}>모두가</div> },
   { range: [0.2, 0.4], content: <div style={KR_STYLE}>승리하는</div> },
   {
     range: [0.4, 0.6],
@@ -83,19 +102,45 @@ const HERO_REVEALS: HeroReveal[] = [
   },
 ];
 
+const HERO_STATIC_FALLBACK = (
+  <div className="text-center">
+    <div
+      className="fg-display"
+      style={{
+        color: "var(--primary)",
+        fontSize: "clamp(36px, 10vw, 92px)",
+        lineHeight: 0.9,
+        textShadow: "0 4px 18px rgba(255,255,255,0.78), 0 10px 30px rgba(0,0,0,0.28)",
+      }}
+    >
+      FAIRGROUND
+    </div>
+    <p
+      className="mt-3 text-[15px] font-black tracking-[0.18em] md:text-[18px]"
+      style={{
+        color: "var(--color-fg-paper)",
+        fontFamily: "var(--font-body)",
+        textShadow: "0 4px 14px rgba(0,0,0,0.58)",
+      }}
+    >
+      모두가 승리하는 그라운드
+    </p>
+  </div>
+);
+
 const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
   {
     id: "showcase-bronze-1",
     uid: "showcase-bronze-1",
-    name: "정우진",
-    number: 8,
+    name: "박민수",
+    number: 4,
     position: "FIXO",
     teamId: "showcase",
     nationality: "KOR",
     photoUrl: "/images/players/showcase-player-4.png",
     cardType: "bronze",
-    cardRating: 74,
-    stats: { goals: 3, assists: 4, games: 10, mom: 0 },
+    cardRating: 72,
+    stats: { goals: 2, assists: 3, games: 8, mom: 0 },
     badges: ["fair_play"],
     penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
     isApproved: true,
@@ -106,14 +151,14 @@ const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
     id: "showcase-silver-1",
     uid: "showcase-silver-1",
     name: "이서준",
-    number: 11,
+    number: 7,
     position: "ALA",
     teamId: "showcase",
     nationality: "KOR",
-    photoUrl: "/images/players/showcase-player-3.png",
+    photoUrl: "/images/players/showcase-player-2.png",
     cardType: "silver",
-    cardRating: 85,
-    stats: { goals: 6, assists: 8, games: 14, mom: 1 },
+    cardRating: 84,
+    stats: { goals: 6, assists: 5, games: 12, mom: 1 },
     badges: ["playmaker", "iron_man"],
     penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
     isApproved: true,
@@ -123,24 +168,24 @@ const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
   {
     id: "showcase-gold-1",
     uid: "showcase-gold-1",
-    name: "박지후",
-    number: 7,
-    position: "ALA",
+    name: "김재민",
+    number: 9,
+    position: "PIVO",
     teamId: "showcase",
     nationality: "KOR",
-    photoUrl: "/images/players/showcase-player-2.png",
+    photoUrl: "/images/players/showcase-player-3.png",
     cardType: "gold",
-    cardRating: 92,
+    cardRating: 90,
     stats: { goals: 9, assists: 6, games: 14, mom: 2 },
-    badges: ["match_winner", "assist_king"],
+    badges: ["first_goal", "match_winner"],
     penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
     isApproved: true,
     role: "player",
     createdAt: 0,
   },
   {
-    id: "showcase-premium-1",
-    uid: "showcase-premium-1",
+    id: "showcase-premier-1",
+    uid: "showcase-premier-1",
     name: "김도현",
     number: 10,
     position: "PIVO",
@@ -159,45 +204,82 @@ const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
 ];
 
 const SHOWCASE_TEAM_LOGOS = [
-  "/images/team-logos/ref-bulls.png",
-  "/images/team-logos/ref-blue7.png",
-  "/images/team-logos/ref-volt.png",
-  "/images/team-logos/ref-orion.png",
+  "/images/team-logos/ref-bulls.webp",
+  "/images/team-logos/ref-blue7.webp",
+  "/images/team-logos/ref-volt.webp",
+  "/images/team-logos/ref-orion.webp",
 ];
 
 const TEAM_CARD_VARIANTS = [
-  "/images/team-cards/team-card-bronze.png?v=17",
-  "/images/team-cards/team-card-silver.png?v=17",
-  "/images/team-cards/team-card-gold.png?v=18",
-  "/images/team-cards/team-card-emerald.png?v=25",
+  "/images/team-cards/team-card-bronze.webp?v=26",
+  "/images/team-cards/team-card-silver.webp?v=26",
+  "/images/team-cards/team-card-gold.webp?v=26",
+  "/images/team-cards/team-card-emerald.webp?v=26",
 ];
 
 const CARD_TIER_BADGE = {
   bronze: {
-    label: "BRONZE",
+    label: "브론즈",
     color: "#ffd9c8",
     background: "rgba(184, 91, 56, 0.2)",
     border: "1px solid rgba(255, 180, 142, 0.42)",
   },
   silver: {
-    label: "SILVER",
+    label: "실버",
     color: "#edf6ff",
     background: "rgba(186, 205, 224, 0.18)",
     border: "1px solid rgba(232, 244, 255, 0.4)",
   },
   gold: {
-    label: "GOLD",
+    label: "골드",
     color: "var(--color-fg-blue-soft)",
     background: "rgba(255,255,255,0.08)",
     border: "1px solid rgba(255,255,255,0.18)",
   },
   premium: {
-    label: "PREMIUM",
+    label: "플래티넘",
     color: "var(--color-fg-paper)",
     background: "var(--color-fg-blue-deep)",
     border: "1px solid var(--primary)",
   },
 };
+
+const HOME_OPERATION_POINTS = [
+  {
+    label: "LIVE CHECK",
+    title: "득점자·어시스트 체크",
+    body: "심판과 부심이 경기 중 득점자와 어시스트 선수를 바로 확인합니다.",
+  },
+  {
+    label: "ADMIN REVIEW",
+    title: "놓친 기록 즉시 보강",
+    body: "어시스트를 놓치면 관리자 화면의 누락 체크보드에서 바로 보강합니다.",
+  },
+  {
+    label: "CARD SYNC",
+    title: "리그·카드 동시 반영",
+    body: "골·어시스트·MOM 기록은 경기 종료 후 선수카드와 리그 데이터에 반영됩니다.",
+  },
+] as const;
+
+// 대회 섹션 팩트 행 — 날짜/시간은 아래에서 헤드라인으로 크게 따로 세운다.
+const TOURNAMENT_FACTS = [
+  {
+    icon: MapPin,
+    label: "VENUE",
+    value: MIXED_FUTSAL_EVENT_LOCATION_FULL_LABEL,
+  },
+  {
+    icon: Users,
+    label: "FORMAT",
+    value: `${MIXED_FUTSAL_TEAM_COUNT_LABEL} · ${MIXED_FUTSAL_MATCH_FORMAT_LABEL}`,
+  },
+  {
+    icon: Trophy,
+    label: "GUARANTEE",
+    value: MIXED_FUTSAL_GUARANTEE_LABEL,
+  },
+] as const;
 
 export default function HomePage() {
   const store = useDataStore();
@@ -205,7 +287,7 @@ export default function HomePage() {
   const prefersReducedMotion = useReducedMotion();
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamsLoaded, setTeamsLoaded] = useState(false);
-  const [showcasePlayers, setShowcasePlayers] = useState<Player[]>([]);
+  const showcasePlayers = SHOWCASE_SAMPLE_PLAYERS;
   // 갤러리에서 탭한 팀 — 즉시 이동하지 않고 CTA 버튼을 띄워 그 버튼으로만 이동.
   const [selectedTeam, setSelectedTeam] = useState<{ id: string; name: string } | null>(null);
   const teamGalleryItems = useMemo<TeamGalleryItem[]>(
@@ -221,6 +303,7 @@ export default function HomePage() {
           logo: team.logo || getClubLogoPreset(team.name, index).asset,
           frame: TEAM_CARD_VARIANTS[cardIndex],
           colorIndex: cardIndex,
+          isFieldChampion: isFieldChampionTeam(team),
         };
       }),
     [teams],
@@ -230,26 +313,48 @@ export default function HomePage() {
   }, [showcasePlayers]);
 
   useEffect(() => {
+    let cancelled = false;
     const load = async () => {
       const teamsData = await store.fetchTeams();
-
+      if (cancelled) return;
+      // 승인된 공식 팀만 노출. 승인 대기 팀이 '참가 팀 소개'에 섞이면 새로
+      // 신청하는 팀이 이미 확정된 참가팀으로 오해한다. 대기 팀은 관리자
+      // 팀 관리와 본인의 /my/team 에서만 보인다.
       setTeams(
-        [...teamsData].sort(
+        teamsData.filter((team) => team.isApproved).sort(
           (a, b) =>
             (a.seasonStats.rank || 99) - (b.seasonStats.rank || 99) ||
             b.seasonStats.points - a.seasonStats.points
         )
       );
       setTeamsLoaded(true);
-      setShowcasePlayers(SHOWCASE_SAMPLE_PLAYERS);
     };
 
-    load();
+    void load();
+
+    // 팀 승급/강등 등 teams 테이블 변경 시 즉시 재조회 → leagueTier 가 바뀌면
+    // teamGalleryItems 의 cardIndex/frame 이 갱신되고, 카드 캐시 키(frame·colorIndex)
+    // 도 달라져 새 티어 테두리로 실시간 재합성된다(redeploy/새로고침 불필요).
+    const channel = supabase
+      .channel("web-home-teams")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "teams" },
+        () => void load()
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      void supabase.removeChannel(channel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div>
+      <HomePromotionPopup />
+
       {/* ============================================================
           HERO — Scroll-Scrubbed Stadium Entrance (video + reveals)
           ============================================================ */}
@@ -265,22 +370,188 @@ export default function HomePage() {
           FairGround — 모두가 승리하는 그라운드. EVERYONE WINS ON THIS GROUND.
         </h1>
         <ScrollVideoHero
-          scrollLength={2.6}
+          scrollLength={1.6}
           fit="cover"
-          aspect={1920 / 940}
           background="#ffffff"
           stickyTop={60}
-          mobileVideoSrc="/videos/hero1-mobile-muted.mp4"
           reveals={HERO_REVEALS}
-          staticFallback={null}
+          mobileVideoSrc="/videos/hero1-mobile-muted.mp4"
+          staticFallback={HERO_STATIC_FALLBACK}
+          showMobileStaticFallback={false}
         />
+      </section>
+
+      {/* ============================================================
+          UPCOMING TOURNAMENT — 홈에서 대회로 가는 유일한 상시 경로.
+          히어로(흰 배경 풀뷰포트 영상) 바로 다음이라 딥블루 바탕으로 끊어
+          "여기부터 다른 이야기" 라는 신호를 준다. 날짜·장소·포맷은 모두
+          mixed-futsal-event 상수에서 오고, 이미지는 비주얼 역할만 한다
+          (이미지 안에 새겨진 글자는 실제 일정과 다를 수 있음).
+          ============================================================ */}
+      <section
+        className="relative overflow-hidden px-5 py-14 sm:px-8 md:px-10 md:py-20"
+        style={{ background: "var(--color-fg-blue-deep)" }}
+        aria-labelledby="home-tournament-heading"
+      >
+        <div
+          className="pointer-events-none absolute inset-0"
+          aria-hidden
+          style={{
+            background:
+              "radial-gradient(120% 90% at 10% 0%, rgba(0,71,171,0.55), transparent 62%), radial-gradient(90% 70% at 100% 100%, rgba(13,27,42,0.5), transparent 62%)",
+          }}
+        />
+        <div className="relative mx-auto max-w-[1320px]">
+          <div className="flex items-start gap-4 md:gap-6">
+            <span
+              className="fg-mono mt-2 shrink-0 text-[11px]"
+              style={{ color: "var(--color-fg-blue-soft)" }}
+            >
+              01
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="mb-3 flex items-center gap-2">
+                <span
+                  className="inline-block h-2 w-2"
+                  style={{ background: "var(--color-fg-blue-soft)" }}
+                />
+                <span className="fg-label" style={{ color: "var(--color-fg-blue-soft)" }}>
+                  UPCOMING TOURNAMENT
+                </span>
+              </div>
+              <h2
+                id="home-tournament-heading"
+                className="fg-display"
+                style={{
+                  fontSize: "clamp(26px, 5.2vw, 56px)",
+                  letterSpacing: "-0.01em",
+                  color: "var(--color-fg-paper)",
+                }}
+              >
+                {MIXED_FUTSAL_EVENT_NAME}
+              </h2>
+
+              {/* 태블릿(768px)부터 2열로 나눈다. 1열을 유지하면 이미지가 본문
+                  폭 전체(≈630px)를 먹어 섹션이 1200px 넘게 늘어난다. */}
+              <div className="mt-6 grid gap-6 md:mt-8 md:grid-cols-[minmax(0,1fr)_240px] md:items-start md:gap-8 lg:mt-9 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-12">
+                {/* 날짜 → 조건 → CTA 순서를 먼저 둔다. 모바일에서 이미지를 앞에
+                    세우면 CTA 가 300px 넘게 밀려 "대회로 가는 길" 이 멀어진다. */}
+                <div>
+                  <p className="fg-label" style={{ color: "var(--color-fg-blue-soft)" }}>
+                    DATE
+                  </p>
+                  <p
+                    className="fg-display mt-2"
+                    style={{
+                      fontSize: "clamp(30px, 6.4vw, 48px)",
+                      color: "var(--color-fg-paper)",
+                    }}
+                  >
+                    {MIXED_FUTSAL_EVENT_DATE_LABEL}
+                  </p>
+                  <p
+                    className="fg-mono mt-2 text-[13px]"
+                    style={{ color: "var(--color-fg-blue-soft)" }}
+                  >
+                    {MIXED_FUTSAL_EVENT_TIME_LABEL}
+                  </p>
+
+                  <ul
+                    className="mt-5 space-y-3 border-t pt-5 lg:mt-6 lg:pt-6"
+                    style={{ borderColor: "rgba(255,255,255,0.18)" }}
+                  >
+                    {TOURNAMENT_FACTS.map((fact) => {
+                      const Icon = fact.icon;
+                      return (
+                        <li key={fact.label} className="flex items-start gap-3">
+                          <Icon
+                            className="mt-[2px] h-4 w-4 shrink-0"
+                            style={{ color: "var(--color-fg-blue-soft)" }}
+                            aria-hidden
+                          />
+                          <div className="min-w-0">
+                            <p
+                              className="fg-label text-[9px]"
+                              style={{ color: "var(--color-fg-blue-soft)" }}
+                            >
+                              {fact.label}
+                            </p>
+                            <p
+                              className="mt-1 text-[14px] font-bold leading-snug"
+                              style={{
+                                color: "var(--color-fg-paper)",
+                                fontFamily: "var(--font-body)",
+                              }}
+                            >
+                              {fact.value}
+                            </p>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <Link
+                      href={MIXED_FUTSAL_APPLY_PATH}
+                      className="group inline-flex min-h-[52px] items-center justify-center gap-2 rounded-[var(--radius-md)] px-7 fg-display text-[15px] tracking-[0.06em] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                      style={{
+                        background: "var(--color-fg-paper)",
+                        color: "var(--color-fg-blue-deep)",
+                        boxShadow: "0 14px 30px rgba(13,27,42,0.3)",
+                        outlineColor: "var(--color-fg-paper)",
+                      }}
+                    >
+                      참가 신청하기
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </Link>
+                    <Link
+                      href={MIXED_FUTSAL_EVENT_PATH}
+                      className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-[var(--radius-md)] border px-7 fg-display text-[15px] tracking-[0.06em] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                      style={{
+                        borderColor: "rgba(255,255,255,0.45)",
+                        color: "var(--color-fg-paper)",
+                        outlineColor: "var(--color-fg-paper)",
+                      }}
+                    >
+                      대회 안내
+                    </Link>
+                  </div>
+                </div>
+
+                {/* 비주얼 — 모바일에서는 섹션을 닫는 배너, 데스크탑에서는 우측 열.
+                    사실 정보는 전부 위 텍스트가 책임지고 이미지는 분위기만 담당한다
+                    (이미지에 새겨진 글자는 실제 일정과 다를 수 있음). */}
+                <div
+                  className="overflow-hidden rounded-[var(--radius-lg)] border"
+                  style={{
+                    borderColor: "rgba(255,255,255,0.22)",
+                    background: "rgba(13,27,42,0.35)",
+                  }}
+                >
+                  <Image
+                    src={MIXED_FUTSAL_MATCH_DAY_IMAGE}
+                    alt={`${MIXED_FUTSAL_EVENT_NAME} 혼성 풋살 경기 장면`}
+                    width={MIXED_FUTSAL_PHOTO_WIDTH}
+                    height={MIXED_FUTSAL_PHOTO_HEIGHT}
+                    sizes="(min-width: 1024px) 300px, (min-width: 768px) 240px, 100vw"
+                    // 모바일(1열)은 정사각 크롭. 이미지 안에 글자가 새겨져 있어
+                    // 이보다 납작하게 자르면 "DAY" 글자가 잘려 파손처럼 보인다.
+                    // 2열이 되는 768px 이상은 원본 비율(4:5) 그대로.
+                    className="aspect-square w-full object-cover object-top md:aspect-[4/5] md:object-center"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* ============================================================
           PARTICIPATING TEAMS — live Supabase roster
           ============================================================ */}
       <section
-        className="relative py-20 md:py-28 px-5 sm:px-8 md:px-10 overflow-hidden"
+        className="relative px-5 pb-20 pt-8 sm:px-8 md:px-10 md:py-28 overflow-hidden"
         style={{
           background: "var(--color-fg-paper)",
           borderTop: "1px solid var(--color-fg-line-soft)",
@@ -293,7 +564,7 @@ export default function HomePage() {
               className="fg-mono text-[11px] mt-2 shrink-0"
               style={{ color: "var(--primary)" }}
             >
-              01
+              02
             </span>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-3">
@@ -352,7 +623,8 @@ export default function HomePage() {
                   fontFamily: "var(--font-body)",
                 }}
               >
-                이번 시즌 그라운드에 선 팀들. 전적과 명단은 실시간으로 갱신됩니다.
+                이번 시즌 그라운드에 선 팀들. 전적과 명단은 실시간으로 갱신되고,
+                필드 우승팀은 팀카드 테두리에 특수효과가 적용됩니다.
               </p>
             </div>
           </div>
@@ -453,7 +725,7 @@ export default function HomePage() {
               className="fg-mono text-[11px] mt-2 shrink-0"
               style={{ color: "var(--color-fg-blue-soft)" }}
             >
-              02
+              03
             </span>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-3">
@@ -485,14 +757,45 @@ export default function HomePage() {
                   fontFamily: "var(--font-body)",
                 }}
               >
-                골·어시스트·MOM이 카드에 새겨집니다. 시즌이 쌓일수록 카드도
-                자란다 — 골드에서 프리미엄으로.
+                심판·부심·관리자가 경기 중 득점자와 어시스트를 체크합니다.
+                골·어시스트·MOM이 카드에 새겨지고, 시즌이 쌓일수록 카드는
+                골드에서 플래티넘으로 성장합니다.
               </p>
             </div>
           </div>
 
-          {showcasePlayers.length > 0 ? (
-            <>
+          <div className="mb-12 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {HOME_OPERATION_POINTS.map((point) => (
+              <div
+                key={point.label}
+                className="border px-5 py-4"
+                style={{
+                  borderColor: "rgba(255,255,255,0.14)",
+                  background: "rgba(255,255,255,0.06)",
+                }}
+              >
+                <p
+                  className="fg-label text-[9px]"
+                  style={{ color: "var(--color-fg-blue-soft)" }}
+                >
+                  {point.label}
+                </p>
+                <h3
+                  className="mt-2 text-[15px] font-black"
+                  style={{ color: "var(--color-fg-paper)" }}
+                >
+                  {point.title}
+                </h3>
+                <p
+                  className="mt-2 text-[12px] leading-relaxed"
+                  style={{ color: "rgba(255,255,255,0.62)" }}
+                >
+                  {point.body}
+                </p>
+              </div>
+            ))}
+          </div>
+
               <div className="md:hidden grid grid-cols-2 gap-x-4 gap-y-10 px-2">
                 {mobileShowcase.map((player, i) => {
                   const tier = getCardTypeFromRating(player.cardRating);
@@ -508,17 +811,18 @@ export default function HomePage() {
                       transition={prefersReducedMotion ? { duration: 0.2 } : { delay: i * 0.08, type: "spring", stiffness: 200, damping: 20 }}
                     >
                       <span
-                        className="fg-label text-[10px] px-2.5 py-1 rounded-[var(--radius-pill)]"
+                        className="px-3 py-1 text-[11px] font-black tracking-normal rounded-[var(--radius-pill)]"
                         style={{
                           color: badge.color,
                           background: badge.background,
                           border: badge.border,
+                          fontFamily: "var(--font-body)",
                         }}
                       >
                         {badge.label}
                       </span>
                       <Link
-                        href={player.id.startsWith("showcase-") ? "/players" : `/players/${player.id}`}
+                        href="/players"
                         className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
                         style={{ outlineColor: "var(--color-ring)" }}
                       >
@@ -567,17 +871,18 @@ export default function HomePage() {
                         }
                       >
                         <span
-                          className="fg-label text-[10px] px-2.5 py-1 rounded-[var(--radius-pill)]"
+                          className="px-3 py-1 text-[11px] font-black tracking-normal rounded-[var(--radius-pill)]"
                           style={{
                             color: badge.color,
                             background: badge.background,
                             border: badge.border,
+                            fontFamily: "var(--font-body)",
                           }}
                         >
                           {badge.label}
                         </span>
                         <Link
-                          href={player.id.startsWith("showcase-") ? "/players" : `/players/${player.id}`}
+                          href="/players"
                           className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"
                           style={{ outlineColor: "var(--color-ring)" }}
                         >
@@ -592,32 +897,6 @@ export default function HomePage() {
                   })}
                 </div>
               </div>
-            </>
-          ) : (
-            <div
-              className="border px-6 py-16 text-center max-w-xl mx-auto rounded-[var(--radius-lg)]"
-              style={{
-                borderColor: "rgba(255,255,255,0.15)",
-                background: "rgba(255,255,255,0.04)",
-              }}
-            >
-              <p
-                className="fg-display text-[22px]"
-                style={{ color: "var(--color-fg-paper)" }}
-              >
-                첫 번째 카드의 주인공이 되어보세요
-              </p>
-              <p
-                className="mt-3 text-[14px]"
-                style={{
-                  color: "rgba(255,255,255,0.6)",
-                  fontFamily: "var(--font-body)",
-                }}
-              >
-                리그에 참가하면 나만의 선수 카드가 생성됩니다.
-              </p>
-            </div>
-          )}
 
           <div className="mt-14 flex flex-wrap items-center justify-center gap-3">
             <Link
@@ -651,8 +930,14 @@ export default function HomePage() {
   );
 }
 
-// 참가 팀 카드 — createTeamCardCanvas 로 2D 캔버스 카드를 그려 <img> 로 표시.
-// WebGL(OGL) 의존이 없어 모든 기기에서 안정적으로 렌더된다. (TeamCircularGallery 대체)
+// 참가 팀 카드 — createTeamCardCanvas 로 그린 <canvas> 를 DOM 에 직접 붙인다.
+// 핵심: toDataURL("image/*") 인코딩을 쓰지 않는다. 1080×1240 캔버스를 카드마다
+// 인코딩하면 카드당 ~340ms 의 동기 메인스레드 블로킹이 발생해(마퀴 reps 로 카드가
+// 20개 이상이면 합계 수 초) 카드가 한참 뒤에야 한꺼번에 뜬다. 인코딩 없이 캔버스를
+// 그대로 표시하면 카드당 비용이 수ms 로 떨어진다. 표시 폭(200px)에 맞춰 540px 로
+// 렌더해 합성 비용·메모리도 함께 줄인다. WebGL(OGL) 의존이 없어 전 기기 안정적.
+const HOME_CARD_RENDER_WIDTH = 540;
+
 function HomeTeamCard({
   item,
   active,
@@ -662,24 +947,41 @@ function HomeTeamCard({
   active: boolean;
   onSelect: () => void;
 }) {
-  const [src, setSrc] = useState<string | null>(null);
+  const cacheKey = `${item.frame}|${item.logo ?? ""}|${item.name}|${item.colorIndex}|${item.isFieldChampion ? "champion" : "standard"}`;
+  const holderRef = useRef<HTMLDivElement>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    void createTeamCardCanvas({
-      name: item.name,
-      logo: item.logo,
-      frame: item.frame,
-      colorIndex: item.colorIndex,
-    })
+    void createTeamCardCanvas(
+      {
+        name: item.name,
+        logo: item.logo,
+        frame: item.frame,
+        colorIndex: item.colorIndex,
+        isFieldChampion: item.isFieldChampion,
+      },
+      { width: HOME_CARD_RENDER_WIDTH },
+    )
       .then((canvas) => {
-        if (!cancelled) setSrc(canvas.toDataURL("image/png"));
+        const holder = holderRef.current;
+        if (cancelled || !holder) return;
+        canvas.setAttribute("role", "img");
+        canvas.setAttribute("aria-label", item.name);
+        canvas.style.display = "block";
+        canvas.style.width = "100%";
+        canvas.style.height = "100%";
+        canvas.style.borderRadius = "14px";
+        holder.replaceChildren(canvas);
+        setReady(true);
       })
       .catch((err) => console.error("[HomeTeamCard] canvas failed:", err));
     return () => {
       cancelled = true;
     };
-  }, [item]);
+    // cacheKey 는 item 의 (frame·logo·name·colorIndex) 파생값이라 승급 등으로
+    // 티어가 바뀌면 변경되어 카드가 새 테두리로 재생성된다.
+  }, [item, cacheKey]);
 
   return (
     <button
@@ -694,14 +996,19 @@ function HomeTeamCard({
         outlineOffset: 3,
       }}
     >
-      {src ? (
-        <img src={src} alt={item.name} className="w-full" draggable={false} />
-      ) : (
+      <div className="relative w-full" style={{ aspectRatio: "1080 / 1240" }}>
         <div
-          className="w-full animate-pulse"
-          style={{ aspectRatio: "1080 / 1240", background: "var(--color-fg-paper-2)", borderRadius: 14 }}
+          ref={holderRef}
+          className="absolute inset-0"
+          style={{ opacity: ready ? 1 : 0, transition: "opacity 160ms ease" }}
         />
-      )}
+        {!ready && (
+          <div
+            className="absolute inset-0 animate-pulse"
+            style={{ background: "var(--color-fg-paper-2)", borderRadius: 14 }}
+          />
+        )}
+      </div>
     </button>
   );
 }

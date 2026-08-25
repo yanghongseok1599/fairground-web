@@ -18,7 +18,9 @@ export default function FeedPage() {
   // 최초 로드.
   useEffect(() => {
     let active = true;
-    setLoading(true);
+    queueMicrotask(() => {
+      if (active) setLoading(true);
+    });
     void fetchFeed({ limit: PAGE_SIZE }).then((list) => {
       if (!active) return;
       setItems(list);

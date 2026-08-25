@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, Flag, Gamepad2, Shield, ShieldCheck, Sparkles, UserCheck, Users } from "lucide-react";
+import { AlertTriangle, Bell, Flag, Gamepad2, Megaphone, Shield, ShieldCheck, Sparkles, Target, UserCheck, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { AdminGuard } from "@/components/admin-guard";
 import { AdminShell, AdminTile } from "@/components/admin-shell";
@@ -15,6 +15,9 @@ const ICONS = {
   coaches: Shield,
   penalties: AlertTriangle,
   reports: Flag,
+  skillChallenge: Target,
+  popups: Megaphone,
+  push: Bell,
 };
 
 export default function AdminPage() {

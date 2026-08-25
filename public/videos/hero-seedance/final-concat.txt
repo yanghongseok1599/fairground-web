@@ -1,2 +1,2 @@
-file '/Users/seok/footsal project/fairground-web/public/videos/fairground-mobile-hero.mp4'
-file '/Users/seok/footsal project/fairground-web/public/videos/hero-seedance/final-card-hold.mp4'
+file '../fairground-mobile-hero.mp4'
+file 'final-card-hold.mp4'

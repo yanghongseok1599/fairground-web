@@ -1,10 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  getCardSkinFromSearchParams,
+  GROUND_CHALLENGE_EVENT_QUERY_VALUE,
+  GROUND_CHALLENGE_PLAYER_CARD_SKIN,
+  rememberPendingCardSkin,
+} from "@/lib/player-card-skin";
 import type { Gender } from "@/types";
 
 /* ===========================================================
@@ -28,6 +34,7 @@ const labelStyle: React.CSSProperties = {
   color: "var(--color-fg-ink-muted)",
   fontFamily: "var(--font-space-mono)",
 };
+const PASSWORD_POLICY = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]).{8,}$/;
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -43,10 +50,28 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [formError, setFormError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [invitedTeamId] = useState(() => {
-    if (typeof window === "undefined") return "";
-    return new URLSearchParams(window.location.search).get("teamId") || "";
+  const [entryParams] = useState(() => {
+    if (typeof window === "undefined") return new URLSearchParams();
+    return new URLSearchParams(window.location.search);
   });
+  const invitedTeamId = entryParams.get("teamId") || "";
+  const eventCardSkin = getCardSkinFromSearchParams(entryParams);
+  const isGroundChallengeCard = eventCardSkin === GROUND_CHALLENGE_PLAYER_CARD_SKIN;
+  const groundChallengeSetupHref = `/my/player-setup?role=player&event=${GROUND_CHALLENGE_EVENT_QUERY_VALUE}`;
+  const onboardingHref = isGroundChallengeCard
+    ? groundChallengeSetupHref
+    : "/onboarding";
+
+  // 다른 화면(예: 로그인 실패)에서 남은 store error 가 이 페이지로 따라와
+  // 가입 폼에 엉뚱한 메시지("아이디 또는 비밀번호가 올바르지 않습니다")가
+  // 표시되던 문제 방지 — 마운트 시 초기화.
+  useEffect(() => {
+    clearError();
+  }, [clearError]);
+
+  useEffect(() => {
+    rememberPendingCardSkin(eventCardSkin);
+  }, [eventCardSkin]);
 
   // 감독 신청 분기는 /onboarding으로 일원화. 이전의 applyAsCoach 토글 +
   // teamsForCoach fetch + coach 신청 후속 로직은 이 페이지에서 제거됨.
@@ -66,19 +91,21 @@ export default function RegisterPage() {
       setFormError("이메일을 입력해주세요");
       return;
     }
-    if (password !== confirmPassword) {
+    const normalizedPassword = password.trim();
+    const normalizedConfirmPassword = confirmPassword.trim();
+    if (normalizedPassword !== normalizedConfirmPassword) {
       setFormError("비밀번호가 일치하지 않습니다");
       return;
     }
-    if (password.length < 6) {
-      setFormError("비밀번호는 6자 이상이어야 합니다");
+    if (!PASSWORD_POLICY.test(normalizedPassword)) {
+      setFormError("비밀번호는 8자 이상, 영문/숫자/특수문자를 포함해야 합니다");
       return;
     }
 
     try {
       await register({
         email: email.trim(),
-        password,
+        password: normalizedPassword,
         name: name.trim(),
         phone: phone.trim(),
         // 빈 값은 그대로 빈 문자열로 전달 — DB 컬럼은 모두 nullable이라
@@ -87,13 +114,18 @@ export default function RegisterPage() {
         birthDate,
         hasPlayerExperience,
         teamId: invitedTeamId,
+        cardSkin: eventCardSkin,
       });
 
       // MBTI/성향/추구하는 가치관/자기소개(FA) 후속 저장 로직 제거 — 이 필드들은
       // /my 마이페이지에서 설정한다.
 
-      // 가입 분기는 /onboarding(감독/선수 결정 화면)으로 일원화됨.
-      // 이전 applyAsCoach 체크박스 + team_role=coach 시도는 이 페이지에서 제거.
+      // 그라운드 챌린지 유입은 일반 온보딩을 건너뛰고 이벤트 카드 설정으로 바로 보낸다.
+      // 일반 가입은 기존처럼 완료 화면에서 /onboarding으로 이동한다.
+      if (isGroundChallengeCard) {
+        router.push(groundChallengeSetupHref);
+        return;
+      }
       setSuccess(true);
     } catch {
       // error is set in the store
@@ -104,10 +136,10 @@ export default function RegisterPage() {
     clearError();
     setFormError("");
     try {
-      await loginWithGoogle();
-      // Google 신규 가입자는 player 행이 없으므로 결정 화면으로 보낸다.
-      // onboarding이 이미 player가 있으면 /my로 자동 redirect한다.
-      router.push("/onboarding");
+      rememberPendingCardSkin(eventCardSkin);
+      await loginWithGoogle(onboardingHref);
+      // Google 가입도 유입 목적에 맞춰 일반 온보딩 또는 그라운드 챌린지 카드 설정으로 보낸다.
+      router.push(onboardingHref);
     } catch {
       // error is set in the store
     }
@@ -135,7 +167,7 @@ export default function RegisterPage() {
             </p>
           </div>
           <button
-            onClick={() => router.push("/onboarding")}
+            onClick={() => router.push(onboardingHref)}
             className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all hover:opacity-90"
             style={{
               background: "var(--primary)",
@@ -181,6 +213,22 @@ export default function RegisterPage() {
             계정을 만들고 시작하세요
             {invitedTeamId && " · 팀 초대 링크로 입장"}
           </p>
+          {isGroundChallengeCard && (
+            <div
+              className="mt-4 border px-4 py-3 text-left"
+              style={{
+                background: "#050505",
+                borderColor: "var(--color-fg-red)",
+                color: "#fff",
+                borderRadius: 8,
+              }}
+            >
+              <p className="text-[10px] font-black uppercase tracking-[2px]" style={{ color: "var(--color-fg-red)" }}>
+                MANGSANG GROUND CHALLENGE
+              </p>
+              <p className="mt-1 text-sm font-bold">한정 홀로그램 선수카드로 생성됩니다</p>
+            </div>
+          )}
         </div>
 
         {/* Google */}
@@ -229,6 +277,7 @@ export default function RegisterPage() {
             <input
               id="register-name"
               type="text"
+              autoComplete="name"
               placeholder="이름 입력"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -245,6 +294,7 @@ export default function RegisterPage() {
             <input
               id="register-phone"
               type="tel"
+              autoComplete="tel"
               placeholder="010-0000-0000"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -262,7 +312,7 @@ export default function RegisterPage() {
               id="register-email"
               type="text"
               autoComplete="username"
-              placeholder="ccv5 또는 email@example.com"
+              placeholder="myid123 또는 email@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -299,6 +349,7 @@ export default function RegisterPage() {
               <input
                 id="register-birth"
                 type="date"
+                autoComplete="bday"
                 value={birthDate}
                 onChange={(e) => setBirthDate(e.target.value)}
                 required
@@ -366,7 +417,9 @@ export default function RegisterPage() {
             <input
               id="register-password"
               type="password"
-              placeholder="6자 이상 입력"
+              autoComplete="new-password"
+              minLength={8}
+              placeholder="8자 이상, 영문/숫자/특수문자"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -382,6 +435,8 @@ export default function RegisterPage() {
             <input
               id="register-password2"
               type="password"
+              autoComplete="new-password"
+              minLength={8}
               placeholder="비밀번호 다시 입력"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}

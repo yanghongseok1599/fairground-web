@@ -7,8 +7,18 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
 import { COUNTRIES } from "@/constants/countries";
 import { PlayerCard } from "@/components/player-card";
-import { compressImageBlob } from "@/lib/image-compression";
-import type { Position, Player, PlayerRole } from "@/types";
+import { PlayerCardTierPreviewGrid } from "@/components/player-card-tier-preview-grid";
+import { compressImageBlob, removeBackgroundAndCompress } from "@/lib/image-compression";
+import { composeTeamlessPoseCardPhoto } from "@/lib/player-card-photo-composer";
+import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
+import { shouldContinueGroundChallengeSetup } from "@/lib/player-onboarding";
+import {
+  clearPendingCardSkin,
+  getCardSkinFromSearchParams,
+  GROUND_CHALLENGE_PLAYER_CARD_SKIN,
+  readPendingCardSkin,
+} from "@/lib/player-card-skin";
+import type { Position, Player, PlayerCardSkin, PlayerRole } from "@/types";
 
 /* ===========================================================
  * Light theme (White&Blue) — FairGround BrandKit 2026
@@ -24,7 +34,7 @@ const POSITIONS: { value: Position; label: string; desc: string }[] = [
 
 const ROLE_OPTIONS: { value: Exclude<PlayerRole, "admin">; label: string; desc: string }[] = [
   { value: "player", label: "선수", desc: "선수 카드를 만들고 팀에 합류해 활동합니다" },
-  { value: "captain", label: "감독", desc: "팀을 직접 만들고 멤버·공지·갤러리를 운영합니다" },
+  { value: "captain", label: "감독", desc: "선수 지도와 경기 운영을 총괄합니다" },
   { value: "referee", label: "심판", desc: "승인 후 경기 운영 메뉴에 접근합니다" },
 ];
 
@@ -46,9 +56,6 @@ const inputStyle: React.CSSProperties = {
   color: "var(--color-fg-ink)",
 };
 
-// lg 카드 크기 + 사진 영역 (player-card.tsx POS.photo와 동일하게 유지)
-const CARD_W = 280;
-const CARD_H = Math.round(CARD_W * 1240 / 1080);
 const PHOTO_OVERLAY = { x: 47, y: 14.5, w: 27, h: 38 };
 
 export default function PlayerSetupPage() {
@@ -73,8 +80,9 @@ function PlayerSetupFallback() {
 function PlayerSetupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, loading, error, clearError, createPlayer, uploadPlayerPhoto, initialized } = useAuth();
+  const { user, player, loading, error, clearError, createPlayer, uploadPlayerPhoto, initialized } = useAuth();
   const { teams, fetchTeams } = useDataStore();
+  const playerSetupSearch = searchParams?.toString() ?? "";
 
   // /onboarding으로부터 ?role=captain|player 를 받으면 디폴트로 선택.
   // 잘못된 값은 무시하고 'player'로 폴백.
@@ -84,18 +92,26 @@ function PlayerSetupContent() {
     return "player";
   })();
 
+  const [cardSkin] = useState<PlayerCardSkin>(() =>
+    getCardSkinFromSearchParams(searchParams) ?? readPendingCardSkin() ?? "standard",
+  );
+  const isGroundChallengeCard = cardSkin === GROUND_CHALLENGE_PLAYER_CARD_SKIN;
+  const canContinueGroundChallengeSetup =
+    isGroundChallengeCard && shouldContinueGroundChallengeSetup(player);
+
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
   const [position, setPosition] = useState<Position | "">("");
   const [role, setRole] = useState<Exclude<PlayerRole, "admin">>(presetRole);
   const [teamId, setTeamId] = useState("");
   const [nationality, setNationality] = useState("KOR");
-  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);         // 배경제거본 (카드용)
-  const [originalPhotoBlob, setOriginalPhotoBlob] = useState<Blob | null>(null); // 원본 (프로필용)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);   // 우측 썸네일: 원본
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null); // 배경제거본 저장용
+  const [sourcePhotoBlob, setSourcePhotoBlob] = useState<Blob | null>(null);
+  const [cutoutPhotoBlob, setCutoutPhotoBlob] = useState<Blob | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);   // 프로필 썸네일
   const [cardPhotoPreview, setCardPhotoPreview] = useState<string | null>(null); // 카드: 배경제거
   const [bgProcessing, setBgProcessing] = useState(false);
-  const [photoScale, setPhotoScale] = useState(1.0);
+  const [photoScale, setPhotoScale] = useState(DEFAULT_CARD_PHOTO_SCALE);
   const [done, setDone] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -106,14 +122,38 @@ function PlayerSetupContent() {
   const overlayRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef(0);
   const touchStartScale = useRef(1);
+  const seededPlayerRef = useRef<string | null>(null);
 
   useEffect(() => { fetchTeams(); }, [fetchTeams]);
 
   useEffect(() => {
-    if (initialized && !user) {
-      router.replace("/login?returnTo=/my/player-setup");
+    if (!initialized) return;
+    if (!user) {
+      const returnTo = `/my/player-setup${playerSetupSearch ? `?${playerSetupSearch}` : ""}`;
+      router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+      return;
     }
-  }, [initialized, user, router]);
+    if (player && !canContinueGroundChallengeSetup) {
+      router.replace("/my/card-edit");
+    }
+  }, [initialized, user, player, router, playerSetupSearch, canContinueGroundChallengeSetup]);
+
+  useEffect(() => {
+    if (!player || !canContinueGroundChallengeSetup) return;
+    if (seededPlayerRef.current === player.id) return;
+    seededPlayerRef.current = player.id;
+    const nextRole =
+      player.role === "captain" || player.role === "player" || player.role === "referee"
+        ? player.role
+        : presetRole;
+    setName((current) => current || player.name || "");
+    setNumber((current) => current || (player.number > 0 ? String(player.number) : ""));
+    setPosition((current) => current || player.position || "");
+    setRole((current) => current || nextRole);
+    setTeamId((current) => current || player.teamId || "");
+    setNationality((current) => current || player.nationality || "KOR");
+    setPhotoScale(player.photoScale || DEFAULT_CARD_PHOTO_SCALE);
+  }, [player, canContinueGroundChallengeSetup, presetRole]);
 
   // 전역 마우스 이벤트 (드래그 중 커서가 벗어나도 작동)
   useEffect(() => {
@@ -134,14 +174,58 @@ function PlayerSetupContent() {
   // 스크롤 휠 (passive: false 필요)
   useEffect(() => {
     const el = overlayRef.current;
-    if (!el || !photoPreview) return;
+    const hasCardPhoto = !!(cardPhotoPreview || photoPreview);
+    if (!el || !hasCardPhoto) return;
     const handler = (e: WheelEvent) => {
       e.preventDefault();
       setPhotoScale(s => Math.min(2.5, Math.max(0.5, s - e.deltaY * 0.002)));
     };
     el.addEventListener("wheel", handler, { passive: false });
     return () => el.removeEventListener("wheel", handler);
-  }, [photoPreview]);
+  }, [cardPhotoPreview, photoPreview]);
+
+  const shouldUseTeamlessPose = (nextTeamId: string, nextRole = role) => {
+    return nextRole !== "referee" && (isGroundChallengeCard || !nextTeamId);
+  };
+
+  const buildCardPhotoBlob = async (
+    nextTeamId: string,
+    nextRole: Exclude<PlayerRole, "admin">,
+    sourceBlob: Blob,
+    cutoutBlob: Blob,
+  ) => {
+    if (!shouldUseTeamlessPose(nextTeamId, nextRole)) return cutoutBlob;
+    try {
+      return await composeTeamlessPoseCardPhoto({
+        sourcePhoto: sourceBlob,
+        cutoutPhoto: cutoutBlob,
+        gender: user?.gender,
+        seed: `${user?.uid ?? ""}-${name}-${number}`,
+      });
+    } catch (error) {
+      console.error("[PlayerSetup] teamless pose composition failed:", error);
+      return cutoutBlob;
+    }
+  };
+
+  const setProcessedPhoto = (blob: Blob) => {
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    if (cardPhotoPreview) URL.revokeObjectURL(cardPhotoPreview);
+    setPhotoPreview(URL.createObjectURL(blob));
+    setCardPhotoPreview(URL.createObjectURL(blob));
+    setPhotoBlob(blob);
+  };
+
+  const reprocessUploadedPhoto = async (nextTeamId: string, nextRole = role) => {
+    if (!sourcePhotoBlob || !cutoutPhotoBlob) return;
+    setBgProcessing(true);
+    try {
+      const finalPhoto = await buildCardPhotoBlob(nextTeamId, nextRole, sourcePhotoBlob, cutoutPhotoBlob);
+      setProcessedPhoto(finalPhoto);
+    } finally {
+      setBgProcessing(false);
+    }
+  };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -154,29 +238,32 @@ function PlayerSetupContent() {
       mimeType: "image/webp",
       quality: 0.9,
     });
-    // 우측 썸네일: 원본 압축본 바로 표시
-    setPhotoPreview(URL.createObjectURL(compressed));
+    const compressedPreviewUrl = URL.createObjectURL(compressed);
+    setPhotoPreview(compressedPreviewUrl);
     setCardPhotoPreview(null);
     setPhotoBlob(compressed);
-    setOriginalPhotoBlob(compressed); // 원본 보관
+    setSourcePhotoBlob(compressed);
+    setCutoutPhotoBlob(null);
 
-    // 카드용 배경제거 (비동기)
+    // 카드/프로필 공통 배경제거본 생성.
     setBgProcessing(true);
     try {
-      const { removeBackground } = await import("@imgly/background-removal");
-      const bgRemoved = await removeBackground(compressed, {
-        publicPath: "https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/",
-        debug: false,
-      });
-      const optimizedCardPhoto = await compressImageBlob(bgRemoved, {
-        maxPx: 1400,
-        mimeType: "image/webp",
-        quality: 0.92,
-      });
-      setCardPhotoPreview(URL.createObjectURL(optimizedCardPhoto));
-      setPhotoBlob(optimizedCardPhoto); // 저장은 배경제거본 압축본으로
-    } catch {
-      setCardPhotoPreview(URL.createObjectURL(compressed)); // 실패 시 원본
+      let optimizedPhoto = compressed;
+      try {
+        optimizedPhoto = await removeBackgroundAndCompress(compressed, {
+          maxPx: 1400,
+          mimeType: "image/webp",
+          quality: 0.92,
+        });
+      } catch (error) {
+        console.error("[PlayerSetup] background removal failed:", error);
+      }
+      setCutoutPhotoBlob(optimizedPhoto);
+      const finalPhoto = await buildCardPhotoBlob(teamId, role, compressed, optimizedPhoto);
+      setPhotoPreview(URL.createObjectURL(finalPhoto));
+      setCardPhotoPreview(URL.createObjectURL(finalPhoto));
+      setPhotoBlob(finalPhoto);
+      URL.revokeObjectURL(compressedPreviewUrl);
     } finally {
       setBgProcessing(false);
     }
@@ -184,12 +271,23 @@ function PlayerSetupContent() {
 
   const handleRemovePhoto = () => {
     setPhotoBlob(null);
-    setOriginalPhotoBlob(null);
+    setSourcePhotoBlob(null);
+    setCutoutPhotoBlob(null);
     if (photoPreview) URL.revokeObjectURL(photoPreview);
     if (cardPhotoPreview) URL.revokeObjectURL(cardPhotoPreview);
     setPhotoPreview(null);
     setCardPhotoPreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleTeamChange = (nextTeamId: string) => {
+    setTeamId(nextTeamId);
+    void reprocessUploadedPhoto(nextTeamId, role);
+  };
+
+  const handleRoleChange = (nextRole: Exclude<PlayerRole, "admin">) => {
+    setRole(nextRole);
+    void reprocessUploadedPhoto(teamId, nextRole);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -198,29 +296,28 @@ function PlayerSetupContent() {
     if (!position) return;
     try {
       let photoUrl = "";
-      let profilePhotoUrl = "";
       if (photoBlob) {
         const photoFile = new File([photoBlob], "photo.webp", {
           type: photoBlob.type || "image/webp",
         });
         photoUrl = await uploadPlayerPhoto(photoFile);
       }
-      if (originalPhotoBlob) {
-        const origFile = new File([originalPhotoBlob], "profile.webp", {
-          type: originalPhotoBlob.type || "image/webp",
-        });
-        profilePhotoUrl = await uploadPlayerPhoto(origFile);
-      }
       await createPlayer({
         name: name.trim(),
         number: parseInt(number, 10),
         position: position as Position,
+        role,
         teamId: teamId || "",
+        teamRole: role === "captain" ? "coach" : undefined,
         nationality,
+        gender: user?.gender,
         photoUrl,
-        profilePhotoUrl,
+        profilePhotoUrl: photoUrl,
+        profilePhotoLocked: false,
         photoScale,
+        cardSkin,
       });
+      clearPendingCardSkin();
       setDone(true);
       // 가입 완료 후 마이페이지로 — 거기서 본인 카드/팀 상태를 확인할 수 있다.
       // (이전엔 /players 전체 목록으로 가서 본인 카드가 어디 있는지 모호했음)
@@ -230,7 +327,7 @@ function PlayerSetupContent() {
     }
   };
 
-  if (!initialized || !user) {
+  if (!initialized || !user || (player && !canContinueGroundChallengeSetup)) {
     return (
       <div className="flex min-h-screen items-center justify-center" style={{ background: "var(--color-fg-paper)" }}>
         <div
@@ -278,6 +375,8 @@ function PlayerSetupContent() {
   }
 
   const selectedTeam = teamId ? teams[teamId] : undefined;
+  const currentCardPhoto = cardPhotoPreview || photoPreview || "";
+  const hasCustomCardPhoto = Boolean(currentCardPhoto);
 
   const previewPlayer: Player = {
     id: "preview",
@@ -287,15 +386,17 @@ function PlayerSetupContent() {
     position: (position as Position) || "ALA",
     teamId: teamId || "",
     nationality: nationality || "KOR",
-    photoUrl: cardPhotoPreview || photoPreview || "",
+    photoUrl: currentCardPhoto,
     photoScale,
     cardType: "gold",
+    cardSkin,
     cardRating: 70,
     stats: { goals: 0, assists: 0, games: 0, mom: 0 },
     badges: [],
     penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
     isApproved: false,
     role,
+    teamRole: role === "captain" ? "coach" : undefined,
     createdAt: Date.now(),
   };
 
@@ -344,52 +445,104 @@ function PlayerSetupContent() {
           선수 카드 만들기
         </h1>
         <p className="text-sm mt-2" style={{ color: "var(--color-fg-ink-muted)" }}>
-          나만의 선수 카드 정보를 입력해주세요
+          {isGroundChallengeCard
+            ? "그라운드 챌린지 한정 홀로그램 스킨이 적용됩니다"
+            : "나만의 선수 카드 정보를 입력해주세요"}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="mx-auto max-w-lg space-y-6 px-5 py-8 sm:px-8 md:grid md:max-w-5xl md:grid-cols-[minmax(0,460px)_320px] md:items-start md:gap-12 md:space-y-0 md:px-10">
 
-        {/* 모바일은 세로 스택, 데스크톱은 예전처럼 오른쪽 미리보기 컬럼. */}
+        {/* 모바일은 세로 스택, 데스크톱은 오른쪽 미리보기 컬럼. */}
         <div className="flex flex-col items-center gap-5 py-2 md:order-2 md:sticky md:top-28">
 
-          {/* 좌측: 카드 미리보기 (사진 영역 드래그로 크기 조절) */}
-          <div className="relative flex-shrink-0" style={{ width: CARD_W, height: CARD_H }}>
-            <PlayerCard player={previewPlayer} size="lg" teamLogo={selectedTeam?.logo} disableHoverScale />
-
-            {/* 사진 영역 인터랙션 오버레이 */}
-            {(cardPhotoPreview || photoPreview) && (
+          {isGroundChallengeCard ? (
+            <section className="w-full" aria-label="그라운드 챌린지 홀로그램 카드 미리보기">
+              <div className="mb-3 text-center">
+                <p
+                  className="text-[10px] font-black uppercase tracking-[2px]"
+                  style={{ color: "var(--color-fg-red)", fontFamily: "var(--font-space-mono)" }}
+                >
+                  MANGSANG GROUND CHALLENGE
+                </p>
+                <h2
+                  className="mt-1 text-lg font-black"
+                  style={{ color: "var(--color-fg-ink)", fontFamily: "var(--font-pretendard)" }}
+                >
+                  한정 홀로그램 선수카드
+                </h2>
+              </div>
               <div
                 ref={overlayRef}
-                className="absolute select-none"
-                style={{
-                  left: `${PHOTO_OVERLAY.x}%`,
-                  top: `${PHOTO_OVERLAY.y}%`,
-                  width: `${PHOTO_OVERLAY.w}%`,
-                  height: `${PHOTO_OVERLAY.h}%`,
-                  zIndex: 10,
-                  cursor: "ns-resize",
-                  touchAction: "none",
-                }}
+                className="relative mx-auto flex w-fit touch-none select-none justify-center"
+                style={{ cursor: hasCustomCardPhoto ? "ns-resize" : "default" }}
                 onMouseDown={(e) => {
+                  if (!hasCustomCardPhoto) return;
                   e.preventDefault();
                   dragging.current = true;
                   dragStartY.current = e.clientY;
                   dragStartScale.current = photoScale;
                 }}
                 onTouchStart={(e) => {
+                  if (!hasCustomCardPhoto) return;
                   touchStartY.current = e.touches[0].clientY;
                   touchStartScale.current = photoScale;
                 }}
                 onTouchMove={(e) => {
+                  if (!hasCustomCardPhoto) return;
                   e.preventDefault();
                   const dy = e.touches[0].clientY - touchStartY.current;
                   setPhotoScale(Math.min(2.5, Math.max(0.5, touchStartScale.current - dy * 0.005)));
                 }}
               >
+                <PlayerCard
+                  player={previewPlayer}
+                  size="lg"
+                  teamLogo={selectedTeam?.logo}
+                  disableHoverScale
+                />
               </div>
-            )}
-          </div>
+            </section>
+          ) : (
+            <PlayerCardTierPreviewGrid
+              player={previewPlayer}
+              teamLogo={selectedTeam?.logo}
+              customPhotoUrl={currentCardPhoto || undefined}
+              renderPhotoOverlay={(cardType) => {
+                if (cardType !== "bronze" || !hasCustomCardPhoto) return null;
+                return (
+                  <div
+                    ref={overlayRef}
+                    className="absolute select-none"
+                    style={{
+                      left: `${PHOTO_OVERLAY.x}%`,
+                      top: `${PHOTO_OVERLAY.y}%`,
+                      width: `${PHOTO_OVERLAY.w}%`,
+                      height: `${PHOTO_OVERLAY.h}%`,
+                      zIndex: 10,
+                      cursor: "ns-resize",
+                      touchAction: "none",
+                    }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      dragging.current = true;
+                      dragStartY.current = e.clientY;
+                      dragStartScale.current = photoScale;
+                    }}
+                    onTouchStart={(e) => {
+                      touchStartY.current = e.touches[0].clientY;
+                      touchStartScale.current = photoScale;
+                    }}
+                    onTouchMove={(e) => {
+                      e.preventDefault();
+                      const dy = e.touches[0].clientY - touchStartY.current;
+                      setPhotoScale(Math.min(2.5, Math.max(0.5, touchStartScale.current - dy * 0.005)));
+                    }}
+                  />
+                );
+              }}
+            />
+          )}
 
           {/* 하단: 사진 업로드 버튼 */}
           <div className="flex flex-col items-center gap-3">
@@ -420,7 +573,8 @@ function PlayerSetupContent() {
                 }}
               >
                 {photoPreview ? (
-                  <img src={photoPreview} alt="preview" className="w-full h-full object-cover" />
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoPreview} alt="preview" className="h-full w-full object-contain object-center" />
                 ) : (
                   <div className="flex flex-col items-center gap-2">
                     <Camera className="w-6 h-6" style={{ color: "var(--color-fg-ink-muted)" }} />
@@ -499,7 +653,7 @@ function PlayerSetupContent() {
                     key={option.value}
                     type="button"
                     aria-pressed={selected}
-                    onClick={() => setRole(option.value)}
+                    onClick={() => handleRoleChange(option.value)}
                     className="px-3 py-3 rounded-2xl text-left transition-all"
                     style={{
                       background: selected ? "var(--color-fg-paper-3)" : "var(--color-fg-paper)",
@@ -584,7 +738,7 @@ function PlayerSetupContent() {
               <select
                 id="setup-team"
                 value={teamId}
-                onChange={(e) => setTeamId(e.target.value)}
+                onChange={(e) => handleTeamChange(e.target.value)}
                 className="w-full px-4 py-3 rounded-2xl text-sm outline-none appearance-none"
                 style={{ ...inputStyle, paddingRight: "2.5rem" }}
               >

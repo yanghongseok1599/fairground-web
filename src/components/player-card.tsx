@@ -2,6 +2,9 @@
 
 import type { Player, CardType } from "@/types";
 import { BADGES } from "@/constants/badges";
+import { useTeamLogoBackgroundRemoval } from "@/hooks/useTeamLogoBackgroundRemoval";
+import { isHologramPlayerCard } from "@/lib/player-card-skin";
+import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
 
 interface PlayerCardProps {
   player: Player;
@@ -70,14 +73,16 @@ interface CardLayout {
   };
 }
 
+type VisualCardType = CardType | "hologram";
+
 // "gold" 티어 = standard 기본 트리트먼트. 색은 브랜드키트 토큰만 사용.
 // (CardType 값 "gold" 는 데이터 호환 위해 유지하되, 시각은 gold 색 아님)
 const GOLD_LAYOUT: CardLayout = {
-  bg: "/images/gold-card-ducktape.png?v=4",
+  bg: "/images/gold-card-ducktape.webp?v=4",
   aspect: 1240 / 1080,
   leftColCenter: 33,
   pos: {
-    rating: { y: 16 },
+    rating: { y: 14.5 },
     pos: { y: 28 },
     logo: { y: 34.5 },
     flag: { y: 45.5 },
@@ -104,7 +109,7 @@ const GOLD_LAYOUT: CardLayout = {
 
 const PREMIUM_LAYOUT: CardLayout = {
   ...GOLD_LAYOUT,
-  bg: "/images/premium-card-matched.png?v=4",
+  bg: "/images/premium-card-matched.webp?v=4",
   aspect: 1240 / 1080,
   pos: {
     ...GOLD_LAYOUT.pos,
@@ -120,7 +125,7 @@ const PREMIUM_LAYOUT: CardLayout = {
 
 const BRONZE_LAYOUT: CardLayout = {
   ...GOLD_LAYOUT,
-  bg: "/images/bronze-card.png?v=9",
+  bg: "/images/bronze-card.webp?v=9",
   ink: {
     solid: "#3b2112",
     rgb: "59, 33, 18",
@@ -129,25 +134,35 @@ const BRONZE_LAYOUT: CardLayout = {
 
 const SILVER_LAYOUT: CardLayout = {
   ...GOLD_LAYOUT,
-  bg: "/images/silver-card.png?v=9",
+  bg: "/images/silver-card.webp?v=9",
   ink: {
     solid: "#152033",
     rgb: "21, 32, 51",
   },
 };
 
-const LAYOUT: Record<CardType, CardLayout> = {
+const HOLOGRAM_LAYOUT: CardLayout = {
+  ...GOLD_LAYOUT,
+  bg: "/images/hologram-card.webp?v=3",
+  ink: {
+    solid: "var(--card-ink-standard)",
+    rgb: "var(--card-ink-standard-rgb)",
+  },
+};
+
+const LAYOUT: Record<VisualCardType, CardLayout> = {
   bronze: BRONZE_LAYOUT,
   silver: SILVER_LAYOUT,
   gold: GOLD_LAYOUT,
   premium: PREMIUM_LAYOUT,
+  hologram: HOLOGRAM_LAYOUT,
 };
 
 const CARD_TYPE_LABEL: Record<CardType, string> = {
   bronze: "브론즈",
   silver: "실버",
   gold: "골드",
-  premium: "프리미엄",
+  premium: "플래티넘",
 };
 
 export function getCardTypeFromRating(rating: number): CardType {
@@ -156,97 +171,6 @@ export function getCardTypeFromRating(rating: number): CardType {
   if (rating >= 80) return "silver";
   return "bronze";
 }
-// ============================================================
-
-function CardShell({ cardType }: { cardType: CardType }) {
-  const premium = cardType === "premium";
-  const id = premium ? "premium" : "gold";
-  const metalA = premium ? "#eafff9" : "#fff4bd";
-  const metalB = premium ? "#55f0d2" : "#f0cf62";
-  const metalC = premium ? "#0aa88f" : "#a97824";
-  const strokeA = premium ? "#d9fff8" : "#fff7cf";
-  const strokeB = premium ? "#20d0ad" : "#8a621d";
-
-  return (
-    <svg
-      aria-hidden="true"
-      className="absolute inset-0 h-full w-full drop-shadow-lg"
-      viewBox="0 0 1080 1240"
-      preserveAspectRatio="xMidYMid meet"
-    >
-      <defs>
-        <linearGradient id={`${id}-metal`} x1="18%" y1="6%" x2="88%" y2="96%">
-          <stop offset="0%" stopColor={metalA} />
-          <stop offset="24%" stopColor={metalB} />
-          <stop offset="43%" stopColor="#fff7cb" />
-          <stop offset="62%" stopColor={premium ? "#85ffe6" : "#d5aa43"} />
-          <stop offset="100%" stopColor={metalC} />
-        </linearGradient>
-        <linearGradient id={`${id}-face`} x1="24%" y1="8%" x2="78%" y2="92%">
-          <stop offset="0%" stopColor="rgba(255,255,255,0.72)" />
-          <stop offset="34%" stopColor="rgba(255,255,255,0.16)" />
-          <stop offset="100%" stopColor="rgba(45,24,0,0.2)" />
-        </linearGradient>
-        <radialGradient id={`${id}-shine`} cx="28%" cy="22%" r="62%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.8" />
-          <stop offset="38%" stopColor="#ffffff" stopOpacity="0.16" />
-          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-        </radialGradient>
-        <filter id={`${id}-soft-shadow`} x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="18" stdDeviation="14" floodColor="#000000" floodOpacity="0.35" />
-        </filter>
-      </defs>
-
-      <path
-        d="M540 44 C505 86 457 77 421 54 C392 103 321 103 267 145 C198 199 169 307 158 419 L128 532 L145 782 C158 935 264 1066 540 1194 C816 1066 922 935 935 782 L952 532 L922 419 C911 307 882 199 813 145 C759 103 688 103 659 54 C623 77 575 86 540 44 Z"
-        fill={`url(#${id}-metal)`}
-        filter={`url(#${id}-soft-shadow)`}
-      />
-      <path
-        d="M540 72 C505 111 458 103 430 84 C398 128 330 131 286 168 C226 219 198 314 188 426 L160 536 L176 770 C188 896 280 1022 540 1160 C800 1022 892 896 904 770 L920 536 L892 426 C882 314 854 219 794 168 C750 131 682 128 650 84 C622 103 575 111 540 72 Z"
-        fill="none"
-        stroke={strokeA}
-        strokeWidth="18"
-        opacity="0.84"
-      />
-      <path
-        d="M540 94 C505 128 462 122 436 106 C405 146 340 151 301 184 C247 230 221 322 212 432 L186 540 L200 760 C212 870 296 992 540 1128 C784 992 868 870 880 760 L894 540 L868 432 C859 322 833 230 779 184 C740 151 675 146 644 106 C618 122 575 128 540 94 Z"
-        fill={`url(#${id}-face)`}
-        stroke={strokeB}
-        strokeWidth="8"
-        opacity="0.72"
-      />
-      <path
-        d="M224 560 C310 530 406 516 540 516 C674 516 770 530 856 560 L838 772 C827 884 746 980 540 1094 C334 980 253 884 242 772 Z"
-        fill="rgba(255,240,160,0.42)"
-        stroke="rgba(255,255,255,0.26)"
-        strokeWidth="7"
-      />
-      <path d="M226 454 C380 428 534 300 674 148" stroke="rgba(255,255,255,0.34)" strokeWidth="18" strokeLinecap="round" />
-      <path d="M404 494 C560 456 672 318 812 194" stroke="rgba(95,60,8,0.2)" strokeWidth="13" strokeLinecap="round" />
-      <path d="M710 262 C780 242 830 222 874 190" stroke="rgba(255,255,255,0.28)" strokeWidth="10" strokeLinecap="round" />
-      <path
-        d="M540 94 C505 128 462 122 436 106 C405 146 340 151 301 184 C247 230 221 322 212 432 L186 540 L200 760 C212 870 296 992 540 1128 C784 992 868 870 880 760 L894 540 L868 432 C859 322 833 230 779 184 C740 151 675 146 644 106 C618 122 575 128 540 94 Z"
-        fill={`url(#${id}-shine)`}
-      />
-      {[
-        [318, 206, 11], [372, 160, 9], [444, 180, 8], [610, 172, 10], [672, 228, 17],
-        [470, 258, 15], [744, 350, 8], [790, 392, 7], [828, 430, 6],
-      ].map(([cx, cy, r]) => (
-        <circle
-          key={`${cx}-${cy}`}
-          cx={cx}
-          cy={cy}
-          r={r}
-          fill="rgba(255,255,255,0.24)"
-          stroke="rgba(92,62,10,0.34)"
-          strokeWidth="4"
-        />
-      ))}
-    </svg>
-  );
-}
-
 const sizeConfig = {
   sm: { w: 130 },
   md: { w: 200 },
@@ -265,9 +189,12 @@ export function PlayerCard({
   const cardW = sizeConfig[size].w;
 
   const cardType = getCardTypeFromRating(player.cardRating);
-  const layout = LAYOUT[cardType] ?? GOLD_LAYOUT;
+  const visualCardType: VisualCardType = isHologramPlayerCard(player) ? "hologram" : cardType;
+  const layout = LAYOUT[visualCardType] ?? GOLD_LAYOUT;
+  const processedTeamLogo = useTeamLogoBackgroundRemoval(teamLogo);
   const cardH = Math.round(cardW * layout.aspect);
   const { pos: POS, fontPct: FONT_PCT, leftColCenter: LEFT_COL_CENTER, ink } = layout;
+  const playerPhotoScale = player.photoScale ?? DEFAULT_CARD_PHOTO_SCALE;
 
   const fs = {
     rating: Math.round(cardW * FONT_PCT.rating / 100),
@@ -281,7 +208,8 @@ export function PlayerCard({
   };
 
   // A3 (§6): 카드 정보 전체를 단일 의미로 노출. 내부 장식 img 는 alt="" 유지.
-  const ariaLabel = `${player.name}, ${player.position}, 레이팅 ${player.cardRating}, ${CARD_TYPE_LABEL[cardType]} 카드`;
+  const cardLabel = visualCardType === "hologram" ? "그라운드 챌린지 홀로그램" : CARD_TYPE_LABEL[cardType];
+  const ariaLabel = `${player.name}, ${player.position}, 레이팅 ${player.cardRating}, ${cardLabel} 카드`;
 
   const cardInner = (
     <>
@@ -293,7 +221,7 @@ export function PlayerCard({
         className="absolute inset-0 h-full w-full object-contain drop-shadow-lg"
         style={{
           filter:
-            cardType === "premium"
+            visualCardType === "premium"
               ? [
                   "drop-shadow(0 0 5px rgba(90, 255, 210, 0.88))",
                   "drop-shadow(0 0 13px rgba(0, 230, 180, 0.44))",
@@ -370,7 +298,7 @@ export function PlayerCard({
       </div>
 
       {/* Team Logo — 정사각형 */}
-      {teamLogo ? (
+      {processedTeamLogo ? (
         <div
           className="absolute flex items-center justify-center"
           style={{
@@ -384,7 +312,7 @@ export function PlayerCard({
           }}
         >
           <img
-            src={teamLogo}
+            src={processedTeamLogo}
             alt=""
             aria-hidden="true"
             className="block"
@@ -435,11 +363,11 @@ export function PlayerCard({
             alt=""
             aria-hidden="true"
             className="block"
-            style={(player.photoScale && player.photoScale !== 1) || player.photoOffsetX ? {
+            style={(playerPhotoScale !== 1) || player.photoOffsetX ? {
               width: "auto",
               height: "100%",
               maxWidth: "none",
-              transform: `scale(${player.photoScale ?? 1}) translateX(${player.photoOffsetX ?? 0}%)`,
+              transform: `scale(${playerPhotoScale}) translateX(${player.photoOffsetX ?? 0}%)`,
               transformOrigin: "center bottom",
               filter: "drop-shadow(0 8px 10px rgba(0,0,0,0.28))",
             } : {
@@ -542,6 +470,7 @@ export function PlayerCard({
           top: `${POS.stats.y}%`,
           transform: "translateX(-50%)",
           color: "#050505",
+          fontFamily: "var(--font-pretendard)",
           gap: cardW * 0.055,
           zIndex: 2,
         }}
@@ -553,12 +482,12 @@ export function PlayerCard({
           { val: player.stats.mom, label: "MOM" },
         ].map((stat) => (
           <div key={stat.label} className="flex flex-col items-center leading-tight">
-            <span className="font-black" style={{ fontSize: fs.statVal }}>
+            <span className="font-black" style={{ fontSize: fs.statVal, fontFamily: "var(--font-pretendard)" }}>
               {stat.val}
             </span>
             <span
               className="font-black"
-              style={{ fontSize: fs.statLabel, color: "#050505" }}
+              style={{ fontSize: fs.statLabel, color: "#050505", fontFamily: "var(--font-pretendard)" }}
             >
               {stat.label}
             </span>

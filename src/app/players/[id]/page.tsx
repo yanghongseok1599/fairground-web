@@ -10,6 +10,10 @@ import type { Player, Team } from "@/types";
 import { ArrowLeft, Download, Share2, Loader2, Pencil } from "lucide-react";
 import { downloadElementAsPng } from "@/lib/card-download";
 
+const RESULT_CARD_BOX_SIZE = 560;
+const RESULT_CARD_SCALE = 0.51;
+const RESULT_CARD_LOGO_HEIGHT = 30;
+
 export default function PlayerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const store = useDataStore();
@@ -81,9 +85,10 @@ export default function PlayerDetailPage() {
 
   return (
     <div className="pt-[60px] min-h-screen flex flex-col" style={{ background: "#0D1B2A" }}>
-      <div className="flex-1 flex flex-col items-center px-5 py-10 sm:px-8 md:px-10">
+      <div className="flex-1 w-full px-5 py-10 sm:px-8 md:px-10">
+        <div className="mx-auto w-full max-w-[1100px]">
         {/* Back */}
-        <div className="w-full max-w-[240px] mb-8">
+        <div className="mb-8 w-full">
           <Link
             href="/my"
             className="inline-flex items-center gap-2 text-sm transition-colors"
@@ -96,56 +101,61 @@ export default function PlayerDetailPage() {
           </Link>
         </div>
 
-        {/* Space background card */}
-        <div ref={exportCardRef}>
-          <PlayerCardCaptureFrame
-            player={player}
-            teamLogo={team?.logo}
-            boxSize={220}
-            cardSize="lg"
-            cardScale={0.62}
-            logoHeight={12}
-          />
-        </div>
+        <div className="grid w-full gap-7 lg:grid-cols-[minmax(0,620px)_260px] lg:items-center lg:justify-center lg:gap-10">
+          {/* Space background card */}
+          <div className="flex w-full justify-center lg:justify-end">
+            <div ref={exportCardRef} className="w-full max-w-[560px]">
+              <PlayerCardCaptureFrame
+                player={player}
+                teamLogo={team?.logo}
+                boxSize={RESULT_CARD_BOX_SIZE}
+                cardSize="export"
+                cardScale={RESULT_CARD_SCALE}
+                logoHeight={RESULT_CARD_LOGO_HEIGHT}
+                displayWidth="100%"
+              />
+            </div>
+          </div>
 
-        {/* Buttons */}
-        <div className="flex gap-3 mt-5 w-full max-w-[240px]">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50"
-            style={{ background: "#FFD700", color: "#0D1B2A" }}
-          >
-            {saving
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <Download className="w-4 h-4" />}
-            이미지 저장
-          </button>
-          <button
-            onClick={handleShare}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold transition-all hover:opacity-90"
-            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#FAFCFF" }}
-          >
-            <Share2 className="w-4 h-4" />
-            공유하기
-          </button>
-        </div>
+          {/* Buttons */}
+          <div className="mx-auto grid w-full max-w-[560px] grid-cols-2 gap-3 lg:mx-0 lg:max-w-[260px] lg:grid-cols-1 lg:self-center">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex min-h-[52px] min-w-0 items-center justify-center gap-2 rounded-2xl px-3 py-3 text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50"
+              style={{ background: "#FFD700", color: "#0D1B2A" }}
+            >
+              {saving
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Download className="w-4 h-4" />}
+              이미지 저장
+            </button>
+            <button
+              onClick={handleShare}
+              className="flex min-h-[52px] min-w-0 items-center justify-center gap-2 rounded-2xl px-3 py-3 text-sm font-bold transition-all hover:opacity-90"
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#FAFCFF" }}
+            >
+              <Share2 className="w-4 h-4" />
+              공유하기
+            </button>
 
-        {/* 카드 수정 (본인만) */}
-        {isOwn && (
-          <Link
-            href="/my/card-edit"
-            className="flex items-center justify-center gap-2 mt-3 w-full max-w-[240px] py-3 rounded-2xl text-sm font-bold transition-all hover:opacity-90"
-            style={{ background: "rgba(0,200,83,0.08)", border: "1px solid rgba(0,200,83,0.25)", color: "#00C853" }}
-          >
-            <Pencil className="w-4 h-4" />
-            카드 수정
-          </Link>
-        )}
+            {/* 카드 수정 (본인만) */}
+            {isOwn && (
+              <Link
+                href="/my/card-edit"
+                className="col-span-2 flex min-h-[52px] items-center justify-center gap-2 rounded-2xl px-3 py-3 text-sm font-bold transition-all hover:opacity-90 lg:col-span-1"
+                style={{ background: "rgba(0,200,83,0.08)", border: "1px solid rgba(0,200,83,0.25)", color: "#00C853" }}
+              >
+                <Pencil className="w-4 h-4" />
+                카드 수정
+              </Link>
+            )}
+          </div>
+        </div>
 
         {/* 프로필 보강(있는 것만 표시) */}
         {(player.mbti || player.disposition || player.personalValues || player.bio) && (
-          <div className="w-full max-w-[560px] mt-8 space-y-4">
+          <div className="mx-auto mt-8 w-full max-w-[560px] space-y-4">
             {(player.mbti || player.disposition) && (
               <div className="flex flex-wrap gap-1.5 justify-center">
                 {player.mbti && (
@@ -186,6 +196,7 @@ export default function PlayerDetailPage() {
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

@@ -18,7 +18,7 @@
  *     (stale 고착 시 sw-register.tsx 의 controllerchange + reload 로 회복)
  */
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const PRECACHE = `fg-precache-${CACHE_VERSION}`;
 const RUNTIME_STATIC = `fg-static-${CACHE_VERSION}`;
 const RUNTIME_PAGES = `fg-pages-${CACHE_VERSION}`;
@@ -190,7 +190,7 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(title, {
       body,
       icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
+      badge: "/icons/badge-96.png",
       data: { url },
     })
   );

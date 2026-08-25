@@ -74,12 +74,25 @@ export function InAppBanner() {
   const [browser, setBrowser] = useState<InAppBrowser>(null);
 
   useEffect(() => {
+    let active = true;
     const b = detectInAppBrowser();
-    if (!b) return;
+    if (!b) return () => {
+      active = false;
+    };
     const dismissedAt = readDismissedAt();
-    if (dismissedAt && Date.now() - dismissedAt < DISMISS_TTL_MS) return;
-    setBrowser(b);
-    setVisible(true);
+    if (dismissedAt && Date.now() - dismissedAt < DISMISS_TTL_MS) {
+      return () => {
+        active = false;
+      };
+    }
+    queueMicrotask(() => {
+      if (!active) return;
+      setBrowser(b);
+      setVisible(true);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (!visible) return null;

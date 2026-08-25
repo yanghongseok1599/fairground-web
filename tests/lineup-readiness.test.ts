@@ -1,9 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { computeLineupReadiness } from "../src/lib/lineup-readiness.ts";
+import type { MatchLineupEntry } from "../src/types/index.ts";
 
-const entry = (teamId: string, isStarter: boolean) =>
-  ({ matchId: "M", teamId, playerId: "p" + Math.round(isStarter ? 1 : 0), isStarter, createdAt: 0 } as any);
+const entry = (teamId: string, isStarter: boolean): MatchLineupEntry => ({
+  matchId: "M",
+  teamId,
+  playerId: "p" + Math.round(isStarter ? 1 : 0),
+  isStarter,
+  createdAt: 0,
+});
 
 test("선발 1명 이상 제출 → ready", () => {
   const r = computeLineupReadiness("H", [entry("H", true)]);

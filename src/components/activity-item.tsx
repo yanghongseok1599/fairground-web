@@ -11,6 +11,7 @@ import {
   TrendingUp,
   UserPlus,
   Activity as ActivityIcon,
+  type LucideIcon,
 } from "lucide-react";
 import type { ActivityEvent, ActivityKind } from "@/types";
 
@@ -19,28 +20,16 @@ interface Props {
 }
 
 // kind → 아이콘 매핑. lucide-react 의 Image 컴포넌트는 next/image 와 충돌하므로 alias.
-function iconFor(kind: ActivityKind) {
-  switch (kind) {
-    case "post_created":
-      return MessageSquare;
-    case "comment_created":
-      return MessageCircle;
-    case "match_finished":
-      return Trophy;
-    case "photo_uploaded":
-      return ImageIcon;
-    case "badge_earned":
-      return Award;
-    case "player_joined":
-      return UserPlus;
-    case "tournament_created":
-      return Calendar;
-    case "tier_promoted":
-      return TrendingUp;
-    default:
-      return ActivityIcon;
-  }
-}
+const ICON_BY_KIND: Partial<Record<ActivityKind, LucideIcon>> = {
+  post_created: MessageSquare,
+  comment_created: MessageCircle,
+  match_finished: Trophy,
+  photo_uploaded: ImageIcon,
+  badge_earned: Award,
+  player_joined: UserPlus,
+  tournament_created: Calendar,
+  tier_promoted: TrendingUp,
+};
 
 // 활동 이벤트 → 가장 의미있는 상세 페이지로 라우팅.
 // /matches 라우트는 없으므로 /live 로 fallback.
@@ -70,7 +59,7 @@ function relTime(ts: number): string {
 }
 
 export function ActivityItem({ event }: Props) {
-  const Icon = iconFor(event.kind);
+  const Icon = ICON_BY_KIND[event.kind] ?? ActivityIcon;
   const href = targetHref(event);
 
   return (

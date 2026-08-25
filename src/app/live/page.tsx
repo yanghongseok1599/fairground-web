@@ -183,7 +183,7 @@ export default function LivePage() {
                           {m.homeScore}
                         </span>
                       </div>
-                      {/* CENTER: 타이머 (단일 15분) */}
+                      {/* CENTER: 타이머 (단일 12분) */}
                       <div className="flex flex-col items-center px-1">
                         {/* Elapsed time updates every second — announced politely. */}
                         <span

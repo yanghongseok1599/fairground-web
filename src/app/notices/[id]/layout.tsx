@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { supabaseServer, isDemoMode } from "@/lib/supabase-server";
+import { SITE_URL } from "@/lib/site-config";
 
-const BASE = "https://fairground-footsal.vercel.app";
 const FALLBACK: Metadata = {
   title: "공지사항 — FairGround",
   description: "FairGround 공지사항",
@@ -21,7 +21,7 @@ export async function generateMetadata(
   if (!data) return FALLBACK;
 
   const excerpt = (data.body ?? "").replace(/\s+/g, " ").trim().slice(0, 160);
-  const url = `${BASE}/notices/${id}`;
+  const url = `${SITE_URL}/notices/${id}`;
 
   return {
     title: `${data.title} — FairGround`,

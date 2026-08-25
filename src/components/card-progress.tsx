@@ -19,7 +19,7 @@ interface Tier {
 const TIERS: Tier[] = [
   { key: "silver",  label: "실버",     threshold: 80,  color: "#9CA3AF" },
   { key: "gold",    label: "골드",     threshold: 90,  color: "#D4A017" },
-  { key: "premium", label: "프리미엄", threshold: 100, color: "#0047AB" },
+  { key: "premium", label: "플래티넘", threshold: 100, color: "#0047AB" },
   { key: "max",     label: "최고",     threshold: 110, color: "#7C3AED" },
 ];
 

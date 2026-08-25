@@ -2,7 +2,18 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useDataStore } from "@/stores/dataStore";
+import {
+  MATCH_DURATION_SECONDS,
+  clampMatchElapsedSeconds,
+  matchMinuteFromElapsed,
+} from "@/lib/match-config";
 import type { Match, LiveMatch, Player, MatchEventType, MatchEvent } from "@/types";
+
+const NEXT_MATCH_READY_NOTICE_SECONDS_BEFORE_END = 10 * 60;
+const NEXT_MATCH_READY_NOTICE_AT_SECONDS = Math.max(
+  0,
+  MATCH_DURATION_SECONDS - NEXT_MATCH_READY_NOTICE_SECONDS_BEFORE_END
+);
 
 // §3 여정E / §6 A10 — 실패 위치별 식별 (에러를 1줄로 뭉뚱그리지 않음)
 export type MatchActionScope =
@@ -43,6 +54,8 @@ interface MatchControlState {
   elapsedSeconds: number;
   currentHalf: 1 | 2;
   isRunning: boolean;
+  /** 경고 2회 누적으로 퇴장이 자동 기록된 직후의 선수 (규정 제12조③) */
+  autoEjection: { playerId: string; playerName: string } | null;
 }
 
 interface MatchControlActions {
@@ -59,6 +72,8 @@ interface MatchControlActions {
   }) => Promise<boolean>;
   cancelEvent: (eventId: string) => Promise<boolean>;
   setMom: (playerId: string) => Promise<boolean>;
+  /** 자동 퇴장 안내 닫기 */
+  clearAutoEjection: () => void;
   reload: () => Promise<void>;
   /** 에러 배너의 재시도/닫기 후 상태 해제 */
   clearError: () => void;
@@ -82,9 +97,14 @@ export function useMatchControl({
   const [localElapsed, setLocalElapsed] = useState(0);
   const [localHalf, setLocalHalf] = useState<1 | 2>(1);
   const [localRunning, setLocalRunning] = useState(false);
+  const [autoEjection, setAutoEjection] = useState<{
+    playerId: string;
+    playerName: string;
+  } | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const syncCounterRef = useRef(0);
+  const nextMatchReadyNoticeSentRef = useRef(false);
 
   // Find matching live match from store subscription
   const liveMatch = store.liveMatches.find((m) => m.id === matchId) || null;
@@ -98,6 +118,11 @@ export function useMatchControl({
 
   // Sort events by timestamp descending (newest first)
   const sortedEvents = [...events].sort((a, b) => b.timestamp - a.timestamp);
+
+  // addEvent 는 useCallback 으로 메모이즈돼 있어 events 를 직접 클로저에 담으면
+  // 옛 스냅샷을 본다. 자동 퇴장 판정은 항상 최신 이벤트가 필요하므로 ref 로 읽는다.
+  const eventsRef = useRef<MatchEvent[]>(events);
+  eventsRef.current = events;
 
   // Load initial data
   const loadData = useCallback(async () => {
@@ -134,6 +159,10 @@ export function useMatchControl({
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    nextMatchReadyNoticeSentRef.current = false;
+  }, [matchId]);
+
   // Subscribe to live matches
   useEffect(() => {
     const unsubscribe = store.subscribeLiveMatches();
@@ -157,13 +186,15 @@ export function useMatchControl({
   // Sync local timer state from live match
   useEffect(() => {
     if (liveMatch) {
-      setLocalElapsed(liveMatch.elapsedSeconds);
+      setLocalElapsed(clampMatchElapsedSeconds(liveMatch.elapsedSeconds));
       setLocalHalf(liveMatch.currentHalf);
       setLocalRunning(liveMatch.isRunning);
     }
   }, [liveMatch]);
 
-  // Timer interval: tick every second, sync to Firebase every 5s
+  // Timer interval: count only active play time. Injury/stoppage pauses stop the
+  // clock, and at 12:00 the clock stops while the match remains live until the
+  // referee/admin confirms "경기 종료".
   useEffect(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -173,18 +204,56 @@ export function useMatchControl({
     if (!localRunning) return;
 
     timerRef.current = setInterval(() => {
+      let reachedRegulationTime = false;
+      let nextElapsedForSync = 0;
+      let shouldNotifyNextMatchReady = false;
+
       setLocalElapsed((prev) => {
-        const next = prev + 1;
+        const next = clampMatchElapsedSeconds(prev + 1);
+        nextElapsedForSync = next;
+        reachedRegulationTime = next >= MATCH_DURATION_SECONDS;
+        shouldNotifyNextMatchReady =
+          !nextMatchReadyNoticeSentRef.current &&
+          next >= NEXT_MATCH_READY_NOTICE_AT_SECONDS &&
+          next < MATCH_DURATION_SECONDS;
         syncCounterRef.current += 1;
 
-        // Sync to Firebase every 5 seconds
+        // Sync to Supabase every 5 seconds.
         if (syncCounterRef.current >= 5) {
           syncCounterRef.current = 0;
-          store.updateMatchTimer(matchId, next, localHalf);
+          void store.updateMatchTimer(matchId, next, localHalf).catch((error) => {
+            console.error("[useMatchControl] timer sync failed:", error);
+          });
         }
 
         return next;
       });
+
+      if (shouldNotifyNextMatchReady) {
+        nextMatchReadyNoticeSentRef.current = true;
+        void store.notifyNextMatchReady(matchId).catch((error) => {
+          console.error("[useMatchControl] next match readiness notify failed:", error);
+        });
+      }
+
+      if (reachedRegulationTime) {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        setLocalRunning(false);
+        void (async () => {
+          try {
+            await store.updateMatchTimer(matchId, nextElapsedForSync, localHalf);
+            await store.pauseMatch(matchId);
+          } catch {
+            setActionError({
+              scope: "pause",
+              message: "12분 도달 후 타이머 정지 저장에 실패했습니다",
+            });
+          }
+        })();
+      }
     }, 1000);
 
     return () => {
@@ -231,6 +300,7 @@ export function useMatchControl({
     () =>
       runAction("start", "경기 시작에 실패했습니다", async () => {
         await store.startMatch(tournamentId, matchId);
+        nextMatchReadyNoticeSentRef.current = false;
         setLocalElapsed(0);
         setLocalHalf(1);
         setLocalRunning(true);
@@ -242,7 +312,7 @@ export function useMatchControl({
   const pauseMatch = useCallback(
     () =>
       runAction("pause", "일시정지에 실패했습니다", async () => {
-        await store.updateMatchTimer(matchId, localElapsed, localHalf);
+        await store.updateMatchTimer(matchId, clampMatchElapsedSeconds(localElapsed), localHalf);
         await store.pauseMatch(matchId);
         setLocalRunning(false);
       }),
@@ -251,20 +321,28 @@ export function useMatchControl({
   );
 
   const resumeMatch = useCallback(
-    () =>
-      runAction("resume", "재개에 실패했습니다", async () => {
+    () => {
+      if (localElapsed >= MATCH_DURATION_SECONDS) {
+        setActionError({
+          scope: "resume",
+          message: "규정 시간 12분을 모두 채웠습니다. 경기 종료를 눌러주세요.",
+        });
+        return Promise.resolve(false);
+      }
+      return runAction("resume", "재개에 실패했습니다", async () => {
         await store.resumeMatch(matchId);
         setLocalRunning(true);
-      }),
+      });
+    },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-    [matchId, runAction]
+    [matchId, localElapsed, runAction]
   );
 
   const endMatch = useCallback(
     () =>
       runAction("end", "경기 종료에 실패했습니다", async () => {
         // Sync timer one last time
-        await store.updateMatchTimer(matchId, localElapsed, localHalf);
+        await store.updateMatchTimer(matchId, clampMatchElapsedSeconds(localElapsed), localHalf);
         await store.endMatch(tournamentId, matchId);
         setLocalRunning(false);
         // Reload match data to get final state
@@ -283,12 +361,34 @@ export function useMatchControl({
       teamId: string;
     }) =>
       runAction("event", "이벤트 기록에 실패했습니다", async () => {
-        const minute = Math.floor(localElapsed / 60);
+        const minute = matchMinuteFromElapsed(localElapsed);
         await store.addMatchEvent(tournamentId, matchId, {
           ...event,
           minute,
           half: localHalf,
         });
+
+        // 규정 제12조③ — 동일 경기 내 경고 2회 누적 시 퇴장.
+        // 심판이 레드카드를 따로 누르지 않아도 시스템이 퇴장을 함께 기록한다.
+        if (event.type !== "yellow_card") return;
+
+        const prior = eventsRef.current.filter(
+          (e) => !e.isCancelled && e.playerId === event.playerId,
+        );
+        // 방금 넣은 경고가 realtime 으로 이미 반영됐을 수도, 아닐 수도 있다.
+        // 어느 쪽이든 2회 이상이면 되므로 반영 전 기준(+1)으로 판정한다.
+        const yellowCount =
+          prior.filter((e) => e.type === "yellow_card").length + 1;
+        const alreadyEjected = prior.some((e) => e.type === "red_card");
+        if (yellowCount < 2 || alreadyEjected) return;
+
+        await store.addMatchEvent(tournamentId, matchId, {
+          ...event,
+          type: "red_card",
+          minute,
+          half: localHalf,
+        });
+        setAutoEjection({ playerId: event.playerId, playerName: event.playerName });
       }),
   // eslint-disable-next-line react-hooks/exhaustive-deps
     [tournamentId, matchId, localElapsed, localHalf, runAction]
@@ -326,6 +426,7 @@ export function useMatchControl({
     elapsedSeconds: localElapsed,
     currentHalf: localHalf,
     isRunning: localRunning,
+    autoEjection,
     startMatch,
     pauseMatch,
     resumeMatch,
@@ -333,6 +434,7 @@ export function useMatchControl({
     addEvent,
     cancelEvent,
     setMom,
+    clearAutoEjection: () => setAutoEjection(null),
     reload: loadData,
     clearError,
   };

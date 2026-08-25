@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Shield, User, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { shouldContinueGroundChallengeSetup } from "@/lib/player-onboarding";
+import {
+  getCardSkinFromSearchParams,
+  GROUND_CHALLENGE_EVENT_QUERY_VALUE,
+  GROUND_CHALLENGE_PLAYER_CARD_SKIN,
+  rememberPendingCardSkin,
+} from "@/lib/player-card-skin";
 
 /**
  * Single decision point after sign-up — replaces the two competing entry
- * points (register's "감독 신청" checkbox + player-setup's role radio).
+ * points (register's old 감독 신청 checkbox + player-setup's role radio).
  *
  * Users land here right after /register; they pick one of two paths and we
  * forward to /my/player-setup with the role pre-filled (and locked).
@@ -19,19 +26,38 @@ import { useAuth } from "@/hooks/useAuth";
 export default function OnboardingPage() {
   const router = useRouter();
   const { player, initialized, user } = useAuth();
+  const [entryParams] = useState(() => {
+    if (typeof window === "undefined") return new URLSearchParams();
+    return new URLSearchParams(window.location.search);
+  });
+  const eventCardSkin = getCardSkinFromSearchParams(entryParams);
+  const isGroundChallengeCard = eventCardSkin === GROUND_CHALLENGE_PLAYER_CARD_SKIN;
+  const eventQuery = isGroundChallengeCard ? `&event=${GROUND_CHALLENGE_EVENT_QUERY_VALUE}` : "";
+  const groundChallengeSetupHref = `/my/player-setup?role=player&event=${GROUND_CHALLENGE_EVENT_QUERY_VALUE}`;
+  const onboardingReturnTo = isGroundChallengeCard
+    ? `/onboarding?event=${GROUND_CHALLENGE_EVENT_QUERY_VALUE}`
+    : "/onboarding";
+
+  useEffect(() => {
+    rememberPendingCardSkin(eventCardSkin);
+  }, [eventCardSkin]);
 
   useEffect(() => {
     if (!initialized) return;
     // Logged-out user → push to /login (returnTo onboarding).
     if (!user) {
-      router.replace("/login?returnTo=/onboarding");
+      router.replace(`/login?returnTo=${encodeURIComponent(onboardingReturnTo)}`);
+      return;
+    }
+    if (isGroundChallengeCard && shouldContinueGroundChallengeSetup(player)) {
+      router.replace(groundChallengeSetupHref);
       return;
     }
     // Already onboarded — skip the decision screen.
     if (player) {
       router.replace("/my");
     }
-  }, [initialized, user, player, router]);
+  }, [initialized, user, player, router, onboardingReturnTo, isGroundChallengeCard, groundChallengeSetupHref]);
 
   if (!initialized || !user || player) {
     return (
@@ -76,7 +102,7 @@ export default function OnboardingPage() {
             className="mx-auto mt-3 max-w-xl text-sm leading-relaxed md:text-[15px]"
             style={{ color: "var(--color-fg-ink-muted)" }}
           >
-            팀을 직접 만들고 운영하시려면 감독으로,
+            선수 지도를 총괄하시려면 감독으로,
             <br className="hidden md:inline" />
             기존 팀에 합류해 활동하시려면 선수로 시작하세요.
             나중에 마이페이지에서 바꿀 수 있어요.
@@ -86,7 +112,7 @@ export default function OnboardingPage() {
         <div className="grid gap-4 md:grid-cols-2 md:gap-5">
           {/* 감독으로 시작 */}
           <Link
-            href="/my/player-setup?role=captain"
+            href={`/my/player-setup?role=captain${eventQuery}`}
             className="group flex flex-col gap-4 border p-6 transition-transform hover:-translate-y-1 md:p-8"
             style={{
               background: "var(--primary)",
@@ -109,13 +135,13 @@ export default function OnboardingPage() {
                 className="fg-label text-[10px]"
                 style={{ color: "rgba(255,255,255,0.78)" }}
               >
-                CAPTAIN
+                HEAD COACH
               </p>
               <h2 className="fg-display mt-1 text-2xl font-black">
                 감독으로 시작
               </h2>
               <p className="mt-2 text-sm leading-relaxed opacity-90">
-                팀을 만들고, 멤버를 초대·승인하고, 공지·갤러리·회비를 운영합니다.
+                팀을 만들고 선수 지도와 경기 운영을 총괄합니다. 팀 운영관리는 매니저와 나눌 수 있습니다.
               </p>
             </div>
             <span className="mt-auto inline-flex items-center gap-2 text-sm font-bold">
@@ -126,7 +152,7 @@ export default function OnboardingPage() {
 
           {/* 선수로 시작 */}
           <Link
-            href="/my/player-setup?role=player"
+            href={`/my/player-setup?role=player${eventQuery}`}
             className="group flex flex-col gap-4 border p-6 transition-transform hover:-translate-y-1 md:p-8"
             style={{
               background: "rgba(255,255,255,0.92)",
@@ -178,7 +204,7 @@ export default function OnboardingPage() {
             style={{ color: "var(--color-fg-ink-muted)" }}
           />
           <span style={{ color: "var(--color-fg-ink-muted)" }}>
-            팀이 이미 있으면 가입한 뒤 감독에게 추가 요청하면 됩니다.
+            팀이 이미 있으면 가입한 뒤 감독이나 매니저에게 추가 요청하면 됩니다.
           </span>
         </div>
       </div>

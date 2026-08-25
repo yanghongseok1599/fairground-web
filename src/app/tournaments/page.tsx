@@ -32,7 +32,7 @@ export default function TournamentsPage() {
 
   useEffect(() => {
     store.fetchTournaments().then((list) => {
-      setTournaments(list.sort((a, b) => b.createdAt - a.createdAt));
+      setTournaments([...list].sort((a, b) => b.createdAt - a.createdAt));
       setLoadingTournaments(false);
     });
     store.fetchStandings().then(() => {
@@ -77,13 +77,12 @@ export default function TournamentsPage() {
             대회 · 순위
           </h1>
           <p className="mt-5 max-w-2xl text-[15px] leading-relaxed" style={{ color: "var(--color-fg-ink-dim)" }}>
-            페어그라운드 시즌 일정과 리그 순위를 실시간으로 확인하세요. 규정·카드·뱃지 안내는 소개 페이지에 있습니다.
+            페어그라운드 시즌 일정과 리그 순위를 실시간으로 확인하세요. 새로운 대회가 열리면 일정과 참가 정보를 이곳에서 가장 먼저 안내합니다.
           </p>
           <div className="mt-8 flex flex-wrap gap-2 sm:gap-3">
             {[
               { label: "대회 목록", href: "#schedule" },
               { label: "리그 순위", href: "#standings" },
-              { label: "대회 규정", href: "/about#rules" },
             ].map((item) => (
               <a
                 key={item.href}
@@ -139,8 +138,9 @@ export default function TournamentsPage() {
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
               {tournaments.map((t) => {
                 const s = statusStyle[t.status] || statusStyle.completed;
+                const href = `/tournaments/${t.id}`;
                 return (
-                  <Link key={t.id} href={`/tournaments/${t.id}`}>
+                  <Link key={t.id} href={href}>
                     <div className="flex h-full cursor-pointer flex-col border bg-white p-6 transition-all hover:-translate-y-1 hover:shadow-lg" style={{ borderColor: "var(--color-fg-line-soft)" }}>
                       <div className="mb-4 flex items-center justify-between">
                         <span className="rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[2px]" style={{ background: s.bg, color: s.color, fontFamily: "var(--font-space-mono)" }}>

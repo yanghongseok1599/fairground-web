@@ -111,7 +111,7 @@ export default function TeamDuesPage() {
     if (!currentPlayer || !team) return false;
     if (currentPlayer.role === "admin") return true;
     if (isDirector) return true;
-    return currentPlayer.teamId === team.id;
+    return currentPlayer.isApproved && currentPlayer.teamId === team.id;
   }, [currentPlayer, team, isDirector]);
 
   // ── data fetchers ─────────────────────────────────────────────────────
@@ -374,7 +374,7 @@ export default function TeamDuesPage() {
             >
               <AlertCircle className="h-4 w-4" />
               <span className="font-bold">미납 {myUnpaidPeriods.length}건</span>
-              <span>이 있습니다. 운영자에게 납부 후 확인을 요청해주세요.</span>
+              <span>이 있습니다. 매니저에게 납부 후 확인을 요청해주세요.</span>
             </div>
           )}
         </div>
@@ -513,7 +513,7 @@ export default function TeamDuesPage() {
                   <p className="mt-1 text-xs leading-relaxed">
                     {isDirector
                       ? "위 ‘월 추가’로 첫 회비 월을 만들고 멤버들의 납부를 시작하세요."
-                      : "감독·운영자가 첫 회비 월을 등록하면 여기에 표시됩니다."}
+                      : "감독·매니저가 첫 회비 월을 등록하면 여기에 표시됩니다."}
                   </p>
                 </div>
               ) : (

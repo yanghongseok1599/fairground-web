@@ -11,6 +11,9 @@ assert.deepEqual(
     "/admin/teams",
     "/admin/coaches",
     "/admin/penalties",
+    "/admin/reports",
+    "/admin/popups",
+    "/admin/push",
   ],
 );
 assert.equal(adminItems.every((item) => item.href !== "/admin"), true);

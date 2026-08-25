@@ -7,7 +7,7 @@ export const LEAGUE_TIER_LABEL: Record<LeagueTier, string> = {
   bronze: "브론즈 리그",
   silver: "실버 리그",
   gold: "골드 리그",
-  premium: "프리미엄 리그",
+  premium: "플래티넘 리그",
 };
 
 const TIER_ORDER: LeagueTier[] = ["bronze", "silver", "gold", "premium"];
@@ -23,6 +23,13 @@ export function nextLeagueTier(tier: LeagueTier): LeagueTier | null {
 export function leagueTierCardIndex(tier: LeagueTier): number {
   const i = TIER_ORDER.indexOf(tier);
   return i >= 0 ? i : 0;
+}
+
+export function isFieldChampionTeam(team: {
+  isApproved?: boolean;
+  seasonStats?: { rank?: number };
+}) {
+  return Boolean(team.isApproved && team.seasonStats?.rank === 1);
 }
 
 export function buildTeamRecordLine(record: { wins: number; draws: number; losses: number }): string {

@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { CategoryChip } from "@/components/category-chip";
 import { AuthorRoleBadge } from "@/components/author-role-badge";
+import { PUBLIC_PAGE_CONTENT_CLASS, PUBLIC_PAGE_GUTTER_CLASS } from "@/lib/page-layout";
 import { NOTICE_CATEGORIES, type Notice } from "@/types";
 import { formatDate } from "@/utils/formatters";
 
@@ -27,7 +28,9 @@ export default function NoticesPage() {
 
   useEffect(() => {
     let active = true;
-    setLoading(true);
+    queueMicrotask(() => {
+      if (active) setLoading(true);
+    });
     void fetchNotices().then((list) => {
       if (active) {
         setNotices(list);
@@ -49,8 +52,8 @@ export default function NoticesPage() {
   return (
     <div className="pt-[60px] min-h-screen" style={{ background: "var(--color-fg-paper-2)" }}>
       {/* Header */}
-      <header className="px-5 md:px-10 pt-12 pb-8" style={{ background: "var(--color-fg-paper)" }}>
-        <div className="max-w-4xl mx-auto">
+      <header className={`${PUBLIC_PAGE_GUTTER_CLASS} pt-12 pb-8`} style={{ background: "var(--color-fg-paper)" }}>
+        <div className={PUBLIC_PAGE_CONTENT_CLASS}>
           <p className="fg-label mb-3" style={{ color: "var(--primary)" }}>
             NOTICES
           </p>
@@ -86,9 +89,9 @@ export default function NoticesPage() {
       </header>
 
       {/* Filter chips */}
-      <div className="px-5 md:px-10 py-5" style={{ background: "var(--color-fg-paper)", borderTop: "1px solid var(--color-fg-line-soft)" }}>
+      <div className={`${PUBLIC_PAGE_GUTTER_CLASS} py-5`} style={{ background: "var(--color-fg-paper)", borderTop: "1px solid var(--color-fg-line-soft)" }}>
         <div
-          className="max-w-4xl mx-auto flex gap-2 flex-wrap"
+          className={`${PUBLIC_PAGE_CONTENT_CLASS} flex gap-2 flex-wrap`}
           role="radiogroup"
           aria-label="카테고리 필터"
         >
@@ -106,8 +109,8 @@ export default function NoticesPage() {
       </div>
 
       {/* List */}
-      <main className="px-5 md:px-10 py-10">
-        <div className="max-w-4xl mx-auto">
+      <main className={`${PUBLIC_PAGE_GUTTER_CLASS} py-10`}>
+        <div className={PUBLIC_PAGE_CONTENT_CLASS}>
           {loading ? (
             <div
               className="py-16 text-center text-sm"

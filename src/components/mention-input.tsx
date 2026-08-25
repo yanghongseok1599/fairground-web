@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
+import { PlayerProfilePhoto } from "@/components/player-profile-photo";
 
 interface Props {
   value: string;
@@ -39,22 +40,34 @@ export function MentionInput({
 
   // value/커서가 변할 때 마지막 @토큰 추출
   useEffect(() => {
-    const ta = taRef.current;
-    if (!ta || document.activeElement !== ta) {
-      setQuery(null);
-      return;
-    }
-    const caret = ta.selectionStart ?? value.length;
-    const before = value.slice(0, caret);
-    const m = before.match(/(?:^|\s)@([^\s@\[\]()]{0,30})$/);
-    setQuery(m ? m[1] : null);
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      const ta = taRef.current;
+      if (!ta || document.activeElement !== ta) {
+        setQuery(null);
+        return;
+      }
+      const caret = ta.selectionStart ?? value.length;
+      const before = value.slice(0, caret);
+      const m = before.match(/(?:^|\s)@([^\s@\[\]()]{0,30})$/);
+      setQuery(m ? m[1] : null);
+    });
+    return () => {
+      active = false;
+    };
   }, [value]);
 
   // 검색 — 200ms 디바운스로 키 입력당 DB 호출 폭주 방지
   useEffect(() => {
     if (query === null) {
-      setCandidates([]);
-      return;
+      let active = true;
+      queueMicrotask(() => {
+        if (active) setCandidates([]);
+      });
+      return () => {
+        active = false;
+      };
     }
     let cancelled = false;
     const t = setTimeout(() => {
@@ -153,15 +166,7 @@ export function MentionInput({
                 color: "var(--color-fg-ink)",
               }}
             >
-              {c.photoUrl ? (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img src={c.photoUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
-              ) : (
-                <span
-                  className="h-6 w-6 rounded-full"
-                  style={{ background: "var(--color-fg-paper-3)" }}
-                />
-              )}
+              <PlayerProfilePhoto src={c.photoUrl} alt="" className="h-6 w-6 rounded-full" />
               <span className="font-semibold">@{c.name}</span>
             </li>
           ))}

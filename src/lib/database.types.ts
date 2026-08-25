@@ -612,6 +612,7 @@ export type Database = {
           created_at: string
           id: string
           kind: Database["public"]["Enums"]["notification_kind_t"]
+          match_id: string | null
           post_id: string | null
           read_at: string | null
           snippet: string | null
@@ -625,6 +626,7 @@ export type Database = {
           created_at?: string
           id?: string
           kind: Database["public"]["Enums"]["notification_kind_t"]
+          match_id?: string | null
           post_id?: string | null
           read_at?: string | null
           snippet?: string | null
@@ -638,6 +640,7 @@ export type Database = {
           created_at?: string
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind_t"]
+          match_id?: string | null
           post_id?: string | null
           read_at?: string | null
           snippet?: string | null
@@ -658,6 +661,13 @@ export type Database = {
             columns: ["comment_id"]
             isOneToOne: false
             referencedRelation: "board_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
             referencedColumns: ["id"]
           },
           {
@@ -755,6 +765,90 @@ export type Database = {
           },
         ]
       }
+      skill_challenge_records: {
+        Row: {
+          air_touch_score: number
+          card_badge_ids: string[]
+          completed_at: string | null
+          created_at: string
+          event_badges: string[]
+          event_date: string
+          event_slug: string
+          id: string
+          memo: string | null
+          participant_name: string
+          phone_last4: string | null
+          player_id: string
+          recorded_by: string | null
+          speed_kmh: number
+          target_hit: boolean
+          target_attempt_count: number | null
+          target_number: number
+          target_recorded: boolean
+          total_score: number
+          updated_at: string
+        }
+        Insert: {
+          air_touch_score?: number
+          card_badge_ids?: string[]
+          completed_at?: string | null
+          created_at?: string
+          event_badges?: string[]
+          event_date: string
+          event_slug?: string
+          id?: string
+          memo?: string | null
+          participant_name: string
+          phone_last4?: string | null
+          player_id: string
+          recorded_by?: string | null
+          speed_kmh?: number
+          target_hit?: boolean
+          target_attempt_count?: number | null
+          target_number?: number
+          target_recorded?: boolean
+          total_score?: number
+          updated_at?: string
+        }
+        Update: {
+          air_touch_score?: number
+          card_badge_ids?: string[]
+          completed_at?: string | null
+          created_at?: string
+          event_badges?: string[]
+          event_date?: string
+          event_slug?: string
+          id?: string
+          memo?: string | null
+          participant_name?: string
+          phone_last4?: string | null
+          player_id?: string
+          recorded_by?: string | null
+          speed_kmh?: number
+          target_hit?: boolean
+          target_attempt_count?: number | null
+          target_number?: number
+          target_recorded?: boolean
+          total_score?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_challenge_records_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "skill_challenge_records_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           assists: number
@@ -765,6 +859,7 @@ export type Database = {
           bio: string | null
           birth_date: string | null
           card_rating: number
+          card_skin: "standard" | "hologram"
           card_type: Database["public"]["Enums"]["card_type_t"]
           created_at: string
           disposition: string | null
@@ -787,6 +882,7 @@ export type Database = {
           photo_scale: number | null
           photo_url: string
           position: Database["public"]["Enums"]["position_t"]
+          profile_photo_locked: boolean
           profile_photo_url: string | null
           role: Database["public"]["Enums"]["player_role_t"]
           season_yellow_cards: number
@@ -802,6 +898,7 @@ export type Database = {
           bio?: string | null
           birth_date?: string | null
           card_rating?: number
+          card_skin?: "standard" | "hologram"
           card_type?: Database["public"]["Enums"]["card_type_t"]
           created_at?: string
           disposition?: string | null
@@ -824,6 +921,7 @@ export type Database = {
           photo_scale?: number | null
           photo_url?: string
           position?: Database["public"]["Enums"]["position_t"]
+          profile_photo_locked?: boolean
           profile_photo_url?: string | null
           role?: Database["public"]["Enums"]["player_role_t"]
           season_yellow_cards?: number
@@ -839,6 +937,7 @@ export type Database = {
           bio?: string | null
           birth_date?: string | null
           card_rating?: number
+          card_skin?: "standard" | "hologram"
           card_type?: Database["public"]["Enums"]["card_type_t"]
           created_at?: string
           disposition?: string | null
@@ -861,6 +960,7 @@ export type Database = {
           photo_scale?: number | null
           photo_url?: string
           position?: Database["public"]["Enums"]["position_t"]
+          profile_photo_locked?: boolean
           profile_photo_url?: string | null
           role?: Database["public"]["Enums"]["player_role_t"]
           season_yellow_cards?: number
@@ -995,6 +1095,89 @@ export type Database = {
           year?: number
         }
         Relationships: []
+      }
+      site_popups: {
+        Row: {
+          body: string
+          created_at: string
+          cta_href: string
+          cta_label: string
+          detail_one: string
+          detail_two: string
+          dismiss_version: number
+          display_delay_ms: number
+          ends_at: string | null
+          eyebrow: string
+          id: string
+          image_url: string
+          is_active: boolean
+          name: string
+          placement: string
+          priority: number
+          secondary_href: string
+          secondary_label: string
+          starts_at: string | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          cta_href?: string
+          cta_label?: string
+          detail_one?: string
+          detail_two?: string
+          dismiss_version?: number
+          display_delay_ms?: number
+          ends_at?: string | null
+          eyebrow?: string
+          id?: string
+          image_url?: string
+          is_active?: boolean
+          name: string
+          placement?: string
+          priority?: number
+          secondary_href?: string
+          secondary_label?: string
+          starts_at?: string | null
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          cta_href?: string
+          cta_label?: string
+          detail_one?: string
+          detail_two?: string
+          dismiss_version?: number
+          display_delay_ms?: number
+          ends_at?: string | null
+          eyebrow?: string
+          id?: string
+          image_url?: string
+          is_active?: boolean
+          name?: string
+          placement?: string
+          priority?: number
+          secondary_href?: string
+          secondary_label?: string
+          starts_at?: string | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_popups_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       team_dues_expenses: {
         Row: {
@@ -1381,8 +1564,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_match_event: {
+        Args: {
+          p_half?: number
+          p_match_id: string
+          p_minute?: number
+          p_player_id?: string | null
+          p_player_name?: string
+          p_team_id?: string | null
+          p_type: Database["public"]["Enums"]["match_event_t"]
+        }
+        Returns: string
+      }
       backfill_badge_unlocks: { Args: never; Returns: undefined }
       bump_post_view: { Args: { p_post_id: string }; Returns: undefined }
+      cancel_match_event: {
+        Args: { p_event_id: string; p_match_id: string }
+        Returns: undefined
+      }
       compute_card_rating: {
         Args: { p_assists: number; p_goals: number; p_mom: number }
         Returns: number
@@ -1403,12 +1602,79 @@ export type Database = {
         Returns: undefined
       }
       get_vapid_public_key: { Args: never; Returns: string }
+      get_skill_challenge_leaderboard: {
+        Args: { p_event_slug?: string; p_limit?: number }
+        Returns: {
+          air_touch_score: number
+          card_badge_ids: string[]
+          completed_at: string | null
+          created_at: string
+          event_badges: string[]
+          event_date: string
+          event_slug: string
+          id: string
+          participant_name: string
+          photo_url: string | null
+          player_id: string
+          player_number: number | null
+          player_position: string | null
+          profile_photo_url: string | null
+          speed_kmh: number
+          target_hit: boolean
+          target_attempt_count: number | null
+          target_number: number
+          target_recorded: boolean
+          total_score: number
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
       is_referee_or_admin: { Args: never; Returns: boolean }
+      notify_next_match_ready: { Args: { p_match_id: string }; Returns: number }
+      pause_match: { Args: { p_match_id: string }; Returns: undefined }
+      resume_match: { Args: { p_match_id: string }; Returns: undefined }
+      start_match: { Args: { p_match_id: string }; Returns: undefined }
+      upsert_skill_challenge_record: {
+        Args: {
+          p_air_touch_score: number
+          p_event_date: string
+          p_event_slug: string
+          p_memo?: string | null
+          p_player_id: string
+          p_speed_kmh: number
+          p_target_hit: boolean
+          p_target_attempt_count: number | null
+          p_target_recorded: boolean
+        }
+        Returns: Database["public"]["Tables"]["skill_challenge_records"]["Row"]
+      }
+      update_match_timer: {
+        Args: {
+          p_current_half?: number
+          p_elapsed_seconds: number
+          p_match_id: string
+        }
+        Returns: undefined
+      }
+      claim_team_coach: { Args: { p_team_id: string }; Returns: undefined }
       is_team_coach: { Args: { p_team_id: string }; Returns: boolean }
       is_team_director: { Args: { p_team_id: string }; Returns: boolean }
+      is_team_match_staff: { Args: { p_team_id: string }; Returns: boolean }
       is_team_manager: { Args: { p_team_id: string }; Returns: boolean }
       is_team_member: { Args: { p_team_id: string }; Returns: boolean }
+      set_team_member_role: {
+        Args: {
+          p_player_id: string
+          p_team_role: Database["public"]["Enums"]["team_role_t"]
+        }
+        Returns: undefined
+      }
+      transfer_team_ownership: {
+        Args: {
+          p_team_id: string
+          p_new_owner_id: string
+        }
+        Returns: undefined
+      }
       substitute_player: {
         Args: {
           p_match_id: string
@@ -1439,6 +1705,21 @@ export type Database = {
         Returns: undefined
       }
       safe_uuid: { Args: { p: string }; Returns: string }
+      set_match_mom: {
+        Args: { p_match_id: string; p_player_id: string }
+        Returns: undefined
+      }
+      set_player_approval: {
+        Args: { p_is_approved: boolean; p_player_id: string }
+        Returns: undefined
+      }
+      set_player_role: {
+        Args: {
+          p_player_id: string
+          p_role: Database["public"]["Enums"]["player_role_t"]
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       activity_kind_t:
@@ -1468,6 +1749,9 @@ export type Database = {
         | "team_notice"
         | "coach_approved"
         | "tier_promoted"
+        | "player_approved"
+        | "team_role_changed"
+        | "match_ready"
       player_role_t: "player" | "captain" | "referee" | "admin"
       position_t: "GK" | "FIXO" | "ALA" | "PIVO"
       post_category_t: "자유" | "매치후기" | "팁" | "모집" | "질문"
@@ -1634,6 +1918,9 @@ export const Constants = {
         "team_notice",
         "coach_approved",
         "tier_promoted",
+        "player_approved",
+        "team_role_changed",
+        "match_ready",
       ],
       player_role_t: ["player", "captain", "referee", "admin"],
       position_t: ["GK", "FIXO", "ALA", "PIVO"],

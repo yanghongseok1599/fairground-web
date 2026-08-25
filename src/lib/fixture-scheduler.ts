@@ -1,4 +1,5 @@
 import type { Match } from "@/types";
+import { MATCH_DURATION_MINUTES, MATCH_TRANSITION_MINUTES } from "./match-config.ts";
 
 // 휴식-최적 대진 스케줄러.
 // 써클(circle) 방식 단일 라운드로빈으로 대진을 생성하고, 슬롯 배치에 따른
@@ -25,8 +26,8 @@ export interface SeedRest {
 }
 
 // 파일 기준 기본값: 경기 12분, 슬롯 사이 휴식(전환) 3분.
-const DEFAULT_MATCH_LEN_MIN = 12;
-const DEFAULT_BREAK_MIN = 3;
+const DEFAULT_MATCH_LEN_MIN = MATCH_DURATION_MINUTES;
+const DEFAULT_BREAK_MIN = MATCH_TRANSITION_MINUTES;
 
 /**
  * 써클 방식 라운드로빈. 최고 시드(N)를 매 라운드 1번 슬롯에 고정(피벗)한다.

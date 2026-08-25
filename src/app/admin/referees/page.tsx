@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, Phone, ShieldCheck, UserRound, UserX, XCircle } from "lucide-react";
 import { AdminGuard } from "@/components/admin-guard";
 import { AdminPanel, AdminShell, AdminStatusPill } from "@/components/admin-shell";
+import { PlayerProfilePhoto } from "@/components/player-profile-photo";
 import { useDataStore } from "@/stores/dataStore";
 import type { Player } from "@/types";
 import { setPlayerApproval, setPlayerRole } from "@/lib/admin-actions";
 import { getRefereeCandidates, getRefereeStatusLabel } from "@/lib/admin-referees";
+import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 
 export default function AdminRefereesPage() {
   return <AdminGuard allow={["admin"]}><AdminReferees /></AdminGuard>;
@@ -81,9 +83,11 @@ function AdminReferees() {
               <article key={referee.id} className="p-5 transition-colors hover:bg-[#F5F7FF]">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center overflow-hidden border" style={{ background: referee.isApproved ? "var(--color-fg-paper-3)" : "rgba(255,59,48,0.08)", borderColor: referee.isApproved ? "rgba(0,71,171,0.18)" : "rgba(255,59,48,0.20)", color: referee.isApproved ? "var(--primary)" : "var(--destructive)" }}>
-                      {referee.profilePhotoUrl || referee.photoUrl ? <img src={referee.profilePhotoUrl || referee.photoUrl} alt={referee.name} className="h-full w-full object-cover" /> : <ShieldCheck className="h-6 w-6" />}
-                    </div>
+                    <PlayerProfilePhoto
+                      src={getPlayerProfilePhotoUrl(referee)}
+                      alt={referee.name}
+                      icon={ShieldCheck}
+                    />
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="fg-display text-xl font-black" style={{ color: "var(--color-fg-ink)" }}>{referee.name}</div>

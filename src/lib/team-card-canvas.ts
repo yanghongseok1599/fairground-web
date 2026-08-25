@@ -9,6 +9,7 @@ export interface TeamCardItem {
   logo?: string;
   frame: string;
   colorIndex: number;
+  isFieldChampion?: boolean;
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -22,20 +23,30 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 function getVisibleImageBounds(img: HTMLImageElement) {
+  // 투명 여백 트리밍은 중심/contain 배치용이라 정밀할 필요가 없다. 로고 원본이
+  // 1000px 이상이면 픽셀 스캔이 카드마다 수백만 회 돌아 메인스레드를 막으므로,
+  // 스캔은 최대 256px 로 다운샘플해 O(상수) 로 고정한다(결과는 원본 좌표로 환산).
+  const SCAN_MAX = 256;
+  const natW = img.naturalWidth || img.width;
+  const natH = img.naturalHeight || img.height;
+  const s = Math.min(1, SCAN_MAX / Math.max(natW, natH));
+  const sw = Math.max(1, Math.round(natW * s));
+  const sh = Math.max(1, Math.round(natH * s));
+
   const scratch = document.createElement("canvas");
-  scratch.width = img.naturalWidth;
-  scratch.height = img.naturalHeight;
+  scratch.width = sw;
+  scratch.height = sh;
   const scratchCtx = scratch.getContext("2d", { willReadFrequently: true })!;
-  scratchCtx.drawImage(img, 0, 0);
-  const { data } = scratchCtx.getImageData(0, 0, scratch.width, scratch.height);
-  let minX = scratch.width;
-  let minY = scratch.height;
+  scratchCtx.drawImage(img, 0, 0, sw, sh);
+  const { data } = scratchCtx.getImageData(0, 0, sw, sh);
+  let minX = sw;
+  let minY = sh;
   let maxX = -1;
   let maxY = -1;
 
-  for (let py = 0; py < scratch.height; py += 1) {
-    for (let px = 0; px < scratch.width; px += 1) {
-      if (data[(py * scratch.width + px) * 4 + 3] < 16) continue;
+  for (let py = 0; py < sh; py += 1) {
+    for (let px = 0; px < sw; px += 1) {
+      if (data[(py * sw + px) * 4 + 3] < 16) continue;
       minX = Math.min(minX, px);
       minY = Math.min(minY, py);
       maxX = Math.max(maxX, px);
@@ -44,13 +55,14 @@ function getVisibleImageBounds(img: HTMLImageElement) {
   }
 
   if (maxX < minX || maxY < minY) {
-    return { x: 0, y: 0, width: img.naturalWidth, height: img.naturalHeight };
+    return { x: 0, y: 0, width: natW, height: natH };
   }
+  const inv = 1 / s;
   return {
-    x: minX,
-    y: minY,
-    width: maxX - minX + 1,
-    height: maxY - minY + 1,
+    x: minX * inv,
+    y: minY * inv,
+    width: (maxX - minX + 1) * inv,
+    height: (maxY - minY + 1) * inv,
   };
 }
 
@@ -128,6 +140,70 @@ function drawGoldFrameLight(ctx: CanvasRenderingContext2D) {
   ctx.restore();
 }
 
+function drawChampionSpark(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {
+  ctx.beginPath();
+  ctx.moveTo(x, y - radius);
+  ctx.lineTo(x + radius * 0.28, y - radius * 0.28);
+  ctx.lineTo(x + radius, y);
+  ctx.lineTo(x + radius * 0.28, y + radius * 0.28);
+  ctx.lineTo(x, y + radius);
+  ctx.lineTo(x - radius * 0.28, y + radius * 0.28);
+  ctx.lineTo(x - radius, y);
+  ctx.lineTo(x - radius * 0.28, y - radius * 0.28);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawFieldChampionFrameEffect(ctx: CanvasRenderingContext2D) {
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.globalCompositeOperation = "screen";
+
+  ctx.shadowColor = "rgba(0, 190, 255, 0.55)";
+  ctx.shadowBlur = 30;
+  ctx.globalAlpha = 0.62;
+  ctx.strokeStyle = "rgba(0, 168, 255, 0.58)";
+  ctx.lineWidth = 18;
+  tracePremiumFramePath(ctx, -7);
+  ctx.stroke();
+
+  ctx.shadowColor = "rgba(255, 225, 110, 0.62)";
+  ctx.shadowBlur = 18;
+  ctx.globalAlpha = 0.86;
+  ctx.strokeStyle = "rgba(255, 238, 150, 0.78)";
+  ctx.lineWidth = 5;
+  tracePremiumFramePath(ctx, 4);
+  ctx.stroke();
+
+  ctx.setLineDash([24, 18]);
+  ctx.lineDashOffset = -10;
+  ctx.shadowColor = "rgba(255, 255, 255, 0.55)";
+  ctx.shadowBlur = 10;
+  ctx.globalAlpha = 0.48;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.72)";
+  ctx.lineWidth = 2.5;
+  tracePremiumFramePath(ctx, 27);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const sparks = [
+    [540, 72, 16],
+    [220, 210, 12],
+    [862, 292, 11],
+    [842, 932, 13],
+    [540, 1186, 15],
+    [244, 892, 10],
+  ] as const;
+  ctx.fillStyle = "rgba(255, 244, 175, 0.92)";
+  ctx.shadowColor = "rgba(255, 219, 85, 0.9)";
+  ctx.shadowBlur = 16;
+  ctx.globalAlpha = 0.9;
+  sparks.forEach(([x, y, radius]) => drawChampionSpark(ctx, x, y, radius));
+
+  ctx.restore();
+}
+
 function fitFont(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -145,11 +221,16 @@ function fitFont(
 
 export async function createTeamCardCanvas(
   item: TeamCardItem,
+  opts?: { width?: number },
 ): Promise<HTMLCanvasElement> {
   const canvas = document.createElement("canvas");
-  const scale = 2;
-  canvas.width = 1080 * scale;
-  canvas.height = 1240 * scale;
+  // 모든 드로잉 좌표는 1080×1240 논리 공간 기준이고, ctx.scale 로 실제 출력
+  // 해상도를 맞춘다. 호출처가 표시 크기에 맞는 width 를 주면(예: 랜딩 마퀴
+  // 200px 카드 → 540px) 캔버스 픽셀 수가 줄어 합성·메모리가 크게 감소한다.
+  // 미지정 시 1080(상세 페이지/고DPR 대응).
+  const scale = (opts?.width ?? 1080) / 1080;
+  canvas.width = Math.round(1080 * scale);
+  canvas.height = Math.round(1240 * scale);
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.scale(scale, scale);
@@ -214,5 +295,10 @@ export async function createTeamCardCanvas(
       : 850;
   ctx.fillText(item.name, 540, nameY);
   ctx.restore();
+
+  if (item.isFieldChampion) {
+    drawFieldChampionFrameEffect(ctx);
+  }
+
   return canvas;
 }

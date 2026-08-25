@@ -3,52 +3,41 @@
 import { useState, useEffect, useMemo } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuthStore } from "@/stores/authStore";
-import { PlayerCard } from "@/components/player-card";
 import { ClubEmblem, getClubLogoPreset } from "@/components/club-emblem";
 import { type TeamGalleryItem } from "@/components/team-circular-gallery";
 import { createTeamCardCanvas } from "@/lib/team-card-canvas";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { TeamMarquee } from "@/components/team-marquee";
 import Link from "next/link";
-import type { Team, Player } from "@/types";
+import type { Team } from "@/types";
 import { X } from "lucide-react";
-import { leagueTierCardIndex } from "@/lib/team-home";
+import { isFieldChampionTeam, leagueTierCardIndex } from "@/lib/team-home";
 
 const TEAM_CARD_VARIANTS = [
   {
     name: "bronze",
-    image: "/images/team-cards/team-card-bronze.png?v=17",
+    image: "/images/team-cards/team-card-bronze.webp?v=26",
     glow: "#D9825D",
     text: "#071523",
   },
   {
     name: "silver",
-    image: "/images/team-cards/team-card-silver.png?v=17",
+    image: "/images/team-cards/team-card-silver.webp?v=26",
     glow: "#BFD1DF",
     text: "#071523",
   },
   {
     name: "gold",
-    image: "/images/team-cards/team-card-gold.png?v=18",
+    image: "/images/team-cards/team-card-gold.webp?v=26",
     glow: "#F2C85D",
     text: "#071523",
   },
   {
     name: "emerald",
-    image: "/images/team-cards/team-card-emerald.png?v=25",
+    image: "/images/team-cards/team-card-emerald.webp?v=26",
     glow: "#25E0B0",
     text: "#07322D",
   },
-];
-
-const FALLBACK_TEAM_LOGOS = [
-  "/images/team-logos/ref-afc.png",
-  "/images/team-logos/ref-blue7.png",
-  "/images/team-logos/ref-bulls.png",
-  "/images/team-logos/ref-nova.png",
-  "/images/team-logos/ref-orion.png",
-  "/images/team-logos/ref-rift.png",
-  "/images/team-logos/ref-volt.png",
 ];
 
 export default function TeamsPage() {
@@ -58,8 +47,6 @@ export default function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-  const [teamPlayers, setTeamPlayers] = useState<Player[]>([]);
-  const [playersLoading, setPlayersLoading] = useState(false);
   const [joinRequesting, setJoinRequesting] = useState(false);
   const [joinFeedback, setJoinFeedback] = useState<{
     teamId: string;
@@ -69,12 +56,15 @@ export default function TeamsPage() {
 
   useEffect(() => {
     store.fetchTeams().then((list) => {
-      const sorted = [...list].sort(
-        (a, b) =>
-          Number(b.isApproved) - Number(a.isApproved) ||
-          (b.seasonStats?.points || 0) - (a.seasonStats?.points || 0) ||
-          b.createdAt - a.createdAt
-      );
+      // 공개 팀 목록도 승인된 팀만. 승인 대기 팀 홈은 대표가 직접 링크를
+      // 열 때만 보이고(/teams/[id]), 목록에는 오르지 않는다.
+      const sorted = list
+        .filter((team) => team.isApproved)
+        .sort(
+          (a, b) =>
+            (b.seasonStats?.points || 0) - (a.seasonStats?.points || 0) ||
+            b.createdAt - a.createdAt
+        );
       setTeams(sorted);
       setLoading(false);
     });
@@ -94,7 +84,7 @@ export default function TeamsPage() {
   const galleryItems: TeamGalleryItem[] = useMemo(
     () =>
       teams.map((team, index) => {
-        // 카드 프레임 = 리그 등급(브론즈/실버/골드/프리미엄). 팀 상세의
+        // 카드 프레임 = 리그 등급(브론즈/실버/골드/플래티넘). 팀 상세의
         // TeamEmblem 과 동일 매핑이라 같은 팀이 두 surface 에서 같은 프레임.
         // logo preset 은 캐러셀 fallback 용이라 정렬 index 그대로 유지.
         const cardIndex = leagueTierCardIndex(team.leagueTier);
@@ -104,6 +94,7 @@ export default function TeamsPage() {
           logo: team.logo || getClubLogoPreset(team.name, index).asset,
           frame: TEAM_CARD_VARIANTS[cardIndex].image,
           colorIndex: cardIndex,
+          isFieldChampion: isFieldChampionTeam(team),
         };
       }),
     [teams],
@@ -225,7 +216,7 @@ export default function TeamsPage() {
                             </button>
                           )}
                         <button
-                          onClick={() => { setSelectedTeam(null); setTeamPlayers([]); }}
+                          onClick={() => setSelectedTeam(null)}
                           aria-label="패널 닫기"
                           className="opacity-60 hover:opacity-100 transition-opacity"
                           style={{ color: "var(--color-fg-paper)" }}
@@ -281,6 +272,7 @@ function TeamCardButton({
       logo: item.logo,
       frame: item.frame,
       colorIndex: item.colorIndex,
+      isFieldChampion: item.isFieldChampion,
     })
       .then((canvas) => {
         if (!cancelled) setSrc(canvas.toDataURL("image/png"));
@@ -304,14 +296,21 @@ function TeamCardButton({
         outlineOffset: 3,
       }}
     >
-      {src ? (
-        <img src={src} alt={item.name} className="w-full" draggable={false} />
-      ) : (
-        <div
-          className="w-full animate-pulse"
-          style={{ aspectRatio: "1080 / 1240", background: "rgba(255,255,255,0.06)", borderRadius: 14 }}
-        />
-      )}
+      <div className="relative w-full" style={{ aspectRatio: "1080 / 1240" }}>
+        {src ? (
+          <img
+            src={src}
+            alt={item.name}
+            className="absolute inset-0 h-full w-full"
+            draggable={false}
+          />
+        ) : (
+          <div
+            className="absolute inset-0 animate-pulse"
+            style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14 }}
+          />
+        )}
+      </div>
     </button>
   );
 }

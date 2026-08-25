@@ -18,7 +18,6 @@ import { useTeam } from "@/hooks/useTeam";
 import { useDataStore } from "@/stores/dataStore";
 import {
   canManageTeam as canManageTeamHelper,
-  isTeamMemberOf,
 } from "@/lib/team-permissions";
 import { AdminHeader } from "@/components/admin-header";
 import { AdminLoading } from "@/components/admin-loading";
@@ -90,11 +89,25 @@ const compressLogoFile = (file: File, maxPx = 512): Promise<string> =>
     image.src = objectUrl;
   });
 
+function TeamLogoUploadHint() {
+  return (
+    <p
+      className="text-xs leading-relaxed"
+      style={{ color: "var(--muted-foreground)" }}
+    >
+      배경 없는 PNG 파일을 권장합니다. JPG나 배경이 있는 이미지는 카드와 팀
+      페이지에서 사각 배경이 보일 수 있습니다. 고해상도 이미지는 자동으로
+      512px WebP로 압축되어 저장됩니다.
+    </p>
+  );
+}
+
 export default function MyTeamPage() {
   const router = useRouter();
   const { player, initialized, updatePlayer } = useAuth();
   const createTeam = useDataStore((s) => s.createTeam);
   const updateTeam = useDataStore((s) => s.updateTeam);
+  const claimTeamCoach = useDataStore((s) => s.claimTeamCoach);
 
   const [registeredTeamId, setRegisteredTeamId] = useState("");
   const [queryTeamId, setQueryTeamId] = useState("");
@@ -121,17 +134,13 @@ export default function MyTeamPage() {
   const [editIntroSubtitle, setEditIntroSubtitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editBannerUrl, setEditBannerUrl] = useState("");
+  const [editTeamType, setEditTeamType] = useState<"community" | "club">("community");
   const [editLogoProcessing, setEditLogoProcessing] = useState(false);
 
-  const isCaptainOrAdmin =
-    player?.role === "captain" || player?.role === "admin";
-  // Strict + loose gates share one helper file — see lib/team-permissions.
-  // canManageTeamStrict matches RLS-aligned director permissions; the loose
-  // variant additionally lets any team member see the operations grid (RLS
-  // is the real enforcement, so visibility is safe).
+  // RLS-aligned director permissions. Pending players and regular members
+  // can view team details only; operation surfaces stay hidden.
   const canManageTeamStrict = canManageTeamHelper(player, team);
-  const canManageTeam =
-    canManageTeamStrict || isTeamMemberOf(player, team);
+  const canManageTeam = canManageTeamStrict;
   const isLocalRegisteredTeam =
     Boolean(registeredTeamId) && team?.id === registeredTeamId;
 
@@ -208,7 +217,8 @@ export default function MyTeamPage() {
         participationStreak: 0,
       });
       if (player) {
-        await updatePlayer({ teamId: createdTeamId });
+        await claimTeamCoach(createdTeamId);
+        await updatePlayer({ teamId: createdTeamId, teamRole: "coach" });
       }
       localStorage.setItem(REGISTERED_TEAM_ID_KEY, createdTeamId);
       setRegisteredTeamId(createdTeamId);
@@ -234,6 +244,7 @@ export default function MyTeamPage() {
     setEditIntroSubtitle(team.introSubtitle ?? "");
     setEditDescription(team.description ?? "");
     setEditBannerUrl(team.bannerUrl ?? "");
+    setEditTeamType(team.teamType ?? "community");
     setEditing(true);
   };
 
@@ -247,6 +258,16 @@ export default function MyTeamPage() {
       return;
     }
 
+    // 운영 형태 변경은 회비 장부 공개 범위를 바꾸므로 변경 시 확인을 받는다.
+    if (editTeamType !== (team.teamType ?? "community")) {
+      const ok = window.confirm(
+        editTeamType === "club"
+          ? "클럽형으로 변경하면 회비 장부 전체(수입·지출·잔액·다른 멤버 납부내역)는 감독·매니저만 보고, 일반 멤버는 본인 납부 내역만 보게 됩니다. 변경할까요?"
+          : "동호회형으로 변경하면 모든 팀원에게 회비 수입·지출·잔액이 공개됩니다. 변경할까요?",
+      );
+      if (!ok) return;
+    }
+
     setSubmitting(true);
     try {
       await updateTeam(team.id, {
@@ -258,6 +279,7 @@ export default function MyTeamPage() {
         introSubtitle: editIntroSubtitle.trim() || undefined,
         description: editDescription.trim() || undefined,
         bannerUrl: editBannerUrl.trim() || undefined,
+        teamType: editTeamType,
       });
       setEditing(false);
     } catch (err) {
@@ -353,12 +375,13 @@ export default function MyTeamPage() {
             돌아가기
           </Button>
 
-          {/* Captain claim — when the team has no captainId yet and this user
-              is a member of the team, let them adopt the role. createTeam set
+          {/* Owner claim — when the team has no captainId yet and this user
+              is a member of the team, let them adopt 감독 authority. createTeam set
               captain_id on the API call but the row landed without it; this
               is the in-product self-repair. RLS still has final say. */}
           {player &&
             player.teamId === team.id &&
+            player.isApproved &&
             !team.captainId &&
             !canManageTeamStrict && (
               <Card>
@@ -367,7 +390,7 @@ export default function MyTeamPage() {
                     className="text-sm leading-relaxed"
                     style={{ color: "var(--muted-foreground)" }}
                   >
-                    이 팀에 등록된 캡틴이 없습니다. 본인을 캡틴으로 등록하면
+                    이 팀에 등록된 소유자가 없습니다. 본인을 감독으로 등록하면
                     팀 정보 수정·멤버 관리·공지 등의 권한이 활성화됩니다.
                   </p>
                   <Button
@@ -378,9 +401,9 @@ export default function MyTeamPage() {
                       setError("");
                       setSubmitting(true);
                       try {
-                        await updateTeam(team.id, { captainId: player.id });
-                        await updatePlayer({ teamRole: "captain" });
-                        // updateTeam already revalidates the team store; the
+                        await claimTeamCoach(team.id);
+                        await updatePlayer({ teamRole: "coach" });
+                        // claimTeamCoach revalidates the team store; the
                         // canManageTeamStrict flag flips on next render.
                       } catch (err) {
                         console.error(
@@ -392,15 +415,15 @@ export default function MyTeamPage() {
                         setError(
                           msg.includes("row-level security") ||
                             msg.includes("permission")
-                            ? "캡틴 등록 권한이 없습니다. 관리자에게 문의해주세요."
-                            : "캡틴 등록에 실패했습니다. 다시 시도해주세요.",
+                            ? "감독 등록 권한이 없습니다. 관리자에게 문의해주세요."
+                            : "감독 등록에 실패했습니다. 다시 시도해주세요.",
                         );
                       } finally {
                         setSubmitting(false);
                       }
                     }}
                   >
-                    {submitting ? "등록 중..." : "이 팀의 캡틴으로 등록"}
+                    {submitting ? "등록 중..." : "이 팀의 감독으로 등록"}
                   </Button>
                   {error && (
                     <p className="text-xs" style={{ color: "#dc2626" }}>
@@ -465,12 +488,7 @@ export default function MyTeamPage() {
                         </div>
                       )}
                     </div>
-                    <p
-                      className="text-xs"
-                      style={{ color: "var(--muted-foreground)" }}
-                    >
-                      고해상도 이미지는 자동으로 512px WebP로 압축되어 저장됩니다.
-                    </p>
+                    <TeamLogoUploadHint />
                   </div>
                   <div className="space-y-2">
                     <Label>창단 연도</Label>
@@ -513,6 +531,45 @@ export default function MyTeamPage() {
                       onChange={(e) => setEditBannerUrl(e.target.value)}
                       placeholder="https://..."
                     />
+                  </div>
+
+                  {/* 팀 운영 형태 변경 — 회비 장부 공개 범위가 달라진다. */}
+                  <div className="space-y-2">
+                    <Label>팀 운영 형태</Label>
+                    <p
+                      className="text-xs"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      회비 장부의 공개 범위가 달라집니다. 변경 시 모든 팀원에게
+                      즉시 적용됩니다.
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <TeamTypeCard
+                        selected={editTeamType === "community"}
+                        onClick={() => setEditTeamType("community")}
+                        title="동호회형"
+                        desc="모든 팀원에게 회비/지출/잔액이 투명하게 공개됩니다. 멤버 회비로 함께 운영하는 동호회에 적합."
+                      />
+                      <TeamTypeCard
+                        selected={editTeamType === "club"}
+                        onClick={() => setEditTeamType("club")}
+                        title="클럽형"
+                        desc="감독·매니저만 회비 장부 전체를 볼 수 있습니다. 본인 납부 내역은 멤버 본인에게만 노출. 개인이 수익화 목적으로 운영하는 클럽에 적합."
+                      />
+                    </div>
+                    {editTeamType !== (team.teamType ?? "community") && (
+                      <p
+                        className="text-xs font-medium"
+                        style={{ color: "#b45309" }}
+                      >
+                        ⚠️{" "}
+                        {team.teamType === "club"
+                          ? "클럽형 → 동호회형"
+                          : "동호회형 → 클럽형"}
+                        으로 변경됩니다. 회비 장부 공개 범위가 바뀌니 팀원에게
+                        안내해주세요.
+                      </p>
+                    )}
                   </div>
 
                   {error && <p className="text-sm text-red-500">{error}</p>}
@@ -743,7 +800,7 @@ export default function MyTeamPage() {
                 className="mt-1 text-xs"
                 style={{ color: "var(--muted-foreground)" }}
               >
-                감독 또는 주장이 팀 이름, 로고, 기본 정보를 등록할 수 있습니다.
+                감독이 팀 이름, 로고, 기본 정보를 등록할 수 있습니다.
                 등록 후 관리자 승인이 필요합니다.
               </p>
             </div>
@@ -808,12 +865,12 @@ export default function MyTeamPage() {
                     </div>
                   )}
                 </div>
+                <TeamLogoUploadHint />
                 <p
                   className="text-xs"
                   style={{ color: "var(--muted-foreground)" }}
                 >
-                  고해상도 이미지는 자동으로 512px WebP로 압축됩니다. 비워두면
-                  기본 로고가 사용됩니다.
+                  비워두면 기본 로고가 사용됩니다.
                 </p>
               </div>
 
@@ -853,7 +910,7 @@ export default function MyTeamPage() {
                     selected={teamType === "club"}
                     onClick={() => setTeamType("club")}
                     title="클럽형"
-                    desc="감독·운영자만 회비 장부 전체를 볼 수 있습니다. 본인 납부 내역은 멤버 본인에게만 노출. 개인이 수익화 목적으로 운영하는 클럽에 적합."
+                    desc="감독·매니저만 회비 장부 전체를 볼 수 있습니다. 본인 납부 내역은 멤버 본인에게만 노출. 개인이 수익화 목적으로 운영하는 클럽에 적합."
                   />
                 </div>
               </div>

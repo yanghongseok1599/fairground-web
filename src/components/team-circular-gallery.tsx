@@ -12,6 +12,7 @@ export interface TeamGalleryItem {
   logo?: string;
   frame: string;
   colorIndex: number;
+  isFieldChampion?: boolean;
 }
 
 interface TeamCircularGalleryProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -36,159 +37,6 @@ function lerp(a: number, b: number, t: number) {
 }
 
 // 카드 텍스처 생성은 lib/team-card-canvas.ts 의 createTeamCardCanvas 로 통일.
-// emerald 프레임 효과(createEmeraldFrameEffects/tracePremiumFramePath 등)는
-// 이 카드 텍스처와 무관한 별도의 글로벌 effect 라 그대로 둔다.
-
-function createEmeraldFrameEffects(frame: HTMLImageElement) {
-  const mask = document.createElement("canvas");
-  mask.width = 1080;
-  mask.height = 1240;
-  const maskCtx = mask.getContext("2d", { willReadFrequently: true })!;
-  maskCtx.drawImage(frame, 0, 0, mask.width, mask.height);
-
-  const image = maskCtx.getImageData(0, 0, mask.width, mask.height);
-  const { data } = image;
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-    const a = data[i + 3];
-    const isFrameHighlight = a > 18 && g > 86 && g > r * 1.12 && b > r * 0.72 && Math.max(r, g, b) > 104;
-
-    if (!isFrameHighlight) {
-      data[i + 3] = 0;
-      continue;
-    }
-
-    data[i] = 12;
-    data[i + 1] = 255;
-    data[i + 2] = 196;
-    data[i + 3] = Math.min(210, Math.round(a * 0.9));
-  }
-
-  maskCtx.putImageData(image, 0, 0);
-
-  const outsideGlow = document.createElement("canvas");
-  outsideGlow.width = mask.width;
-  outsideGlow.height = mask.height;
-  const outsideCtx = outsideGlow.getContext("2d")!;
-  outsideCtx.filter = "blur(58px)";
-  outsideCtx.globalAlpha = 0.46;
-  outsideCtx.drawImage(mask, 0, 0);
-  outsideCtx.filter = "blur(30px)";
-  outsideCtx.globalAlpha = 0.38;
-  outsideCtx.drawImage(mask, 0, 0);
-  outsideCtx.filter = "blur(18px)";
-  outsideCtx.globalAlpha = 0.26;
-  outsideCtx.drawImage(mask, 0, 0);
-
-  outsideCtx.globalCompositeOperation = "destination-out";
-  outsideCtx.filter = "none";
-  outsideCtx.globalAlpha = 1;
-  outsideCtx.drawImage(frame, 0, 0, mask.width, mask.height);
-
-  const frameLight = document.createElement("canvas");
-  frameLight.width = mask.width;
-  frameLight.height = mask.height;
-  const frameLightCtx = frameLight.getContext("2d")!;
-  frameLightCtx.filter = "blur(7px)";
-  frameLightCtx.globalAlpha = 0.52;
-  frameLightCtx.drawImage(mask, 0, 0);
-  frameLightCtx.filter = "blur(2px)";
-  frameLightCtx.globalAlpha = 0.72;
-  frameLightCtx.drawImage(mask, 0, 0);
-  frameLightCtx.filter = "none";
-  frameLightCtx.globalAlpha = 0.46;
-  frameLightCtx.drawImage(mask, 0, 0);
-
-  return { outsideGlow, frameLight };
-}
-
-function tracePremiumFramePath(ctx: CanvasRenderingContext2D, inset = 0) {
-  const left = 235 + inset;
-  const right = 845 - inset;
-  const top = 95 + inset;
-  const bottom = 1160 - inset;
-  const center = 540;
-
-  ctx.beginPath();
-  ctx.moveTo(center, top);
-  ctx.bezierCurveTo(590, 172, 676, 184, right, 166);
-  ctx.bezierCurveTo(842, 222, 874, 270, 872, 344);
-  ctx.bezierCurveTo(836, 380, 825, 455, 832, 558);
-  ctx.bezierCurveTo(842, 707, 828, 862, 802, 989);
-  ctx.bezierCurveTo(710, 996, 626, 1056, center, bottom);
-  ctx.bezierCurveTo(454, 1056, 370, 996, 278, 989);
-  ctx.bezierCurveTo(252, 862, 238, 707, 248, 558);
-  ctx.bezierCurveTo(255, 455, 244, 380, 208, 344);
-  ctx.bezierCurveTo(206, 270, 238, 222, left, 166);
-  ctx.bezierCurveTo(404, 184, 490, 172, center, top);
-}
-
-function drawPremiumFrameOuterBloom(ctx: CanvasRenderingContext2D) {
-  ctx.save();
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.globalCompositeOperation = "lighter";
-
-  ctx.shadowColor = "rgba(18,255,190,0.78)";
-  ctx.shadowBlur = 96;
-  ctx.globalAlpha = 0.24;
-  ctx.strokeStyle = "rgba(18,255,190,0.36)";
-  ctx.lineWidth = 34;
-  tracePremiumFramePath(ctx, 8);
-  ctx.stroke();
-
-  ctx.shadowBlur = 58;
-  ctx.globalAlpha = 0.28;
-  ctx.strokeStyle = "rgba(22,255,194,0.44)";
-  ctx.lineWidth = 24;
-  tracePremiumFramePath(ctx, 8);
-  ctx.stroke();
-
-  ctx.restore();
-}
-
-function drawPremiumFrameLight(ctx: CanvasRenderingContext2D) {
-  ctx.save();
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.globalCompositeOperation = "screen";
-
-  ctx.shadowColor = "rgba(18,255,190,0.5)";
-  ctx.shadowBlur = 28;
-  ctx.globalAlpha = 0.68;
-  ctx.strokeStyle = "rgba(28,255,200,0.72)";
-  ctx.lineWidth = 13;
-  tracePremiumFramePath(ctx, 8);
-  ctx.stroke();
-
-  ctx.shadowBlur = 18;
-  ctx.globalAlpha = 0.62;
-  ctx.strokeStyle = "rgba(32,255,203,0.66)";
-  ctx.lineWidth = 8;
-  tracePremiumFramePath(ctx, 8);
-  ctx.stroke();
-
-  ctx.shadowBlur = 12;
-  ctx.globalAlpha = 0.86;
-  ctx.strokeStyle = "rgba(196,255,239,0.88)";
-  ctx.lineWidth = 5;
-  tracePremiumFramePath(ctx, 17);
-  ctx.stroke();
-
-  ctx.shadowBlur = 10;
-  ctx.globalAlpha = 0.58;
-  ctx.strokeStyle = "rgba(0,255,183,0.7)";
-  ctx.lineWidth = 4;
-  tracePremiumFramePath(ctx, 45);
-  ctx.stroke();
-
-  ctx.restore();
-}
-
-// drawGoldFrameLight / fitFont / createTeamCardTexture 는 lib/team-card-canvas.ts
-// 로 이전. Media 클래스의 createTeamCardTexture 호출도 createTeamCardCanvas 로 교체.
 
 class Media {
   geometry: Plane;
@@ -568,7 +416,10 @@ export function TeamCircularGallery({
 }: TeamCircularGalleryProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const onItemClickRef = useRef(onItemClick);
-  onItemClickRef.current = onItemClick;
+
+  useEffect(() => {
+    onItemClickRef.current = onItemClick;
+  }, [onItemClick]);
 
   useEffect(() => {
     if (!containerRef.current || items.length === 0) return;

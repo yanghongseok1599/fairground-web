@@ -1,8 +1,11 @@
-type ImageCompressionOptions = {
+export type ImageCompressionOptions = {
   maxPx?: number;
   mimeType?: "image/jpeg" | "image/webp";
   quality?: number;
 };
+
+const BACKGROUND_REMOVAL_PUBLIC_PATH =
+  "https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/";
 
 export const compressImageBlob = (
   input: Blob,
@@ -67,3 +70,20 @@ export const compressImageBlob = (
 
     image.src = objectUrl;
   });
+
+export const removeBackgroundAndCompress = async (
+  input: Blob,
+  options: ImageCompressionOptions = {
+    maxPx: 1400,
+    mimeType: "image/webp",
+    quality: 0.92,
+  },
+): Promise<Blob> => {
+  const { removeBackground } = await import("@imgly/background-removal");
+  const bgRemoved = await removeBackground(input, {
+    publicPath: BACKGROUND_REMOVAL_PUBLIC_PATH,
+    debug: false,
+  });
+
+  return compressImageBlob(bgRemoved, options);
+};

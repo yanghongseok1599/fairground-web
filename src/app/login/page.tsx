@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,11 @@ function LoginForm() {
   const { login, loginWithGoogle, loading, error, clearError } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  // 다른 화면에서 남은 store error 가 이 페이지로 따라오지 않도록 마운트 시 초기화.
+  useEffect(() => {
+    clearError();
+  }, [clearError]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +78,7 @@ function LoginForm() {
                   name="email"
                   type="text"
                   autoComplete="username"
-                  placeholder="ccv1599 또는 email@example.com"
+                  placeholder="myid123 또는 email@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required

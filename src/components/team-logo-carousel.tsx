@@ -95,13 +95,11 @@ function TeamLogoItem({
 const Cylinder = memo(
   ({
     teams,
-    paused,
     rotation,
     onTeamSelect,
     selectedTeamId,
   }: {
     teams: Team[]
-    paused: boolean
     rotation: ReturnType<typeof useMotionValue<number>>
     onTeamSelect?: (team: Team) => void
     selectedTeamId?: string
@@ -233,7 +231,6 @@ export function TeamLogoCarousel({
       <div className="h-[240px] w-full overflow-hidden">
         <Cylinder
           teams={displayTeams}
-          paused={paused}
           rotation={rotation}
           onTeamSelect={onTeamSelect}
           selectedTeamId={selectedTeamId}

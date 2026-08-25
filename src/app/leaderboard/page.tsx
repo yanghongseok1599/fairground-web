@@ -2,10 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Gauge, Shield } from "lucide-react";
+import { GroundChallengeLeaderboard } from "@/components/ground-challenge-leaderboard";
 import { useDataStore } from "@/stores/dataStore";
+import { PlayerProfilePhoto } from "@/components/player-profile-photo";
+import { PUBLIC_PAGE_CONTENT_CLASS, PUBLIC_PAGE_GUTTER_CLASS } from "@/lib/page-layout";
+import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 import type { Player } from "@/types";
 
 type Category = "goals" | "assists" | "mom" | "games" | "streak" | "rating";
+type LeaderboardView = "league" | "ground";
 
 interface Tab {
   key: Category;
@@ -27,14 +33,26 @@ const TABS: Tab[] = [
 ];
 
 export default function LeaderboardPage() {
+  const [view, setView] = useState<LeaderboardView>("league");
   const [active, setActive] = useState<Category>("rating");
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const fetchLeaderboard = useDataStore((s) => s.fetchLeaderboard);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    queueMicrotask(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("view") === "ground") setView("ground");
+    });
+  }, []);
+
+  useEffect(() => {
+    if (view !== "league") return;
     let cancelled = false;
-    setLoading(true);
+    queueMicrotask(() => {
+      if (!cancelled) setLoading(true);
+    });
     void (async () => {
       const r = await fetchLeaderboard(active, 20);
       if (!cancelled) {
@@ -43,17 +61,24 @@ export default function LeaderboardPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [active, fetchLeaderboard]);
+  }, [active, fetchLeaderboard, view]);
 
   const tab = TABS.find((t) => t.key === active)!;
+  const switchView = (nextView: LeaderboardView) => {
+    setView(nextView);
+    if (typeof window === "undefined") return;
+    const url = nextView === "ground" ? "/leaderboard?view=ground" : "/leaderboard";
+    window.history.replaceState(null, "", url);
+  };
 
   return (
     <main
       className="min-h-screen pt-[60px] pb-16"
       style={{ background: "var(--color-fg-paper-2, var(--color-fg-paper))" }}
     >
-      <div className="mx-auto max-w-3xl px-5 py-10 md:px-8">
-        <header className="mb-8">
+      <div className={`${PUBLIC_PAGE_GUTTER_CLASS} py-10`}>
+        <div className={PUBLIC_PAGE_CONTENT_CLASS}>
+        <header className="mb-6">
           <h1
             className="fg-display mb-1 text-3xl font-black"
             style={{ color: "var(--color-fg-ink)", letterSpacing: "-1px" }}
@@ -61,10 +86,48 @@ export default function LeaderboardPage() {
             랭킹
           </h1>
           <p className="text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>
-            누가 가장 잘 뛰고 있나? FairGround 통산 기록 기반
+            리그 통산 기록과 망상 그라운드 챌린지 기록을 나눠서 확인합니다.
           </p>
         </header>
 
+        <div
+          className="mb-6 grid grid-cols-2 gap-2 rounded-[8px] border p-2"
+          style={{
+            background: "var(--color-fg-paper)",
+            borderColor: "var(--color-fg-line-soft)",
+          }}
+          role="tablist"
+          aria-label="랭킹 종류"
+        >
+          {[
+            { key: "league" as const, label: "리그", Icon: Shield },
+            { key: "ground" as const, label: "그라운드 챌린지", Icon: Gauge },
+          ].map(({ key, label, Icon }) => {
+            const isActive = view === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => switchView(key)}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[6px] px-4 text-sm font-black transition-colors"
+                style={{
+                  background: isActive ? "var(--primary)" : "transparent",
+                  color: isActive ? "#fff" : "var(--color-fg-ink-muted)",
+                }}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {view === "ground" ? (
+          <GroundChallengeLeaderboard limit={30} fetchLimit={300} showHeader={false} />
+        ) : (
+          <>
         {/* 탭 — 모바일 2열 그리드(좌우 라인 정렬), 태블릿 3열, 데스크탑 6열 1행.
             flex-wrap은 칩 시작 위치가 들쭉날쭉했어서 grid로 균일 정렬. */}
         <div
@@ -174,29 +237,11 @@ export default function LeaderboardPage() {
                     </div>
 
                     {/* 아바타 */}
-                    <div
-                      className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full"
-                      style={{
-                        background: "var(--color-fg-paper-3, #EEF3FF)",
-                        border: "1px solid var(--color-fg-line-soft)",
-                      }}
-                    >
-                      {p.profilePhotoUrl || p.photoUrl ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={p.profilePhotoUrl || p.photoUrl}
-                          alt={p.name}
-                          // 원형 트림에서 머리가 잘리지 않게 상단 정렬.
-                          // 일반적으로 인물 사진은 상반신 위주라 object-top 이
-                          // object-center 보다 face-safe.
-                          className="h-full w-full object-cover object-top"
-                        />
-                      ) : (
-                        <span className="text-sm font-bold" style={{ color: "var(--color-fg-ink-muted)" }}>
-                          {p.name.slice(0, 1)}
-                        </span>
-                      )}
-                    </div>
+                    <PlayerProfilePhoto
+                      src={getPlayerProfilePhotoUrl(p)}
+                      alt={p.name}
+                      className="h-11 w-11 rounded-full"
+                    />
 
                     {/* 이름 + 등번호 */}
                     <div className="min-w-0 flex-1">
@@ -238,6 +283,9 @@ export default function LeaderboardPage() {
             })}
           </ol>
         )}
+          </>
+        )}
+        </div>
       </div>
     </main>
   );

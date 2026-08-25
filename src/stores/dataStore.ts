@@ -8,7 +8,6 @@ import {
   teamToInsert,
   teamPatchToRow,
   rowToEvent,
-  eventToInsert,
   rowToMatch,
   rowToLiveMatch,
   matchToInsert,
@@ -62,6 +61,8 @@ import type {
   BadgeMaster,
   PlayerBadgeRow,
   MatchLineupEntry,
+  Position,
+  Gender,
 } from "@/types";
 
 // 단일앱 통합 store: 공개사이트 read(RLS anon) + 운영 write(인증/RLS) 통합.
@@ -198,6 +199,7 @@ interface DataState {
   ) => Promise<void>;
   cancelMatchEvent: (tournamentId: string, matchId: string, eventId: string) => Promise<void>;
   updateMatchTimer: (matchId: string, elapsedSeconds: number, currentHalf: 1 | 2) => Promise<void>;
+  notifyNextMatchReady: (matchId: string) => Promise<number>;
   setMatchMom: (tournamentId: string, matchId: string, playerId: string) => Promise<void>;
 
   // --- Notices (운영 → 회원 일방향, RLS: 누구나 read / is_referee_or_admin 만 write) ---
@@ -250,14 +252,16 @@ interface DataState {
     hide: boolean
   ) => Promise<void>;
 
-  // --- Team roles & coach application ---
+  // --- Team roles ---
   // 팀 멤버 조회 (fetchTeamPlayers의 의미적 별칭).
   fetchTeamMembers: (teamId: string) => Promise<Player[]>;
-  // 멤버의 팀 역할 변경. 권한은 RLS+trg_guard_team_role 가 강제.
-  updatePlayerTeamRole: (playerId: string, teamRole: TeamRole | null) => Promise<void>;
-  // 감독으로 신청 (회원가입 직후 profiles insert).
-  // team_role='coach' + team_id + is_approved=false 로 신청 상태 저장.
-  // 트리거가 admin 외 직접 부여를 거부할 경우 호출자에게 에러 전파 → 운영자 수동 승인 안내.
+  // 소유자 없는 팀을 승인된 멤버 본인이 감독으로 복구 등록.
+  claimTeamCoach: (teamId: string) => Promise<void>;
+  // 멤버의 팀 역할 변경. 권한은 Supabase RPC(set_team_member_role)가 강제.
+  updatePlayerTeamRole: (playerId: string, teamRole: TeamRole) => Promise<void>;
+  transferTeamOwnership: (teamId: string, newOwnerId: string) => Promise<void>;
+  // Legacy 감독 application queue. Current team authority is assigned from
+  // /teams/[id]/members through set_team_member_role.
   fetchPendingCoachApplications: () => Promise<Player[]>;
   approveCoach: (playerId: string) => Promise<void>;
 
@@ -342,7 +346,7 @@ interface DataState {
   // 미획득 배지가 섞여 있으면 RLS/트리거가 거부 가능 → 호출부에서 사전 검증.
   updateEquippedBadges: (playerId: string, badgeIds: string[]) => Promise<void>;
 
-  // --- Match lineups (감독·매니저·주장 제출, status='scheduled' 만 허용) ---
+  // --- Match lineups (감독·캡틴 제출, status='scheduled' 만 허용) ---
   fetchMatchLineup: (matchId: string) => Promise<MatchLineupEntry[]>;
   upsertLineupEntry: (
     matchId: string,
@@ -375,17 +379,32 @@ type JoinReqRow = {
   created_at: string;
   processed_at: string | null;
   processed_by: string | null;
-  profiles?: { name: string | null } | null;
+  profiles?: {
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+    position: Position | null;
+    number: number | null;
+    gender: Gender | null;
+    birth_date: string | null;
+  } | null;
   teams?: { name: string | null } | null;
 };
 
 function rowToTeamJoinRequest(r: JoinReqRow): TeamJoinRequest {
+  const profile = r.profiles;
   return {
     id: r.id,
     teamId: r.team_id,
     teamName: r.teams?.name ?? undefined,
     playerId: r.player_id,
-    playerName: r.profiles?.name ?? undefined,
+    playerName: profile?.name ?? undefined,
+    playerEmail: profile?.email ?? undefined,
+    playerPhone: profile?.phone ?? undefined,
+    playerPosition: profile?.position ?? undefined,
+    playerNumber: profile?.number ?? undefined,
+    playerGender: profile?.gender ?? undefined,
+    playerBirthDate: profile?.birth_date ?? undefined,
     message: r.message ?? undefined,
     status: r.status,
     createdAt: new Date(r.created_at).getTime(),
@@ -848,10 +867,9 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       setState({ liveMatches: Object.entries(live).map(([id, v]) => ({ ...v, id })) });
       return;
     }
-    const { error } = await supabase
-      .from("matches")
-      .update({ status: "live", current_half: 1, elapsed_seconds: 0, is_running: true })
-      .eq("id", matchId);
+    const { error } = await supabase.rpc("start_match", {
+      p_match_id: matchId,
+    });
     if (error) { console.error("[dataStore] startMatch:", error.message); throw new Error(error.message); }
   },
 
@@ -865,8 +883,13 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       }
       return;
     }
-    const { error } = await supabase.from("matches").update({ is_running: false }).eq("id", matchId);
-    if (error) console.error("[dataStore] pauseMatch:", error.message);
+    const { error } = await supabase.rpc("pause_match", {
+      p_match_id: matchId,
+    });
+    if (error) {
+      console.error("[dataStore] pauseMatch:", error.message);
+      throw new Error(error.message);
+    }
   },
 
   resumeMatch: async (matchId) => {
@@ -879,8 +902,13 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       }
       return;
     }
-    const { error } = await supabase.from("matches").update({ is_running: true }).eq("id", matchId);
-    if (error) console.error("[dataStore] resumeMatch:", error.message);
+    const { error } = await supabase.rpc("resume_match", {
+      p_match_id: matchId,
+    });
+    if (error) {
+      console.error("[dataStore] resumeMatch:", error.message);
+      throw new Error(error.message);
+    }
   },
 
   endMatch: async (tournamentId, matchId) => {
@@ -924,15 +952,14 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       return;
     }
 
-    // Supabase: 단일 트랜잭션 RPC. 멱등(stats_applied) — 더블탭/재시도 안전 (D-B 해결).
-    // 점수/MOM 은 라이브 중 matches 행에 이미 반영됨. RPC가 통계 집계 + status='finished' 처리.
+    // Supabase: 단일 트랜잭션 RPC. 멱등(stats_applied) — 더블탭/재시도 안전.
+    // 점수/MOM 은 라이브 중 matches 행에 이미 반영됨. RPC가 개인 통계,
+    // 카드 레이팅, 팀 season_stats, status='finished' 처리를 함께 수행한다.
     const { error } = await supabase.rpc("end_match", { p_match_id: matchId });
     if (error) {
       console.error("[dataStore] endMatch RPC:", error.message);
       throw new Error(error.message);
     }
-    // NOTE(후속): premium 카드 cardRating 재계산은 RPC에 미포함(스키마 주석 참조).
-    // card_rating 은 RLS 트리거가 클라 변경 차단 → 서버 RPC 확장으로 처리 예정.
   },
 
   forfeitMatch: async (matchId, forfeitTeamId) => {
@@ -1022,23 +1049,18 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       return;
     }
 
-    const { error: insErr } = await supabase.from("match_events").insert(eventToInsert(matchId, eventData));
-    if (insErr) { console.error("[dataStore] addMatchEvent:", insErr.message); throw new Error(insErr.message); }
-
-    if (eventData.type === "goal") {
-      const { data: m } = await supabase
-        .from("matches")
-        .select("home_team_id,home_score,away_score")
-        .eq("id", matchId)
-        .maybeSingle();
-      if (m) {
-        const patch =
-          eventData.teamId === m.home_team_id
-            ? { home_score: (m.home_score ?? 0) + 1 }
-            : { away_score: (m.away_score ?? 0) + 1 };
-        const { error } = await supabase.from("matches").update(patch).eq("id", matchId);
-        if (error) console.error("[dataStore] addMatchEvent score:", error.message);
-      }
+    const { error } = await supabase.rpc("add_match_event", {
+      p_match_id: matchId,
+      p_type: eventData.type,
+      p_player_id: eventData.playerId,
+      p_player_name: eventData.playerName,
+      p_team_id: eventData.teamId,
+      p_minute: eventData.minute,
+      p_half: eventData.half,
+    });
+    if (error) {
+      console.error("[dataStore] addMatchEvent RPC:", error.message);
+      throw new Error(error.message);
     }
   },
 
@@ -1062,28 +1084,13 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       return;
     }
 
-    const { data: evt } = await supabase
-      .from("match_events")
-      .select("*")
-      .eq("id", eventId)
-      .maybeSingle();
-    if (!evt || evt.is_cancelled) return;
-    const { error } = await supabase.from("match_events").update({ is_cancelled: true }).eq("id", eventId);
-    if (error) { console.error("[dataStore] cancelMatchEvent:", error.message); throw new Error(error.message); }
-
-    if (evt.type === "goal") {
-      const { data: m } = await supabase
-        .from("matches")
-        .select("home_team_id,home_score,away_score")
-        .eq("id", matchId)
-        .maybeSingle();
-      if (m) {
-        const patch =
-          evt.team_id === m.home_team_id
-            ? { home_score: Math.max(0, (m.home_score ?? 0) - 1) }
-            : { away_score: Math.max(0, (m.away_score ?? 0) - 1) };
-        await supabase.from("matches").update(patch).eq("id", matchId);
-      }
+    const { error } = await supabase.rpc("cancel_match_event", {
+      p_match_id: matchId,
+      p_event_id: eventId,
+    });
+    if (error) {
+      console.error("[dataStore] cancelMatchEvent RPC:", error.message);
+      throw new Error(error.message);
     }
   },
 
@@ -1097,11 +1104,27 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       }
       return;
     }
-    const { error } = await supabase
-      .from("matches")
-      .update({ elapsed_seconds: elapsedSeconds, current_half: currentHalf })
-      .eq("id", matchId);
-    if (error) console.error("[dataStore] updateMatchTimer:", error.message);
+    const { error } = await supabase.rpc("update_match_timer", {
+      p_match_id: matchId,
+      p_elapsed_seconds: elapsedSeconds,
+      p_current_half: currentHalf,
+    });
+    if (error) {
+      console.error("[dataStore] updateMatchTimer:", error.message);
+      throw new Error(error.message);
+    }
+  },
+
+  notifyNextMatchReady: async (matchId) => {
+    if (isDemoMode) return 0;
+    const { data, error } = await supabase.rpc("notify_next_match_ready", {
+      p_match_id: matchId,
+    });
+    if (error) {
+      console.error("[dataStore] notifyNextMatchReady:", error.message);
+      throw new Error(error.message);
+    }
+    return data ?? 0;
   },
 
   setMatchMom: async (tournamentId, matchId, playerId) => {
@@ -1119,8 +1142,11 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       }
       return;
     }
-    const { error } = await supabase.from("matches").update({ mom_player_id: playerId }).eq("id", matchId);
-    if (error) { console.error("[dataStore] setMatchMom:", error.message); throw new Error(error.message); }
+    const { error } = await supabase.rpc("set_match_mom", {
+      p_match_id: matchId,
+      p_player_id: playerId,
+    });
+    if (error) { console.error("[dataStore] setMatchMom RPC:", error.message); throw new Error(error.message); }
   },
 
   // ===== Notices =====
@@ -1357,23 +1383,52 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     return getState().fetchTeamPlayers(teamId);
   },
 
-  // 멤버 역할 변경. 최종 강제는 RLS+trg_guard_team_role.
-  // - 본인이 본인 team_role 변경 → 트리거 거부
-  // - coach 부여 → admin 만 허용 (UI는 노출 안 함)
-  // - 같은 팀 coach 가 member/captain/manager 지정 가능
+  claimTeamCoach: async (teamId) => {
+    if (isDemoMode) return;
+    const { error } = await supabase.rpc("claim_team_coach", {
+      p_team_id: teamId,
+    });
+    if (error) {
+      console.error("[dataStore] claimTeamCoach:", error.message);
+      throw new Error(error.message);
+    }
+    const fresh = await getState().fetchTeam(teamId);
+    if (fresh) {
+      setState((s) => ({ teams: { ...s.teams, [teamId]: fresh } }));
+    }
+  },
+
+  // 멤버 역할 변경. 최종 강제는 security definer RPC(set_team_member_role).
+  // - 본인이 본인 team_role 변경 → 거부
+  // - 감독/admin/captain_id 소유자 → 모든 팀 역할 지정 가능
+  // - manager → manager/captain/member 지정 가능
   updatePlayerTeamRole: async (playerId, teamRole) => {
     if (isDemoMode) throw new Error("데모 모드에서는 팀 역할을 변경할 수 없습니다");
-    const { error } = await supabase
-      .from("profiles")
-      .update({ team_role: teamRole })
-      .eq("id", playerId);
+    const { error } = await supabase.rpc("set_team_member_role", {
+      p_player_id: playerId,
+      p_team_role: teamRole,
+    });
     if (error) {
       console.error("[dataStore] updatePlayerTeamRole:", error.message);
       throw new Error(error.message);
     }
   },
 
-  // 코치 신청 대기 큐 (admin 전용 UX, RLS 가 anon/일반에 차단).
+  // 팀 소유권(captain_id) 이전 — 현재 소유자(또는 admin)만. 새 소유자는 같은 팀의
+  // 승인된 멤버여야 한다. 서버 RPC(transfer_team_ownership)+트리거가 최종 강제.
+  transferTeamOwnership: async (teamId, newOwnerId) => {
+    if (isDemoMode) throw new Error("데모 모드에서는 소유권을 이전할 수 없습니다");
+    const { error } = await supabase.rpc("transfer_team_ownership", {
+      p_team_id: teamId,
+      p_new_owner_id: newOwnerId,
+    });
+    if (error) {
+      console.error("[dataStore] transferTeamOwnership:", error.message);
+      throw new Error(error.message);
+    }
+  },
+
+  // 감독 신청 대기 큐 (admin 전용 UX, RLS 가 anon/일반에 차단).
   // 조건: team_role='coach' AND is_approved=false.
   fetchPendingCoachApplications: async () => {
     if (isDemoMode) return [];
@@ -1389,13 +1444,13 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     return (data ?? []).map(rowToPlayer);
   },
 
-  // 코치 승인 — admin 전용. RLS 가 차단 시 호출부에서 에러 표시.
+  // 감독 승인 — admin 전용. RLS 가 차단 시 호출부에서 에러 표시.
   approveCoach: async (playerId) => {
     if (isDemoMode) throw new Error("데모 모드에서는 승인을 할 수 없습니다");
-    const { error } = await supabase
-      .from("profiles")
-      .update({ is_approved: true })
-      .eq("id", playerId);
+    const { error } = await supabase.rpc("set_player_approval", {
+      p_player_id: playerId,
+      p_is_approved: true,
+    });
     if (error) {
       console.error("[dataStore] approveCoach:", error.message);
       throw new Error(error.message);
@@ -1478,10 +1533,15 @@ export const useDataStore = create<DataState>((setState, getState) => ({
   },
 
   fetchNotifications: async (opts) => {
+    const { data: userRes } = await supabase.auth.getUser();
+    if (!userRes.user) return [];
+    const userId = userRes.user.id;
+
     // 두 FK(actor_id, user_id)가 profiles 를 가리키므로 FK 이름으로 명시 disambiguate.
     let q = supabase
       .from("notifications")
       .select("*, profiles!notifications_actor_id_fkey(name)")
+      .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(opts?.limit ?? 20);
     if (opts?.unreadOnly) q = q.is("read_at", null);
@@ -1494,25 +1554,52 @@ export const useDataStore = create<DataState>((setState, getState) => ({
   },
 
   fetchUnreadNotificationCount: async () => {
-    const { count } = await supabase
+    const { data: userRes } = await supabase.auth.getUser();
+    if (!userRes.user) return 0;
+    const userId = userRes.user.id;
+
+    const { count, error } = await supabase
       .from("notifications")
       .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
       .is("read_at", null);
+    if (error) {
+      console.error("[dataStore] fetchUnreadNotificationCount:", error.message);
+      return 0;
+    }
     return count ?? 0;
   },
 
   markNotificationRead: async (id) => {
-    await supabase
+    const { data: userRes } = await supabase.auth.getUser();
+    if (!userRes.user) throw new Error("로그인이 필요합니다");
+    const userId = userRes.user.id;
+
+    const { error } = await supabase
       .from("notifications")
       .update({ read_at: new Date().toISOString() })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", userId);
+    if (error) {
+      console.error("[dataStore] markNotificationRead:", error.message);
+      throw new Error(friendlyError(error.message));
+    }
   },
 
   markAllNotificationsRead: async () => {
-    await supabase
+    const { data: userRes } = await supabase.auth.getUser();
+    if (!userRes.user) throw new Error("로그인이 필요합니다");
+    const userId = userRes.user.id;
+
+    const { error } = await supabase
       .from("notifications")
       .update({ read_at: new Date().toISOString() })
+      .eq("user_id", userId)
       .is("read_at", null);
+    if (error) {
+      console.error("[dataStore] markAllNotificationsRead:", error.message);
+      throw new Error(friendlyError(error.message));
+    }
   },
 
   notifyMentions: async (targetType, targetId, userIds) => {
@@ -1529,7 +1616,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     if (!query.trim()) return [];
     const { data, error } = await supabase
       .from("profiles")
-      .select("id,name,photo_url,team_id")
+      .select("id,name,photo_url,profile_photo_url,profile_photo_locked,team_id")
       .ilike("name", `%${query.trim()}%`)
       .limit(8);
     if (error) {
@@ -1539,7 +1626,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     return (data ?? []).map((r) => ({
       id: r.id,
       name: r.name,
-      photoUrl: r.photo_url ?? "",
+      photoUrl: r.profile_photo_locked && r.profile_photo_url ? r.profile_photo_url : r.photo_url ?? r.profile_photo_url ?? "",
       teamId: r.team_id ?? "",
     }));
   },
@@ -1637,7 +1724,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     if (isDemoMode) return [];
     let q = supabase
       .from("team_join_requests")
-      .select("*, profiles:player_id(name), teams:team_id(name)")
+      .select("*, profiles:player_id(name,email,phone,position,number,gender,birth_date), teams:team_id(name)")
       .eq("team_id", teamId)
       .order("created_at", { ascending: false });
     if (status) q = q.eq("status", status);
@@ -1653,7 +1740,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     if (isDemoMode) return [];
     const { data, error } = await supabase
       .from("team_join_requests")
-      .select("*, profiles:player_id(name), teams:team_id(name)")
+      .select("*, profiles:player_id(name,email,phone,position,number,gender,birth_date), teams:team_id(name)")
       .eq("player_id", playerId)
       .order("created_at", { ascending: false });
     if (error) {
@@ -1882,7 +1969,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
         .limit(limit),
       supabase
         .from("profiles")
-        .select("id, name, photo_url, number, team_id")
+        .select("id, name, photo_url, profile_photo_url, profile_photo_locked, number, team_id")
         .eq("is_approved", true)
         .ilike("name", pattern)
         .limit(limit),
@@ -1891,7 +1978,15 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     type PostRow = { id: string; title: string; created_at: string; profiles?: { name: string } | { name: string }[] | null };
     type NoticeRow = { id: string; title: string; is_important: boolean; created_at: string };
     type TeamRow = { id: string; name: string; logo: string };
-    type PlayerRow = { id: string; name: string; photo_url: string; number: number; team_id: string | null };
+    type PlayerRow = {
+      id: string;
+      name: string;
+      photo_url: string | null;
+      profile_photo_url: string | null;
+      profile_photo_locked: boolean | null;
+      number: number;
+      team_id: string | null;
+    };
 
     const posts = ((postsRes.data ?? []) as unknown as PostRow[]).map((r) => {
       const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
@@ -1912,7 +2007,11 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       id: r.id, name: r.name, logo: r.logo,
     }));
     const players = ((playersRes.data ?? []) as unknown as PlayerRow[]).map((r) => ({
-      id: r.id, name: r.name, photoUrl: r.photo_url, number: r.number, teamId: r.team_id ?? undefined,
+      id: r.id,
+      name: r.name,
+      photoUrl: r.profile_photo_locked && r.profile_photo_url ? r.profile_photo_url : r.photo_url ?? r.profile_photo_url ?? undefined,
+      number: r.number,
+      teamId: r.team_id ?? undefined,
     }));
 
     return { posts, notices, teams, players };

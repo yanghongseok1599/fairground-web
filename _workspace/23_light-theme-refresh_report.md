@@ -149,7 +149,7 @@
 
 ### 무회귀 보증
 - 공개 라우트 7개 전부 static prerender ○ 유지
-- 라이브 배포(`https://fairground-footsal.vercel.app`) 영향 없음 — 인증 필요 페이지(/register /my /my/card-edit /my/player-setup) + 팀 모달만 변경
+- 라이브 배포(`https://fairground-futsal.vercel.app`) 영향 없음 — 인증 필요 페이지(/register /my /my/card-edit /my/player-setup) + 팀 모달만 변경
 - 폼 동작/스토어 호출/리다이렉트 흐름 동일
 
 ---

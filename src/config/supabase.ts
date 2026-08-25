@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 
 // FairGround Supabase (project ovtnmslyjzvghirdvife, 서울 ap-northeast-2)
@@ -9,20 +9,39 @@ import type { Database } from "@/lib/database.types";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const missingSupabaseEnv = !supabaseUrl || !supabaseKey;
 
 // 데모 모드: 환경변수 미설정 시. Firebase 시절 isDemoMode 분기를 대체.
-export const isDemoMode = !supabaseUrl || !supabaseKey;
+export const isDemoMode = missingSupabaseEnv;
 
-export const supabase = createClient<Database>(
-  supabaseUrl ?? "https://demo.supabase.co",
-  supabaseKey ?? "demo-publishable-key",
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-  }
-);
+if (process.env.NODE_ENV === "production" && missingSupabaseEnv) {
+  throw new Error(
+    "Missing Supabase public environment variables. Production demo mode is blocked."
+  );
+}
+
+type FairGroundGlobal = typeof globalThis & {
+  __fairgroundSupabase?: SupabaseClient<Database>;
+};
+
+function createSupabaseBrowserClient(): SupabaseClient<Database> {
+  return createClient<Database>(
+    supabaseUrl ?? "https://demo.supabase.co",
+    supabaseKey ?? "demo-publishable-key",
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    }
+  );
+}
+
+const fairGroundGlobal = globalThis as FairGroundGlobal;
+
+export const supabase =
+  fairGroundGlobal.__fairgroundSupabase ??
+  (fairGroundGlobal.__fairgroundSupabase = createSupabaseBrowserClient());
 
 export default supabase;

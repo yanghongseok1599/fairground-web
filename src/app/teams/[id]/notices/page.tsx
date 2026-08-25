@@ -22,8 +22,8 @@ type Filter = (typeof FILTERS)[number];
  * 팀 공지 라우트.
  *
  * 읽기: 누구나 가능 (RLS: select using(true))
- * 쓰기/수정/삭제: team_id 가 본 팀인 경우 is_team_manager(team_id) (manager/coach)
- * UI는 manager/coach/captain 본인 팀 또는 admin 에게 작성 CTA 노출.
+ * 쓰기/수정/삭제: team_id 가 본 팀인 경우 is_team_manager(team_id) (매니저/감독)
+ * UI는 매니저/감독 본인 팀 또는 admin 에게 작성 CTA 노출.
  * 최종 강제는 RLS — 클라 가드 통과해도 RLS 에서 차단됨.
  */
 export default function TeamNoticesPage() {
@@ -58,7 +58,7 @@ export default function TeamNoticesPage() {
   }, [notices, filter]);
 
   // 클라 UX 가드 — lib/team-permissions로 통일 (admin OR 본인 팀의
-  // manager/coach). 최종 강제는 RLS(is_team_manager).
+  // 매니저/감독. 최종 강제는 RLS(is_team_manager).
   const canWrite = useMemo(
     () => canManageTeamMembers(player, team),
     [player, team],

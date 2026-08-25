@@ -83,7 +83,7 @@ function AdminTeams() {
   // 승급 — 시즌 상위 2팀 정산. 한 단계 위 + streak 0.
   const promote = async (team: Team) => {
     const next = nextLeagueTier(team.leagueTier);
-    if (!next) { alert(`${team.name}은(는) 이미 최상위 프리미엄 리그입니다.`); return; }
+    if (!next) { alert(`${team.name}은(는) 이미 최상위 플래티넘 리그입니다.`); return; }
     if (!confirm(`${team.name}을(를) ${LEAGUE_TIER_LABEL[team.leagueTier]} → ${LEAGUE_TIER_LABEL[next]}로 승급할까요?\n(연속 참여 기록은 초기화됩니다)`)) return;
     setSavingId(team.id);
     try {

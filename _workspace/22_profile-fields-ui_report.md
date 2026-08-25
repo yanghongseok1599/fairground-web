@@ -1,6 +1,6 @@
 # 22 · 선수 프로필 신규 필드 UI 결선 리포트
 
-작업 디렉토리: `/Users/seok/footsal project/fairground-web` (브랜치 `feat/supabase-migration`)
+작업 디렉토리: `fairground-web` (브랜치 `feat/supabase-migration`)
 원칙: 공개 라우트 무회귀 · player-card / store 시그니처 / DB / 인증 미터치 · 색은 토큰만(기존 hex 코드 패턴 유지)
 
 ## 변경 파일

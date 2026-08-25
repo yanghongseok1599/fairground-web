@@ -1,8 +1,9 @@
 import type { Player, TeamRole } from "../types";
+import { hasMatchStaffPermission } from "./team-role-policy.ts";
 
 export type MatchTrack = "referee" | "coach" | "admin" | "none";
 
-const STAFF_ROLES = ["captain", "manager", "coach"] as const satisfies readonly Exclude<TeamRole, "member">[];
+const STAFF_ROLES = ["captain", "coach"] as const satisfies readonly Exclude<TeamRole, "member" | "manager">[];
 
 interface TrackMatch {
   homeTeamId: string;
@@ -22,7 +23,8 @@ export function resolveMatchTrack(
     !!player.teamId &&
     (player.teamId === match.homeTeamId || player.teamId === match.awayTeamId) &&
     !!player.teamRole &&
-    (STAFF_ROLES as readonly string[]).includes(player.teamRole);
+    (STAFF_ROLES as readonly string[]).includes(player.teamRole) &&
+    hasMatchStaffPermission(player);
 
   return isParticipantStaff ? "coach" : "none";
 }

@@ -53,6 +53,16 @@ function isIOS(): boolean {
   );
 }
 
+function isAndroid(): boolean {
+  return typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
+}
+
+// 설치 안내 배너는 모바일(iOS/Android)에서만 노출한다. 데스크톱(웹)에서는
+// beforeinstallprompt 를 preventDefault 로 억제만 하고 배너를 띄우지 않는다.
+function isMobileDevice(): boolean {
+  return isIOS() || isAndroid();
+}
+
 function isStandalone(): boolean {
   if (typeof window === "undefined") return false;
   if (window.matchMedia?.("(display-mode: standalone)").matches) return true;
@@ -87,8 +97,11 @@ export function PwaInstallPrompt() {
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const onBeforeInstall = (e: Event) => {
+      // 모든 기기에서 브라우저 기본 설치 배너는 억제한다.
       e.preventDefault();
       if (cancelled) return;
+      // 데스크톱(웹)에서는 우리 배너도 띄우지 않는다 — 모바일에서만 노출.
+      if (!isMobileDevice()) return;
       const evt = e as BeforeInstallPromptEvent;
       setDeferredPrompt(evt);
       timer = setTimeout(() => {

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { supabaseServer, isDemoMode } from "@/lib/supabase-server";
+import { SITE_URL } from "@/lib/site-config";
 
-const BASE = "https://fairground-footsal.vercel.app";
 const FALLBACK: Metadata = {
   title: "선수 — FairGround",
   description: "FairGround 선수 프로필",
@@ -15,7 +15,7 @@ export async function generateMetadata(
   const { id } = await params;
   const { data } = await supabaseServer
     .from("profiles")
-    .select("name, number, position, bio, photo_url, profile_photo_url, is_approved, is_banned")
+    .select("name, number, position, bio, photo_url, profile_photo_url, profile_photo_locked, is_approved, is_banned")
     .eq("id", id)
     .maybeSingle();
   if (!data || !data.is_approved || data.is_banned) return FALLBACK;
@@ -25,9 +25,11 @@ export async function generateMetadata(
   const positionText = typeof data.position === "string" ? data.position : "";
   const bioClean = (data.bio ?? "").replace(/\s+/g, " ").trim();
   const desc = (bioClean || `${positionText} ${data.name} — FairGround 선수`).slice(0, 160);
-  const url = `${BASE}/players/${id}`;
+  const url = `${SITE_URL}/players/${id}`;
 
-  const photo = data.profile_photo_url ?? data.photo_url ?? "";
+  const photo = data.profile_photo_locked && data.profile_photo_url
+    ? data.profile_photo_url
+    : data.photo_url ?? data.profile_photo_url ?? "";
   const image = typeof photo === "string" && photo.startsWith("https://") ? photo : undefined;
 
   return {

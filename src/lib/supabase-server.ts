@@ -7,8 +7,15 @@ import type { Database } from "@/lib/database.types";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const missingSupabaseEnv = !supabaseUrl || !supabaseKey;
 
-export const isDemoMode = !supabaseUrl || !supabaseKey;
+export const isDemoMode = missingSupabaseEnv;
+
+if (process.env.NODE_ENV === "production" && missingSupabaseEnv) {
+  throw new Error(
+    "Missing Supabase public environment variables. Production demo mode is blocked."
+  );
+}
 
 export const supabaseServer = createClient<Database>(
   supabaseUrl ?? "https://demo.supabase.co",

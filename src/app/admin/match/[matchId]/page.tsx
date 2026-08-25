@@ -29,13 +29,15 @@ import { Separator } from "@/components/ui/separator";
 import { formatTime } from "@/utils/formatters";
 import { halfControlButtons } from "@/lib/match-half-control";
 import type { HalfAction, HalfButton } from "@/lib/match-half-control";
+import {
+  MATCH_DURATION_LABEL,
+  MATCH_DURATION_MINUTES,
+  MATCH_DURATION_SECONDS,
+  matchMinuteFromElapsed,
+} from "@/lib/match-config";
 import { useAuth } from "@/hooks/useAuth";
-import { resolveMatchTrack } from "@/lib/match-operation-access";
 import { EventTimeline } from "@/components/match/event-timeline";
 import {
-  Play,
-  Pause,
-  Square,
   Plus,
   Trophy,
   Circle,
@@ -46,16 +48,32 @@ import {
   Users,
   RotateCw,
   Maximize2,
+  Minimize2,
   X,
 } from "lucide-react";
 import type { MatchEvent, MatchEventType, MatchLineupEntry, Player } from "@/types";
 
 const EVENT_TYPES: { value: MatchEventType; label: string; emoji: string }[] = [
   { value: "goal", label: "골", emoji: "⚽" },
+  { value: "assist", label: "어시스트", emoji: "🅰️" },
   { value: "foul", label: "반칙", emoji: "🚫" },
   { value: "yellow_card", label: "경고", emoji: "🟨" },
   { value: "red_card", label: "퇴장", emoji: "🟥" },
 ];
+const COURT_PLAYER_LIMIT = 5;
+const NO_MOM_VALUE = "__no_mom__";
+
+type AssistTarget = Pick<
+  MatchEvent,
+  "id" | "playerId" | "playerName" | "teamId" | "minute" | "half"
+> & {
+  source: "goal-record" | "timeline-review";
+};
+
+type ScreenOrientationWithLock = ScreenOrientation & {
+  lock?: (orientation: "landscape") => Promise<void>;
+  unlock?: () => void;
+};
 
 export default function AdminMatchControlPage() {
   return (
@@ -79,12 +97,88 @@ function AdminMatchControl() {
   // 전체화면 경기장 모드 토글 — 관리자·심판 모두 진행중 경기에서 코트를
   // 탭해 전체화면으로 운영한다. 기본은 클릭 진입(자동 진입 안 함), 닫으면 일반 카드로.
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
+  const [forceLandscapeStage, setForceLandscapeStage] = useState(false);
+  const requestedBrowserFullscreen = useRef(false);
+
+  const lockLandscapeMode = async () => {
+    if (typeof window === "undefined") return;
+    if (!window.matchMedia("(max-width: 767px)").matches) return;
+
+    try {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+        requestedBrowserFullscreen.current = true;
+      }
+    } catch {
+      // iOS/Safari 등은 API를 거부할 수 있다. CSS 가로 스테이지가 fallback.
+    }
+
+    try {
+      const orientation = screen.orientation as ScreenOrientationWithLock | undefined;
+      await orientation?.lock?.("landscape");
+    } catch {
+      // Orientation Lock 미지원 브라우저도 CSS fallback으로 계속 운영한다.
+    }
+  };
+
+  const releaseLandscapeMode = () => {
+    if (typeof document === "undefined") return;
+    try {
+      const orientation = screen.orientation as ScreenOrientationWithLock | undefined;
+      orientation?.unlock?.();
+    } catch {
+      // 지원하지 않으면 무시.
+    }
+    if (
+      requestedBrowserFullscreen.current &&
+      document.fullscreenElement &&
+      document.exitFullscreen
+    ) {
+      void document.exitFullscreen().catch(() => undefined);
+    }
+    requestedBrowserFullscreen.current = false;
+  };
+
+  const openFullscreenMode = () => {
+    setFullscreenOpen(true);
+    void lockLandscapeMode();
+  };
+
+  const closeFullscreenMode = () => {
+    setFullscreenOpen(false);
+    releaseLandscapeMode();
+  };
+
+  useEffect(() => {
+    return () => releaseLandscapeMode();
+  }, []);
+
+  useEffect(() => {
+    if (!fullscreenOpen || typeof window === "undefined") {
+      setForceLandscapeStage(false);
+      return;
+    }
+
+    const sync = () => {
+      setForceLandscapeStage(
+        window.matchMedia("(max-width: 767px) and (orientation: portrait)").matches,
+      );
+    };
+    sync();
+    window.addEventListener("resize", sync);
+    window.addEventListener("orientationchange", sync);
+    return () => {
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("orientationchange", sync);
+    };
+  }, [fullscreenOpen]);
 
   // 전체화면 코트에서 선수 탭 → 액션 팝업(이벤트 기록 / 교체) 상태.
   const [actionTarget, setActionTarget] = useState<{ player: Player; teamId: string } | null>(null);
   const [subPicking, setSubPicking] = useState(false); // true=교체 선수 선택 모드
   const [subError, setSubError] = useState<string | null>(null);
   const [subBusy, setSubBusy] = useState(false);
+  const [lastActionNotice, setLastActionNotice] = useState("");
   const openActionMenu = (player: Player, teamId: string) => {
     setActionTarget({ player, teamId });
     setSubPicking(false);
@@ -125,11 +219,18 @@ function AdminMatchControl() {
   // MOM state
   const [momPlayerId, setMomPlayerId] = useState("");
 
-  // 어시스트 추가 — 선택한 골 이벤트(해당 팀 선수 중 어시스트 기록자 선택)
-  const [assistGoal, setAssistGoal] = useState<MatchEvent | null>(null);
+  // 어시스트 체크 — 득점 직후 심판·부심이 바로 기록하거나, 놓친 골을 관리자가 보강.
+  const [assistGoal, setAssistGoal] = useState<AssistTarget | null>(null);
 
   // End match dialog
   const [endDialogOpen, setEndDialogOpen] = useState(false);
+  const [endMomChoice, setEndMomChoice] = useState("");
+
+  useEffect(() => {
+    if (!lastActionNotice) return;
+    const timer = window.setTimeout(() => setLastActionNotice(""), 3200);
+    return () => window.clearTimeout(timer);
+  }, [lastActionNotice]);
 
   // 몰수패 처리(관리자) — 지목 팀 0, 상대 3 으로 종료. 규정 제13조/대회규정 제9조.
   const [forfeitOpen, setForfeitOpen] = useState(false);
@@ -221,10 +322,10 @@ function AdminMatchControl() {
   const isScheduled = matchData.status === "scheduled";
   const isLive = matchData.status === "live";
   const isFinished = matchData.status === "finished";
+  const isRegulationComplete = isLive && mc.elapsedSeconds >= MATCH_DURATION_SECONDS;
 
   // 경기운영 진입 트랙 — AdminGuard 통과이므로 "admin" 또는 "referee".
   // 관리자·심판 모두 진행중 경기를 전체화면 경기장 한 화면에서 운영할 수 있다.
-  const track = resolveMatchTrack(player, matchData);
   const isFullscreen = isLive && fullscreenOpen;
 
   const homeScore = mc.liveMatch?.homeScore ?? matchData.homeScore;
@@ -257,6 +358,31 @@ function AdminMatchControl() {
   // ── 경기 대시보드 집계 ──────────────────────────────────────────
   // 취소되지 않은 이벤트만 집계.
   const liveEvents = mc.events.filter((e) => !e.isCancelled);
+  const goalEvents = liveEvents
+    .filter((e) => e.type === "goal")
+    .sort((a, b) => a.timestamp - b.timestamp);
+  const assistEvents = liveEvents.filter((e) => e.type === "assist");
+  const goalEventCount = goalEvents.length;
+  const assistEventCount = assistEvents.length;
+  const assistCountByTeam = new Map<string, number>();
+  for (const event of assistEvents) {
+    assistCountByTeam.set(event.teamId, (assistCountByTeam.get(event.teamId) ?? 0) + 1);
+  }
+  const goalsByTeam = new Map<string, MatchEvent[]>();
+  for (const goal of goalEvents) {
+    goalsByTeam.set(goal.teamId, [...(goalsByTeam.get(goal.teamId) ?? []), goal]);
+  }
+  const uncheckedAssistGoalIds = new Set<string>();
+  for (const [teamId, goals] of goalsByTeam) {
+    const confirmedAssists = assistCountByTeam.get(teamId) ?? 0;
+    for (const goal of goals.slice(confirmedAssists)) {
+      uncheckedAssistGoalIds.add(goal.id);
+    }
+  }
+  const uncheckedAssistGoals = goalEvents.filter((goal) =>
+    uncheckedAssistGoalIds.has(goal.id),
+  );
+  const missingAssistCount = uncheckedAssistGoals.length;
   const teamTally = (teamId: string) => ({
     goals: liveEvents.filter((e) => e.teamId === teamId && e.type === "goal").length,
     assists: liveEvents.filter((e) => e.teamId === teamId && e.type === "assist").length,
@@ -269,8 +395,10 @@ function AdminMatchControl() {
   const playerStat = (pid: string, type: MatchEventType) =>
     liveEvents.filter((e) => e.playerId === pid && e.type === type).length;
 
-  // 제12조③ — 동일 경기 내 경고(옐로) 2회 누적 시 퇴장. 심판에게 '퇴장 대상' 안내.
-  // 아직 레드(퇴장) 기록이 없는 선수 중 경고 2회 이상 누적자를 집계한다.
+  // 제12조③ — 동일 경기 내 경고(옐로) 2회 누적 시 퇴장.
+  // 퇴장은 useMatchControl.addEvent 가 두 번째 경고와 함께 자동 기록한다.
+  // 아래 집계는 자동 기록이 실패했거나 이 기능 이전에 진행된 경기를 위한
+  // 안전망 — 경고 2회인데 레드가 없는 선수가 남아 있으면 배너로 알린다.
   const ejectionDue = (() => {
     const acc = new Map<string, { name: string; y: number; r: number }>();
     for (const e of liveEvents) {
@@ -284,23 +412,67 @@ function AdminMatchControl() {
     return [...acc.values()].filter((v) => v.y >= 2 && v.r === 0);
   })();
 
-  // 출전(코트)·대기(벤치) 선수 분리 — 라인업 제출 시 선발/교체, 아니면 전원 출전.
+  // 출전(코트)·대기(벤치) 선수 분리.
+  // 경기 운영 화면은 실제 코트에 항상 최대 5명을 보여줘야 하므로, 선발이
+  // 5명 미만이면 등록 명단/팀 멤버에서 부족분을 채워 코트에 먼저 배치한다.
   const toPlayers = (entries: MatchLineupEntry[], pool: Player[]): Player[] =>
     entries
       .map((e) => pool.find((p) => p.id === e.playerId))
       .filter((p): p is Player => Boolean(p));
+  const byNumber = (a: Player, b: Player) => {
+    const an = typeof a.number === "number" ? a.number : Number.MAX_SAFE_INTEGER;
+    const bn = typeof b.number === "number" ? b.number : Number.MAX_SAFE_INTEGER;
+    return an - bn || a.name.localeCompare(b.name, "ko");
+  };
+  const buildOnCourt = (
+    entries: MatchLineupEntry[],
+    pool: Player[],
+    fallbackActive: Player[],
+  ): Player[] => {
+    if (entries.length === 0) {
+      return [...fallbackActive].sort(byNumber).slice(0, COURT_PLAYER_LIMIT);
+    }
+
+    const starters = toPlayers(entries.filter((e) => e.isStarter), pool).sort(byNumber);
+    if (starters.length >= COURT_PLAYER_LIMIT) return starters.slice(0, COURT_PLAYER_LIMIT);
+
+    const pickedIds = new Set(starters.map((p) => p.id));
+    const registeredFillers = toPlayers(entries.filter((e) => !e.isStarter), pool)
+      .filter((p) => !pickedIds.has(p.id))
+      .sort(byNumber);
+    const registeredFillerIds = new Set(registeredFillers.map((p) => p.id));
+    const rosterFillers = [...pool]
+      .filter((p) => !pickedIds.has(p.id) && !registeredFillerIds.has(p.id))
+      .sort(byNumber)
+      .slice(0, COURT_PLAYER_LIMIT);
+    const filler = [...registeredFillers, ...rosterFillers]
+      .slice(0, COURT_PLAYER_LIMIT - starters.length);
+
+    return [...starters, ...filler];
+  };
+  const buildBench = (
+    entries: MatchLineupEntry[],
+    pool: Player[],
+    onCourt: Player[],
+  ): Player[] => {
+    if (entries.length === 0) return [];
+
+    const onCourtIds = new Set(onCourt.map((p) => p.id));
+    const explicitBench = toPlayers(entries.filter((e) => !e.isStarter), pool)
+      .filter((p) => !onCourtIds.has(p.id));
+    const explicitBenchIds = new Set(explicitBench.map((p) => p.id));
+    const rosterBench = [...pool]
+      .filter((p) => !onCourtIds.has(p.id) && !explicitBenchIds.has(p.id))
+      .sort(byNumber);
+
+    return [...explicitBench, ...rosterBench];
+  };
   const homeOnCourt =
-    homeLineup.length > 0
-      ? toPlayers(homeLineup.filter((e) => e.isStarter), mc.homePlayers)
-      : homeActivePlayers;
-  const homeBench =
-    homeLineup.length > 0 ? toPlayers(homeLineup.filter((e) => !e.isStarter), mc.homePlayers) : [];
+    buildOnCourt(homeLineup, mc.homePlayers, homeActivePlayers);
+  const homeBench = buildBench(homeLineup, mc.homePlayers, homeOnCourt);
   const awayOnCourt =
-    awayLineup.length > 0
-      ? toPlayers(awayLineup.filter((e) => e.isStarter), mc.awayPlayers)
-      : awayActivePlayers;
-  const awayBench =
-    awayLineup.length > 0 ? toPlayers(awayLineup.filter((e) => !e.isStarter), mc.awayPlayers) : [];
+    buildOnCourt(awayLineup, mc.awayPlayers, awayActivePlayers);
+  const awayBench = buildBench(awayLineup, mc.awayPlayers, awayOnCourt);
 
   const homeSide = {
     side: "home" as const,
@@ -321,13 +493,33 @@ function AdminMatchControl() {
     bench: awayBench,
   };
 
+  const createAssistTarget = (
+    scorer: Pick<Player, "id" | "name">,
+    teamId: string,
+    source: AssistTarget["source"],
+  ): AssistTarget => ({
+    id: `pending-goal-${scorer.id}-${Date.now()}`,
+    playerId: scorer.id,
+    playerName: scorer.name,
+    teamId,
+    minute: matchMinuteFromElapsed(mc.elapsedSeconds),
+    half: mc.currentHalf,
+    source,
+  });
+
   // 가로 분할 모델 — 선택된 이벤트 유형으로 특정 선수+팀에 즉시 기록.
   // 유형은 유지(연속 동일 이벤트 빠른 기록). 유형 미선택 시 무시.
   const recordPlayerEvent = async (player: Player, teamId: string) => {
     if (!eventType || mc.pendingAction !== null) return;
     const payload = { type: eventType, playerId: player.id, playerName: player.name, teamId };
     lastEventAttempt.current = payload; // 실패 시 재시도용
-    await mc.addEvent(payload);
+    const ok = await mc.addEvent(payload);
+    if (ok) {
+      setLastActionNotice(`${player.name} ${eventLabel(eventType)} 기록`);
+      if (eventType === "goal") {
+        setAssistGoal(createAssistTarget(player, teamId, "goal-record"));
+      }
+    }
   };
 
   // 이벤트 기록 실패 시 재시도 — 마지막 시도 payload 재실행.
@@ -338,13 +530,25 @@ function AdminMatchControl() {
   };
 
   const handleSetMom = async () => {
-    if (!momPlayerId) return;
+    if (!momPlayerId || !isLive) return;
     const ok = await mc.setMom(momPlayerId);
-    if (ok) setMomPlayerId("");
+    if (ok) {
+      setLastActionNotice("MOM 선정 완료");
+      setMomPlayerId("");
+    }
   };
 
   // 어시스트 추가 — 골 이벤트 선택 시 해당 팀 선수 picker 오픈.
-  const openAssistPicker = (goal: MatchEvent) => setAssistGoal(goal);
+  const openAssistPicker = (goal: MatchEvent) =>
+    setAssistGoal({
+      id: goal.id,
+      playerId: goal.playerId,
+      playerName: goal.playerName,
+      teamId: goal.teamId,
+      minute: goal.minute,
+      half: goal.half,
+      source: "timeline-review",
+    });
 
   // picker 에서 선수 선택 → 골과 동일 팀으로 어시스트 기록 후 닫기.
   const handleAddAssist = async (assistPlayer: Player) => {
@@ -355,25 +559,133 @@ function AdminMatchControl() {
       playerName: assistPlayer.name,
       teamId: assistGoal.teamId,
     });
-    if (ok) setAssistGoal(null);
+    if (ok) {
+      setLastActionNotice(`${assistPlayer.name} 어시스트 기록`);
+      setAssistGoal(null);
+    }
   };
 
   // 골과 동일 팀의 출전+대기 선수 후보 — picker 목록.
   const assistCandidates: Player[] = assistGoal
     ? assistGoal.teamId === homeSide.id
-      ? [...homeSide.onCourt, ...homeSide.bench]
+      ? [...homeSide.onCourt, ...homeSide.bench].filter(
+          (p) => p.id !== assistGoal.playerId,
+        )
       : assistGoal.teamId === awaySide.id
-        ? [...awaySide.onCourt, ...awaySide.bench]
+        ? [...awaySide.onCourt, ...awaySide.bench].filter(
+            (p) => p.id !== assistGoal.playerId,
+          )
         : []
     : [];
 
+  const assistGoalTeamName = assistGoal
+    ? assistGoal.teamId === homeSide.id
+      ? homeSide.name
+      : assistGoal.teamId === awaySide.id
+        ? awaySide.name
+        : ""
+    : "";
+
+  const closeAssistPicker = () => {
+    if (mc.pendingAction !== null) return;
+    setAssistGoal(null);
+  };
+
+  const renderAssistDialog = () => (
+    <Dialog
+      open={assistGoal !== null}
+      onOpenChange={(open) => {
+        if (mc.pendingAction !== null) return;
+        if (!open) setAssistGoal(null);
+      }}
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            어시스트 체크
+            {assistGoal ? ` — ${assistGoal.playerName} 득점` : ""}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 pt-2">
+          <div
+            className="rounded-lg border px-3 py-2 text-xs leading-relaxed"
+            style={{
+              borderColor: "rgba(0,71,171,0.16)",
+              background: "rgba(0,71,171,0.06)",
+              color: "var(--muted-foreground)",
+            }}
+          >
+            <b style={{ color: "var(--foreground)" }}>
+              {assistGoalTeamName || "해당 팀"} · {assistGoal?.minute ?? 0}&apos;
+            </b>{" "}
+            득점입니다. 심판·부심이 확인한 어시스트 선수를 선택하세요. 놓쳤다면
+            나중에 체크를 누르고, 관리자 화면의 누락 체크보드에서 바로 보강할 수 있습니다.
+          </div>
+          {assistCandidates.length === 0 ? (
+            <p
+              className="py-4 text-center text-sm"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              선택할 수 있는 선수가 없습니다.
+            </p>
+          ) : (
+            <div className="grid max-h-[50vh] grid-cols-2 gap-2 overflow-y-auto">
+              {assistCandidates.map((p) => (
+                <Button
+                  key={p.id}
+                  variant="outline"
+                  className="min-h-[44px] justify-start"
+                  onClick={() => handleAddAssist(p)}
+                  disabled={mc.pendingAction !== null}
+                >
+                  <span className="font-bold tabular-nums">#{p.number}</span>
+                  <span className="ml-1.5 truncate">{p.name}</span>
+                </Button>
+              ))}
+            </div>
+          )}
+          {mc.pendingAction === "event" && (
+            <p
+              className="flex items-center justify-center gap-1.5 text-xs"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> 기록 처리중…
+            </p>
+          )}
+          <Button
+            variant="ghost"
+            className="min-h-[44px] w-full"
+            onClick={closeAssistPicker}
+            disabled={mc.pendingAction !== null}
+          >
+            나중에 체크
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   const handleEndMatch = async () => {
+    const momChoice = endMomChoice || matchData.momPlayerId || "";
+    if (!momChoice || mc.pendingAction !== null) return;
+
+    if (
+      momChoice !== NO_MOM_VALUE &&
+      momChoice !== matchData.momPlayerId
+    ) {
+      const ok = await mc.setMom(momChoice);
+      if (!ok) return;
+    }
+
     // Q5 — endMatch 는 runAction 가드로 재진입 차단됨. 성공 시에만 다이얼로그 닫고,
     // 실패 시 다이얼로그 유지 + 위치별 에러를 다이얼로그 내에서 노출(재시도 가능).
     await mc.endMatch();
   };
 
   const endPending = mc.pendingAction === "end";
+  const endMomValue = endMomChoice || matchData.momPlayerId || "";
+  const endMomReady = endMomValue.length > 0;
+  const selectedEndMom = allPlayers.find((p) => p.id === endMomValue);
 
   // 몰수패 처리(관리자 전용) — 지목 팀이 패(0), 상대 승(3). 성공 시 경기 종료·재로드.
   const isAdmin = player?.role === "admin";
@@ -415,6 +727,10 @@ function AdminMatchControl() {
     }
   };
 
+  const eventLabel = (type: MatchEventType) =>
+    EVENT_TYPES.find((item) => item.value === type)?.label ??
+    (type === "assist" ? "어시스트" : type);
+
   // 위치별 재시도 핸들러 (재시도 의미 없는 스코프는 null)
   const retryForScope = (scope: string): (() => void) | null => {
     switch (scope) {
@@ -436,7 +752,7 @@ function AdminMatchControl() {
   };
 
   // ── 타이머 중심 전광판 (7a) ─────────────────────────────────────
-  // [HOME 이름+점수] [중앙: 시간·전후반·라이브닷·상태] [AWAY 점수+이름]
+  // [HOME 이름+점수] [중앙: 시간·단일 12분·라이브닷·상태] [AWAY 점수+이름]
   // dark=전체화면 코트 위 오버레이용(어두운 배경/흰 글자).
   const renderScoreboardRow = (dark: boolean) => {
     const nameColor = dark
@@ -459,7 +775,7 @@ function AdminMatchControl() {
             {homeScore}
           </span>
         </div>
-        {/* CENTER: 라이브닷 + 시간 + 전후반 + 상태 */}
+        {/* CENTER: 라이브닷 + 시간 + 경기 시간 모델 + 상태 */}
         <div className="flex flex-col items-center px-2">
           <div className="flex items-center gap-1.5">
             {isLive && (
@@ -478,7 +794,7 @@ function AdminMatchControl() {
             className="text-[11px] font-semibold tabular-nums"
             style={dimColor}
           >
-            단일 15분
+            {isRegulationComplete ? "12분 완료" : MATCH_DURATION_LABEL}
           </span>
           <Badge
             className={`mt-1 ${
@@ -489,7 +805,7 @@ function AdminMatchControl() {
                   : "bg-blue-100 text-blue-700"
             }`}
           >
-            {isScheduled ? "예정" : isLive ? "진행중" : "종료"}
+            {isScheduled ? "예정" : isLive ? (isRegulationComplete ? "종료 대기" : "진행중") : "종료"}
           </Badge>
         </div>
         {/* AWAY 점수 + 이름 (오른쪽) */}
@@ -509,17 +825,21 @@ function AdminMatchControl() {
   };
 
   // 진행버튼(단일 타이머: 경기 시작 · 일시정지/재개 · 경기 종료) — 일반·전체화면 공용.
-  // 공식 규정 v2.4 제4조 — 전·후반 구분 없이 단일 경기 시간 15분.
+  // 공식 규정 v2.4 제4조 — 전·후반 구분 없이 단일 경기 시간 12분.
   const renderProgressButtons = () => {
     const progress = {
       status: matchData.status,
       isRunning: mc.isRunning,
+      isRegulationComplete,
     };
     const runHalf = (a: HalfAction) => {
       if (a === "start") return mc.startMatch();
       if (a === "pause") return mc.pauseMatch();
       if (a === "resume") return mc.resumeMatch();
-      if (a === "endMatch") return setEndDialogOpen(true);
+      if (a === "endMatch") {
+        setEndMomChoice(matchData.momPlayerId ?? "");
+        return setEndDialogOpen(true);
+      }
     };
     const buttons = halfControlButtons(progress);
     if (buttons.length === 0) return null;
@@ -549,9 +869,9 @@ function AdminMatchControl() {
     );
   };
 
-  // 이벤트 유형 4종 그리드 — 일반·전체화면 공용. dark=어두운 배경용.
+  // 이벤트 유형 5종 그리드 — 일반·전체화면 공용. dark=어두운 배경용.
   const renderEventTypeGrid = (dark: boolean) => (
-    <div className="grid grid-cols-4 gap-1.5">
+    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
       {EVENT_TYPES.map((et) => (
         <button
           key={et.value}
@@ -583,7 +903,60 @@ function AdminMatchControl() {
     </div>
   );
 
-  // 코트 대시보드(녹색 코트 + 양팀 포메이션 + 시계 오버레이) — 일반·전체화면 공용.
+  const renderGrassBenchTeam = (
+    team: TeamSide,
+    align: "left" | "right",
+    onBenchTap?: (player: Player, teamId: string) => void | Promise<void>,
+  ) => {
+    const accent = teamAccent(team.side);
+    const justify = align === "left" ? "justify-start" : "justify-end";
+    const textAlign = align === "left" ? "items-start text-left" : "items-end text-right";
+    const handleBenchTap = onBenchTap ?? recordPlayerEvent;
+
+    return (
+      <div className={`min-w-0 ${textAlign}`}>
+        <div
+          className="mb-1 max-w-[130px] truncate text-[10px] font-black sm:max-w-[180px] sm:text-xs"
+          style={{ color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}
+        >
+          {team.name} · {team.bench.length > 0 ? `대기 ${team.bench.length}` : "대기 없음"}
+        </div>
+        {team.bench.length > 0 && (
+          <div className={`pointer-events-auto flex flex-wrap gap-1.5 ${justify}`}>
+            {team.bench.map((p) => (
+              <PlayerToken
+                key={p.id}
+                player={p}
+                teamId={team.id}
+                eventType={eventType}
+                pending={mc.pendingAction !== null}
+                onRecord={handleBenchTap}
+                playerStat={playerStat}
+                accent={accent}
+                onGrass
+                forceTappable={!!onBenchTap}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderGrassBenchOverlay = (
+    topClass: string,
+    onBenchTap?: (player: Player, teamId: string) => void | Promise<void>,
+  ) => (
+    <div
+      className={`pointer-events-none absolute left-3 right-3 z-30 grid grid-cols-2 gap-3 ${topClass}`}
+      aria-label="잔디 코트 상단 예비선수단"
+    >
+      {renderGrassBenchTeam(homeSide, "left", onBenchTap)}
+      {renderGrassBenchTeam(awaySide, "right", onBenchTap)}
+    </div>
+  );
+
+  // 코트 대시보드(녹색 코트 + 양팀 포메이션 + 시계/예비선수 오버레이) — 일반·전체화면 공용.
   // overlay: 코트 상단 중앙에 띄울 노드(전체화면에선 전광판).
   // homeOnGrass: true 면 홈 포메이션도 코트 홈 칸에 직접 띄운다(전체화면 전용).
   //   일반 레이아웃에선 홈 포메이션을 코트 위(별도 FormationControls 스트립)에 두므로 false.
@@ -592,6 +965,7 @@ function AdminMatchControl() {
     homeOnGrass?: boolean;
     forceLandscape?: boolean;
     balancedFormation?: boolean;
+    benchTopClass?: string;
     onPlayerTap?: (player: Player, teamId: string) => void;
   }) => (
     <div className="relative h-full w-full overflow-hidden rounded-xl">
@@ -609,11 +983,12 @@ function AdminMatchControl() {
             )}
             <span>{formatTime(mc.elapsedSeconds)}</span>
             <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.75)" }}>
-              / 15:00
+              / {MATCH_DURATION_MINUTES}:00
             </span>
           </div>
         </div>
       )}
+      {renderGrassBenchOverlay(opts?.benchTopClass ?? "top-12 sm:top-14", opts?.onPlayerTap)}
       <div
         className={`absolute inset-0 z-10 grid ${
           opts?.forceLandscape
@@ -663,37 +1038,30 @@ function AdminMatchControl() {
     </div>
   );
 
-  const renderBench = () => (
-    <div className="grid grid-cols-2 gap-2">
-      {[homeSide, awaySide].map((team) => (
-        <BenchStrip
-          key={team.side}
-          team={team}
-          eventType={eventType}
-          pending={mc.pendingAction !== null}
-          onRecord={recordPlayerEvent}
-          playerStat={playerStat}
-        />
-      ))}
-    </div>
-  );
-
   // ── 심판 전체화면 경기장 모드 (7b) ───────────────────────────────
   // 진행중 경기를 한 화면에서: 상단 전광판 오버레이가 떠 있는 코트(flex-1) +
-  // 하단 컨트롤바(이벤트 유형 4종 · 4단계 진행버튼) + 벤치. 좌상단 닫기 버튼.
+  // 하단 컨트롤바(이벤트 유형 5종 · 4단계 진행버튼) + 벤치. 좌상단 닫기 버튼.
   if (isFullscreen) {
     const benchForTarget = actionTarget
       ? (actionTarget.teamId === homeSide.id ? homeSide : awaySide).bench
       : [];
     const handleEventAction = async (type: MatchEventType) => {
       if (!actionTarget || mc.pendingAction !== null) return;
-      await mc.addEvent({
+      const ok = await mc.addEvent({
         type,
         playerId: actionTarget.player.id,
         playerName: actionTarget.player.name,
         teamId: actionTarget.teamId,
       });
-      closeActionMenu();
+      if (ok) {
+        setLastActionNotice(`${actionTarget.player.name} ${eventLabel(type)} 기록`);
+        if (type === "goal") {
+          setAssistGoal(
+            createAssistTarget(actionTarget.player, actionTarget.teamId, "goal-record"),
+          );
+        }
+        closeActionMenu();
+      }
     };
     const handleSubstitute = async (inPlayer: Player) => {
       if (!actionTarget || subBusy) return;
@@ -706,10 +1074,11 @@ function AdminMatchControl() {
           actionTarget.player.id,
           inPlayer.id,
           inPlayer.name,
-          Math.floor(mc.elapsedSeconds / 60),
+          matchMinuteFromElapsed(mc.elapsedSeconds),
           mc.currentHalf,
         );
         setLineup(await store.fetchMatchLineup(matchId));
+        setLastActionNotice(`${actionTarget.player.name} ↔ ${inPlayer.name} 교체`);
         closeActionMenu();
       } catch (e) {
         setSubError(e instanceof Error ? e.message : "교체에 실패했습니다. 다시 시도해주세요.");
@@ -719,7 +1088,24 @@ function AdminMatchControl() {
     };
 
     return (
-      <div className="fixed inset-0 z-40 flex flex-col bg-black text-white">
+      <div className="fixed inset-0 z-[100] overflow-hidden bg-black text-white">
+        <div
+          className="match-landscape-shell flex h-full w-full flex-col bg-black"
+          style={
+            forceLandscapeStage
+              ? {
+                  position: "absolute",
+                  left: "50%",
+                  top: "50%",
+                  width: "100dvh",
+                  height: "100dvw",
+                  maxWidth: "none",
+                  transform: "translate(-50%, -50%) rotate(90deg)",
+                  transformOrigin: "center",
+                }
+              : undefined
+          }
+        >
         {!mc.isOnline && (
           <div
             role="status"
@@ -730,85 +1116,62 @@ function AdminMatchControl() {
           </div>
         )}
 
-        {/* 상단 슬림 바 — 진행버튼(전반/후반 시작·종료) + 전체화면 종료 X */}
+        {/* 상단 슬림 바 — 진행버튼(시작·일시정지·재개·종료) + 원래 화면 복귀 */}
         <div className="flex shrink-0 items-center gap-2 border-b border-white/15 bg-neutral-950/95 px-2 py-1.5">
           <div className="min-w-0 flex-1 overflow-x-auto">
             {renderProgressButtons()}
           </div>
           <button
             type="button"
-            onClick={() => setFullscreenOpen(false)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white"
-            aria-label="전체화면 종료"
+            onClick={closeFullscreenMode}
+            className="flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 text-sm font-black text-white"
+            aria-label="상단 원래 화면으로 돌아가기"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
+            원래 화면
           </button>
         </div>
 
-        {/* 상단: 대기선수(좌) · 전광판(중) · 대기선수(우).
-            대기선수는 코트와 동일한 원형 토큰(PlayerToken)으로 표시. 교체는 코트 선수 탭→팝업. */}
-        <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-white/10 bg-neutral-950/90 px-3 py-2">
-          {/* HOME 대기 (왼쪽) */}
-          <div className="flex flex-wrap items-start justify-start gap-2">
-            {homeSide.bench.length === 0 ? (
-              <span className="text-[11px] text-white/40">대기 없음</span>
-            ) : (
-              homeSide.bench.map((p) => (
-                <PlayerToken
-                  key={p.id}
-                  player={p}
-                  teamId={homeSide.id}
-                  eventType=""
-                  pending={mc.pendingAction !== null}
-                  onRecord={recordPlayerEvent}
-                  playerStat={playerStat}
-                  accent={teamAccent("home")}
-                  onGrass
-                  forceTappable={false}
-                />
-              ))
-            )}
-          </div>
-          {/* 전광판 (가운데) */}
-          <div
-            className="rounded-2xl px-3 py-2 shadow-lg"
-            style={{ background: "rgba(8,20,12,0.82)", border: "1px solid rgba(255,255,255,0.22)" }}
-          >
-            {renderScoreboardRow(true)}
-          </div>
-          {/* AWAY 대기 (오른쪽) */}
-          <div className="flex flex-wrap items-start justify-end gap-2">
-            {awaySide.bench.length === 0 ? (
-              <span className="text-[11px] text-white/40">대기 없음</span>
-            ) : (
-              awaySide.bench.map((p) => (
-                <PlayerToken
-                  key={p.id}
-                  player={p}
-                  teamId={awaySide.id}
-                  eventType=""
-                  pending={mc.pendingAction !== null}
-                  onRecord={recordPlayerEvent}
-                  playerStat={playerStat}
-                  accent={teamAccent("away")}
-                  onGrass
-                  forceTappable={false}
-                />
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* 코트 영역 — 남는 공간 전부. 전광판은 위 상단 바가 표시하므로 코트 오버레이는 비움.
+        {/* 코트 영역 — 남는 공간 전부. 전광판과 예비선수단 모두 잔디 위 오버레이로 표시.
             홈·어웨이 모두 잔디 위(homeOnGrass), 골 중심 대칭 배치(balancedFormation).
             선수 탭 → 액션 팝업(이벤트/교체). */}
         <div className="relative min-h-0 flex-1">
           {renderCourt({
+            forceLandscape: true,
             homeOnGrass: true,
             balancedFormation: true,
+            benchTopClass: "top-20 sm:top-20",
             onPlayerTap: openActionMenu,
-            overlay: <></>,
+            overlay: (
+              <div
+                className="pointer-events-none absolute left-1/2 top-2 z-30 -translate-x-1/2 rounded-2xl px-3 py-2 shadow-lg"
+                style={{
+                  background: "rgba(8,20,12,0.82)",
+                  border: "1px solid rgba(255,255,255,0.22)",
+                }}
+              >
+                {renderScoreboardRow(true)}
+              </div>
+            ),
           })}
+          <button
+            type="button"
+            onClick={closeFullscreenMode}
+            className="absolute right-3 top-3 z-40 flex min-h-[42px] items-center gap-1.5 rounded-full bg-white px-3 text-sm font-black text-neutral-950 shadow-lg"
+            aria-label="코트 원래 화면으로 돌아가기"
+          >
+            <Minimize2 className="h-4 w-4" />
+            원래 화면
+          </button>
+
+          {lastActionNotice && !mc.actionError && (
+            <div
+              role="status"
+              className="absolute bottom-2 left-1/2 z-30 w-[min(92%,420px)] -translate-x-1/2 rounded-full border border-white/20 bg-neutral-950/88 px-4 py-2 text-center text-sm font-black text-white shadow-lg"
+            >
+              {lastActionNotice}
+            </div>
+          )}
 
           {/* 위치별 에러(종료 제외) — 코트 위 하단 토스트로 표시(재시도 가능) */}
           {mc.actionError && mc.actionError.scope !== "end" && (
@@ -889,9 +1252,9 @@ function AdminMatchControl() {
                       setSubError(null);
                       setSubPicking(true);
                     }}
-                    disabled={mc.pendingAction !== null}
+                    disabled={mc.pendingAction !== null || benchForTarget.length === 0}
                   >
-                    🔄 교체
+                    🔄 {benchForTarget.length === 0 ? "교체 후보 없음" : "교체"}
                   </Button>
                 </div>
                 {mc.pendingAction === "event" && (
@@ -951,6 +1314,8 @@ function AdminMatchControl() {
           </DialogContent>
         </Dialog>
 
+        {renderAssistDialog()}
+
         {/* 경기 종료 확인 — 전체화면에서도 동일 다이얼로그 사용 */}
         <Dialog
           open={endDialogOpen}
@@ -989,6 +1354,71 @@ function AdminMatchControl() {
                   </div>
                 </div>
               </div>
+              <div className="rounded-lg border p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-bold">심판 MOM 선정</p>
+                    <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                      경기 종료 전에 최종 MOM을 선택하세요.
+                    </p>
+                  </div>
+                  {selectedEndMom && (
+                    <Badge variant="secondary">현재 선택: {selectedEndMom.name}</Badge>
+                  )}
+                </div>
+                <Select
+                  value={endMomValue}
+                  onValueChange={setEndMomChoice}
+                  disabled={mc.pendingAction !== null}
+                >
+                  <SelectTrigger className="min-h-[44px] w-full">
+                    <SelectValue placeholder="MOM 선수 또는 MOM 없음 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {!matchData.momPlayerId && (
+                      <SelectItem value={NO_MOM_VALUE}>MOM 없음</SelectItem>
+                    )}
+                    {allPlayers.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        #{p.number} {p.name} ({p.position}) -{" "}
+                        {p.teamId === matchData.homeTeamId
+                          ? matchData.homeTeamName
+                          : matchData.awayTeamName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {!endMomReady && (
+                <div
+                  role="status"
+                  className="flex items-start gap-2 rounded-lg border p-3 text-sm"
+                  style={{
+                    borderColor: "rgba(245,158,11,0.38)",
+                    background: "rgba(245,158,11,0.10)",
+                    color: "rgb(146,64,14)",
+                  }}
+                >
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>MOM 선수 또는 MOM 없음 중 하나를 선택해야 경기를 종료할 수 있습니다.</span>
+                </div>
+              )}
+              {missingAssistCount > 0 && (
+                <div
+                  role="status"
+                  className="flex items-start gap-2 rounded-lg border p-3 text-sm"
+                  style={{
+                    borderColor: "rgba(245,158,11,0.38)",
+                    background: "rgba(245,158,11,0.10)",
+                    color: "rgb(146,64,14)",
+                  }}
+                >
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    골 {goalEventCount}개, 어시스트 {assistEventCount}개입니다. 어시스트 누락이 있으면 종료 전에 관리자 기록을 확인하세요.
+                  </span>
+                </div>
+              )}
               {mc.actionError && mc.actionError.scope === "end" && (
                 <div
                   role="alert"
@@ -1014,10 +1444,15 @@ function AdminMatchControl() {
                   variant="destructive"
                   className="min-h-[44px] flex-1"
                   onClick={handleEndMatch}
-                  disabled={mc.pendingAction !== null}
+                  disabled={mc.pendingAction !== null || !endMomReady}
                   aria-busy={endPending}
                 >
-                  {endPending ? (
+                  {mc.pendingAction === "mom" ? (
+                    <>
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      MOM 저장중…
+                    </>
+                  ) : endPending ? (
                     <>
                       <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                       종료 처리중…
@@ -1030,6 +1465,7 @@ function AdminMatchControl() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
     );
   }
@@ -1059,8 +1495,8 @@ function AdminMatchControl() {
       {/* 경기 운영 컨테이너 — 세로는 max-w-md, 가로(landscape)·데스크탑은
           더 넓게 펼쳐 타이머/스코어/이벤트 영역을 여유 있게 배치. */}
       <div className="mx-auto max-w-md landscape:max-w-5xl md:max-w-3xl space-y-4 p-4">
-        {/* 스코어보드 — 점수·경기시간·전후반·팀별 골/어시/반칙/경고/퇴장을 한눈에.
-            아래 컨트롤 행으로 시작/일시정지/재개/후반/종료까지 한 카드에서 운영. */}
+        {/* 스코어보드 — 점수·경기시간·팀별 골/어시/반칙/경고/퇴장을 한눈에.
+            아래 컨트롤 행으로 시작/일시정지/재개/종료까지 한 카드에서 운영. */}
         <Card style={{ borderColor: "var(--accent-gold)" }}>
           <CardContent className="py-3">
             {/* 타이머 중심 전광판 (7a) — 시간이 가운데, 양옆에 팀 이름+점수 */}
@@ -1072,7 +1508,7 @@ function AdminMatchControl() {
                 <Button
                   variant="secondary"
                   className="min-h-[44px] px-5"
-                  onClick={() => setFullscreenOpen(true)}
+                  onClick={openFullscreenMode}
                 >
                   <Maximize2 className="mr-1.5 h-4 w-4" />
                   전체화면 경기장 모드
@@ -1085,6 +1521,7 @@ function AdminMatchControl() {
               const progress = {
                 status: matchData.status,
                 isRunning: mc.isRunning,
+                isRegulationComplete,
               };
               if (halfControlButtons(progress).length === 0) return null;
               return (
@@ -1108,7 +1545,51 @@ function AdminMatchControl() {
           </CardContent>
         </Card>
 
-        {/* 퇴장 대상 안내 — 제12조③ 경고 2회 누적 시 퇴장. 심판에게 레드카드 기록 유도. */}
+        {isRegulationComplete && (
+          <div
+            role="status"
+            className="flex items-start gap-3 rounded-lg border p-3"
+            style={{
+              borderColor: "rgba(245,158,11,0.38)",
+              background: "rgba(245,158,11,0.10)",
+            }}
+          >
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div className="text-sm text-amber-800">
+              <p className="font-bold">규정 시간 {MATCH_DURATION_MINUTES}분을 모두 채웠습니다</p>
+              <p className="mt-0.5">부상·중단 시간은 일시정지로 제외됩니다. 기록을 확인한 뒤 경기 종료를 눌러주세요.</p>
+            </div>
+          </div>
+        )}
+
+        {/* 자동 퇴장 확인 — 두 번째 경고와 함께 퇴장이 기록됐음을 심판에게 알린다. */}
+        {mc.autoEjection && (
+          <div
+            role="status"
+            className="flex items-start gap-3 rounded-lg border p-3"
+            style={{ borderColor: "rgba(255,59,48,0.4)", background: "rgba(255,59,48,0.08)" }}
+          >
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+            <div className="flex-1 text-sm">
+              <p className="font-semibold text-red-700">
+                {mc.autoEjection.playerName} 퇴장 처리 (경고 2회 누적)
+              </p>
+              <p className="mt-0.5 text-red-700">
+                규정 제12조③에 따라 🟥 퇴장을 함께 기록했습니다. 해당 선수는 남은
+                경기에 출전할 수 없습니다.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={mc.clearAutoEjection}
+              className="shrink-0 rounded-md px-2 py-1 text-xs font-bold text-red-700 hover:bg-red-100"
+            >
+              확인
+            </button>
+          </div>
+        )}
+
+        {/* 퇴장 기록 누락 안전망 — 자동 기록 실패/구경기 대비. */}
         {isLive && ejectionDue.length > 0 && (
           <div
             role="alert"
@@ -1117,10 +1598,11 @@ function AdminMatchControl() {
           >
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
             <div className="flex-1 text-sm">
-              <p className="font-semibold text-red-700">퇴장 대상 (경고 2회 누적)</p>
+              <p className="font-semibold text-red-700">퇴장 기록 누락 (경고 2회 누적)</p>
               <p className="mt-0.5 text-red-700">
                 {ejectionDue.map((v) => v.name).join(", ")} — 규정 제12조③에 따라 경고 2회
-                누적 시 퇴장입니다. 🟥 퇴장을 기록해 주세요.
+                누적 시 퇴장입니다. 자동 기록이 반영되지 않았으니 🟥 퇴장을 직접
+                기록해 주세요.
               </p>
             </div>
           </div>
@@ -1229,6 +1711,35 @@ function AdminMatchControl() {
               <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
                 ② {eventType ? "선수를 탭하면 즉시 기록됩니다" : "먼저 이벤트 유형을 선택하세요"}
               </p>
+              {(eventType || lastActionNotice) && (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {eventType && (
+                    <div
+                      className="rounded-lg border px-3 py-2 text-sm font-bold"
+                      style={{
+                        borderColor: "rgba(0,71,171,0.18)",
+                        background: "rgba(0,71,171,0.06)",
+                        color: "var(--primary)",
+                      }}
+                    >
+                      선택됨: {eventLabel(eventType)}
+                    </div>
+                  )}
+                  {lastActionNotice && (
+                    <div
+                      role="status"
+                      className="rounded-lg border px-3 py-2 text-sm font-bold"
+                      style={{
+                        borderColor: "rgba(34,197,94,0.22)",
+                        background: "rgba(34,197,94,0.08)",
+                        color: "#166534",
+                      }}
+                    >
+                      최근: {lastActionNotice}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* 실제 구장 비율(2:1) 녹색 코트 위 양팀 출전/대기 번호 대시보드.
                   유형 선택 후 선수 칩을 탭하면 즉시 기록. 칩에는 골/어시/경고/퇴장 배지 표시. */}
@@ -1238,7 +1749,7 @@ function AdminMatchControl() {
                 {isLive && (
                   <button
                     type="button"
-                    onClick={() => setFullscreenOpen(true)}
+                    onClick={openFullscreenMode}
                     aria-label="전체화면으로 보기"
                     className="absolute right-2 top-2 z-30 flex min-h-[40px] items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-white shadow-lg"
                     style={{ background: "rgba(8,20,12,0.7)", border: "1px solid rgba(255,255,255,0.3)" }}
@@ -1249,14 +1760,64 @@ function AdminMatchControl() {
                 )}
               </div>
 
-              {/* 대기선수 — 경기장 밖, 팀별 원형 번호 토큰 */}
-              {renderBench()}
-
               {mc.pendingAction === "event" && (
                 <p className="flex items-center justify-center gap-1.5 text-xs" style={{ color: "var(--muted-foreground)" }}>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" /> 기록 처리중…
                 </p>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {isLive && uncheckedAssistGoals.length > 0 && (
+          <Card
+            style={{
+              borderColor: "rgba(245,158,11,0.42)",
+              background: "rgba(245,158,11,0.04)",
+            }}
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center justify-between gap-2 text-base">
+                <span className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  득점·어시 실시간 체크
+                </span>
+                <Badge className="bg-amber-100 text-amber-700">
+                  {uncheckedAssistGoals.length}건
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                심판·부심이 어시스트를 놓친 골입니다. 관리자가 확인되는 즉시 선수 선택으로 보강할 수 있습니다.
+              </p>
+              <div className="space-y-2">
+                {uncheckedAssistGoals.map((goal) => (
+                  <div
+                    key={goal.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border bg-white px-3 py-2"
+                    style={{ borderColor: "rgba(245,158,11,0.28)" }}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold">
+                        {goal.minute}&apos; {goal.playerName} 득점
+                      </p>
+                      <p className="truncate text-xs" style={{ color: "var(--muted-foreground)" }}>
+                        {goal.teamId === homeSide.id ? homeSide.name : awaySide.name}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="min-h-[40px] shrink-0 border-amber-300 text-amber-700"
+                      onClick={() => openAssistPicker(goal)}
+                      disabled={mc.pendingAction !== null}
+                    >
+                      어시 체크
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -1273,6 +1834,8 @@ function AdminMatchControl() {
                 events={mc.events}
                 onCancel={(id) => mc.cancelEvent(id)}
                 onAddAssist={openAssistPicker}
+                canEdit={isLive}
+                uncheckedGoalIds={uncheckedAssistGoalIds}
               />
               {mc.pendingAction === "cancelEvent" && (
                 <p
@@ -1320,111 +1883,61 @@ function AdminMatchControl() {
                   </span>
                 </p>
               )}
-              <div className="flex gap-2">
-                <Select
-                  value={momPlayerId}
-                  onValueChange={setMomPlayerId}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="MOM 선수 선택" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allPlayers.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        #{p.number} {p.name} ({p.position}) -{" "}
-                        {p.teamId === matchData.homeTeamId
-                          ? matchData.homeTeamName
-                          : matchData.awayTeamName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  onClick={handleSetMom}
-                  disabled={!momPlayerId || mc.pendingAction !== null}
-                  aria-busy={mc.pendingAction === "mom"}
-                  variant="outline"
-                  className="min-h-[44px] px-5"
-                >
-                  {mc.pendingAction === "mom" ? (
-                    <>
-                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                      처리중…
-                    </>
-                  ) : (
-                    "선정"
-                  )}
-                </Button>
-              </div>
-              <p
-                className="text-xs"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                MOM은 프리미엄 카드 레이팅에 반영됩니다 (MOM x 3점)
-              </p>
+              {isLive ? (
+                <>
+                  <div className="flex gap-2">
+                    <Select
+                      value={momPlayerId}
+                      onValueChange={setMomPlayerId}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="MOM 선수 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allPlayers.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            #{p.number} {p.name} ({p.position}) -{" "}
+                            {p.teamId === matchData.homeTeamId
+                              ? matchData.homeTeamName
+                              : matchData.awayTeamName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      onClick={handleSetMom}
+                      disabled={!momPlayerId || mc.pendingAction !== null}
+                      aria-busy={mc.pendingAction === "mom"}
+                      variant="outline"
+                      className="min-h-[44px] px-5"
+                    >
+                      {mc.pendingAction === "mom" ? (
+                        <>
+                          <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                          처리중…
+                        </>
+                      ) : (
+                        "선정"
+                      )}
+                    </Button>
+                  </div>
+                  <p
+                    className="text-xs"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    MOM은 경기 종료 전에 선정해야 선수 통계에 반영됩니다.
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                  종료된 경기는 MOM을 변경할 수 없습니다. 정정이 필요하면 관리자 기록 보정 절차로 처리하세요.
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
 
-        {/* 어시스트 추가 picker — 타임라인의 골 "어시스트 추가" 클릭 시 오픈.
-            골과 동일 팀(출전+대기) 선수 중 어시스트 기록자를 선택. */}
-        <Dialog
-          open={assistGoal !== null}
-          onOpenChange={(open) => {
-            if (mc.pendingAction !== null) return;
-            if (!open) setAssistGoal(null);
-          }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                어시스트 추가
-                {assistGoal ? ` — ${assistGoal.playerName} 골` : ""}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3 pt-2">
-              <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                {assistGoal?.teamId === homeSide.id
-                  ? homeSide.name
-                  : assistGoal?.teamId === awaySide.id
-                    ? awaySide.name
-                    : ""}{" "}
-                선수 중 어시스트한 선수를 선택하세요.
-              </p>
-              {assistCandidates.length === 0 ? (
-                <p
-                  className="py-4 text-center text-sm"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  선택할 수 있는 선수가 없습니다.
-                </p>
-              ) : (
-                <div className="grid max-h-[50vh] grid-cols-2 gap-2 overflow-y-auto">
-                  {assistCandidates.map((p) => (
-                    <Button
-                      key={p.id}
-                      variant="outline"
-                      className="min-h-[44px] justify-start"
-                      onClick={() => handleAddAssist(p)}
-                      disabled={mc.pendingAction !== null}
-                    >
-                      <span className="font-bold tabular-nums">#{p.number}</span>
-                      <span className="ml-1.5 truncate">{p.name}</span>
-                    </Button>
-                  ))}
-                </div>
-              )}
-              {mc.pendingAction === "event" && (
-                <p
-                  className="flex items-center justify-center gap-1.5 text-xs"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> 기록 처리중…
-                </p>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
+        {renderAssistDialog()}
 
         {/* 경기 종료 확인 — 포커스 트랩 모달(Radix, ESC 취소 내장).
             종료 처리 중에는 외부클릭/ESC 로 닫히지 않도록 가드(더블집계 방지). */}
@@ -1480,9 +1993,74 @@ function AdminMatchControl() {
                 style={{ color: "var(--muted-foreground)" }}
               >
                 경기 종료 시 모든 선수의 스탯(경기수, 골, 어시스트, MOM,
-                경고)이 자동으로 업데이트됩니다. 프리미엄 카드 선수의 레이팅이
+                경고)이 자동으로 업데이트됩니다. 플래티넘 카드 선수의 레이팅이
                 재계산됩니다.
               </p>
+              <div className="rounded-lg border p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-bold">심판 MOM 선정</p>
+                    <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                      경기 종료 전에 최종 MOM을 선택하세요.
+                    </p>
+                  </div>
+                  {selectedEndMom && (
+                    <Badge variant="secondary">현재 선택: {selectedEndMom.name}</Badge>
+                  )}
+                </div>
+                <Select
+                  value={endMomValue}
+                  onValueChange={setEndMomChoice}
+                  disabled={mc.pendingAction !== null}
+                >
+                  <SelectTrigger className="min-h-[44px] w-full">
+                    <SelectValue placeholder="MOM 선수 또는 MOM 없음 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {!matchData.momPlayerId && (
+                      <SelectItem value={NO_MOM_VALUE}>MOM 없음</SelectItem>
+                    )}
+                    {allPlayers.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        #{p.number} {p.name} ({p.position}) -{" "}
+                        {p.teamId === matchData.homeTeamId
+                          ? matchData.homeTeamName
+                          : matchData.awayTeamName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {!endMomReady && (
+                <div
+                  role="status"
+                  className="flex items-start gap-2 rounded-lg border p-3 text-sm"
+                  style={{
+                    borderColor: "rgba(245,158,11,0.38)",
+                    background: "rgba(245,158,11,0.10)",
+                    color: "rgb(146,64,14)",
+                  }}
+                >
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>MOM 선수 또는 MOM 없음 중 하나를 선택해야 경기를 종료할 수 있습니다.</span>
+                </div>
+              )}
+              {missingAssistCount > 0 && (
+                <div
+                  role="status"
+                  className="flex items-start gap-2 rounded-lg border p-3 text-sm"
+                  style={{
+                    borderColor: "rgba(245,158,11,0.38)",
+                    background: "rgba(245,158,11,0.10)",
+                    color: "rgb(146,64,14)",
+                  }}
+                >
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    골 {goalEventCount}개, 어시스트 {assistEventCount}개입니다. 어시스트 누락이 있으면 종료 전에 관리자 기록을 확인하세요.
+                  </span>
+                </div>
+              )}
               {/* 종료 실패 시 다이얼로그 내 위치별 에러 — 닫히지 않고 재시도 */}
               {mc.actionError && mc.actionError.scope === "end" && (
                 <div
@@ -1510,10 +2088,15 @@ function AdminMatchControl() {
                   variant="destructive"
                   className="min-h-[44px] flex-1"
                   onClick={handleEndMatch}
-                  disabled={mc.pendingAction !== null}
+                  disabled={mc.pendingAction !== null || !endMomReady}
                   aria-busy={endPending}
                 >
-                  {endPending ? (
+                  {mc.pendingAction === "mom" ? (
+                    <>
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      MOM 저장중…
+                    </>
+                  ) : endPending ? (
                     <>
                       <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                       종료 처리중…
@@ -1587,32 +2170,6 @@ type TeamSide = {
   bench: Player[];
 };
 
-/** 스코어보드용 팀 누적 스탯 알약 — 골/어시/반칙/경고/퇴장. */
-function StatPills({ tally }: { tally: Tally }) {
-  const items: { e: string; n: number; label: string }[] = [
-    { e: "⚽", n: tally.goals, label: "골" },
-    { e: "🅰️", n: tally.assists, label: "어시스트" },
-    { e: "🚫", n: tally.fouls, label: "반칙" },
-    { e: "🟨", n: tally.yellow, label: "경고" },
-    { e: "🟥", n: tally.red, label: "퇴장" },
-  ];
-  return (
-    <div className="flex flex-wrap items-center gap-1">
-      {items.map((it) => (
-        <span
-          key={it.label}
-          className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums"
-          style={{ background: "var(--secondary)", color: "var(--foreground)" }}
-          title={`${it.label} ${it.n}`}
-        >
-          <span aria-hidden>{it.e}</span>
-          <span>{it.n}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
-
 type Accent = { bg: string; fg: string; ring: string };
 const teamAccent = (side: "home" | "away"): Accent =>
   side === "away"
@@ -1631,6 +2188,7 @@ function PlayerToken({
   accent,
   onGrass,
   forceTappable,
+  visualOnly,
 }: {
   player: Player;
   teamId: string;
@@ -1642,48 +2200,64 @@ function PlayerToken({
   onGrass: boolean;
   // true=이벤트 유형 선택과 무관하게 탭 가능(전체화면 액션 팝업 진입용).
   forceTappable?: boolean;
+  // true=표시 전용. 클릭은 하지 않지만 disabled opacity를 적용하지 않는다.
+  visualOnly?: boolean;
 }) {
   const g = playerStat(player.id, "goal");
+  const a = playerStat(player.id, "assist");
   const y = playerStat(player.id, "yellow_card");
   const r = playerStat(player.id, "red_card");
   const tappable = forceTappable || !!eventType;
   return (
     <button
       type="button"
-      onClick={() => void onRecord(player, teamId)}
-      disabled={!tappable || pending}
-      className="flex flex-col items-center gap-0.5 transition disabled:opacity-50"
+      onClick={() => {
+        if (visualOnly) return;
+        void onRecord(player, teamId);
+      }}
+      disabled={pending || (!tappable && !visualOnly)}
+      aria-disabled={visualOnly || !tappable || pending}
+      tabIndex={visualOnly ? -1 : undefined}
+      className="flex min-w-0 flex-col items-center gap-0.5 transition disabled:cursor-default"
       title={tappable ? `#${player.number} ${player.name}` : `#${player.number} ${player.name}`}
     >
       <span
         className={`relative flex items-center justify-center rounded-full border-2 font-black tabular-nums shadow-md ${
-          onGrass ? "h-11 w-11 text-base" : "h-9 w-9 text-sm"
+          onGrass ? "h-9 w-9 text-sm sm:h-11 sm:w-11 sm:text-base" : "h-8 w-8 text-xs sm:h-9 sm:w-9 sm:text-sm"
         }`}
         style={{ background: accent.bg, color: accent.fg, borderColor: accent.ring }}
       >
         {player.number}
         {r > 0 ? (
           <span
-            className="absolute -right-1 -top-1 h-3.5 w-2.5 rounded-[2px]"
+            className="absolute right-0 top-0 h-3 w-2 rounded-[2px]"
             style={{ background: "#dc2626", border: "1px solid #fff" }}
           />
         ) : y > 0 ? (
           <span
-            className="absolute -right-1 -top-1 h-3.5 w-2.5 rounded-[2px]"
+            className="absolute right-0 top-0 h-3 w-2 rounded-[2px]"
             style={{ background: "#facc15", border: "1px solid #fff" }}
           />
         ) : null}
         {g > 0 && (
           <span
-            className="absolute -bottom-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-bold"
+            className="absolute -bottom-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-bold"
             style={{ background: "#fff", color: "#0d1b2a", border: "1px solid rgba(0,0,0,0.2)" }}
           >
             ⚽{g > 1 ? g : ""}
           </span>
         )}
+        {a > 0 && (
+          <span
+            className="absolute -bottom-0.5 -left-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-0.5 text-[9px] font-bold"
+            style={{ background: "#0047ab", color: "#fff", border: "1px solid #fff" }}
+          >
+            A{a > 1 ? a : ""}
+          </span>
+        )}
       </span>
       <span
-        className="max-w-[72px] truncate text-[10px] font-semibold"
+        className="max-w-[56px] truncate text-[10px] font-semibold sm:max-w-[72px]"
         style={
           onGrass
             ? { color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,0.85)" }
@@ -1696,7 +2270,47 @@ function PlayerToken({
   );
 }
 
-/** 출전 선수 포메이션 — GK·수비·공격 라인. 홈은 페이지 상단, 원정은 코트 안. */
+function EmptyPlayerSlot({
+  teamName,
+  index,
+  accent,
+  onGrass,
+}: {
+  teamName: string;
+  index: number;
+  accent: Accent;
+  onGrass: boolean;
+}) {
+  return (
+    <div
+      className="flex min-w-0 flex-col items-center gap-0.5"
+      role="img"
+      aria-label={`${teamName} ${index + 1}번 코트 슬롯 미등록`}
+      title={`${teamName} 코트 슬롯 미등록`}
+    >
+      <span
+        className={`flex items-center justify-center rounded-full border-2 font-black shadow-md ${
+          onGrass ? "h-9 w-9 text-[10px] sm:h-11 sm:w-11 sm:text-xs" : "h-8 w-8 text-[10px] sm:h-9 sm:w-9 sm:text-xs"
+        }`}
+        style={{ background: "#f8fafc", color: accent.bg, borderColor: accent.bg }}
+      >
+        빈
+      </span>
+      <span
+        className="max-w-[56px] truncate text-[10px] font-semibold sm:max-w-[72px]"
+        style={
+          onGrass
+            ? { color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,0.85)" }
+            : { color: "var(--muted-foreground)" }
+        }
+      >
+        미등록
+      </span>
+    </div>
+  );
+}
+
+/** 출전 선수 포메이션 — 코트는 항상 5 슬롯(GK·수비·공격 라인)으로 표시. */
 function FormationControls({
   team,
   isAway,
@@ -1727,17 +2341,7 @@ function FormationControls({
   const five = [...team.onCourt]
     .sort((a, b) => (a.position === "GK" ? -1 : 0) - (b.position === "GK" ? -1 : 0))
     .slice(0, 5);
-  const lines = [five.slice(0, 1), five.slice(1, 3), five.slice(3, 5)].filter((l) => l.length > 0);
-
-  if (five.length === 0) {
-    return (
-      <div className="flex h-full w-full items-center justify-center px-4 py-3">
-        <span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
-          {team.name} — 출전 선수 없음
-        </span>
-      </div>
-    );
-  }
+  const lines = [[0], [1, 2], [3, 4]];
 
   return (
     <div
@@ -1752,29 +2356,40 @@ function FormationControls({
       {lines.map((line, i) => (
         <div
           key={i}
-          className="flex flex-1 flex-row items-center justify-evenly gap-3 landscape:flex-col md:flex-col"
+          className="flex flex-1 flex-row items-center justify-evenly gap-1.5 landscape:flex-col md:flex-col md:gap-3"
         >
-          {line.map((p) => (
-            <PlayerToken
-              key={p.id}
-              player={p}
-              teamId={team.id}
-              eventType={eventType}
-              pending={pending}
-              onRecord={onRecord}
-              playerStat={playerStat}
-              accent={accent}
-              onGrass={grass}
-              forceTappable={forceTappable}
-            />
-          ))}
+          {line.map((slotIndex) => {
+            const p = five[slotIndex];
+            return p ? (
+              <PlayerToken
+                key={p.id}
+                player={p}
+                teamId={team.id}
+                eventType={eventType}
+                pending={pending}
+                onRecord={onRecord}
+                playerStat={playerStat}
+                accent={accent}
+                onGrass={grass}
+                forceTappable={forceTappable}
+              />
+            ) : (
+              <EmptyPlayerSlot
+                key={`${team.id}-empty-${slotIndex}`}
+                teamName={team.name}
+                index={slotIndex}
+                accent={accent}
+                onGrass={grass}
+              />
+            );
+          })}
         </div>
       ))}
     </div>
   );
 }
 
-/** 코트 절반(한 팀) — 잔디 위 포메이션. 최대 5명을 GK·수비·공격 라인으로 배치.
+/** 코트 절반(한 팀) — 잔디 위 포메이션. 5 슬롯을 GK·수비·공격 라인으로 배치.
     좌상단(home)·우상단(away) 코너에 팀명/점수/누적 스탯 스트립. */
 function PitchFormation({
   team,
@@ -1857,58 +2472,6 @@ function PitchFormation({
           balanced={balanced}
         />
       ) : null}
-    </div>
-  );
-}
-
-/** 경기장 밖 대기선수 — 팀별 원형 번호 토큰 행. */
-function BenchStrip({
-  team,
-  eventType,
-  pending,
-  onRecord,
-  playerStat,
-}: {
-  team: TeamSide;
-  eventType: MatchEventType | "";
-  pending: boolean;
-  onRecord: (player: Player, teamId: string) => void | Promise<void>;
-  playerStat: (pid: string, type: MatchEventType) => number;
-}) {
-  const accent = teamAccent(team.side);
-  return (
-    <div
-      className="rounded-lg border p-2"
-      style={{ borderColor: "var(--border)", background: "var(--background)" }}
-    >
-      <div
-        className="mb-2 flex items-center gap-1.5 text-xs font-semibold"
-        style={{ color: "var(--muted-foreground)" }}
-      >
-        <span className="truncate">{team.name}</span>
-        <span>· 대기 {team.bench.length}</span>
-      </div>
-      {team.bench.length === 0 ? (
-        <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
-          대기 선수 없음
-        </p>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {team.bench.map((p) => (
-            <PlayerToken
-              key={p.id}
-              player={p}
-              teamId={team.id}
-              eventType={eventType}
-              pending={pending}
-              onRecord={onRecord}
-              playerStat={playerStat}
-              accent={accent}
-              onGrass={false}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }

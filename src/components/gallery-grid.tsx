@@ -60,7 +60,15 @@ export function GalleryGrid({
   const { player } = useAuth();
   const del = useDataStore((s) => s.deleteTeamPhoto);
 
-  useEffect(() => setPhotos(initial), [initial]);
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (active) setPhotos(initial);
+    });
+    return () => {
+      active = false;
+    };
+  }, [initial]);
 
   const remove = async (p: TeamPhoto) => {
     if (!confirm("사진을 삭제할까요?")) return;

@@ -13,7 +13,7 @@ if (!apiKey) {
 const model = process.env.OPENROUTER_VIDEO_MODEL ?? "bytedance/seedance-2.0-fast";
 const baseUrl =
   process.env.HERO_FRAME_BASE_URL ??
-  "https://fairground-footsal.vercel.app/images/reveal-sequence-4k";
+  "https://fairground-futsal.vercel.app/images/reveal-sequence-4k";
 const outDir = path.resolve("public/videos/hero-seedance");
 const finalVideo = path.resolve("public/videos/fairground-mobile-hero.mp4");
 
@@ -99,7 +99,7 @@ async function submitTransition(transition, index) {
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://fairground-footsal.vercel.app",
+      "HTTP-Referer": "https://fairground-futsal.vercel.app",
       "X-Title": "FairGround Mobile Hero",
     },
     body: JSON.stringify(body),
@@ -164,7 +164,10 @@ async function downloadJob(job, index) {
 
 async function concatClips(clipPaths) {
   const listPath = path.join(outDir, "clips.txt");
-  const list = clipPaths.map((clip) => `file '${clip.replaceAll("'", "'\\''")}'`).join("\n");
+  const list = clipPaths
+    .map((clip) => path.relative(outDir, clip))
+    .map((clip) => `file '${clip.replaceAll("'", "'\\''")}'`)
+    .join("\n");
   await writeFile(listPath, `${list}\n`);
 
   await execFileAsync("ffmpeg", [

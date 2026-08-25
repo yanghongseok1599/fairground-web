@@ -152,6 +152,38 @@ export const BADGES: Badge[] = [
     category: "field",
   },
 
+  // ===== 망상 그라운드 챌린지 참여 뱃지 =====
+  {
+    id: "event_shooting_king",
+    name: "슈팅왕",
+    icon: "🚀",
+    imageUrl: "/images/badges/event_shooting_king_v2.png?v=2",
+    description: "슈팅왕 챌린지 참여 완료",
+    unlockCondition: "슈팅속도 측정 참여",
+    maxProgress: 1,
+    category: "field",
+  },
+  {
+    id: "event_freekick_king",
+    name: "프리킥왕",
+    icon: "🎯",
+    imageUrl: "/images/badges/event_freekick_king_v2.png?v=2",
+    description: "프리킥왕 챌린지 참여 완료",
+    unlockCondition: "번호판 골대 맞히기 참여",
+    maxProgress: 1,
+    category: "field",
+  },
+  {
+    id: "event_touch_king",
+    name: "터치왕",
+    icon: "✨",
+    imageUrl: "/images/badges/event_touch_king_v2.png?v=2",
+    description: "터치왕 챌린지 참여 완료",
+    unlockCondition: "볼 터치 과녁 챌린지 참여",
+    maxProgress: 1,
+    category: "field",
+  },
+
   // ===== 골키퍼 전용 뱃지 =====
   {
     id: "clean_sheet",

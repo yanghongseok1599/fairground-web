@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import {
   CheckCircle2,
   ShieldAlert,
@@ -11,13 +12,139 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
-import { setPlayerApproval, setPlayerRole } from "@/lib/admin-actions";
+import { setPlayerApproval } from "@/lib/admin-actions";
 import {
   canManageTeamAsDirector,
   getDirectorRoleLabel,
   getTeamAdminMemberBuckets,
 } from "@/lib/team-admin";
+import { TEAM_ROLE_LABELS } from "@/lib/team-role-policy";
 import type { Player, Team, TeamJoinRequest } from "@/types";
+
+const GENDER_LABELS: Record<string, string> = {
+  male: "남성",
+  female: "여성",
+  other: "기타",
+  prefer_not_to_say: "응답 안 함",
+};
+
+function formatJoinRequestedAt(timestamp: number) {
+  return new Date(timestamp).toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatDate(value?: string) {
+  if (!value) return "미입력";
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+function formatAge(value?: string) {
+  if (!value) return "미입력";
+  const birth = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(birth.getTime())) return "미입력";
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const birthdayThisYear = new Date(today.getFullYear(), birth.getMonth(), birth.getDate());
+  if (today < birthdayThisYear) age -= 1;
+  return age >= 0 ? `만 ${age}세` : "미입력";
+}
+
+function JoinRequestInfoItem({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value?: string | number;
+  mono?: boolean;
+}) {
+  return (
+    <div className="min-w-0 rounded-2xl px-3 py-2" style={{ background: "rgba(0,71,171,0.045)" }}>
+      <p className="text-[10px] font-bold tracking-[0.12em]" style={{ color: "var(--color-fg-ink-muted)" }}>
+        {label}
+      </p>
+      <p
+        className={`mt-1 truncate text-xs font-black ${mono ? "font-mono" : ""}`}
+        style={{ color: "var(--color-fg-ink)" }}
+        title={value === undefined || value === null || value === "" ? "미입력" : String(value)}
+      >
+        {value === undefined || value === null || value === "" ? "미입력" : value}
+      </p>
+    </div>
+  );
+}
+
+function ApplicantProfileCard({
+  request,
+}: {
+  request: TeamJoinRequest;
+}) {
+  const genderLabel = request.playerGender
+    ? GENDER_LABELS[request.playerGender] ?? request.playerGender
+    : "미입력";
+
+  return (
+    <div
+      className="mt-3 rounded-2xl border p-3"
+      style={{
+        borderColor: "rgba(0,71,171,0.12)",
+        background: "rgba(248,250,255,0.88)",
+      }}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-sm font-black"
+            style={{
+              background: "rgba(0,71,171,0.10)",
+              color: "var(--primary)",
+            }}
+          >
+            {(request.playerName ?? "?").slice(0, 1)}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-base font-black" style={{ color: "var(--color-fg-ink)" }}>
+              {request.playerName ?? "이름 미기재"}
+            </p>
+            <p className="mt-1 text-xs font-bold" style={{ color: "var(--color-fg-ink-muted)" }}>
+              {request.playerPosition ?? "-"} · #{request.playerNumber ?? "-"}
+            </p>
+          </div>
+        </div>
+        <Link
+          href={`/players/${request.playerId}`}
+          className="inline-flex min-h-[34px] shrink-0 items-center justify-center rounded-md border px-3 text-xs font-black"
+          style={{
+            borderColor: "rgba(0,71,171,0.18)",
+            color: "var(--primary)",
+            background: "rgba(255,255,255,0.86)",
+          }}
+        >
+          프로필 카드 보기
+        </Link>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <JoinRequestInfoItem label="신청일" value={formatJoinRequestedAt(request.createdAt)} />
+        <JoinRequestInfoItem label="전화번호" value={request.playerPhone} />
+        <JoinRequestInfoItem label="이메일" value={request.playerEmail} />
+        <JoinRequestInfoItem label="성별" value={genderLabel} />
+        <JoinRequestInfoItem label="나이" value={formatAge(request.playerBirthDate)} />
+        <JoinRequestInfoItem label="생년월일" value={formatDate(request.playerBirthDate)} />
+      </div>
+    </div>
+  );
+}
 
 function StatCard({ label, value, desc }: { label: string; value: string | number; desc: string }) {
   return (
@@ -38,7 +165,7 @@ function MemberRow({ player, busy, onApprove, onReject, onPromote, onDemote }: {
   onPromote: () => void;
   onDemote: () => void;
 }) {
-  const isCaptain = player.role === "captain";
+  const isCoach = player.teamRole === "coach";
   return (
     <div className="rounded-3xl border p-4" style={{ borderColor: "rgba(0,71,171,0.12)", background: "rgba(255,255,255,0.78)" }}>
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -49,10 +176,21 @@ function MemberRow({ player, busy, onApprove, onReject, onPromote, onDemote }: {
               {player.isApproved ? "승인" : "대기"}
             </span>
             <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: "rgba(15,23,42,0.06)", color: "var(--color-fg-ink-muted)" }}>
-              {getDirectorRoleLabel(player.role)}
+              {getDirectorRoleLabel(player)}
             </span>
           </div>
           <p className="mt-1 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>{player.position} · #{player.number || "-"} · {player.phone || player.email || "연락처 미등록"}</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            <JoinRequestInfoItem label="신청일" value={formatJoinRequestedAt(player.createdAt)} />
+            <JoinRequestInfoItem label="이메일" value={player.email} />
+            <JoinRequestInfoItem label="전화번호" value={player.phone} />
+            <JoinRequestInfoItem label="선수 정보" value={`${player.position} · #${player.number || "-"}`} />
+            <JoinRequestInfoItem
+              label="성별 / 나이"
+              value={`${player.gender ? GENDER_LABELS[player.gender] ?? player.gender : "미입력"} · ${formatAge(player.birthDate)}`}
+            />
+            <JoinRequestInfoItem label="생년월일" value={formatDate(player.birthDate)} />
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {player.isApproved ? (
@@ -64,8 +202,8 @@ function MemberRow({ player, busy, onApprove, onReject, onPromote, onDemote }: {
               <CheckCircle2 className="h-4 w-4" /> 승인
             </button>
           )}
-          <button disabled={busy} onClick={isCaptain ? onDemote : onPromote} className="inline-flex min-h-[38px] items-center gap-2 rounded-2xl border px-3 text-xs font-black disabled:opacity-50" style={{ borderColor: "rgba(0,71,171,0.18)", color: "var(--primary)", background: "rgba(255,255,255,0.86)" }}>
-            <ShieldCheck className="h-4 w-4" /> {isCaptain ? "선수로 변경" : "감독 지정"}
+          <button disabled={busy} onClick={isCoach ? onDemote : onPromote} className="inline-flex min-h-[38px] items-center gap-2 rounded-2xl border px-3 text-xs font-black disabled:opacity-50" style={{ borderColor: "rgba(0,71,171,0.18)", color: "var(--primary)", background: "rgba(255,255,255,0.86)" }}>
+            <ShieldCheck className="h-4 w-4" /> {isCoach ? "멤버로 변경" : "감독 지정"}
           </button>
         </div>
       </div>
@@ -75,6 +213,7 @@ function MemberRow({ player, busy, onApprove, onReject, onPromote, onDemote }: {
 
 export default function TeamAdminPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const { player: currentPlayer, initialized } = useAuth();
   const store = useDataStore();
   const [team, setTeam] = useState<Team | null>(null);
@@ -97,14 +236,30 @@ export default function TeamAdminPage() {
   };
 
   useEffect(() => {
+    if (!initialized) return;
+    if (!currentPlayer) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     void refresh().finally(() => setLoading(false));
+    // Re-fetch after auth hydration. team_join_requests is protected by RLS,
+    // so an early anonymous fetch can legitimately return an empty list.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, initialized, currentPlayer?.id]);
 
   const canManage = useMemo(() => canManageTeamAsDirector(currentPlayer, team), [currentPlayer, team]);
   const buckets = useMemo(() => getTeamAdminMemberBuckets(players), [players]);
-  const captains = players.filter((member) => member.role === "captain");
+  const coaches = players.filter((member) => member.teamRole === "coach");
+  const managers = players.filter((member) => member.teamRole === "manager");
+  const totalPendingApprovals = joinRequests.length + buckets.pending.length;
+
+  useEffect(() => {
+    if (!loading && initialized && team && !canManage) {
+      router.replace(`/teams/${id}`);
+    }
+  }, [canManage, id, initialized, loading, router, team]);
 
   const runMemberAction = async (target: Player, action: () => Promise<void>, successMessage: string) => {
     setBusyPlayerId(target.id);
@@ -133,6 +288,14 @@ export default function TeamAdminPage() {
     return (
       <main className="flex min-h-screen items-center justify-center pt-[92px]" style={{ background: "var(--color-fg-paper)", color: "var(--color-fg-ink-muted)" }}>
         팀을 찾을 수 없습니다
+      </main>
+    );
+  }
+
+  if (!canManage) {
+    return (
+      <main className="flex min-h-screen items-center justify-center pt-[92px]" style={{ background: "var(--color-fg-paper)", color: "var(--color-fg-ink-muted)" }}>
+        팀 운영 권한이 없습니다. 팀 페이지로 이동합니다…
       </main>
     );
   }
@@ -167,7 +330,7 @@ export default function TeamAdminPage() {
           ) : (
             <ShieldAlert className="h-3.5 w-3.5" />
           )}
-          {canManage ? "관리 권한 확인됨" : "감독/관리자 권한 필요"}
+          {canManage ? "관리 권한 확인됨" : "감독/매니저 권한 필요"}
         </div>
       </div>
 
@@ -177,7 +340,7 @@ export default function TeamAdminPage() {
               <ShieldAlert className="mt-0.5 h-5 w-5" style={{ color: "var(--destructive)" }} />
               <div>
                 <h2 className="font-black" style={{ color: "var(--color-fg-ink)" }}>읽기 전용 안내</h2>
-                <p className="mt-1 text-sm leading-relaxed">현재 계정이 이 팀의 감독/주장 또는 리그 관리자로 확인되지 않았습니다. 관리 액션은 비활성화됩니다.</p>
+                <p className="mt-1 text-sm leading-relaxed">현재 계정이 이 팀의 감독·매니저 또는 리그 관리자로 확인되지 않았습니다. 관리 액션은 비활성화됩니다.</p>
               </div>
             </div>
           </section>
@@ -191,8 +354,8 @@ export default function TeamAdminPage() {
 
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="승인 선수" value={buckets.approved.length} desc="현재 팀 로스터에 노출되는 선수입니다." />
-          <StatCard label="승인 대기" value={buckets.pending.length} desc="감독 확인 후 바로 승인할 수 있습니다." />
-          <StatCard label="감독/주장" value={captains.length || "-"} desc="팀 운영 권한을 가진 팀 내부 관리자입니다." />
+          <StatCard label="승인 대기" value={totalPendingApprovals} desc="가입 신청과 로스터 미승인을 합친 대기 건수입니다." />
+          <StatCard label="감독/매니저" value={coaches.length + managers.length || "-"} desc="감독은 선수 지도·경기 운영 총책임, 매니저는 팀 운영관리 담당입니다." />
           <StatCard label="팀 상태" value={team.isApproved ? "승인" : "대기"} desc="리그 공식 팀 승인 상태입니다." />
         </div>
 
@@ -228,19 +391,29 @@ export default function TeamAdminPage() {
               {joinRequests.map((req) => (
                 <li
                   key={req.id}
-                  className="flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-4 rounded-2xl border p-4 lg:flex-row lg:items-start lg:justify-between"
                   style={{ borderColor: "rgba(0,71,171,0.12)" }}
                 >
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold" style={{ color: "var(--color-fg-ink)" }}>
-                      {req.playerName ?? "이름 미기재"}
-                    </p>
-                    <p className="mt-0.5 text-[11px]" style={{ color: "var(--color-fg-ink-muted)" }}>
-                      {new Date(req.createdAt).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })} 신청
-                      {req.message ? ` · "${req.message}"` : ""}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-black" style={{ color: "var(--color-fg-ink)" }}>
+                        {req.playerName ?? "이름 미기재"}
+                      </p>
+                      <span
+                        className="rounded-full px-2.5 py-1 text-[11px] font-black"
+                        style={{ background: "rgba(0,71,171,0.10)", color: "var(--primary)" }}
+                      >
+                        신청자
+                      </span>
+                    </div>
+                    <ApplicantProfileCard request={req} />
+                    {req.message && (
+                      <p className="mt-3 rounded-2xl px-3 py-2 text-xs leading-relaxed" style={{ background: "rgba(15,23,42,0.045)", color: "var(--color-fg-ink-muted)" }}>
+                        신청 메시지: &quot;{req.message}&quot;
+                      </p>
+                    )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 gap-2">
                     <button
                       type="button"
                       disabled={busyRequestId === req.id || !canManage}
@@ -311,7 +484,7 @@ export default function TeamAdminPage() {
                 className="fg-display text-2xl font-black"
                 style={{ color: "var(--color-fg-ink)" }}
               >
-                승인 대기
+                로스터 승인 대기
               </h2>
             </div>
             <span
@@ -350,16 +523,16 @@ export default function TeamAdminPage() {
                   canManage &&
                   void runMemberAction(
                     member,
-                    () => setPlayerRole(member.id, "captain"),
-                    `${member.name} 선수를 감독으로 지정했습니다.`,
+                    () => store.updatePlayerTeamRole(member.id, "coach"),
+                    `${member.name} 선수를 ${TEAM_ROLE_LABELS.coach}로 지정했습니다.`,
                   )
                 }
                 onDemote={() =>
                   canManage &&
                   void runMemberAction(
                     member,
-                    () => setPlayerRole(member.id, "player"),
-                    `${member.name} 선수를 일반 선수로 변경했습니다.`,
+                    () => store.updatePlayerTeamRole(member.id, "member"),
+                    `${member.name} 선수를 ${TEAM_ROLE_LABELS.member}로 변경했습니다.`,
                   )
                 }
               />
@@ -369,7 +542,7 @@ export default function TeamAdminPage() {
                 className="py-10 text-center text-sm"
                 style={{ color: "var(--color-fg-ink-muted)" }}
               >
-                승인 대기 선수가 없습니다.
+                로스터 승인 대기 선수가 없습니다.
               </p>
             )}
           </div>

@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, ShieldCheck, UserCheck } from "lucide-react";
 import { AdminGuard } from "@/components/admin-guard";
 import { AdminPanel, AdminShell, AdminStatusPill } from "@/components/admin-shell";
+import { PlayerProfilePhoto } from "@/components/player-profile-photo";
 import { useDataStore } from "@/stores/dataStore";
 import type { Player, Team } from "@/types";
+import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 
 /**
  * 감독 신청 대기 큐 — admin 전용.
@@ -82,7 +84,7 @@ function AdminCoaches() {
     <AdminShell
       eyebrow="COACH APPROVAL"
       title="감독 승인"
-      description="감독으로 가입 신청한 사용자를 검토하고 승인합니다. 승인 시 해당 팀의 공지·멤버 관리 권한이 활성화됩니다."
+      description="감독으로 가입 신청한 사용자를 검토하고 승인합니다. 승인 시 해당 팀의 선수 지도·경기 운영 권한이 활성화됩니다."
     >
       <AdminPanel>
         <div
@@ -115,25 +117,11 @@ function AdminCoaches() {
                 <article key={player.id} className="p-5 transition-colors hover:bg-[#F5F7FF]">
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-center gap-4">
-                      <div
-                        className="flex h-14 w-14 items-center justify-center overflow-hidden border"
-                        style={{
-                          background: "var(--color-fg-paper-3)",
-                          borderColor: "rgba(0,71,171,0.18)",
-                          color: "var(--primary)",
-                        }}
-                      >
-                        {player.profilePhotoUrl || player.photoUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={player.profilePhotoUrl || player.photoUrl}
-                            alt={player.name}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <UserCheck className="h-6 w-6" />
-                        )}
-                      </div>
+                      <PlayerProfilePhoto
+                        src={getPlayerProfilePhotoUrl(player)}
+                        alt={player.name}
+                        icon={UserCheck}
+                      />
                       <div>
                         <div
                           className="fg-display text-xl font-black"

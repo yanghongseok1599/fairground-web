@@ -177,6 +177,19 @@
   }
 }
 
+@media (max-width: 767px) and (orientation: portrait) {
+  .match-landscape-shell {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 100dvh;
+    height: 100dvw;
+    max-width: none;
+    transform: translate(-50%, -50%) rotate(90deg);
+    transform-origin: center;
+  }
+}
+
 /* =====================================================
  * Utilities for the stadium system (light)
  * ===================================================== */

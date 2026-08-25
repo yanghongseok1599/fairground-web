@@ -2,21 +2,32 @@
 
 import { create } from "zustand";
 import { supabase, isDemoMode } from "@/config/supabase";
+import { SITE_URL } from "@/lib/site-config";
 import { rowToPlayer, playerToInsert, playerPatchToRow } from "@/lib/mappers";
-import type { Gender, Player, PlayerRole, Position } from "@/types";
+import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
+import {
+  clearPendingCardSkin,
+  GROUND_CHALLENGE_PLAYER_CARD_SKIN,
+  readPendingCardSkin,
+} from "@/lib/player-card-skin";
+import type { Gender, Player, PlayerCardSkin, PlayerRole, Position, TeamRole } from "@/types";
 
 // Supabase auth.users 를 앱 전반이 쓰는 최소 형태로 노출.
 // Firebase User.uid 호환을 위해 Supabase user.id 를 uid 로 매핑.
 export interface AuthUser {
   uid: string;
   email: string | null;
+  gender?: Gender;
 }
 
 // ===== localStorage helpers for demo mode =====
 const LS_USERS = "fg_users";
 const LS_PLAYERS = "fg_players";
 const LS_SESSION = "fg_session";
+const LS_DEV_ADMIN_SESSION = "fg_dev_admin_session";
 const SHORT_ID_DOMAIN = "fairground.local";
+const LOCAL_ADMIN_EMAIL = `admin@${SHORT_ID_DOMAIN}`;
+const LOCAL_ADMIN_PASSWORD = "3412";
 
 interface LocalUser {
   uid: string;
@@ -67,15 +78,17 @@ function generateUid(): string {
   return "local_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
 }
 
-function generatePublicPlayerId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+function normalizeAuthGender(value: unknown): Gender | undefined {
+  return value === "male" ||
+    value === "female" ||
+    value === "other" ||
+    value === "prefer_not_to_say"
+    ? value
+    : undefined;
 }
 
-function makeUser(uid: string, email: string | null): AuthUser {
-  return { uid, email };
+function makeUser(uid: string, email: string | null, gender?: Gender | null): AuthUser {
+  return { uid, email, ...(gender ? { gender } : {}) };
 }
 
 function normalizeLoginId(value: string): string {
@@ -84,12 +97,33 @@ function normalizeLoginId(value: string): string {
   return trimmed.includes("@") ? trimmed : `${trimmed}@${SHORT_ID_DOMAIN}`;
 }
 
+function canUseLocalAdminOverride(): boolean {
+  if (typeof window === "undefined") return false;
+  if (process.env.NODE_ENV === "production") return false;
+  return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+}
+
+function isLocalAdminCredentials(email: string, password: string): boolean {
+  return normalizeLoginId(email) === LOCAL_ADMIN_EMAIL && password.trim() === LOCAL_ADMIN_PASSWORD;
+}
+
+function isLocalAdminLogin(email: string, password: string): boolean {
+  return canUseLocalAdminOverride() && isLocalAdminCredentials(email, password);
+}
+
+function getAuthRedirectOrigin(): string {
+  if (typeof window === "undefined") return SITE_URL;
+  const { hostname, origin } = window.location;
+  if (hostname === "localhost" || hostname === "127.0.0.1") return origin;
+  return SITE_URL;
+}
+
 function makePlayer(
   uid: string,
   name: string,
   phone: string,
   teamId = "",
-  extra: Partial<Pick<Player, "email" | "gender" | "birthDate" | "hasPlayerExperience">> = {},
+  extra: Partial<Pick<Player, "email" | "gender" | "birthDate" | "hasPlayerExperience" | "cardSkin">> = {},
 ): Player {
   return {
     id: uid,
@@ -100,8 +134,9 @@ function makePlayer(
     teamId,
     nationality: "KOR",
     photoUrl: "",
-    photoScale: 1,
+    photoScale: DEFAULT_CARD_PHOTO_SCALE,
     cardType: "gold",
+    cardSkin: extra.cardSkin ?? "standard",
     cardRating: 70,
     stats: { goals: 0, assists: 0, games: 0, mom: 0 },
     badges: [],
@@ -115,6 +150,45 @@ function makePlayer(
     hasPlayerExperience: extra.hasPlayerExperience ?? false,
     createdAt: Date.now(),
   };
+}
+
+function makeLocalAdminPlayer(): Player {
+  return {
+    id: "local-dev-admin",
+    uid: "local-dev-admin",
+    name: "관리자",
+    number: 0,
+    position: "ALA" as Position,
+    teamId: "",
+    nationality: "KOR",
+    photoUrl: "",
+    photoScale: DEFAULT_CARD_PHOTO_SCALE,
+    cardType: "premium",
+    cardSkin: "standard",
+    cardRating: 100,
+    stats: { goals: 0, assists: 0, games: 0, mom: 0 },
+    badges: [],
+    penaltyStatus: { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
+    isApproved: true,
+    role: "admin",
+    email: LOCAL_ADMIN_EMAIL,
+    createdAt: Date.now(),
+  };
+}
+
+function saveLocalAdminSession() {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(LS_DEV_ADMIN_SESSION, "1");
+}
+
+function clearLocalAdminSession() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(LS_DEV_ADMIN_SESSION);
+}
+
+function hasLocalAdminSession(): boolean {
+  if (!canUseLocalAdminOverride()) return false;
+  return localStorage.getItem(LS_DEV_ADMIN_SESSION) === "1";
 }
 
 // 프로필 행 조회 (없으면 null). 에러는 호출부에 표면화(은폐 catch 금지 — D-H).
@@ -137,6 +211,7 @@ interface RegisterData {
   birthDate: string;
   hasPlayerExperience: boolean;
   teamId?: string;
+  cardSkin?: PlayerCardSkin;
 }
 
 interface CreatePlayerData {
@@ -146,9 +221,13 @@ interface CreatePlayerData {
   role?: Exclude<PlayerRole, "admin">;
   teamId: string;
   nationality: string;
+  gender?: Gender;
   photoUrl?: string;
   profilePhotoUrl?: string;
+  profilePhotoLocked?: boolean;
   photoScale?: number;
+  teamRole?: TeamRole;
+  cardSkin?: PlayerCardSkin;
 }
 
 interface AuthState {
@@ -180,6 +259,17 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
     try {
       const normalizedEmail = normalizeLoginId(email);
       const normalizedPassword = password.trim();
+      if (isLocalAdminLogin(email, normalizedPassword)) {
+        const admin = makeLocalAdminPlayer();
+        saveLocalAdminSession();
+        setState({
+          user: makeUser(admin.uid, LOCAL_ADMIN_EMAIL),
+          player: admin,
+          loading: false,
+          initialized: true,
+        });
+        return;
+      }
       if (isDemoMode) {
         const users = getLocalUsers();
         const found = users.find((u) => u.email === normalizedEmail && u.password === normalizedPassword);
@@ -224,6 +314,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
           gender: data.gender,
           birthDate: data.birthDate,
           hasPlayerExperience: data.hasPlayerExperience,
+          cardSkin: data.cardSkin,
         });
         const players = getLocalPlayers();
         players[uid] = player;
@@ -231,24 +322,41 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
         setState({ user: makeUser(uid, normalizedEmail), player, loading: false });
         return;
       }
+      // 프로필 생성은 클라이언트 INSERT가 아니라 auth.users 트리거
+      // (public.handle_new_user, SECURITY DEFINER)가 서버측에서 수행한다.
+      // 이렇게 하면 "Confirm email" 설정/세션 유무와 무관하게 프로필이 항상 생성된다.
+      // (이전엔 세션 없는 signUp 직후의 클라이언트 INSERT가 profiles RLS에 막혀
+      //  "new row violates row-level security policy" 로 가입이 실패했다.)
+      // 사용자 입력값은 user_metadata(raw_user_meta_data)로 트리거에 전달한다.
       const { data: signUp, error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password: data.password,
+        options: {
+          data: {
+            name: data.name,
+            phone: data.phone,
+            gender: data.gender || "",
+            birth_date: data.birthDate || "",
+            has_player_experience: data.hasPlayerExperience,
+            team_id: data.teamId || "",
+            card_skin: data.cardSkin ?? "standard",
+          },
+        },
       });
       if (error) throw new Error(error.message);
       if (!signUp.user) throw new Error("가입에 실패했습니다");
       const uid = signUp.user.id;
+      // 트리거가 생성한 행과 동일한 기본값으로 로컬 상태를 구성(즉시 UI 반영용).
+      // 실제 영속화는 트리거가 담당하며, 다음 init()의 fetchProfile이 정본을 읽어온다.
       const player = makePlayer(uid, data.name, data.phone, data.teamId, {
         email: normalizedEmail,
         gender: data.gender,
         birthDate: data.birthDate,
         hasPlayerExperience: data.hasPlayerExperience,
+        cardSkin: data.cardSkin,
       });
-      // RLS: id = auth.uid() 인 행만 INSERT 허용. role/is_approved 는 DB 기본값.
-      const { error: insErr } = await supabase.from("profiles").insert(playerToInsert(player));
-      if (insErr) throw new Error(insErr.message);
       setState({
-        user: makeUser(uid, signUp.user.email ?? normalizedEmail),
+        user: makeUser(uid, signUp.user.email ?? normalizedEmail, data.gender),
         player,
         loading: false,
       });
@@ -276,8 +384,10 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
         teamId: data.teamId,
         photoUrl: data.photoUrl || "",
         profilePhotoUrl: data.profilePhotoUrl || data.photoUrl || "",
-        photoScale: data.photoScale ?? 1,
+        profilePhotoLocked: data.profilePhotoLocked ?? false,
+        photoScale: data.photoScale ?? DEFAULT_CARD_PHOTO_SCALE,
         cardType: existingPlayer?.cardType ?? "gold",
+        cardSkin: data.cardSkin ?? existingPlayer?.cardSkin ?? "standard",
         cardRating: existingPlayer?.cardRating ?? 70,
         stats: existingPlayer?.stats ?? { goals: 0, assists: 0, games: 0, mom: 0 },
         badges: existingPlayer?.badges ?? [],
@@ -288,7 +398,9 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
         },
         isApproved: existingPlayer?.isApproved ?? false,
         role: data.role ?? existingPlayer?.role ?? "player",
+        teamRole: data.teamRole ?? existingPlayer?.teamRole,
         nationality: data.nationality || "KOR",
+        gender: data.gender ?? existingPlayer?.gender ?? currentUser?.gender,
         createdAt: existingPlayer?.createdAt ?? Date.now(),
       };
       if (isDemoMode) {
@@ -329,7 +441,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       // onAuthStateChange 가 수행한다.
       let redirectTo: string | undefined;
       if (typeof window !== "undefined") {
-        const cb = new URL("/auth/callback", window.location.origin);
+        const cb = new URL("/auth/callback", getAuthRedirectOrigin());
         if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
           cb.searchParams.set("returnTo", returnTo);
         }
@@ -348,6 +460,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
   },
 
   logout: async () => {
+    clearLocalAdminSession();
     if (isDemoMode) {
       clearSession();
       setState({ user: null, player: null });
@@ -396,6 +509,17 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
   clearError: () => setState({ error: null }),
 
   init: () => {
+    if (hasLocalAdminSession()) {
+      const admin = makeLocalAdminPlayer();
+      setState({
+        user: makeUser(admin.uid, LOCAL_ADMIN_EMAIL),
+        player: admin,
+        loading: false,
+        initialized: true,
+      });
+      return () => {};
+    }
+
     if (isDemoMode) {
       const uid = getSession();
       if (uid) {
@@ -418,10 +542,16 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       const sUser = session?.user;
       if (sUser) {
+        const authGender = normalizeAuthGender(sUser.user_metadata?.gender);
+        const current = getState();
+        const hasHydratedSameUser =
+          current.user?.uid === sUser.id && current.player !== null && current.initialized;
+
         setState({
-          user: makeUser(sUser.id, sUser.email ?? null),
-          loading: false,
-          initialized: true,
+          user: makeUser(sUser.id, sUser.email ?? null, authGender),
+          player: hasHydratedSameUser ? current.player : null,
+          loading: !hasHydratedSameUser,
+          initialized: hasHydratedSameUser,
         });
 
         // Supabase auth callbacks must not await Supabase calls directly.
@@ -430,6 +560,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
           void (async () => {
             try {
               let player = await fetchProfile(sUser.id);
+              const pendingCardSkin = readPendingCardSkin();
               // OAuth 최초 로그인 시 프로필 자동 생성.
               if (!player) {
                 const created = makePlayer(
@@ -437,24 +568,41 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
                   (sUser.user_metadata?.full_name as string) || sUser.email || "",
                   "",
                   "",
-                  { email: sUser.email ?? undefined }
+                  { email: sUser.email ?? undefined, gender: authGender, cardSkin: pendingCardSkin }
                 );
                 const { error } = await supabase.from("profiles").insert(playerToInsert(created));
                 if (error) {
                   console.error("[authStore] auto-create profile failed:", error.message);
                 } else {
+                  if (pendingCardSkin) clearPendingCardSkin();
                   player = created;
+                }
+              } else if (
+                pendingCardSkin === GROUND_CHALLENGE_PLAYER_CARD_SKIN &&
+                player.cardSkin !== GROUND_CHALLENGE_PLAYER_CARD_SKIN
+              ) {
+                const { data, error } = await supabase
+                  .from("profiles")
+                  .update({ card_skin: GROUND_CHALLENGE_PLAYER_CARD_SKIN })
+                  .eq("id", sUser.id)
+                  .select("*")
+                  .single();
+                if (error) {
+                  console.error("[authStore] apply pending card skin failed:", error.message);
+                } else {
+                  clearPendingCardSkin();
+                  player = rowToPlayer(data);
                 }
               }
               setState({
-                user: makeUser(sUser.id, sUser.email ?? null),
+                user: makeUser(sUser.id, sUser.email ?? null, authGender),
                 player,
                 loading: false,
                 initialized: true,
               });
             } catch {
               setState({
-                user: makeUser(sUser.id, sUser.email ?? null),
+                user: makeUser(sUser.id, sUser.email ?? null, authGender),
                 player: null,
                 loading: false,
                 initialized: true,

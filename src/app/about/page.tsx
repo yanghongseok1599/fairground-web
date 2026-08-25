@@ -5,6 +5,7 @@ import {
   Award,
   Calendar,
   ClipboardList,
+  Download,
   Layers,
   ShieldCheck,
   UserPlus,
@@ -12,18 +13,20 @@ import {
 import { Section } from "@/components/section";
 import { PlayerCard } from "@/components/player-card";
 import { BADGES } from "@/constants/badges";
+import { MATCH_RULEBOOK_PDF_PATH } from "@/lib/rulebook-assets";
+import { SITE_URL } from "@/lib/site-config";
 import type { Player } from "@/types";
 
 export const metadata: Metadata = {
   title: "소개 — 모두가 승리하는 그라운드",
   description:
-    "현 풋살대회의 문제점과 FairGround의 해결책. 탈락 없는 시즌, 기록이 남는 경험, 누구나 환영하는 그라운드 — Connect · Compete · Collect.",
-  alternates: { canonical: "https://fairground.kr/about" },
+    "현 풋살대회의 문제점과 FairGround의 해결책. 탈락 없는 시즌, 심판·부심·관리자 실시간 기록, 선수카드와 리그 데이터가 남는 그라운드.",
+  alternates: { canonical: `${SITE_URL}/about` },
   openGraph: {
     title: "FairGround 소개 — 모두가 승리하는 그라운드",
     description:
-      "경쟁만 강요하는 풋살대회를 축제로. 문제 → 해결, FairGround가 그라운드를 다시 설계한 이유.",
-    url: "https://fairground.kr/about",
+      "경쟁만 강요하는 풋살대회를 축제로. 심판·부심·관리자 실시간 기록과 선수카드 성장까지 FairGround가 그라운드를 다시 설계한 이유.",
+    url: `${SITE_URL}/about`,
   },
 };
 
@@ -43,7 +46,7 @@ const PROBLEMS = [
     num: "02",
     title: "돈 내고 시간 버리는 경험",
     items: [
-      "2시간 기다려 15분 뛰는 일이 흔하다",
+      "2시간 기다려 12분 뛰는 일이 흔하다",
       "팀당 참가비 내고 돌아오는 게 없다",
       "골·어시스트 기록이 전혀 남지 않는다",
       "이전 대회 성과가 다음으로 이어지지 않는다",
@@ -79,7 +82,8 @@ const SOLUTIONS = [
     items: [
       "5경기 보장 — 충분한 경기 시간, 대기 최소화",
       "참가비만큼의 경험과 가치를 돌려준다",
-      "골·어시스트·출전 기록 자동 저장",
+      "심판·부심이 득점자와 어시스트 선수를 경기 중 체크",
+      "놓친 어시스트는 관리자가 실시간 보강",
       "시즌 성과가 다음 시즌으로 이어진다",
     ],
   },
@@ -90,7 +94,7 @@ const SOLUTIONS = [
       "개인 참가 가능, 팀 매칭 지원",
       "여성 2인 의무 출전 규정",
       "앱 하나로 모든 정보 한눈에",
-      "안전 규정 최우선 + 경기 후 심판 평가로 운영 향상",
+      "안전 규정 최우선 + MOM은 심판이 선정",
     ],
   },
 ] as const;
@@ -107,7 +111,7 @@ const RULES = [
   {
     icon: Calendar,
     title: "시즌 운영",
-    body: "한 번 지면 끝나는 토너먼트가 아니라 시즌 전체를 뛰는 구조입니다. 경기 결과는 팀 전적과 선수 기록에 계속 누적됩니다.",
+    body: "한 번 지면 끝나는 토너먼트가 아니라 시즌 전체를 뛰는 구조입니다. 경기 결과와 개인 기록은 팀 전적과 선수카드에 계속 누적됩니다.",
   },
   {
     icon: Layers,
@@ -117,7 +121,7 @@ const RULES = [
   {
     icon: ShieldCheck,
     title: "공정 경기 규정",
-    body: "여성 2인 의무 출전, 안전 규정, 페널티 관리를 기준으로 운영합니다. 거친 플레이와 비매너는 누적 관리됩니다.",
+    body: "심판·부심·관리자가 득점자와 어시스트를 교차 확인합니다. 여성 2인 의무 출전, 안전 규정, 페널티 관리도 함께 운영합니다.",
   },
   {
     icon: Award,
@@ -135,17 +139,17 @@ const CARD_RULES = [
   {
     title: "기록 누적",
     value: "골 · 어시 · 경기 · MOM",
-    body: "경기마다 주요 기록이 카드 하단 스탯으로 쌓입니다.",
+    body: "심판·부심이 득점자와 어시스트를 체크하고, 관리자가 놓친 기록을 보강해 카드 하단 스탯으로 쌓습니다.",
   },
   {
-    title: "프리미엄 승격",
+    title: "플래티넘 승격",
     value: "WINNER ONLY",
-    body: "시즌 우승팀 선수에게만 프리미엄 테두리가 지급됩니다.",
+    body: "필드 우승팀은 팀카드 특수효과로 구분되고, 우승팀 선수에게는 플래티넘 테두리가 지급됩니다.",
   },
   {
     title: "90+ 성장",
-    value: "PREMIUM 90+",
-    body: "프리미엄 선수는 누적 기록을 바탕으로 90점 이상까지 성장할 수 있습니다.",
+    value: "PLATINUM 90+",
+    body: "플래티넘 선수는 누적 기록을 바탕으로 90점 이상까지 성장할 수 있습니다.",
   },
 ];
 
@@ -218,7 +222,7 @@ const CARD_SYSTEM_PLAYERS: Array<{ id: "bronze" | "silver" | "gold" | "premium";
   },
   {
     id: "premium",
-    label: "PREMIUM 100+",
+    label: "PLATINUM 100+",
     player: {
       id: "card-system-premium",
       uid: "card-system-premium",
@@ -297,9 +301,12 @@ export default function AboutPage() {
             <h1
               className="fg-display"
               style={{
-                fontSize: "clamp(52px, 8vw, 112px)",
-                lineHeight: 0.9,
-                letterSpacing: "-0.02em",
+                // "FAIRGROUND"(10글자)가 max-w-620 컬럼을 넘어 단어 중간에서
+                // 줄바꿈되던 문제 → 컬럼에 맞게 상한을 낮추고 nowrap 으로 고정.
+                fontSize: "clamp(40px, 8.5vw, 88px)",
+                lineHeight: 0.95,
+                letterSpacing: "-0.03em",
+                whiteSpace: "nowrap",
                 color: "var(--color-fg-blue-deep)",
                 textShadow: "0 8px 22px rgba(0,71,171,0.10)",
               }}
@@ -610,7 +617,7 @@ export default function AboutPage() {
             <div className="grid grid-cols-1 border-t md:grid-cols-3" style={{ borderColor: "var(--color-fg-line-soft)" }}>
               {[
                 { label: "참가", value: "팀/선수 등록" },
-                { label: "경기", value: "시즌 기록 누적" },
+                { label: "경기", value: "득점·어시 실시간 체크" },
                 { label: "결과", value: "순위·카드·시상 반영" },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between border-b px-6 py-4 md:border-b-0 md:border-r" style={{ borderColor: "var(--color-fg-line-soft)" }}>
@@ -626,14 +633,23 @@ export default function AboutPage() {
           </div>
 
           {/* 전체 룰북 보기 — 상세 경기·운영 규정 페이지로 이동 */}
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
               href="/rulebook"
               className="inline-flex min-h-[48px] items-center gap-2 px-7 text-[14px] font-bold transition-transform hover:-translate-y-0.5"
               style={{ background: "var(--primary)", color: "var(--color-fg-paper)", boxShadow: "0 12px 26px rgba(0,71,171,0.28)" }}
             >
-              전체 룰북 보기 →
+              경기규정 상세 보기 →
             </Link>
+            <a
+              href={MATCH_RULEBOOK_PDF_PATH}
+              download
+              className="inline-flex min-h-[48px] items-center gap-2 border px-7 text-[14px] font-bold transition-transform hover:-translate-y-0.5"
+              style={{ background: "var(--color-fg-paper)", borderColor: "rgba(0,71,171,0.22)", color: "var(--primary)" }}
+            >
+              <Download className="h-4 w-4" />
+              PDF 다운로드
+            </a>
           </div>
         </div>
       </section>
@@ -720,8 +736,8 @@ export default function AboutPage() {
           <div className="mt-8 grid grid-cols-1 gap-3 md:grid-cols-3">
             {[
               "골드 카드는 등록 즉시 지급되는 기본 카드입니다.",
-              "우승팀 선수만 프리미엄 테두리로 승격됩니다.",
-              "프리미엄부터 누적 기록에 따라 90점 이상 성장합니다.",
+              "필드 우승팀은 팀카드 테두리에 특수효과가 적용됩니다.",
+              "우승팀 선수는 플래티넘으로 승격되고 누적 기록에 따라 90점 이상 성장합니다.",
             ].map((text) => (
               <div key={text} className="border px-5 py-4 text-sm" style={{ borderColor: "rgba(255,255,255,0.12)", color: "var(--color-fg-ink-dim)" }}>
                 {text}

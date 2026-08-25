@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Loader2, AlertTriangle, ArrowLeftRight } from "lucide-react";
 import { resolveMatchTrack } from "@/lib/match-operation-access";
 import { validateSubstitution } from "@/lib/match-substitution";
+import { matchMinuteFromElapsed } from "@/lib/match-config";
 import type { Match, MatchLineupEntry } from "@/types";
 
 /**
@@ -101,7 +102,7 @@ export default function CoachSubstitutionPage() {
     () => liveMatches.find((m) => m.id === matchId) ?? null,
     [liveMatches, matchId],
   );
-  const minute = live ? Math.floor((live.elapsedSeconds ?? 0) / 60) : 0;
+  const minute = live ? matchMinuteFromElapsed(live.elapsedSeconds ?? 0) : 0;
   const half = live ? live.currentHalf : 1;
 
   const handleBenchTap = useCallback(

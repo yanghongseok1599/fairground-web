@@ -67,9 +67,11 @@ export function rowToPlayer(r: ProfileRow): Player {
     nationality: r.nationality,
     photoUrl: r.photo_url,
     profilePhotoUrl: r.profile_photo_url ?? undefined,
+    profilePhotoLocked: r.profile_photo_locked ?? false,
     photoScale: r.photo_scale ?? undefined,
     photoOffsetX: r.photo_offset_x ?? undefined,
     cardType: r.card_type,
+    cardSkin: r.card_skin === "hologram" ? "hologram" : "standard",
     cardRating: r.card_rating,
     stats: { goals: r.goals, assists: r.assists, games: r.games, mom: r.mom },
     badges: r.badges,
@@ -107,9 +109,11 @@ export function playerToInsert(p: Player): ProfileInsert {
     nationality: p.nationality,
     photo_url: p.photoUrl,
     profile_photo_url: p.profilePhotoUrl ?? null,
+    profile_photo_locked: p.profilePhotoLocked ?? false,
     photo_scale: p.photoScale ?? null,
     photo_offset_x: p.photoOffsetX ?? null,
     card_type: p.cardType === "premium" ? "premium" : "gold",
+    card_skin: p.cardSkin ?? "standard",
     card_rating: p.cardRating,
     goals: p.stats.goals,
     assists: p.stats.assists,
@@ -144,9 +148,11 @@ export function playerPatchToRow(d: Partial<Player>): ProfileUpdate {
   if (d.nationality !== undefined) u.nationality = d.nationality;
   if (d.photoUrl !== undefined) u.photo_url = d.photoUrl;
   if (d.profilePhotoUrl !== undefined) u.profile_photo_url = d.profilePhotoUrl ?? null;
+  if (d.profilePhotoLocked !== undefined) u.profile_photo_locked = d.profilePhotoLocked ?? false;
   if (d.photoScale !== undefined) u.photo_scale = d.photoScale ?? null;
   if (d.photoOffsetX !== undefined) u.photo_offset_x = d.photoOffsetX ?? null;
   if (d.cardType !== undefined) u.card_type = d.cardType === "premium" ? "premium" : "gold";
+  if (d.cardSkin !== undefined) u.card_skin = d.cardSkin;
   if (d.badges !== undefined) u.badges = d.badges;
   if (d.role !== undefined) u.role = d.role;
   if (d.phone !== undefined) u.phone = d.phone ?? null;
@@ -518,6 +524,7 @@ export function rowToNotification(r: NotificationRowWithActor): NotificationItem
     postId: r.post_id ?? undefined,
     commentId: r.comment_id ?? undefined,
     teamId: r.team_id ?? undefined,
+    matchId: r.match_id ?? undefined,
     title: r.title,
     snippet: r.snippet ?? undefined,
     readAt: r.read_at ? new Date(r.read_at).getTime() : undefined,

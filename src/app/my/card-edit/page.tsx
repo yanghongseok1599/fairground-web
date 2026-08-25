@@ -8,7 +8,12 @@ import { useDataStore } from "@/stores/dataStore";
 import { COUNTRIES } from "@/constants/countries";
 import { BADGES } from "@/constants/badges";
 import { PlayerCard } from "@/components/player-card";
-import { compressImageBlob } from "@/lib/image-compression";
+import { compressImageBlob, removeBackgroundAndCompress } from "@/lib/image-compression";
+import { composeTeamlessPoseCardPhoto } from "@/lib/player-card-photo-composer";
+import { isHologramPlayerCard } from "@/lib/player-card-skin";
+import { DEFAULT_CARD_PHOTO_SCALE, getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
+import { FAIRGROUND_OPS_TEAM_LOGO } from "@/lib/team-logo-assets";
+import { PUBLIC_PAGE_CONTENT_CLASS, PUBLIC_PAGE_GUTTER_CLASS } from "@/lib/page-layout";
 import type { Position, Player } from "@/types";
 
 /* ===========================================================
@@ -41,14 +46,15 @@ const inputStyle: React.CSSProperties = {
   color: "var(--color-fg-ink)",
 };
 
-const CARD_W = 280;
-const CARD_H = Math.round(CARD_W * 1240 / 1080);
-const PHOTO_OVERLAY = { x: 47, y: 14.5, w: 27, h: 38 };
+function filterEarnedBadgeIds(badgeIds: string[], earnedBadgeIds: Set<string> | null): string[] {
+  if (!earnedBadgeIds) return [];
+  return badgeIds.filter((id) => earnedBadgeIds.has(id)).slice(0, 4);
+}
 
 export default function CardEditPage() {
   const router = useRouter();
   const { user, player, loading, error, clearError, updatePlayer, uploadPlayerPhoto, initialized } = useAuth();
-  const { teams, fetchTeams } = useDataStore();
+  const { teams, fetchTeams, fetchMyBadges } = useDataStore();
 
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
@@ -56,12 +62,14 @@ export default function CardEditPage() {
   const [teamId, setTeamId] = useState("");
   const [nationality, setNationality] = useState("KOR");
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
-  const [originalPhotoBlob, setOriginalPhotoBlob] = useState<Blob | null>(null);
+  const [sourcePhotoBlob, setSourcePhotoBlob] = useState<Blob | null>(null);
+  const [cutoutPhotoBlob, setCutoutPhotoBlob] = useState<Blob | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [cardPhotoPreview, setCardPhotoPreview] = useState<string | null>(null);
   const [bgProcessing, setBgProcessing] = useState(false);
-  const [photoScale, setPhotoScale] = useState(1.0);
+  const [photoScale, setPhotoScale] = useState(DEFAULT_CARD_PHOTO_SCALE);
   const [badges, setBadges] = useState<string[]>([]);
+  const [earnedBadgeIds, setEarnedBadgeIds] = useState<Set<string> | null>(null);
   const [done, setDone] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,12 +88,34 @@ export default function CardEditPage() {
       setPosition(player.position);
       setTeamId(player.teamId || "");
       setNationality(player.nationality || "KOR");
-      setPhotoScale(player.photoScale ?? 1);
+      setPhotoScale(player.photoScale ?? DEFAULT_CARD_PHOTO_SCALE);
       setBadges(player.badges ?? []);
     }
   }, [player]);
 
   useEffect(() => { fetchTeams(); }, [fetchTeams]);
+
+  useEffect(() => {
+    if (!player?.id) {
+      setEarnedBadgeIds(null);
+      setBadges([]);
+      return;
+    }
+
+    let cancelled = false;
+    setEarnedBadgeIds(null);
+    (async () => {
+      const rows = await fetchMyBadges(player.id);
+      if (cancelled) return;
+      const earned = new Set(rows.filter((row) => row.isEarned).map((row) => row.badgeId));
+      setEarnedBadgeIds(earned);
+      setBadges((prev) => filterEarnedBadgeIds(prev, earned));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [player?.id, fetchMyBadges]);
 
   useEffect(() => {
     if (!initialized) return;
@@ -120,6 +150,48 @@ export default function CardEditPage() {
     return () => el.removeEventListener("wheel", handler);
   }, [cardPhotoPreview, photoPreview, player?.photoUrl]);
 
+  const shouldUseTeamlessPose = (nextTeamId: string) => {
+    return player?.role !== "referee" && (isHologramPlayerCard(player) || !nextTeamId);
+  };
+
+  const buildCardPhotoBlob = async (
+    nextTeamId: string,
+    sourceBlob: Blob,
+    cutoutBlob: Blob,
+  ) => {
+    if (!shouldUseTeamlessPose(nextTeamId)) return cutoutBlob;
+    try {
+      return await composeTeamlessPoseCardPhoto({
+        sourcePhoto: sourceBlob,
+        cutoutPhoto: cutoutBlob,
+        gender: player?.gender,
+        seed: `${player?.uid ?? user?.uid ?? ""}-${name}-${number}`,
+      });
+    } catch (error) {
+      console.error("[CardEdit] teamless pose composition failed:", error);
+      return cutoutBlob;
+    }
+  };
+
+  const setProcessedPhoto = (blob: Blob) => {
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    if (cardPhotoPreview) URL.revokeObjectURL(cardPhotoPreview);
+    setPhotoPreview(URL.createObjectURL(blob));
+    setCardPhotoPreview(URL.createObjectURL(blob));
+    setPhotoBlob(blob);
+  };
+
+  const reprocessUploadedPhoto = async (nextTeamId: string) => {
+    if (!sourcePhotoBlob || !cutoutPhotoBlob) return;
+    setBgProcessing(true);
+    try {
+      const finalPhoto = await buildCardPhotoBlob(nextTeamId, sourcePhotoBlob, cutoutPhotoBlob);
+      setProcessedPhoto(finalPhoto);
+    } finally {
+      setBgProcessing(false);
+    }
+  };
+
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -131,27 +203,31 @@ export default function CardEditPage() {
       mimeType: "image/webp",
       quality: 0.9,
     });
-    setPhotoPreview(URL.createObjectURL(compressed));
+    const compressedPreviewUrl = URL.createObjectURL(compressed);
+    setPhotoPreview(compressedPreviewUrl);
     setCardPhotoPreview(null);
     setPhotoBlob(compressed);
-    setOriginalPhotoBlob(compressed);
+    setSourcePhotoBlob(compressed);
+    setCutoutPhotoBlob(null);
 
     setBgProcessing(true);
     try {
-      const { removeBackground } = await import("@imgly/background-removal");
-      const bgRemoved = await removeBackground(compressed, {
-        publicPath: "https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/",
-        debug: false,
-      });
-      const optimizedCardPhoto = await compressImageBlob(bgRemoved, {
-        maxPx: 1400,
-        mimeType: "image/webp",
-        quality: 0.92,
-      });
-      setCardPhotoPreview(URL.createObjectURL(optimizedCardPhoto));
-      setPhotoBlob(optimizedCardPhoto);
-    } catch {
-      setCardPhotoPreview(URL.createObjectURL(compressed));
+      let optimizedPhoto = compressed;
+      try {
+        optimizedPhoto = await removeBackgroundAndCompress(compressed, {
+          maxPx: 1400,
+          mimeType: "image/webp",
+          quality: 0.92,
+        });
+      } catch (error) {
+        console.error("[CardEdit] background removal failed:", error);
+      }
+      setCutoutPhotoBlob(optimizedPhoto);
+      const finalPhoto = await buildCardPhotoBlob(teamId, compressed, optimizedPhoto);
+      setPhotoPreview(URL.createObjectURL(finalPhoto));
+      setCardPhotoPreview(URL.createObjectURL(finalPhoto));
+      setPhotoBlob(finalPhoto);
+      URL.revokeObjectURL(compressedPreviewUrl);
     } finally {
       setBgProcessing(false);
     }
@@ -159,7 +235,8 @@ export default function CardEditPage() {
 
   const handleRemovePhoto = () => {
     setPhotoBlob(null);
-    setOriginalPhotoBlob(null);
+    setSourcePhotoBlob(null);
+    setCutoutPhotoBlob(null);
     if (photoPreview) URL.revokeObjectURL(photoPreview);
     if (cardPhotoPreview) URL.revokeObjectURL(cardPhotoPreview);
     setPhotoPreview(null);
@@ -167,10 +244,16 @@ export default function CardEditPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleTeamChange = (nextTeamId: string) => {
+    setTeamId(nextTeamId);
+    void reprocessUploadedPhoto(nextTeamId);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
-    if (!position) return;
+    if (!position || !earnedBadgeIds) return;
+    const equippedEarnedBadges = filterEarnedBadgeIds(badges, earnedBadgeIds);
     try {
       const updates: Partial<Player> = {
         name: name.trim(),
@@ -179,7 +262,7 @@ export default function CardEditPage() {
         teamId: teamId || "",
         nationality,
         photoScale,
-        badges,
+        badges: equippedEarnedBadges,
       };
 
       // 새 사진이 있으면 업로드
@@ -187,18 +270,17 @@ export default function CardEditPage() {
         const photoFile = new File([photoBlob], "photo.webp", {
           type: photoBlob.type || "image/webp",
         });
-        updates.photoUrl = await uploadPlayerPhoto(photoFile);
-      }
-      if (originalPhotoBlob) {
-        const origFile = new File([originalPhotoBlob], "profile.webp", {
-          type: originalPhotoBlob.type || "image/webp",
-        });
-        updates.profilePhotoUrl = await uploadPlayerPhoto(origFile);
+        const uploadedPhotoUrl = await uploadPlayerPhoto(photoFile);
+        updates.photoUrl = uploadedPhotoUrl;
+        if (!player?.profilePhotoLocked) {
+          updates.profilePhotoUrl = uploadedPhotoUrl;
+          updates.profilePhotoLocked = false;
+        }
       }
 
       await updatePlayer(updates);
       setDone(true);
-      setTimeout(() => router.push(`/players/${user?.uid}`), 1500);
+      setTimeout(() => router.push("/my"), 1500);
     } catch {
       // error in store
     }
@@ -247,9 +329,22 @@ export default function CardEditPage() {
   }
 
   const currentCardPhoto = cardPhotoPreview || photoPreview || player?.photoUrl || "";
-  const currentThumbPhoto = photoPreview || player?.profilePhotoUrl || player?.photoUrl || "";
+  const currentThumbPhoto = photoPreview || getPlayerProfilePhotoUrl(player);
+  const hasCustomCardPhoto = Boolean(currentCardPhoto);
 
   const selectedTeam = teamId ? teams[teamId] : undefined;
+  const fallbackTeamLogo =
+    player?.role === "admin" || player?.role === "referee" ? FAIRGROUND_OPS_TEAM_LOGO : undefined;
+  const previewTeamLogo = selectedTeam?.logo || fallbackTeamLogo;
+  const selectedEarnedBadges = filterEarnedBadgeIds(badges, earnedBadgeIds);
+  const earnedBadgeOptions = earnedBadgeIds
+    ? BADGES.filter((badge) => {
+        if (!earnedBadgeIds.has(badge.id)) return false;
+        if (position === "GK") return badge.category === "field" || badge.category === "goalkeeper";
+        if (player?.role === "referee") return badge.category === "referee";
+        return badge.category === "field";
+      })
+    : [];
 
   const previewPlayer: Player = {
     id: "preview",
@@ -262,9 +357,10 @@ export default function CardEditPage() {
     photoUrl: currentCardPhoto,
     photoScale,
     cardType: player?.cardType ?? "gold",
+    cardSkin: player?.cardSkin ?? "standard",
     cardRating: player?.cardRating ?? 70,
     stats: player?.stats ?? { goals: 0, assists: 0, games: 0, mom: 0 },
-    badges,
+    badges: selectedEarnedBadges,
     penaltyStatus: player?.penaltyStatus ?? { isBanned: false, banMatchesRemaining: 0, seasonYellowCards: 0 },
     isApproved: player?.isApproved ?? false,
     role: player?.role ?? "player",
@@ -295,75 +391,96 @@ export default function CardEditPage() {
       )}
 
       {/* Header */}
-      <div
-        className="px-5 pt-8 pb-6 sm:px-8 md:px-10 max-w-lg mx-auto"
-        style={{ borderBottom: "1px solid var(--color-fg-line-soft)" }}
-      >
-        <h1
-          className="font-black text-3xl leading-tight"
-          style={{
-            fontFamily: "var(--font-pretendard)",
-            letterSpacing: "-1.5px",
-            color: "var(--color-fg-ink)",
-          }}
+      <div className={PUBLIC_PAGE_GUTTER_CLASS}>
+        <div
+          className={`${PUBLIC_PAGE_CONTENT_CLASS} pt-8 pb-6`}
+          style={{ borderBottom: "1px solid var(--color-fg-line-soft)" }}
         >
-          카드 수정
-        </h1>
-        <p className="text-sm mt-2" style={{ color: "var(--color-fg-ink-muted)" }}>
-          선수 카드 정보를 수정하세요
-        </p>
+          <h1
+            className="font-black text-3xl leading-tight"
+            style={{
+              fontFamily: "var(--font-pretendard)",
+              letterSpacing: "-1.5px",
+              color: "var(--color-fg-ink)",
+            }}
+          >
+            카드 수정
+          </h1>
+          <p className="text-sm mt-2" style={{ color: "var(--color-fg-ink-muted)" }}>
+            선수 카드 정보를 수정하세요
+          </p>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="px-5 py-8 sm:px-8 md:px-10 max-w-lg mx-auto space-y-6">
+      <form onSubmit={handleSubmit} className={`${PUBLIC_PAGE_GUTTER_CLASS} py-8`}>
+        <div className={`${PUBLIC_PAGE_CONTENT_CLASS} space-y-6`}>
 
         {/* 카드 미리보기 + 사진 업로드 */}
-        <div className="flex items-center justify-between py-2">
+        <div className="mx-auto grid max-w-[640px] gap-8 py-2 md:grid-cols-[minmax(0,280px)_minmax(0,280px)] md:items-start md:justify-center md:gap-10">
+          <section aria-label="선수 카드 미리보기" className="flex w-full max-w-[280px] min-w-0 flex-col items-center justify-self-center">
+            <div className="mb-4 w-full max-w-[220px]">
+              <p
+                className="text-[10px] uppercase tracking-[2px]"
+                style={{ color: "var(--color-fg-ink-muted)", fontFamily: "var(--font-space-mono)" }}
+              >
+                카드 미리보기
+              </p>
+              <h2
+                className="mt-1 text-lg font-black"
+                style={{ color: "var(--color-fg-ink)", fontFamily: "var(--font-pretendard)" }}
+              >
+                현재 선수 카드
+              </h2>
+            </div>
 
-          {/* 좌측: 카드 미리보기 */}
-          <div className="relative flex-shrink-0" style={{ width: CARD_W, height: CARD_H }}>
-            <PlayerCard player={previewPlayer} size="lg" teamLogo={selectedTeam?.logo} disableHoverScale />
-
-            {/* 사진 영역 인터랙션 오버레이 */}
-            {currentCardPhoto && (
-              <div
-                ref={overlayRef}
-                className="absolute select-none"
-                style={{
-                  left: `${PHOTO_OVERLAY.x}%`,
-                  top: `${PHOTO_OVERLAY.y}%`,
-                  width: `${PHOTO_OVERLAY.w}%`,
-                  height: `${PHOTO_OVERLAY.h}%`,
-                  zIndex: 10,
-                  cursor: "ns-resize",
-                  touchAction: "none",
-                }}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  dragging.current = true;
-                  dragStartY.current = e.clientY;
-                  dragStartScale.current = photoScale;
-                }}
-                onTouchStart={(e) => {
-                  touchStartY.current = e.touches[0].clientY;
-                  touchStartScale.current = photoScale;
-                }}
-                onTouchMove={(e) => {
-                  e.preventDefault();
-                  const dy = e.touches[0].clientY - touchStartY.current;
-                  setPhotoScale(Math.min(2.5, Math.max(0.5, touchStartScale.current - dy * 0.005)));
-                }}
-              />
-            )}
-          </div>
-
-          {/* 우측: 사진 업로드 */}
-          <div className="flex flex-col items-center gap-3 pr-4">
-            <p
-              className="text-[10px] uppercase tracking-[2px] self-start"
-              style={{ color: "var(--color-fg-ink-muted)", fontFamily: "var(--font-space-mono)" }}
+            <div
+              ref={overlayRef}
+              className="relative flex w-full touch-none select-none justify-center"
+              style={{ cursor: hasCustomCardPhoto ? "ns-resize" : "default" }}
+              onMouseDown={(e) => {
+                if (!hasCustomCardPhoto) return;
+                e.preventDefault();
+                dragging.current = true;
+                dragStartY.current = e.clientY;
+                dragStartScale.current = photoScale;
+              }}
+              onTouchStart={(e) => {
+                if (!hasCustomCardPhoto) return;
+                touchStartY.current = e.touches[0].clientY;
+                touchStartScale.current = photoScale;
+              }}
+              onTouchMove={(e) => {
+                if (!hasCustomCardPhoto) return;
+                e.preventDefault();
+                const dy = e.touches[0].clientY - touchStartY.current;
+                setPhotoScale(Math.min(2.5, Math.max(0.5, touchStartScale.current - dy * 0.005)));
+              }}
             >
-              프로필 사진
-            </p>
+              <PlayerCard
+                player={previewPlayer}
+                size="lg"
+                teamLogo={previewTeamLogo}
+                disableHoverScale
+              />
+            </div>
+          </section>
+
+          {/* 사진 업로드 */}
+          <section aria-label="프로필 사진 첨부" className="flex w-full max-w-[280px] min-w-0 flex-col items-center justify-self-center">
+            <div className="mb-4 w-full max-w-[184px]">
+              <p
+                className="text-[10px] uppercase tracking-[2px]"
+                style={{ color: "var(--color-fg-ink-muted)", fontFamily: "var(--font-space-mono)" }}
+              >
+                프로필 사진
+              </p>
+              <h2
+                className="mt-1 text-lg font-black"
+                style={{ color: "var(--color-fg-ink)", fontFamily: "var(--font-pretendard)" }}
+              >
+                사진 첨부
+              </h2>
+            </div>
             <input
               ref={fileInputRef}
               type="file"
@@ -371,50 +488,53 @@ export default function CardEditPage() {
               className="hidden"
               onChange={handlePhotoChange}
             />
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="프로필 사진 업로드"
-                className="w-24 h-24 rounded-2xl overflow-hidden flex items-center justify-center transition-all hover:opacity-80"
-                style={{
-                  background: currentThumbPhoto ? "transparent" : "var(--color-fg-paper-2)",
-                  border: currentThumbPhoto
-                    ? "2px solid var(--primary)"
-                    : "2px dashed var(--color-fg-line-soft)",
-                }}
-              >
-                {currentThumbPhoto ? (
-                  <img src={currentThumbPhoto} alt="preview" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="flex flex-col items-center gap-2">
-                    <Camera className="w-6 h-6" style={{ color: "var(--color-fg-ink-muted)" }} />
-                    <span
-                      className="text-[10px] uppercase tracking-wider text-center"
-                      style={{ color: "var(--color-fg-ink-muted)", fontFamily: "var(--font-space-mono)" }}
-                    >
-                      사진 추가
-                    </span>
-                  </div>
-                )}
-              </button>
-              {photoPreview && (
+            <div className="flex w-full max-w-[280px] justify-center">
+              <div className="relative">
                 <button
                   type="button"
-                  onClick={handleRemovePhoto}
-                  aria-label="사진 제거"
-                  className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center"
-                  style={{ background: "var(--destructive)" }}
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="프로필 사진 업로드"
+                  className="flex h-40 w-40 items-center justify-center overflow-hidden rounded-[28px] transition-all hover:opacity-80 sm:h-44 sm:w-44 md:h-[184px] md:w-[184px]"
+                  style={{
+                    background: currentThumbPhoto ? "transparent" : "var(--color-fg-paper-2)",
+                    border: currentThumbPhoto
+                      ? "2px solid var(--primary)"
+                      : "2px dashed var(--color-fg-line-soft)",
+                  }}
                 >
-                  <X className="w-3.5 h-3.5 text-white" />
+                  {currentThumbPhoto ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={currentThumbPhoto} alt="preview" className="h-full w-full object-contain object-center" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <Camera className="h-7 w-7" style={{ color: "var(--color-fg-ink-muted)" }} />
+                      <span
+                        className="text-[10px] uppercase tracking-wider text-center"
+                        style={{ color: "var(--color-fg-ink-muted)", fontFamily: "var(--font-space-mono)" }}
+                      >
+                        사진 추가
+                      </span>
+                    </div>
+                  )}
                 </button>
-              )}
+                {photoPreview && (
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    aria-label="사진 제거"
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center"
+                    style={{ background: "var(--destructive)" }}
+                  >
+                    <X className="w-3.5 h-3.5 text-white" />
+                  </button>
+                )}
+              </div>
             </div>
             {currentCardPhoto && (
-              <div className="flex flex-col items-center gap-2 w-full">
+              <div className="mt-3 flex w-full max-w-[280px] flex-col items-center gap-2">
                 <p className="text-[10px] text-center leading-relaxed" style={{ color: "var(--color-fg-ink-muted)" }}>
                   탭하여 변경<br />
-                  카드 사진 드래그로 크기조절
+                  카드 미리보기를 위아래로 드래그하면 사진 크기가 조절됩니다
                 </p>
                 <div
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
@@ -433,8 +553,10 @@ export default function CardEditPage() {
                 </div>
               </div>
             )}
-          </div>
+          </section>
         </div>
+
+        <div className="mx-auto max-w-lg space-y-6">
 
         {/* 이름 */}
         <div>
@@ -484,7 +606,9 @@ export default function CardEditPage() {
                     if (pos.value !== "GK") {
                       setBadges((prev) => prev.filter((id) => {
                         const b = BADGES.find((b) => b.id === id);
-                        return b?.category !== "goalkeeper";
+                        if (!b) return false;
+                        if (earnedBadgeIds && !earnedBadgeIds.has(id)) return false;
+                        return b.category !== "goalkeeper";
                       }));
                     }
                   }}
@@ -512,47 +636,53 @@ export default function CardEditPage() {
 
         {/* 뱃지 선택 */}
         <div>
-          <FieldLabel>뱃지 <span style={{ color: "var(--color-fg-ink-muted)" }}>({badges.length}/4)</span></FieldLabel>
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-            {BADGES.filter((b) => {
-              if (position === "GK") return b.category === "field" || b.category === "goalkeeper";
-              if (player?.role === "referee") return b.category === "referee";
-              return b.category === "field";
-            }).map((badge) => {
-              const selected = badges.includes(badge.id);
-              return (
-                <button
-                  key={badge.id}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => {
-                    if (selected) {
-                      setBadges((prev) => prev.filter((id) => id !== badge.id));
-                    } else if (badges.length < 4) {
-                      setBadges((prev) => [...prev, badge.id]);
-                    }
-                  }}
-                  className="flex flex-col items-center gap-1 p-1.5 rounded-xl transition-all"
-                  style={{
-                    background: selected ? "var(--color-fg-paper-3)" : "var(--color-fg-paper)",
-                    border: `1.5px solid ${selected ? "var(--primary)" : "var(--color-fg-line-soft)"}`,
-                    opacity: !selected && badges.length >= 4 ? 0.35 : 1,
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={badge.imageUrl} alt={badge.name}
-                    className="object-contain" draggable={false}
-                    style={{ width: 56, height: 56 }} />
-                  <span
-                    className="text-[10px] leading-tight text-center truncate w-full"
-                    style={{ color: selected ? "var(--primary)" : "var(--color-fg-ink-muted)" }}
+          <FieldLabel>뱃지 <span style={{ color: "var(--color-fg-ink-muted)" }}>({selectedEarnedBadges.length}/4)</span></FieldLabel>
+          {earnedBadgeIds === null ? (
+            <p className="rounded-2xl px-4 py-5 text-center text-xs" style={{ color: "var(--color-fg-ink-muted)", border: "1px dashed var(--color-fg-line-soft)" }}>
+              획득한 뱃지를 확인하는 중입니다
+            </p>
+          ) : earnedBadgeOptions.length === 0 ? (
+            <p className="rounded-2xl px-4 py-5 text-center text-xs" style={{ color: "var(--color-fg-ink-muted)", border: "1px dashed var(--color-fg-line-soft)" }}>
+              아직 장착할 수 있는 획득 뱃지가 없습니다
+            </p>
+          ) : (
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+              {earnedBadgeOptions.map((badge) => {
+                const selected = selectedEarnedBadges.includes(badge.id);
+                return (
+                  <button
+                    key={badge.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => {
+                      if (selected) {
+                        setBadges((prev) => prev.filter((id) => id !== badge.id));
+                      } else if (selectedEarnedBadges.length < 4) {
+                        setBadges((prev) => filterEarnedBadgeIds([...prev, badge.id], earnedBadgeIds));
+                      }
+                    }}
+                    className="flex flex-col items-center gap-1 p-1.5 rounded-xl transition-all"
+                    style={{
+                      background: selected ? "var(--color-fg-paper-3)" : "var(--color-fg-paper)",
+                      border: `1.5px solid ${selected ? "var(--primary)" : "var(--color-fg-line-soft)"}`,
+                      opacity: !selected && selectedEarnedBadges.length >= 4 ? 0.35 : 1,
+                    }}
                   >
-                    {badge.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={badge.imageUrl} alt={badge.name}
+                      className="object-contain" draggable={false}
+                      style={{ width: 56, height: 56 }} />
+                    <span
+                      className="text-[10px] leading-tight text-center truncate w-full"
+                      style={{ color: selected ? "var(--primary)" : "var(--color-fg-ink-muted)" }}
+                    >
+                      {badge.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* 팀 */}
@@ -564,7 +694,7 @@ export default function CardEditPage() {
             <select
               id="cardedit-team"
               value={teamId}
-              onChange={(e) => setTeamId(e.target.value)}
+              onChange={(e) => handleTeamChange(e.target.value)}
               className="w-full px-4 py-3 rounded-2xl text-sm outline-none appearance-none"
               style={{ ...inputStyle, paddingRight: "2.5rem" }}
             >
@@ -615,7 +745,7 @@ export default function CardEditPage() {
 
         <button
           type="submit"
-          disabled={loading || bgProcessing || !position || !name.trim() || !number}
+          disabled={loading || bgProcessing || !position || !name.trim() || !number || earnedBadgeIds === null}
           className="w-full py-4 rounded-2xl text-sm font-black transition-all hover:opacity-90 disabled:opacity-30"
           style={{
             background: "var(--primary)",
@@ -640,6 +770,9 @@ export default function CardEditPage() {
           </button>
         </p>
 
+        </div>
+
+        </div>
       </form>
     </div>
   );

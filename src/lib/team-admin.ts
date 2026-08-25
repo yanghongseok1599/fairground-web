@@ -1,4 +1,5 @@
-import type { Player, PlayerRole, Team } from "@/types";
+import type { Player, Team } from "@/types";
+import { hasTeamOperationsPermission, TEAM_ROLE_LABELS } from "./team-role-policy.ts";
 
 export interface TeamAdminAction {
   href: string;
@@ -11,7 +12,7 @@ export interface TeamAdminMemberBuckets<T extends Pick<Player, "isApproved" | "c
   pending: T[];
 }
 
-type TeamManagerPlayer = Pick<Player, "id" | "role" | "teamId"> | null | undefined;
+type TeamManagerPlayer = Pick<Player, "id" | "role" | "teamId" | "teamRole" | "isApproved"> | null | undefined;
 type TeamManagerTeam = Pick<Team, "id" | "captainId"> | null | undefined;
 
 export function buildTeamAdminPath(teamId: string): string {
@@ -21,8 +22,9 @@ export function buildTeamAdminPath(teamId: string): string {
 export function canManageTeamAsDirector(player: TeamManagerPlayer, team: TeamManagerTeam): boolean {
   if (!player || !team) return false;
   if (player.role === "admin") return true;
-  if (player.role === "captain" && player.teamId === team.id) return true;
-  return Boolean(team.captainId && team.captainId === player.id);
+  if (!player.isApproved) return false;
+  if (team.captainId && team.captainId === player.id) return true;
+  return player.teamId === team.id && hasTeamOperationsPermission(player);
 }
 
 export function getTeamAdminMemberBuckets<T extends Pick<Player, "isApproved" | "createdAt">>(
@@ -35,11 +37,10 @@ export function getTeamAdminMemberBuckets<T extends Pick<Player, "isApproved" | 
   };
 }
 
-export function getDirectorRoleLabel(role: PlayerRole): string {
-  if (role === "admin") return "리그 관리자";
-  if (role === "captain") return "감독";
-  if (role === "referee") return "심판";
-  return "선수";
+export function getDirectorRoleLabel(player: Pick<Player, "role" | "teamRole">): string {
+  if (player.role === "admin") return "리그 관리자";
+  if (player.role === "referee") return "심판";
+  return player.teamRole ? TEAM_ROLE_LABELS[player.teamRole] : "멤버";
 }
 
 export function getTeamAdminPrimaryActions(teamId: string): TeamAdminAction[] {

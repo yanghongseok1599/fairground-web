@@ -41,33 +41,6 @@ export type SitePopupDraft = Omit<
   id?: string;
 };
 
-export const DEFAULT_BEACH_SOCCER_POPUP: SitePopup = {
-  id: "beach-soccer-national-college",
-  placement: "home",
-  name: "전국 비치사커대회",
-  isActive: true,
-  priority: 100,
-  dismissVersion: 2,
-  displayDelayMs: 650,
-  eyebrow: "BEACH SOCCER",
-  title: "전국|비치사커대회",
-  body: "강원 동해시 망상해수욕장에서 열리는 여름 특별 프로젝트로, 대학부·남자부·여자부 세 부문 팀이 모여 비치사커 이벤트 매치를 펼칩니다.",
-  detailOne: "강원 동해시 망상해수욕장",
-  detailTwo: "2026년 8월 7일 금요일",
-  detailThree: "총상금 200만원",
-  detailFour: "참가비 30만원",
-  imageUrl: "/promotions/beach-soccer-2026-photo.png",
-  ctaLabel: "프로젝트 보기",
-  ctaHref: "/beach-soccer",
-  secondaryLabel: "",
-  secondaryHref: "",
-  startsAt: null,
-  endsAt: null,
-  createdAt: "",
-  updatedAt: "",
-  updatedBy: null,
-};
-
 function rowToSitePopup(row: SitePopupRow): SitePopup {
   return {
     id: row.id,
@@ -199,7 +172,7 @@ export function getEmptyPopupDraft(): SitePopupDraft {
     detailTwo: "",
     detailThree: "",
     detailFour: "",
-    imageUrl: "/promotions/beach-soccer-2026-photo.png",
+    imageUrl: "/images/hologram-card.webp",
     ctaLabel: "자세히 보기",
     ctaHref: "/",
     secondaryLabel: "",
@@ -238,7 +211,7 @@ export function popupToDraft(popup: SitePopup): SitePopupDraft {
 export async function fetchActiveSitePopup(
   placement: SitePopupPlacement = "home",
 ): Promise<SitePopup | null> {
-  if (isDemoMode) return DEFAULT_BEACH_SOCCER_POPUP;
+  if (isDemoMode) return null;
 
   const { data, error } = await supabase
     .from("site_popups")
@@ -251,7 +224,7 @@ export async function fetchActiveSitePopup(
 
   if (error) {
     console.error("[site-popups] fetchActiveSitePopup:", error.message);
-    return DEFAULT_BEACH_SOCCER_POPUP;
+    return null;
   }
 
   return (data ?? [])
@@ -260,7 +233,7 @@ export async function fetchActiveSitePopup(
 }
 
 export async function fetchAdminSitePopups(): Promise<SitePopup[]> {
-  if (isDemoMode) return [DEFAULT_BEACH_SOCCER_POPUP];
+  if (isDemoMode) return [];
 
   const { data, error } = await supabase
     .from("site_popups")
@@ -275,12 +248,13 @@ export async function saveSitePopup(draft: SitePopupDraft): Promise<SitePopup> {
   validatePopupDraft(draft);
 
   if (isDemoMode) {
+    const { id: draftId, ...rest } = draft;
+    const now = new Date().toISOString();
     return {
-      ...DEFAULT_BEACH_SOCCER_POPUP,
-      ...draft,
-      id: draft.id ?? `local-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      ...rest,
+      id: draftId ?? `local-${Date.now()}`,
+      createdAt: now,
+      updatedAt: now,
       updatedBy: null,
     };
   }

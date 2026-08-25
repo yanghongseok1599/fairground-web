@@ -29,7 +29,9 @@ export default function NoticeEditPage() {
   useEffect(() => {
     if (!id) return;
     let active = true;
-    setLoading(true);
+    queueMicrotask(() => {
+      if (active) setLoading(true);
+    });
     void fetchNotice(id).then((n) => {
       if (active) {
         setNotice(n);

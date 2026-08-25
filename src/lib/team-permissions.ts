@@ -1,4 +1,5 @@
 import type { Player, Team } from "@/types";
+import { hasMatchStaffPermission, hasTeamOperationsPermission } from "./team-role-policy.ts";
 
 /**
  * Single source of truth for "who can manage this team" UX gates.
@@ -14,7 +15,7 @@ import type { Player, Team } from "@/types";
 
 type MaybePlayer = Pick<
   Player,
-  "id" | "role" | "teamId" | "teamRole"
+  "id" | "role" | "teamId" | "teamRole" | "isApproved"
 > | null | undefined;
 
 type MaybeTeam = Pick<Team, "id" | "captainId"> | null | undefined;
@@ -22,38 +23,29 @@ type MaybeTeam = Pick<Team, "id" | "captainId"> | null | undefined;
 /** Member of the team's roster — used to gate "first post / first photo" CTAs. */
 export function isTeamMemberOf(player: MaybePlayer, team: MaybeTeam): boolean {
   if (!player || !team) return false;
-  return player.teamId === team.id;
+  return player.isApproved && player.teamId === team.id;
 }
 
 /**
  * Has any director-level role for this team.
  *
- * Director = admin (league) · system captain · the team's actual captainId ·
- * a team_role of captain/manager/coach for THIS team.
+ * Director = admin (league) · the team's actual captainId · a team_role of
+ * 감독(coach)/매니저(manager) for THIS team.
  *
  * Used by the team home edit pencil, the /my/team management surface, etc.
  */
 export function canManageTeam(player: MaybePlayer, team: MaybeTeam): boolean {
   if (!player || !team) return false;
   if (player.role === "admin") return true;
-  if (player.role === "captain") return true;
+  if (!player.isApproved) return false;
   if (team.captainId && team.captainId === player.id) return true;
-  if (player.teamId === team.id) {
-    if (
-      player.teamRole === "captain" ||
-      player.teamRole === "manager" ||
-      player.teamRole === "coach"
-    ) {
-      return true;
-    }
-  }
-  return false;
+  return player.teamId === team.id && hasTeamOperationsPermission(player);
 }
 
 /**
- * Stricter gate for member-management UI (assigning team_role to other
- * players). Captain alone is not enough — Supabase trg_guard_team_role
- * blocks self-mutation and other-team mutation. Members page uses this.
+ * Stricter gate for member-management UI (assigning team_role to other players).
+ * 감독 and 매니저 can manage roles for their own team; captainId remains a
+ * legacy-safe owner fallback for teams created before teamRole was backfilled.
  */
 export function canManageTeamMembers(
   player: MaybePlayer,
@@ -61,8 +53,20 @@ export function canManageTeamMembers(
 ): boolean {
   if (!player || !team) return false;
   if (player.role === "admin") return true;
+  if (!player.isApproved) return false;
+  if (team.captainId && team.captainId === player.id) return true;
   if (player.teamId !== team.id) return false;
-  return player.teamRole === "manager" || player.teamRole === "coach";
+  return hasTeamOperationsPermission(player);
+}
+
+export function canOperateMatchForTeam(
+  player: MaybePlayer,
+  teamId: string | null | undefined,
+): boolean {
+  if (!player || !teamId) return false;
+  if (player.role === "admin") return true;
+  if (!player.isApproved) return false;
+  return player.teamId === teamId && hasMatchStaffPermission(player);
 }
 
 /** Quick boolean for "is this user the captainId of the team?" */
@@ -87,5 +91,5 @@ export function canPostInTeamBoard(
 ): boolean {
   if (!player || !teamId) return false;
   if (player.role === "admin") return true;
-  return player.teamId === teamId;
+  return player.isApproved && player.teamId === teamId;
 }

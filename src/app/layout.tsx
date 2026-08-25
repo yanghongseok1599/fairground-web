@@ -5,6 +5,18 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Providers } from "@/components/providers";
 import { SwRegister } from "@/components/sw-register";
+import { SeoJsonLd } from "@/components/seo-json-ld";
+import { SITE_NAME, SITE_URL } from "@/lib/site-config";
+import {
+  CORE_SEO_KEYWORDS,
+  DEFAULT_OG_IMAGE,
+  DEFAULT_SEO_DESCRIPTION,
+  DEFAULT_SEO_OTHER,
+  absoluteUrl,
+  organizationJsonLd,
+  webApplicationJsonLd,
+  websiteJsonLd,
+} from "@/lib/seo";
 
 const oswald = Oswald({
   subsets: ["latin"],
@@ -20,19 +32,30 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-const siteUrl = "https://fairground.kr";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "FairGround — Where Amateurs Play Pro",
+    default: `${SITE_NAME} | 풋살대회·혼성풋살대회·여자풋살대회·남자풋살대회 플랫폼`,
     template: "%s | FairGround",
   },
-  description:
-    "모두가 승리하는 그라운드. 실시간 스코어·개인 스탯·선수 카드로 모든 경기가 기록됩니다.",
+  description: DEFAULT_SEO_DESCRIPTION,
+  applicationName: SITE_NAME,
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  generator: "Next.js",
+  referrer: "origin-when-cross-origin",
+  formatDetection: {
+    telephone: false,
+    address: false,
+    email: false,
+  },
   alternates: {
-    canonical: siteUrl,
-    languages: { ko: `${siteUrl}/` },
+    canonical: SITE_URL,
+    languages: {
+      "ko-KR": `${SITE_URL}/`,
+      ko: `${SITE_URL}/`,
+    },
   },
   robots: {
     index: true,
@@ -47,36 +70,41 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    url: siteUrl,
-    title: "FairGround — Where Amateurs Play Pro",
-    description:
-      "실시간 경기 스코어, 나만의 선수 카드, 리그 순위를 한곳에서. Play Your Growth!",
-    siteName: "FairGround",
+    locale: "ko_KR",
+    url: SITE_URL,
+    title: `${SITE_NAME} | 풋살대회·혼성풋살대회·여자풋살대회·남자풋살대회 플랫폼`,
+    description: DEFAULT_SEO_DESCRIPTION,
+    siteName: SITE_NAME,
     images: [
       {
-        url: `${siteUrl}/og-image.png`,
+        url: absoluteUrl(DEFAULT_OG_IMAGE),
         width: 1200,
         height: 630,
-        alt: "FairGround — Where Amateurs Play Pro",
+        alt: `${SITE_NAME} 풋살대회 플랫폼`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "FairGround — Where Amateurs Play Pro",
-    description: "풋살 리그 실시간 통합 플랫폼. Play Your Growth!",
-    images: [`${siteUrl}/og-image.png`],
+    title: `${SITE_NAME} | 풋살대회 플랫폼`,
+    description:
+      "풋살대회·혼성풋살대회·여자풋살대회·남자풋살대회 일정과 참가 신청, 선수카드, 실시간 기록을 한곳에서 관리하세요.",
+    images: [absoluteUrl(DEFAULT_OG_IMAGE)],
   },
-  keywords: ["풋살", "FairGround", "페어그라운드", "풋살리그", "선수카드", "실시간스코어"],
+  keywords: CORE_SEO_KEYWORDS,
   icons: {
     icon: [
-      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/favicon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/favicon-16.png?v=9", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32.png?v=9", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-192.png?v=9", sizes: "192x192", type: "image/png" },
     ],
-    shortcut: "/favicon.ico",
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+    shortcut: "/favicon.ico?v=9",
+    apple: [{ url: "/apple-touch-icon.png?v=9", sizes: "180x180" }],
   },
   category: "sports",
+  classification:
+    "풋살대회, 혼성풋살대회, 여자풋살대회, 남자풋살대회, 아마추어 풋살 플랫폼",
+  other: DEFAULT_SEO_OTHER,
 };
 
 export const viewport: Viewport = {
@@ -95,6 +123,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
         />
         <style>{`:root { --font-pretendard: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }`}</style>
+        <SeoJsonLd
+          data={[organizationJsonLd(), websiteJsonLd(), webApplicationJsonLd()]}
+        />
       </head>
       <body className="min-h-screen antialiased fg-grain overflow-x-clip">
         <Providers>

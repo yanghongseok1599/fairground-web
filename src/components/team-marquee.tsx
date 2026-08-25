@@ -54,6 +54,9 @@ export function TeamMarquee<T extends { id: string }>({
   const pausedRef = useRef(paused);
   const focusRef = useRef(false);
   const drag = useRef({ active: false, startX: 0, startScroll: 0, moved: false });
+  // 모바일 터치 중 여부 — 네이티브 스크롤은 그대로 두되 자동 회전만 멈춰
+  // 매 프레임의 scrollLeft 덮어쓰기가 손가락 스와이프와 싸우지 않게 한다.
+  const touching = useRef(false);
   const raf = useRef<number | undefined>(undefined);
   const last = useRef<number | undefined>(undefined);
   // 자체 float 위치 누적기 — scrollLeft 를 직접 읽어 더하면 1px 미만 증분이
@@ -70,8 +73,13 @@ export function TeamMarquee<T extends { id: string }>({
   // 카드 폭이 화면마다 달라도 DOM 측정 기반이라 안전하다.
   useEffect(() => {
     if (!autoEnabled) {
-      setReps(1);
-      return;
+      let active = true;
+      queueMicrotask(() => {
+        if (active) setReps(1);
+      });
+      return () => {
+        active = false;
+      };
     }
     const el = scrollRef.current;
     if (!el) return;
@@ -120,6 +128,7 @@ export function TeamMarquee<T extends { id: string }>({
           !pausedRef.current &&
           !focusRef.current &&
           !drag.current.active &&
+          !touching.current &&
           !manual;
         if (pos.current === null) pos.current = el.scrollLeft;
         if (idle) {
@@ -189,6 +198,20 @@ export function TeamMarquee<T extends { id: string }>({
     }
     drag.current.active = false;
   };
+  // ── 모바일 터치: 네이티브 스크롤에 맡기되 자동 회전만 멈춘다 ──
+  // (포인터 이벤트는 브라우저가 스크롤을 가져갈 때 pointercancel 로 끊겨
+  //  신뢰할 수 없으므로 touch 이벤트로 직접 처리.)
+  const onTouchStart = () => {
+    touching.current = true;
+  };
+  const endTouch = () => {
+    touching.current = false;
+    const el = scrollRef.current;
+    if (el) pos.current = el.scrollLeft; // 멈춘 지점부터 이어서 회전
+    // iOS 관성(모멘텀) 스크롤이 잦아들 때까지 자동 구동을 잠시 양보.
+    manualUntil.current = performance.now() + 700;
+  };
+
   // 드래그로 스크롤한 직후의 클릭은 선택으로 이어지지 않게 막는다.
   const onClickCapture = (e: React.MouseEvent) => {
     if (drag.current.moved) {
@@ -227,6 +250,9 @@ export function TeamMarquee<T extends { id: string }>({
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        onTouchStart={onTouchStart}
+        onTouchEnd={endTouch}
+        onTouchCancel={endTouch}
         onClickCapture={onClickCapture}
         onKeyDown={onKeyDown}
         onFocus={() => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { PlayerCard } from "@/components/player-card";
 import type { Player } from "@/types";
 
@@ -12,6 +13,8 @@ interface PlayerCardCaptureFrameProps {
   cardSize: CardSize;
   cardScale?: number;
   logoHeight?: number;
+  displayWidth?: number | string;
+  className?: string;
 }
 
 export function PlayerCardCaptureFrame({
@@ -21,12 +24,41 @@ export function PlayerCardCaptureFrame({
   cardSize,
   cardScale,
   logoHeight = Math.round(boxSize * 0.055),
+  displayWidth,
+  className = "",
 }: PlayerCardCaptureFrameProps) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [renderedWidth, setRenderedWidth] = useState(boxSize);
   const effectiveScale = cardScale ?? (boxSize / 280);
+  const responsiveRatio = renderedWidth / boxSize;
+  const visualScale = effectiveScale * responsiveRatio;
+  const visualLogoHeight = logoHeight * responsiveRatio;
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+
+    const updateSize = () => {
+      const width = frame.getBoundingClientRect().width;
+      setRenderedWidth(width > 0 ? width : boxSize);
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, [boxSize, displayWidth]);
+
   return (
     <div
-      className="relative overflow-hidden rounded-2xl"
-      style={{ width: boxSize, height: boxSize }}
+      ref={frameRef}
+      className={`relative overflow-hidden rounded-2xl ${className}`}
+      style={{
+        width: displayWidth ?? boxSize,
+        maxWidth: "100%",
+        height: displayWidth ? undefined : boxSize,
+        aspectRatio: "1 / 1",
+      }}
     >
       <img
         src="/images/space-bg.jpg"
@@ -63,7 +95,7 @@ export function PlayerCardCaptureFrame({
         />
       ))}
       <div className="absolute inset-0 flex items-center justify-center" style={{ paddingBottom: "6%" }}>
-        <div style={{ transform: `scale(${effectiveScale})`, transformOrigin: "center center" }}>
+        <div style={{ transform: `scale(${visualScale})`, transformOrigin: "center center" }}>
           <PlayerCard player={player} size={cardSize} teamLogo={teamLogo} disableHoverScale />
         </div>
       </div>
@@ -74,7 +106,7 @@ export function PlayerCardCaptureFrame({
         <img
           src="/images/logo-horizontal.png"
           alt="FAIRGROUND"
-          style={{ height: logoHeight, opacity: 0.9 }}
+          style={{ height: visualLogoHeight, opacity: 0.9 }}
           draggable={false}
         />
       </div>

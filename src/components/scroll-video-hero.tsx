@@ -71,6 +71,10 @@ interface ScrollVideoHeroProps {
    * Rendered in real DOM so screen readers and crawlers always reach it.
    */
   staticFallback?: React.ReactNode;
+  /** Whether to show static fallback copy over the mobile MP4 hero. */
+  showMobileStaticFallback?: boolean;
+  /** Mobile static hero bottom reveal so the next section is visible on first paint. */
+  mobileBottomPeek?: number;
 }
 
 /**
@@ -93,6 +97,8 @@ export function ScrollVideoHero({
   stickyTop = 0,
   reveals = [],
   staticFallback,
+  showMobileStaticFallback = true,
+  mobileBottomPeek = 88,
 }: ScrollVideoHeroProps) {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -136,7 +142,7 @@ export function ScrollVideoHero({
 
     const loadOne = (i: number) =>
       new Promise<void>((resolve) => {
-        const img = new Image();
+        const img = document.createElement("img");
         img.decoding = "async";
         img.onload = () => {
           if (cancelled) return;
@@ -315,9 +321,12 @@ export function ScrollVideoHero({
   // real-DOM copy. No canvas, no frame download, no scroll hijacking.
   if (resolved && staticMode) {
     const useMobileVideo = Boolean(isNarrow && mobileVideoSrc);
+    const shouldShowStaticFallback = Boolean(
+      staticFallback && (!useMobileVideo || showMobileStaticFallback)
+    );
     const mobileStageStyle: React.CSSProperties =
       useMobileVideo && isNarrow
-        ? { minHeight: `calc(100dvh - ${stickyTop}px)` }
+        ? { height: `max(420px, calc(100dvh - ${stickyTop + mobileBottomPeek}px))` }
         : aspect
           ? { width: "100%", aspectRatio: `${aspect}` }
           : { minHeight: `calc(100vh - ${stickyTop}px)` };
@@ -358,9 +367,24 @@ export function ScrollVideoHero({
             style={{ objectFit: fit, background }}
           />
         )}
-        {staticFallback && (
+        {useMobileVideo && shouldShowStaticFallback && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(circle at 50% 46%, rgba(0, 18, 44, 0.1) 0%, rgba(0, 18, 44, 0.18) 36%, rgba(0, 18, 44, 0.38) 100%)",
+            }}
+          />
+        )}
+        {shouldShowStaticFallback && (
           <div className="relative h-full w-full flex items-center justify-center px-6">
             {staticFallback}
+          </div>
+        )}
+        {children && (
+          <div className="absolute inset-0" style={{ zIndex: 4 }}>
+            {children}
           </div>
         )}
       </div>
@@ -395,68 +419,70 @@ export function ScrollVideoHero({
         className="sticky left-0 overflow-hidden"
         style={stickyStyle}
       >
-        {/* Poster underlay — shown until the first frame paints (LCP target) */}
-        <NextImage
-          src={poster}
-          alt=""
-          aria-hidden
-          fill
-          priority
-          sizes="100vw"
-          className="absolute inset-0"
-          style={{
-            zIndex: 0,
-            objectFit: fit,
-            background,
-          }}
-        />
-        {/* Canvas: the scrub target */}
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full block"
-          style={{ zIndex: 1 }}
-          aria-hidden
-        />
-        {/* Reveal overlays — fade in/out with scroll progress */}
-        {reveals.length > 0 && (
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 3 }}>
-            {reveals.map((r, i) => (
-              <div
-                key={i}
-                ref={(el) => { revealRefs.current[i] = el; }}
-                className="absolute inset-0 flex items-center justify-center px-6"
-                style={{
-                  opacity: 0,
-                  willChange: "opacity, transform",
-                  transform: `translate3d(0, ${r.translate ?? 18}px, 0)`,
-                }}
-              >
-                {r.content}
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="relative h-full w-full">
+          {/* Poster underlay — shown until the first frame paints (LCP target) */}
+          <NextImage
+            src={poster}
+            alt=""
+            aria-hidden
+            fill
+            priority
+            sizes="100vw"
+            className="absolute inset-0"
+            style={{
+              zIndex: 0,
+              objectFit: fit,
+              background,
+            }}
+          />
+          {/* Canvas: the scrub target */}
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 w-full h-full block"
+            style={{ zIndex: 1 }}
+            aria-hidden
+          />
+          {/* Reveal overlays — fade in/out with scroll progress */}
+          {reveals.length > 0 && (
+            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 3 }}>
+              {reveals.map((r, i) => (
+                <div
+                  key={i}
+                  ref={(el) => { revealRefs.current[i] = el; }}
+                  className="absolute inset-0 flex items-center justify-center px-6"
+                  style={{
+                    opacity: 0,
+                    willChange: "opacity, transform",
+                    transform: `translate3d(0, ${r.translate ?? 18}px, 0)`,
+                  }}
+                >
+                  {r.content}
+                </div>
+              ))}
+            </div>
+          )}
 
-        {/* Optional foreground content (empty by default) */}
-        {children && (
-          <div className="relative h-full w-full" style={{ zIndex: 4 }}>
-            {children}
-          </div>
-        )}
+          {/* Optional foreground content (empty by default) */}
+          {children && (
+            <div className="relative h-full w-full" style={{ zIndex: 4 }}>
+              {children}
+            </div>
+          )}
 
-        {/* Load indicator — bottom left, fades out when ready */}
-        {loadPct < 100 && (
-          <div
-            className="absolute bottom-5 left-5 fg-label z-10 flex items-center gap-2"
-            style={{ color: "var(--color-fg-ink-muted)" }}
-          >
-            <span
-              className="inline-block w-[6px] h-[6px] rounded-full animate-pulse-dot"
-              style={{ background: "var(--primary)" }}
-            />
-            LOADING {loadPct}%
+          {/* Load indicator — bottom left, fades out when ready */}
+          {loadPct < 100 && (
+            <div
+              className="absolute bottom-5 left-5 fg-label z-10 flex items-center gap-2"
+              style={{ color: "var(--color-fg-ink-muted)" }}
+            >
+              <span
+                className="inline-block w-[6px] h-[6px] rounded-full animate-pulse-dot"
+                style={{ background: "var(--primary)" }}
+              />
+              LOADING {loadPct}%
+            </div>
+          )}
           </div>
-        )}
       </div>
     </div>
   );

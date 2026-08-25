@@ -44,7 +44,10 @@ export async function setPlayerApproval(playerId: string, approved: boolean) {
     }
     return;
   }
-  const { error } = await supabase.from("profiles").update({ is_approved: approved }).eq("id", playerId);
+  const { error } = await supabase.rpc("set_player_approval", {
+    p_player_id: playerId,
+    p_is_approved: approved,
+  });
   if (error) throw new Error(error.message);
 }
 
@@ -57,7 +60,10 @@ export async function setPlayerRole(playerId: string, role: PlayerRole) {
     }
     return;
   }
-  const { error } = await supabase.from("profiles").update({ role }).eq("id", playerId);
+  const { error } = await supabase.rpc("set_player_role", {
+    p_player_id: playerId,
+    p_role: role,
+  });
   if (error) throw new Error(error.message);
 }
 

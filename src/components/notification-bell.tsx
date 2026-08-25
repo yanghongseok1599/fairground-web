@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Bell } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
@@ -10,17 +10,25 @@ export function NotificationBell() {
   const { player } = useAuth();
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const countRequestSeq = useRef(0);
   const fetchCount = useDataStore((s) => s.fetchUnreadNotificationCount);
 
   useEffect(() => {
     if (!player?.id) {
-      setUnread(0);
-      return;
+      let active = true;
+      const seq = ++countRequestSeq.current;
+      queueMicrotask(() => {
+        if (active && seq === countRequestSeq.current) setUnread(0);
+      });
+      return () => {
+        active = false;
+      };
     }
     let cancelled = false;
+    const seq = ++countRequestSeq.current;
     (async () => {
       const c = await fetchCount();
-      if (!cancelled) setUnread(c);
+      if (!cancelled && seq === countRequestSeq.current) setUnread(c);
     })();
     return () => {
       cancelled = true;
@@ -50,7 +58,14 @@ export function NotificationBell() {
           </span>
         )}
       </button>
-      <NotificationPanel open={open} onClose={() => setOpen(false)} />
+      <NotificationPanel
+        open={open}
+        onClose={() => setOpen(false)}
+        onAllRead={() => {
+          countRequestSeq.current += 1;
+          setUnread(0);
+        }}
+      />
     </div>
   );
 }

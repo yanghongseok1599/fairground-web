@@ -4,20 +4,31 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  LogOut, ChevronRight, Users, Mail, Flag, Hash, ClipboardList,
+  LogOut, ChevronRight, Users, Mail, Flag, Hash,
   Shield, Target, Handshake, Gamepad2, Star, CreditCard,
   Download, Share2, Loader2, Pencil, Save, X, Phone, Calendar, UserRound,
-  Award, Brain,
+  Award, Brain, Camera,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
 import { PlayerCardCaptureFrame } from "@/components/player-card-capture-frame";
 import { BADGES } from "@/constants/badges";
-import type { Gender, Player, Team, TeamJoinRequest } from "@/types";
+import type { Gender, Player, PlayerCardSkin, Team, TeamJoinRequest } from "@/types";
+import {
+  PLAYER_CARD_SKIN_LABELS,
+  getUnlockedCardSkins,
+  readCardSkinPreference,
+  withCardSkin,
+  writeCardSkinPreference,
+} from "@/lib/player-card-skin";
 import { buildEditableProfileUpdate, isValidRegistrationProfile } from "@/lib/registration-profile";
-import { downloadElementAsPng } from "@/lib/card-download";
+import { downloadElementAsPng, shareElementAsPng } from "@/lib/card-download";
 import { getAdminEntryLabel, isAdminLikeRole } from "@/lib/admin-access";
+import { canManageTeam } from "@/lib/team-permissions";
 import { CardProgress } from "@/components/card-progress";
+import { PlayerProfilePhoto } from "@/components/player-profile-photo";
+import { compressImageBlob, removeBackgroundAndCompress } from "@/lib/image-compression";
+import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 
 /* ===========================================================
  * Light theme (White&Blue) — FairGround BrandKit 2026
@@ -81,6 +92,8 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const REGISTERED_TEAM_ID_KEY = "fg_registered_team_id";
+// 760px player card + 420px side panel + 56px xl gap. Keep page sections aligned.
+const MY_PAGE_SECTION_SHELL = "px-4 sm:px-6 max-w-[1236px] mx-auto";
 
 const inputStyle: React.CSSProperties = {
   background: "var(--color-fg-paper)",
@@ -159,13 +172,21 @@ function StatBox({ value, label, icon }: {
 
 export default function MyPage() {
   const router = useRouter();
-  const { user, player, loading, initialized, logout, updatePlayer } = useAuth();
+  const { user, player, initialized, logout, updatePlayer, uploadPlayerPhoto } = useAuth();
   const store = useDataStore();
   const exportCardRef = useRef<HTMLDivElement>(null);
+  const profilePhotoInputRef = useRef<HTMLInputElement>(null);
+  const profilePhotoObjectUrlRef = useRef<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareMessage, setShareMessage] = useState("");
+  const [cardSkinChoice, setCardSkinChoice] = useState<PlayerCardSkin>("standard");
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
+  const [profilePhotoSaving, setProfilePhotoSaving] = useState(false);
+  const [profilePhotoMessage, setProfilePhotoMessage] = useState("");
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
   const [profileForm, setProfileForm] = useState({
     name: "",
     email: "",
@@ -184,6 +205,24 @@ export default function MyPage() {
   const showAdminEntry = isAdminLikeRole(player?.role);
   const isAdminProfile = player?.role === "admin";
   const managedTeamId = player?.teamId || registeredTeamId;
+  const canManageCurrentTeam = canManageTeam(player, team);
+  const isPendingTeamMember = Boolean(player?.teamId && !player.isApproved);
+
+  // 보유 카드 목록 — 대회 카드는 항상, 그라운드 챌린지 카드는 받은 선수만.
+  const unlockedCardSkins = getUnlockedCardSkins(player);
+  const canChooseCardSkin = unlockedCardSkins.length > 1;
+  const unlockedKey = unlockedCardSkins.join(",");
+
+  useEffect(() => {
+    setCardSkinChoice(
+      readCardSkinPreference(unlockedKey.split(",") as PlayerCardSkin[]),
+    );
+  }, [unlockedKey]);
+
+  const chooseCardSkin = (skin: PlayerCardSkin) => {
+    setCardSkinChoice(skin);
+    writeCardSkinPreference(skin);
+  };
 
   useEffect(() => {
     if (!player) return;
@@ -200,6 +239,14 @@ export default function MyPage() {
       bio: player.bio || "",
     });
   }, [player, user?.email]);
+
+  useEffect(() => {
+    return () => {
+      if (profilePhotoObjectUrlRef.current) {
+        URL.revokeObjectURL(profilePhotoObjectUrlRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const localTeamId = localStorage.getItem(REGISTERED_TEAM_ID_KEY) || "";
@@ -229,6 +276,7 @@ export default function MyPage() {
 
   const handleSave = async () => {
     if (!exportCardRef.current || !player) return;
+    setShareMessage("");
     setSaving(true);
     try {
       await downloadElementAsPng(exportCardRef.current, `${player.name}-fairground.png`);
@@ -240,18 +288,29 @@ export default function MyPage() {
   };
 
   const handleShare = async () => {
-    if (!player) return;
+    if (!exportCardRef.current || !player) return;
+    setShareMessage("");
+    setSharing(true);
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: `${player.name} - FairGround`,
-          url: window.location.href,
-        });
-      } else {
-        await navigator.clipboard.writeText(window.location.href);
+      const result = await shareElementAsPng(exportCardRef.current, `${player.name}-fairground.png`, {
+        title: `${player.name} - FairGround`,
+        text: "FairGround 선수 카드",
+      });
+      if (result === "downloaded") {
+        setShareMessage("이 브라우저는 이미지 공유를 지원하지 않아 저장으로 처리했습니다.");
       }
     } catch (e) {
       if (e instanceof Error && e.name === "AbortError") return;
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        setShareMessage("공유가 열리지 않아 링크를 복사했습니다.");
+      } catch {
+        setShareMessage("공유를 실행하지 못했습니다. 저장하기를 이용해주세요.");
+      }
+      console.error(e);
+    } finally {
+      setSharing(false);
+      window.setTimeout(() => setShareMessage(""), 3500);
     }
   };
 
@@ -284,6 +343,59 @@ export default function MyPage() {
       setProfileMessage(error instanceof Error ? error.message : "개인정보 저장에 실패했습니다.");
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const setProfilePhotoObjectUrl = (url: string) => {
+    if (profilePhotoObjectUrlRef.current) {
+      URL.revokeObjectURL(profilePhotoObjectUrlRef.current);
+    }
+    profilePhotoObjectUrlRef.current = url;
+    setProfilePhotoPreview(url);
+  };
+
+  const handleProfilePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !player) return;
+
+    setProfilePhotoSaving(true);
+    setProfilePhotoMessage("프로필 이미지를 처리하고 있습니다.");
+    try {
+      const compressed = await compressImageBlob(file, {
+        maxPx: 1400,
+        mimeType: "image/webp",
+        quality: 0.9,
+      });
+
+      let outputBlob = compressed;
+      let removedBackground = true;
+      try {
+        outputBlob = await removeBackgroundAndCompress(compressed, {
+          maxPx: 1400,
+          mimeType: "image/webp",
+          quality: 0.92,
+        });
+      } catch (error) {
+        removedBackground = false;
+        console.error("[MyPage] profile background removal failed:", error);
+      }
+
+      setProfilePhotoObjectUrl(URL.createObjectURL(outputBlob));
+      const profileFile = new File([outputBlob], "profile.webp", {
+        type: outputBlob.type || "image/webp",
+      });
+      const uploadedUrl = await uploadPlayerPhoto(profileFile);
+      await updatePlayer({ profilePhotoUrl: uploadedUrl, profilePhotoLocked: true });
+      setProfilePhotoMessage(
+        removedBackground
+          ? "프로필 이미지가 저장되었습니다."
+          : "배경 제거 없이 프로필 이미지가 저장되었습니다.",
+      );
+    } catch (error) {
+      setProfilePhotoMessage(error instanceof Error ? error.message : "프로필 이미지 저장에 실패했습니다.");
+    } finally {
+      setProfilePhotoSaving(false);
+      if (event.target) event.target.value = "";
     }
   };
 
@@ -354,6 +466,11 @@ export default function MyPage() {
   if (player && !player.birthDate?.trim()) missingProfileFields.push("생년월일");
   const showProfileCompletionBanner =
     !!player && missingProfileFields.length > 0 && !editingProfile;
+  const playerCardDisplayWidth = "clamp(320px, 54vw, 760px)";
+
+  // 보유 카드가 둘 이상이면(=그라운드 챌린지 카드를 받은 선수) 어떤 카드를
+  // 보여줄지 고를 수 있다. 기본은 언제나 대회 카드이고, 선택은 기기에 저장된다.
+  // 공유·저장은 화면에 보이는 카드를 그대로 캡처하므로 선택이 그대로 반영된다.
 
   return (
     <div className="min-h-screen pt-[60px]" style={{ background: "var(--color-fg-paper)" }}>
@@ -363,10 +480,10 @@ export default function MyPage() {
           수정" 모달을 직접 열어 한 화면에서 모두 채우게 함. */}
       {showProfileCompletionBanner && (
         <div
-          className="px-6 pt-4"
+          className="pt-4"
           style={{ background: "var(--color-fg-paper-2)" }}
         >
-          <div className="mx-auto max-w-2xl">
+          <div className={MY_PAGE_SECTION_SHELL}>
             <div
               className="flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm"
               style={{
@@ -409,10 +526,10 @@ export default function MyPage() {
           유저(player.teamId)면 과거 거부 이력은 노이즈이므로 전체 숨김. */}
       {!player?.teamId && (pendingJoinRequests.length > 0 || recentRejected) && (
         <div
-          className="px-6 pt-4"
+          className="pt-4"
           style={{ background: "var(--color-fg-paper-2)" }}
         >
-          <div className="mx-auto max-w-2xl space-y-2">
+          <div className={`${MY_PAGE_SECTION_SHELL} space-y-2`}>
             {pendingJoinRequests.map((req) => (
               <div
                 key={req.id}
@@ -429,7 +546,7 @@ export default function MyPage() {
                     {req.teamName ?? "팀"} 가입 신청 승인 대기 중
                   </p>
                   <p className="mt-0.5 text-[11px]" style={{ color: "var(--color-fg-ink-muted)" }}>
-                    감독·운영자가 확인하면 자동으로 팀에 합류됩니다.
+                    감독·매니저가 확인하면 자동으로 팀에 합류됩니다.
                   </p>
                 </div>
                 <button
@@ -485,25 +602,18 @@ export default function MyPage() {
 
       {/* ── Hero ── */}
       <div
-        className="relative overflow-hidden px-6 pt-8 pb-10"
+        className="relative overflow-hidden pt-8 pb-10"
         style={{ background: "var(--color-fg-paper-2)" }}
       >
-        <div className="max-w-2xl mx-auto flex items-center gap-5">
+        <div className={`${MY_PAGE_SECTION_SHELL} flex items-center gap-5`}>
           {/* Avatar */}
           <div className="relative flex-shrink-0">
-            <div
-              className="w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-2xl overflow-hidden flex items-center justify-center font-black text-2xl"
-              style={{
-                background: (player?.profilePhotoUrl || player?.photoUrl) ? "transparent" : "var(--color-fg-paper-3)",
-                border: "2px solid var(--color-fg-blue-soft)",
-                color: "var(--primary)",
-                fontFamily: "var(--font-pretendard)",
-              }}
-            >
-              {(player?.profilePhotoUrl || player?.photoUrl)
-                ? <img src={player.profilePhotoUrl || player.photoUrl} alt={player.name} className="w-full h-full object-cover" />
-                : (player?.name?.slice(0, 1) || user?.email?.slice(0, 1)?.toUpperCase() || "?")}
-            </div>
+            <PlayerProfilePhoto
+              src={profilePhotoPreview || getPlayerProfilePhotoUrl(player)}
+              alt={player?.name || user?.email || "프로필"}
+              className="h-16 w-16 rounded-2xl sm:h-[72px] sm:w-[72px]"
+              icon={UserRound}
+            />
             {player?.cardRating && !isAdminProfile && (
               <div
                 className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black"
@@ -567,7 +677,7 @@ export default function MyPage() {
                     fontFamily: "var(--font-space-mono)",
                   }}
                 >
-                  PREMIUM
+                  PLATINUM
                 </span>
               )}
               {player && !player.isApproved && (
@@ -591,7 +701,7 @@ export default function MyPage() {
       {/* ── Card + Stats Row ── */}
       {player ? (
         isAdminProfile ? (
-          <div className="px-6 max-w-4xl mx-auto mt-8">
+          <div className={`${MY_PAGE_SECTION_SHELL} mt-8`}>
             <SectionLabel text="Admin Profile" />
             <div
               className="rounded-2xl border p-6 md:p-8"
@@ -656,30 +766,121 @@ export default function MyPage() {
             </div>
           </div>
         ) : (
-        <div className="px-6 max-w-7xl mx-auto mt-8">
-          <div className="flex flex-col md:flex-row gap-10 lg:gap-20 items-start md:items-stretch">
+        <div className={`${MY_PAGE_SECTION_SHELL} mt-5 sm:mt-8`}>
+          <div className="grid gap-7 lg:grid-cols-[minmax(0,760px)_minmax(320px,420px)] lg:items-start lg:justify-center lg:gap-10 xl:gap-14">
 
             {/* ── Left: 선수 카드 ── */}
-            <section className="flex-shrink-0 self-center md:self-start">
+            <section className="w-full lg:justify-self-end">
               <SectionLabel text="Player Card" />
-              <div className="flex flex-col items-center">
-                <div ref={exportCardRef}>
-                  <PlayerCardCaptureFrame
-                    player={player}
-                    teamLogo={team?.logo}
-                    boxSize={560}
-                    cardSize="lg"
-                    cardScale={1.55}
-                    logoHeight={27}
-                  />
-                </div>
-
-                {/* Buttons */}
-                <div className="flex gap-4 mt-6 w-full max-w-[560px]">
+              <div className="flex w-full flex-col items-center">
+                {canChooseCardSkin ? (
+                  /* 보유 카드 2종을 한 화면에 나란히 — 리그 카드 / 챌린지 카드.
+                     탭하면 저장·공유 대상이 그 카드로 바뀐다(테두리로 표시). */
+                  <div
+                    className="mx-auto grid w-full gap-4 sm:grid-cols-2"
+                    style={{ maxWidth: playerCardDisplayWidth }}
+                    role="group"
+                    aria-label="보유 선수 카드"
+                  >
+                    {unlockedCardSkins.map((skin) => {
+                      const active = cardSkinChoice === skin;
+                      return (
+                        <div key={skin} className="w-full">
+                          <button
+                            type="button"
+                            onClick={() => chooseCardSkin(skin)}
+                            aria-pressed={active}
+                            className="block w-full rounded-2xl p-1 transition-all"
+                            style={{
+                              border: `2px solid ${active ? "var(--primary)" : "transparent"}`,
+                              boxShadow: active ? "var(--shadow-sm)" : "none",
+                            }}
+                          >
+                            <div
+                              ref={(el) => {
+                                if (active) exportCardRef.current = el;
+                              }}
+                              className="w-full"
+                            >
+                              <PlayerCardCaptureFrame
+                                player={withCardSkin(player, skin)}
+                                teamLogo={team?.logo}
+                                boxSize={760}
+                                cardSize="export"
+                                cardScale={0.69}
+                                logoHeight={36}
+                                displayWidth="100%"
+                              />
+                            </div>
+                          </button>
+                          <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+                            <span
+                              className="text-sm font-bold"
+                              style={{ color: "var(--color-fg-ink)" }}
+                            >
+                              {PLAYER_CARD_SKIN_LABELS[skin].label}
+                            </span>
+                            {active && (
+                              <span
+                                className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+                                style={{
+                                  background: "var(--primary)",
+                                  color: "var(--color-fg-paper)",
+                                }}
+                              >
+                                저장·공유 선택됨
+                              </span>
+                            )}
+                          </div>
+                          <p
+                            className="mt-0.5 text-center text-[11px] leading-tight"
+                            style={{ color: "var(--color-fg-ink-muted)" }}
+                          >
+                            {PLAYER_CARD_SKIN_LABELS[skin].description}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex w-full justify-center">
+                    <div
+                      ref={exportCardRef}
+                      className="w-full"
+                      style={{ maxWidth: playerCardDisplayWidth }}
+                    >
+                      <PlayerCardCaptureFrame
+                        player={player}
+                        teamLogo={team?.logo}
+                        boxSize={760}
+                        cardSize="export"
+                        cardScale={0.69}
+                        logoHeight={36}
+                        displayWidth="100%"
+                      />
+                    </div>
+                  </div>
+                )}
+                <div className="mt-4 grid w-full max-w-[760px] grid-cols-2 gap-3 sm:mt-5 sm:gap-4">
+                  <button
+                    onClick={handleShare}
+                    disabled={sharing || saving}
+                    className="min-h-[52px] min-w-0 flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50 sm:rounded-2xl sm:text-base"
+                    style={{
+                      background: "var(--color-fg-paper)",
+                      border: "1px solid var(--primary)",
+                      color: "var(--primary)",
+                    }}
+                  >
+                    {sharing
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />}
+                    {sharing ? "준비 중" : "공유하기"}
+                  </button>
                   <button
                     onClick={handleSave}
-                    disabled={saving}
-                    className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-base font-bold transition-all hover:opacity-90 disabled:opacity-50"
+                    disabled={saving || sharing}
+                    className="min-h-[52px] min-w-0 flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50 sm:rounded-2xl sm:text-base"
                     style={{
                       background: "var(--primary)",
                       color: "var(--color-fg-paper)",
@@ -688,41 +889,44 @@ export default function MyPage() {
                   >
                     {saving
                       ? <Loader2 className="w-4 h-4 animate-spin" />
-                      : <Download className="w-5 h-5" />}
-                    이미지 저장
-                  </button>
-                  <button
-                    onClick={handleShare}
-                    className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl text-base font-bold transition-all hover:opacity-90"
-                    style={{
-                      background: "var(--color-fg-paper)",
-                      border: "1px solid var(--primary)",
-                      color: "var(--primary)",
-                    }}
-                  >
-                    <Share2 className="w-5 h-5" />
-                    공유하기
+                      : <Download className="w-4 h-4 sm:w-5 sm:h-5" />}
+                    {saving ? "저장 중" : "저장하기"}
                   </button>
                 </div>
-
-                {/* Card edit */}
-                <Link
-                  href="/my/card-edit"
-                  className="flex items-center justify-center gap-2 mt-4 w-full max-w-[560px] py-4 rounded-2xl text-base font-bold transition-all hover:opacity-90"
-                  style={{
-                    background: "var(--color-fg-paper-3)",
-                    border: "1px solid var(--color-fg-blue-soft)",
-                    color: "var(--primary)",
-                  }}
-                >
-                  <Pencil className="w-5 h-5" />
-                  카드 수정
-                </Link>
+                {canChooseCardSkin && (
+                  <p className="mt-3 w-full max-w-[760px] text-center text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>
+                    카드를 탭하면 저장·공유할 카드를 바꿀 수 있어요
+                  </p>
+                )}
+                {shareMessage && (
+                  <p className="mt-3 w-full max-w-[760px] text-center text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>
+                    {shareMessage}
+                  </p>
+                )}
               </div>
             </section>
 
-            {/* ── Right: 개인 기록 ── */}
-            <section className="flex-1 min-w-0 w-full flex flex-col">
+            {/* ── Right: 액션 + 개인 기록 ── */}
+            <section className="w-full min-w-0 space-y-6 lg:sticky lg:top-24">
+              <div>
+                <SectionLabel text="Actions" />
+                <div className="grid gap-3 sm:gap-4">
+                  <Link
+                    href="/my/card-edit"
+                    className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold transition-all hover:opacity-90 sm:rounded-2xl sm:text-base"
+                    style={{
+                      background: "var(--color-fg-paper-3)",
+                      border: "1px solid var(--color-fg-blue-soft)",
+                      color: "var(--primary)",
+                    }}
+                  >
+                    <Pencil className="w-4 h-4 sm:w-5 sm:h-5" />
+                    카드 수정
+                  </Link>
+                </div>
+              </div>
+
+              <div className="flex min-w-0 flex-col">
               <SectionLabel text="Stats" />
               <div className="grid grid-cols-2 md:grid-cols-2 md:grid-rows-2 gap-3 mb-3 md:flex-1">
                 <StatBox value={player.stats.goals} label="골"
@@ -811,6 +1015,7 @@ export default function MyPage() {
                   </div>
                 </div>
               )}
+              </div>
 
             </section>
 
@@ -818,7 +1023,7 @@ export default function MyPage() {
         </div>
         )
       ) : (
-        <div className="px-6 max-w-2xl mx-auto mt-8">
+        <div className={`${MY_PAGE_SECTION_SHELL} mt-8`}>
           <section>
             <SectionLabel text="Player Card" />
             <div
@@ -875,17 +1080,17 @@ export default function MyPage() {
         const goals = getNextBadgeGoals(player);
         if (goals.length === 0) return null;
         return (
-          <div className="px-6 max-w-4xl mx-auto mt-10">
+          <div className={`${MY_PAGE_SECTION_SHELL} mt-16 sm:mt-20`}>
             <SectionLabel text="Next Badges" />
             <div
-              className="rounded-2xl px-5 py-5"
+              className="rounded-2xl px-5 py-5 sm:px-7 md:px-8"
               style={{
                 background: "var(--color-fg-paper)",
                 border: "1px solid var(--color-fg-line-soft)",
                 boxShadow: "var(--shadow-sm)",
               }}
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-y-4 md:grid-cols-2 md:gap-x-14 lg:gap-x-20">
                 {goals.map((goal) => (
                   <div key={goal.badge.id} className="flex items-center gap-3">
                     <div
@@ -932,7 +1137,7 @@ export default function MyPage() {
 
       {/* ── 내 배지 진입 카드 ── */}
       {player && (
-        <div className="px-6 max-w-4xl mx-auto mt-10">
+        <div className={`${MY_PAGE_SECTION_SHELL} mt-10`}>
           <SectionLabel text="Badges" />
           <Link
             href="/my/badges"
@@ -973,7 +1178,7 @@ export default function MyPage() {
       )}
 
       {/* ── Team + Profile Row ── */}
-      <div className="px-6 max-w-4xl mx-auto mt-10">
+      <div className={`${MY_PAGE_SECTION_SHELL} mt-10`}>
         <div className="flex flex-col md:flex-row gap-8 md:items-stretch">
 
           {/* ── Left: 팀 정보 ── */}
@@ -1008,16 +1213,13 @@ export default function MyPage() {
                     </div>
                     <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: "var(--color-fg-ink-muted)" }} />
                   </Link>
-                  {/* Action row — 팀 카드 자체도 팀홈 Link이지만 큰 "팀 운영"
-                      버튼이 시각적으로 압도해 팀 홈 진입로가 묻혔던 문제(사용자
-                      피드백)를 해소. 좌측 secondary(팀 홈페이지) + 우측 primary
-                      (팀 운영)로 동등 가시성 확보. teamId 없을 땐 단독 가입 CTA. */}
+                  {/* Action row — 팀 운영은 승인된 감독/매니저에게만 노출한다. */}
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     {player?.teamId ? (
                       <>
                         <Link
                           href={`/teams/${player.teamId}`}
-                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border px-4 py-3 text-xs font-bold transition-all hover:bg-[rgba(0,71,171,0.06)]"
+                          className={`${canManageCurrentTeam ? "" : "col-span-2"} inline-flex w-full items-center justify-center gap-1.5 rounded-xl border px-4 py-3 text-xs font-bold transition-all hover:bg-[rgba(0,71,171,0.06)]`}
                           style={{
                             borderColor: "rgba(0,71,171,0.20)",
                             color: "var(--primary)",
@@ -1027,17 +1229,24 @@ export default function MyPage() {
                           <Users className="h-4 w-4" />
                           팀 홈페이지
                         </Link>
-                        <Link
-                          href={`/teams/${player.teamId}/admin`}
-                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-xs font-bold transition-all hover:opacity-90"
-                          style={{
-                            background: "var(--primary)",
-                            color: "var(--color-fg-paper)",
-                          }}
-                        >
-                          <Shield className="h-4 w-4" />
-                          팀 운영
-                        </Link>
+                        {canManageCurrentTeam && (
+                          <Link
+                            href={`/teams/${player.teamId}/admin`}
+                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-4 py-3 text-xs font-bold transition-all hover:opacity-90"
+                            style={{
+                              background: "var(--primary)",
+                              color: "var(--color-fg-paper)",
+                            }}
+                          >
+                            <Shield className="h-4 w-4" />
+                            팀 운영
+                          </Link>
+                        )}
+                        {isPendingTeamMember && (
+                          <p className="col-span-2 text-center text-[11px]" style={{ color: "var(--color-fg-ink-muted)" }}>
+                            팀 승인 완료 후 팀 운영을 사용할 수 있습니다.
+                          </p>
+                        )}
                       </>
                     ) : (
                       <Link
@@ -1106,6 +1315,72 @@ export default function MyPage() {
                 boxShadow: "var(--shadow-sm)",
               }}
             >
+              {player && (
+                <div
+                  className="py-5"
+                  style={{ borderBottom: "1px solid var(--color-fg-line-soft)" }}
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-4">
+                      <PlayerProfilePhoto
+                        src={profilePhotoPreview || getPlayerProfilePhotoUrl(player)}
+                        alt={player.name}
+                        className="h-20 w-20 rounded-2xl"
+                        icon={UserRound}
+                      />
+                      <div className="min-w-0">
+                        <div className="text-[10px] uppercase tracking-wider mb-1" style={labelStyleMono}>
+                          프로필 이미지
+                        </div>
+                        <p className="text-sm font-bold" style={{ color: "var(--color-fg-ink)" }}>
+                          {player.name}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2 sm:items-end">
+                      <input
+                        ref={profilePhotoInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleProfilePhotoChange}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => profilePhotoInputRef.current?.click()}
+                        disabled={profilePhotoSaving}
+                        className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold disabled:opacity-50"
+                        style={{
+                          background: "var(--color-fg-paper)",
+                          border: "1px solid var(--primary)",
+                          color: "var(--primary)",
+                        }}
+                      >
+                        {profilePhotoSaving ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Camera className="h-4 w-4" />
+                        )}
+                        이미지 변경
+                      </button>
+                    </div>
+                  </div>
+                  {profilePhotoMessage && (
+                    <p
+                      className="mt-3 text-sm"
+                      style={{
+                        color: profilePhotoMessage.includes("실패")
+                          ? "var(--destructive)"
+                          : "var(--primary)",
+                      }}
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {profilePhotoMessage}
+                    </p>
+                  )}
+                </div>
+              )}
               {!editingProfile ? (
                 <>
                   <InfoRow
@@ -1389,7 +1664,7 @@ export default function MyPage() {
 
       {/* ── 자기소개 (bio) ── */}
       {player?.bio && !editingProfile && (
-        <div className="px-6 max-w-4xl mx-auto mt-10">
+        <div className={`${MY_PAGE_SECTION_SHELL} mt-10`}>
           <SectionLabel text="About Me" />
           <div
             className="rounded-2xl px-5 py-5"
@@ -1407,7 +1682,7 @@ export default function MyPage() {
       )}
 
       {/* ── Content ── */}
-      <div className="px-6 pb-16 max-w-4xl mx-auto mt-10">
+      <div className={`${MY_PAGE_SECTION_SHELL} pb-16 mt-10`}>
 
         {/* ── 관리자/심판 운영 진입 ── */}
         {showAdminEntry && (
