@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
-const CANONICAL_HOST = "fairground-futsal.vercel.app";
-const LEGACY_HOST = "fairground-footsal.vercel.app";
+const CANONICAL_HOST = "fairground-kor.com";
+const LEGACY_HOSTS = [
+  "www.fairground-kor.com",
+  "fairground-futsal.vercel.app",
+  "fairground-footsal.vercel.app",
+];
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
@@ -19,14 +23,12 @@ const nextConfig: NextConfig = {
     ],
   },
   async redirects() {
-    return [
-      {
-        source: "/:path*",
-        has: [{ type: "host", value: LEGACY_HOST }],
-        destination: `https://${CANONICAL_HOST}/:path*`,
-        permanent: true,
-      },
-    ];
+    return LEGACY_HOSTS.map((host) => ({
+      source: "/:path*",
+      has: [{ type: "host" as const, value: host }],
+      destination: `https://${CANONICAL_HOST}/:path*`,
+      permanent: true,
+    }));
   },
   async headers() {
     return [
