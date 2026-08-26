@@ -58,3 +58,4 @@ cors.json
 *.before-*
 .vercel.bak*
 supabase/.temp
+docs/email-templates/preview-*.html

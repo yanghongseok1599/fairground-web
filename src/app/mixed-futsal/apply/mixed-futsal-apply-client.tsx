@@ -22,6 +22,7 @@ import {
   Users,
 } from "lucide-react";
 import { MixedFutsalEligibilityTable } from "@/components/mixed-futsal-eligibility-table";
+import { PushEnableCard } from "@/components/push-enable-card";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
 import {
@@ -368,6 +369,12 @@ export function MixedFutsalApplyClient() {
                 <p className="mt-4 border-l-2 border-[#0047AB] bg-[#EEF3FF] px-4 py-3 text-[14px] leading-[1.7] text-[#526277]">
                   {MIXED_FUTSAL_ENTRY_FEE_NOTE}
                 </p>
+
+                {/* 참가 확정 직후가 알림 수락률이 가장 높은 순간이다.
+                    승인 결과·대회 안내를 놓치지 않으려면 여기서 켜는 게 맞다. */}
+                <div className="mt-5">
+                  <PushEnableCard />
+                </div>
                 <button
                   type="button"
                   onClick={() => router.push(`/my/team?teamId=${createdTeamId}&source=mixed-futsal`)}

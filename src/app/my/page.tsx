@@ -31,6 +31,7 @@ import { getAdminEntryLabel, isAdminLikeRole } from "@/lib/admin-access";
 import { canManageTeam } from "@/lib/team-permissions";
 import { CardProgress } from "@/components/card-progress";
 import { PlayerProfilePhoto } from "@/components/player-profile-photo";
+import { PushEnableCard } from "@/components/push-enable-card";
 import { compressImageBlob, removeBackgroundAndCompress } from "@/lib/image-compression";
 import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 
@@ -1722,6 +1723,12 @@ export default function MyPage() {
             {getAdminEntryLabel(player?.role)} 페이지로 이동
           </Link>
         )}
+
+        {/* ── 알림 설정 ──
+            모바일에는 알림을 켤 상시 진입점이 없었다. 헤더 종 토글은
+            hidden xl:flex 라 데스크톱 전용이고, 하단 배너는 닫으면 그 방문
+            동안 다시 뜨지 않는다. 여기에 항상 두어 언제든 켜고 끌 수 있게 한다. */}
+        {user && <PushEnableCard />}
 
         {/* ── 비밀번호 변경 ──
             구글 전용 계정은 비밀번호가 없다. 그래도 updateUser 로 설정이
