@@ -54,8 +54,6 @@ interface MatchControlState {
   elapsedSeconds: number;
   currentHalf: 1 | 2;
   isRunning: boolean;
-  /** 경고 2회 누적으로 퇴장이 자동 기록된 직후의 선수 (규정 제12조③) */
-  autoEjection: { playerId: string; playerName: string } | null;
 }
 
 interface MatchControlActions {
@@ -72,8 +70,6 @@ interface MatchControlActions {
   }) => Promise<boolean>;
   cancelEvent: (eventId: string) => Promise<boolean>;
   setMom: (playerId: string) => Promise<boolean>;
-  /** 자동 퇴장 안내 닫기 */
-  clearAutoEjection: () => void;
   reload: () => Promise<void>;
   /** 에러 배너의 재시도/닫기 후 상태 해제 */
   clearError: () => void;
@@ -97,10 +93,6 @@ export function useMatchControl({
   const [localElapsed, setLocalElapsed] = useState(0);
   const [localHalf, setLocalHalf] = useState<1 | 2>(1);
   const [localRunning, setLocalRunning] = useState(false);
-  const [autoEjection, setAutoEjection] = useState<{
-    playerId: string;
-    playerName: string;
-  } | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const syncCounterRef = useRef(0);
@@ -118,11 +110,6 @@ export function useMatchControl({
 
   // Sort events by timestamp descending (newest first)
   const sortedEvents = [...events].sort((a, b) => b.timestamp - a.timestamp);
-
-  // addEvent 는 useCallback 으로 메모이즈돼 있어 events 를 직접 클로저에 담으면
-  // 옛 스냅샷을 본다. 자동 퇴장 판정은 항상 최신 이벤트가 필요하므로 ref 로 읽는다.
-  const eventsRef = useRef<MatchEvent[]>(events);
-  eventsRef.current = events;
 
   // Load initial data
   const loadData = useCallback(async () => {
@@ -362,33 +349,14 @@ export function useMatchControl({
     }) =>
       runAction("event", "이벤트 기록에 실패했습니다", async () => {
         const minute = matchMinuteFromElapsed(localElapsed);
+        // 규정 제12조③(동일 경기 경고 2회 누적 → 퇴장)은 add_match_event RPC 가
+        // 같은 트랜잭션에서 판정·기록한다. 클라이언트는 방금 넣은 경고가 realtime
+        // 으로 자기 목록에 반영됐는지 알 수 없어 여기서 세면 오판한다.
         await store.addMatchEvent(tournamentId, matchId, {
           ...event,
           minute,
           half: localHalf,
         });
-
-        // 규정 제12조③ — 동일 경기 내 경고 2회 누적 시 퇴장.
-        // 심판이 레드카드를 따로 누르지 않아도 시스템이 퇴장을 함께 기록한다.
-        if (event.type !== "yellow_card") return;
-
-        const prior = eventsRef.current.filter(
-          (e) => !e.isCancelled && e.playerId === event.playerId,
-        );
-        // 방금 넣은 경고가 realtime 으로 이미 반영됐을 수도, 아닐 수도 있다.
-        // 어느 쪽이든 2회 이상이면 되므로 반영 전 기준(+1)으로 판정한다.
-        const yellowCount =
-          prior.filter((e) => e.type === "yellow_card").length + 1;
-        const alreadyEjected = prior.some((e) => e.type === "red_card");
-        if (yellowCount < 2 || alreadyEjected) return;
-
-        await store.addMatchEvent(tournamentId, matchId, {
-          ...event,
-          type: "red_card",
-          minute,
-          half: localHalf,
-        });
-        setAutoEjection({ playerId: event.playerId, playerName: event.playerName });
       }),
   // eslint-disable-next-line react-hooks/exhaustive-deps
     [tournamentId, matchId, localElapsed, localHalf, runAction]
@@ -426,7 +394,6 @@ export function useMatchControl({
     elapsedSeconds: localElapsed,
     currentHalf: localHalf,
     isRunning: localRunning,
-    autoEjection,
     startMatch,
     pauseMatch,
     resumeMatch,
@@ -434,7 +401,6 @@ export function useMatchControl({
     addEvent,
     cancelEvent,
     setMom,
-    clearAutoEjection: () => setAutoEjection(null),
     reload: loadData,
     clearError,
   };

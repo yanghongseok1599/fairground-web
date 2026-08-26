@@ -396,10 +396,12 @@ function AdminMatchControl() {
     liveEvents.filter((e) => e.playerId === pid && e.type === type).length;
 
   // 제12조③ — 동일 경기 내 경고(옐로) 2회 누적 시 퇴장.
-  // 퇴장은 useMatchControl.addEvent 가 두 번째 경고와 함께 자동 기록한다.
-  // 아래 집계는 자동 기록이 실패했거나 이 기능 이전에 진행된 경기를 위한
-  // 안전망 — 경고 2회인데 레드가 없는 선수가 남아 있으면 배너로 알린다.
-  const ejectionDue = (() => {
+  // 퇴장 기록은 add_match_event RPC 가 두 번째 경고와 같은 트랜잭션에서 넣는다.
+  // 화면은 그 결과를 읽어 보여주기만 한다.
+  //   ejected     — 경고 2회 + 퇴장 기록 있음 (정상)
+  //   ejectionDue — 경고 2회인데 퇴장 기록이 없음. RPC 배포 이전에 진행된
+  //                 경기를 위한 안전망이며, 심판이 직접 🟥 를 눌러야 한다.
+  const cardTally = (() => {
     const acc = new Map<string, { name: string; y: number; r: number }>();
     for (const e of liveEvents) {
       if (e.type !== "yellow_card" && e.type !== "red_card") continue;
@@ -409,8 +411,10 @@ function AdminMatchControl() {
       if (e.playerName) cur.name = e.playerName;
       acc.set(e.playerId, cur);
     }
-    return [...acc.values()].filter((v) => v.y >= 2 && v.r === 0);
+    return [...acc.values()];
   })();
+  const ejected = cardTally.filter((v) => v.y >= 2 && v.r > 0);
+  const ejectionDue = cardTally.filter((v) => v.y >= 2 && v.r === 0);
 
   // 출전(코트)·대기(벤치) 선수 분리.
   // 경기 운영 화면은 실제 코트에 항상 최대 5명을 보여줘야 하므로, 선발이
@@ -1562,8 +1566,8 @@ function AdminMatchControl() {
           </div>
         )}
 
-        {/* 자동 퇴장 확인 — 두 번째 경고와 함께 퇴장이 기록됐음을 심판에게 알린다. */}
-        {mc.autoEjection && (
+        {/* 퇴장 처리 안내 — 경고 2회로 퇴장이 기록된 선수. */}
+        {isLive && ejected.length > 0 && (
           <div
             role="status"
             className="flex items-start gap-3 rounded-lg border p-3"
@@ -1572,20 +1576,13 @@ function AdminMatchControl() {
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
             <div className="flex-1 text-sm">
               <p className="font-semibold text-red-700">
-                {mc.autoEjection.playerName} 퇴장 처리 (경고 2회 누적)
+                퇴장 처리 (경고 2회 누적) — {ejected.map((v) => v.name).join(", ")}
               </p>
               <p className="mt-0.5 text-red-700">
-                규정 제12조③에 따라 🟥 퇴장을 함께 기록했습니다. 해당 선수는 남은
-                경기에 출전할 수 없습니다.
+                규정 제12조③에 따라 두 번째 경고와 함께 🟥 퇴장이 기록됐습니다. 해당
+                선수는 남은 경기에 출전할 수 없습니다.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={mc.clearAutoEjection}
-              className="shrink-0 rounded-md px-2 py-1 text-xs font-bold text-red-700 hover:bg-red-100"
-            >
-              확인
-            </button>
           </div>
         )}
 

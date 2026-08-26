@@ -62,3 +62,35 @@ test("경기 종료는 팀 리그 스탯과 순위도 갱신한다", () => {
 });
 
 console.log("match-live-finalization tests passed");
+
+// 제12조③ — 경고 2회 누적 시 퇴장은 클라이언트가 아니라 add_match_event RPC 가
+// 같은 트랜잭션에서 판정한다. 클라이언트 판정은 방금 넣은 경고가 realtime 으로
+// 반영됐는지 알 수 없어 첫 경고에서 오판할 수 있다.
+const autoEjectionSql = readFileSync(
+  join(root, "supabase/migrations/20260826000000_auto_ejection_on_second_yellow.sql"),
+  "utf8",
+);
+const matchControlSrc = readFileSync(join(root, "src/hooks/useMatchControl.ts"), "utf8");
+
+test("경고 2회 누적 퇴장은 add_match_event 트랜잭션 안에서 판정된다", () => {
+  assert.match(autoEjectionSql, /create or replace function public\.add_match_event/i);
+  assert.match(autoEjectionSql, /select \* into m from matches where id = p_match_id for update/i);
+  // 방금 삽입한 경고까지 세고, 취소된 경고는 제외한다
+  assert.match(autoEjectionSql, /if p_type = 'yellow_card'::match_event_t then/i);
+  assert.match(autoEjectionSql, /and type = 'yellow_card'::match_event_t\s*\n\s*and not is_cancelled/i);
+  assert.match(autoEjectionSql, /if v_yellow_count >= 2 and not exists/i);
+  // 이미 퇴장 기록이 있으면 중복 발급하지 않는다
+  assert.match(autoEjectionSql, /and type = 'red_card'::match_event_t\s*\n\s*and not is_cancelled/i);
+  assert.match(autoEjectionSql, /values \(p_match_id, 'red_card'::match_event_t/i);
+});
+
+test("클라이언트 훅은 퇴장을 스스로 판정하지 않는다", () => {
+  assert.ok(
+    !/type: "red_card"/.test(matchControlSrc),
+    "useMatchControl 이 red_card 를 직접 기록하면 realtime 타이밍에 따라 오판한다",
+  );
+  assert.ok(
+    !/autoEjection/.test(matchControlSrc),
+    "자동 퇴장 상태는 RPC 결과(events)에서 파생해야 한다",
+  );
+});
