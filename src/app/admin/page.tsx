@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, Bell, Flag, Gamepad2, Megaphone, Shield, ShieldCheck, Sparkles, Target, UserCheck, Users } from "lucide-react";
+import { AlertTriangle, Bell, Flag, Gamepad2, Layers, Megaphone, Shield, ShieldCheck, Sparkles, Target, UserCheck, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { AdminGuard } from "@/components/admin-guard";
 import { AdminShell, AdminTile } from "@/components/admin-shell";
@@ -9,6 +9,7 @@ import { getAdminMenuItems } from "@/lib/admin-menu";
 
 const ICONS = {
   matches: Gamepad2,
+  groups: Layers,
   players: UserCheck,
   referees: ShieldCheck,
   teams: Users,

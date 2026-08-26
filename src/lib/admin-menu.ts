@@ -16,7 +16,8 @@ export interface AdminMenuItem {
     | "reports"
     | "skillChallenge"
     | "popups"
-    | "push";
+    | "push"
+    | "groups";
 }
 
 export const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
@@ -27,6 +28,14 @@ export const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
     accent: "#00C853",
     roles: ["admin", "referee"],
     metricKey: "matches",
+  },
+  {
+    title: "조 편성",
+    description: "승인된 참가팀을 A조·B조로 나눠 조별 리그 대진의 기준을 만듭니다",
+    href: "/admin/tournaments",
+    accent: "#0047AB",
+    roles: ["admin"],
+    metricKey: "groups",
   },
   {
     title: "선수 승인",

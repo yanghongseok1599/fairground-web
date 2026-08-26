@@ -6,6 +6,7 @@ assert.deepEqual(
   adminItems.map((item) => item.href),
   [
     "/admin/matches",
+    "/admin/tournaments",
     "/admin/players",
     "/admin/skill-challenge",
     "/admin/referees",
