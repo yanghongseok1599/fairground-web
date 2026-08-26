@@ -7,10 +7,12 @@ import { MATCH_DURATION_MINUTES, MATCH_TRANSITION_MINUTES } from "./match-config
 // 시드를 배정하는 "휴식 시드 우선권"의 기반.
 //
 // 모델(파일 기준 · 스크린샷 검증): 단일 코트, 라운드당 슬롯 = N/2.
-//   경기 12분 + 슬롯 사이 휴식(전환) 3분 → 한 슬롯 점유 = 15분.
+//   경기 12분 + 슬롯 사이 휴식(전환) 8분 → 한 슬롯 점유 = 20분.
 //   글로벌 슬롯 g = (round-1)*slotsPerRound + (slot-1)
 //   연속 경기 사이 휴식 = (g_next - g_prev)*(경기+휴식) - 경기
-//   → 6팀: 피벗 132, 양끝 시드 147/117 (스크린샷 일치).
+//   → 6팀: 피벗 192, 양끝 시드 212/172.
+//   (15분 슬롯이던 시절 값은 피벗 132 / 147·117 — 테스트가 breakMin 을 명시
+//    전달해 그 케이스도 그대로 검증한다.)
 
 export interface FixtureMatch {
   round: number;
@@ -25,7 +27,7 @@ export interface SeedRest {
   totalRest: number;
 }
 
-// 파일 기준 기본값: 경기 12분, 슬롯 사이 휴식(전환) 3분.
+// 파일 기준 기본값: 경기 12분, 슬롯 사이 휴식(전환) 8분 → 슬롯 20분.
 const DEFAULT_MATCH_LEN_MIN = MATCH_DURATION_MINUTES;
 const DEFAULT_BREAK_MIN = MATCH_TRANSITION_MINUTES;
 

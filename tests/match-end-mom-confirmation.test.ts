@@ -24,9 +24,14 @@ test("선택한 MOM은 경기 종료 전에 먼저 저장한다", () => {
 });
 
 test("종료 확인에는 어시스트 누락 가능성을 경고한다", () => {
-  assert.match(adminMatchPage, /const goalEventCount = liveEvents\.filter\(\(e\) => e\.type === "goal"\)\.length/);
-  assert.match(adminMatchPage, /const assistEventCount = liveEvents\.filter\(\(e\) => e\.type === "assist"\)\.length/);
-  assert.match(adminMatchPage, /const missingAssistCount = Math\.max\(0, goalEventCount - assistEventCount\)/);
+  // 계산식 자체를 정규식으로 못박지 않는다. 누락 판정이 전역 개수 차이에서
+  // 팀별 매칭(uncheckedAssistGoals)으로 개선되면서 식이 바뀌었고, 앞으로도
+  // 바뀔 수 있다. 종료 확인에 필요한 값이 정의돼 있는지와, 심판이 실제로 보는
+  // 경고 문구가 남아 있는지를 확인한다.
+  assert.match(adminMatchPage, /const goalEventCount = /);
+  assert.match(adminMatchPage, /const assistEventCount = /);
+  assert.match(adminMatchPage, /const missingAssistCount = /);
+  assert.match(adminMatchPage, /골 \{goalEventCount\}개, 어시스트 \{assistEventCount\}개입니다/);
   assert.match(adminMatchPage, /어시스트 누락이 있으면 종료 전에 관리자 기록을 확인하세요/);
 });
 

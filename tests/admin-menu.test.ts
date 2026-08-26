@@ -7,6 +7,7 @@ assert.deepEqual(
   [
     "/admin/matches",
     "/admin/players",
+    "/admin/skill-challenge",
     "/admin/referees",
     "/admin/teams",
     "/admin/coaches",
