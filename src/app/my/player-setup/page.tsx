@@ -3,6 +3,7 @@
 import { Suspense, useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle, ChevronDown, Camera, X, Loader2 } from "lucide-react";
+import { needsKoreanNameCheck } from "@/lib/registration-profile";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
 import { COUNTRIES } from "@/constants/countries";
@@ -627,19 +628,38 @@ function PlayerSetupContent() {
         </div>
 
         <div className="space-y-6 md:order-1">
-          {/* 이름 */}
+          {/* 이름 — 구글 가입은 구글 계정 이름이 그대로 채워지므로 실명 확인이 필요하다 */}
           <div>
-            <FieldLabel htmlFor="setup-name">이름</FieldLabel>
+            <FieldLabel htmlFor="setup-name">이름 (실명)</FieldLabel>
             <input
               id="setup-name"
               type="text"
-              placeholder="선수 이름 입력"
+              placeholder="선수 실명 입력"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              aria-describedby="setup-name-help"
               className="w-full px-4 py-3 rounded-2xl text-sm outline-none"
               style={inputStyle}
             />
+            <p id="setup-name-help" className="mt-2 text-xs leading-relaxed" style={{ color: "var(--color-fg-ink-muted)" }}>
+              여기 입력한 이름이 경기 기록·선수 카드·장내 호명에 그대로 표기됩니다.
+            </p>
+            {needsKoreanNameCheck(name) && (
+              <p
+                role="status"
+                className="mt-2 rounded-xl px-3 py-2.5 text-xs leading-relaxed"
+                style={{
+                  background: "rgba(255,59,48,0.08)",
+                  border: "1px solid rgba(255,59,48,0.20)",
+                  color: "var(--destructive)",
+                }}
+              >
+                한글 실명이 아닙니다. 구글 계정 이름이 자동으로 채워졌다면
+                <strong> 한글 실명</strong>으로 고쳐 주세요. 참가 자격 확인(JOIN KFA)도
+                실명 기준으로 진행됩니다.
+              </p>
+            )}
           </div>
 
           {/* 등록 유형 */}

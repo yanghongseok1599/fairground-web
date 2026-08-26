@@ -9,6 +9,7 @@ import { useDataStore } from "@/stores/dataStore";
 import type { Player, PlayerRole } from "@/types";
 import { setPlayerApproval, setPlayerEligibility, setPlayerRole } from "@/lib/admin-actions";
 import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
+import { needsKoreanNameCheck } from "@/lib/registration-profile";
 
 const roleLabels: Record<PlayerRole, string> = {
   player: "선수",
@@ -131,6 +132,11 @@ function AdminPlayers() {
                     <AdminStatusPill tone={player.isApproved ? "blue" : "red"}>{player.isApproved ? "승인됨" : "승인 대기"}</AdminStatusPill>
                     {player.hasPlayerExperience && (
                       <AdminStatusPill tone="red">선출 · 출전 불가</AdminStatusPill>
+                    )}
+                    {/* 구글 가입은 구글 계정 이름이 그대로 들어온다. 승인 검수 때
+                        운영진이 실명 여부를 함께 확인할 수 있도록 표시한다. */}
+                    {needsKoreanNameCheck(player.name) && (
+                      <AdminStatusPill tone="red">실명 확인 필요</AdminStatusPill>
                     )}
                     <button
                       type="button"

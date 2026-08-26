@@ -42,3 +42,22 @@ assert.deepEqual(update, {
 });
 
 console.log("registration-profile tests passed");
+
+// 구글 가입은 구글 계정 full_name 을 그대로 프로필 이름으로 쓴다.
+// 실제 사고: 최은우 선수가 "Eunwoo" 로 기록돼 경기 기록·선수 카드에 남았다.
+import { hasKoreanName, needsKoreanNameCheck } from "../src/lib/registration-profile.ts";
+
+assert.equal(hasKoreanName("최은우"), true);
+assert.equal(hasKoreanName("김 재민"), true);
+assert.equal(hasKoreanName("Eunwoo"), false);
+assert.equal(hasKoreanName("Heewon Jung"), false);
+assert.equal(hasKoreanName(""), false);
+assert.equal(hasKoreanName(null), false);
+
+// 비어 있으면 별도의 필수값 검증이 처리하므로 실명 경고는 띄우지 않는다
+assert.equal(needsKoreanNameCheck(""), false);
+assert.equal(needsKoreanNameCheck("   "), false);
+assert.equal(needsKoreanNameCheck("Eunwoo"), true);
+assert.equal(needsKoreanNameCheck("최은우"), false);
+
+console.log("korean-name checks passed");

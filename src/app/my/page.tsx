@@ -21,7 +21,11 @@ import {
   withCardSkin,
   writeCardSkinPreference,
 } from "@/lib/player-card-skin";
-import { buildEditableProfileUpdate, isValidRegistrationProfile } from "@/lib/registration-profile";
+import {
+  buildEditableProfileUpdate,
+  isValidRegistrationProfile,
+  needsKoreanNameCheck,
+} from "@/lib/registration-profile";
 import { downloadElementAsPng, shareElementAsPng } from "@/lib/card-download";
 import { getAdminEntryLabel, isAdminLikeRole } from "@/lib/admin-access";
 import { canManageTeam } from "@/lib/team-permissions";
@@ -1442,7 +1446,7 @@ export default function MyPage() {
               ) : (
                 <div className="space-y-4 py-5">
                   <div className="space-y-1.5">
-                    <label htmlFor="my-name" className="text-[10px] uppercase tracking-wider" style={labelStyleMono}>이름</label>
+                    <label htmlFor="my-name" className="text-[10px] uppercase tracking-wider" style={labelStyleMono}>이름 (실명)</label>
                     <input
                       id="my-name"
                       value={profileForm.name}
@@ -1450,6 +1454,20 @@ export default function MyPage() {
                       className="w-full rounded-2xl px-4 py-3 text-sm outline-none"
                       style={inputStyle}
                     />
+                    {needsKoreanNameCheck(profileForm.name) && (
+                      <p
+                        role="status"
+                        className="rounded-xl px-3 py-2.5 text-xs leading-relaxed"
+                        style={{
+                          background: "rgba(255,59,48,0.08)",
+                          border: "1px solid rgba(255,59,48,0.20)",
+                          color: "var(--destructive)",
+                        }}
+                      >
+                        한글 실명이 아닙니다. 이 이름이 경기 기록·선수 카드에 그대로
+                        표기됩니다.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <label htmlFor="my-email" className="text-[10px] uppercase tracking-wider" style={labelStyleMono}>연락 이메일</label>
