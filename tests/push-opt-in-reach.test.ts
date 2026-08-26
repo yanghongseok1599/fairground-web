@@ -35,3 +35,17 @@ test("카드는 상태별로 다음 행동을 안내한다", () => {
 });
 
 console.log("push-opt-in-reach tests passed");
+
+test("모바일 햄버거 메뉴에도 알림 진입점이 있다", () => {
+  const header = read("src/components/site-header.tsx");
+  assert.match(header, /import \{ PushMenuToggle \}/);
+  assert.match(header, /\{user && <PushMenuToggle onNavigate=\{\(\) => setOpen\(false\)\} \/>\}/);
+
+  const toggle = read("src/components/push-menu-toggle.tsx");
+  // 켤 수 있을 때만 그 자리에서 구독한다
+  assert.match(toggle, /await subscribeAndSave\(\)/);
+  // 켜져 있거나 켤 수 없는 상태는 설명이 있는 /my 로 보낸다 —
+  // 메뉴만 닫고 아무 데도 안 가는 죽은 동작이 없어야 한다
+  assert.match(toggle, /if \(state === "blocked" \|\| state === "on"\)/);
+  assert.match(toggle, /href="\/my"/);
+});

@@ -22,6 +22,7 @@ import { getAdminEntryLabel, isAdminLikeRole } from "@/lib/admin-access";
 import { GlobalBackButton } from "@/components/global-back-button";
 import { NotificationBell } from "@/components/notification-bell";
 import { PushOptInButton } from "@/components/push-opt-in-button";
+import { PushMenuToggle } from "@/components/push-menu-toggle";
 import { SearchModal } from "@/components/search-modal";
 
 // 내비 구성 원칙
@@ -676,6 +677,8 @@ export function SiteHeader() {
               {showAdminEntry ? <Shield className="h-4 w-4" /> : <User className="h-4 w-4" />}
               {accountLabel}
             </Link>
+            {/* 헤더 종 토글은 hidden xl:flex 라 모바일에 없다. 메뉴에 진입점을 둔다. */}
+            {user && <PushMenuToggle onNavigate={() => setOpen(false)} />}
             {user && (
               <button
                 type="button"
