@@ -4,7 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Download } from "lucide-react";
 import { MATCH_DURATION_MINUTES } from "@/lib/match-config";
-import { MATCH_RULEBOOK_PDF_PATH } from "@/lib/rulebook-assets";
+import {
+  MATCH_RULEBOOK_PDF_PATH,
+  RULEBOOK_PDF_BY_DOC_ID,
+  TOURNAMENT_RULEBOOK_PDF_PATH,
+} from "@/lib/rulebook-assets";
 
 /**
  * 룰북 데이터. 운영진이 제공한 공식 원문 4종을 그대로 수록한다.
@@ -1054,6 +1058,15 @@ export function RulebookClient() {
               <Download className="h-4 w-4" />
               경기규정 PDF 다운로드
             </a>
+            <a
+              href={TOURNAMENT_RULEBOOK_PDF_PATH}
+              download
+              className="inline-flex min-h-[46px] items-center gap-2 rounded-xl border px-5 text-sm font-bold transition-opacity hover:opacity-90"
+              style={{ borderColor: "rgba(0,71,171,0.24)", color: "var(--primary)", background: "var(--color-fg-paper)" }}
+            >
+              <Download className="h-4 w-4" />
+              대회규정 PDF 다운로드
+            </a>
           </div>
 
           {/* 문서 탭 */}
@@ -1097,15 +1110,15 @@ export function RulebookClient() {
           >
             대회 철학 · “{doc.philosophy}”
           </div>
-          {doc.id === "match" && (
+          {RULEBOOK_PDF_BY_DOC_ID[doc.id] && (
             <a
-              href={MATCH_RULEBOOK_PDF_PATH}
+              href={RULEBOOK_PDF_BY_DOC_ID[doc.id]}
               download
               className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-4 text-[13px] font-bold transition-opacity hover:opacity-80"
               style={{ borderColor: "rgba(0,71,171,0.24)", color: "var(--primary)", background: "var(--color-fg-paper)" }}
             >
               <Download className="h-4 w-4" />
-              이 경기규정 PDF 받기
+              이 {doc.title} PDF 받기
             </a>
           )}
 

@@ -50,6 +50,15 @@ const DOCS = [
     version: "v2.4",
     footerLabel: "Fair Ground · 경기 · 운영 규정 v2.4",
   },
+  {
+    key: "tournament",
+    src: "public/document/files 2/페어그라운드_대회규정_v1_2.md",
+    out: "public/document/fairground-tournament-rulebook-v1.2.pdf",
+    title: "대회 규정",
+    subtitle: "Fair Ground 혼성 풋살 페스티벌 공식 대회 규정",
+    version: "v1.2",
+    footerLabel: "Fair Ground · 대회 규정 v1.2",
+  },
 ];
 
 /* --------------------------------------------------------------- 브랜드 토큰 */
