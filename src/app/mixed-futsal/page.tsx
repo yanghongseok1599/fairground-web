@@ -342,7 +342,7 @@ export default function MixedFutsalPage() {
               {MIXED_FUTSAL_EVENT_DATE_FULL_LABEL} {MIXED_FUTSAL_EVENT_TIME_LABEL}에{" "}
               {MIXED_FUTSAL_EVENT_LOCATION_FULL_LABEL}에서 열립니다.{" "}
               {MIXED_FUTSAL_EVENT_VENUE_NOTE} 12팀이 {MIXED_FUTSAL_GROUP_LABEL}으로 나뉘어
-              하루 동안 최소 30경기를 치릅니다.
+              하루 동안 30경기를 치릅니다.
             </p>
           </div>
 
