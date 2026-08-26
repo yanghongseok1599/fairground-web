@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Shield, User, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { shouldContinueGroundChallengeSetup } from "@/lib/player-onboarding";
+import {
+  hasCompletedPlayerCardSetup,
+  shouldContinueGroundChallengeSetup,
+} from "@/lib/player-onboarding";
 import {
   getCardSkinFromSearchParams,
   GROUND_CHALLENGE_EVENT_QUERY_VALUE,
@@ -53,8 +56,14 @@ export default function OnboardingPage() {
       router.replace(groundChallengeSetupHref);
       return;
     }
-    // Already onboarded — skip the decision screen.
-    if (player) {
+    // 선수 등록까지 마친 사용자만 결정 화면을 건너뛴다.
+    //
+    // 구글 로그인은 authStore 가 프로필을 자동 생성한다(이름은 구글 계정의
+    // full_name). 예전에는 "프로필 행이 있으면 온보딩 완료"로 보고 /my 로
+    // 보내버려서, 구글 가입자는 선수 등록 화면을 한 번도 거치지 않았다.
+    // 그 결과 실명을 확인받지 못한 로마자 이름이 그대로 경기 기록에 남았다
+    // (최은우 → "Eunwoo" 등 4건).
+    if (player && hasCompletedPlayerCardSetup(player)) {
       router.replace("/my");
     }
   }, [initialized, user, player, router, onboardingReturnTo, isGroundChallengeCard, groundChallengeSetupHref]);

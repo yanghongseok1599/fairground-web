@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle } from "lucide-react";
+import { needsKoreanNameCheck } from "@/lib/registration-profile";
 import { useAuth } from "@/hooks/useAuth";
 import {
   getCardSkinFromSearchParams,
@@ -272,19 +273,37 @@ export default function RegisterPage() {
         <form onSubmit={handleRegister} className="space-y-4">
           <div className="space-y-1.5">
             <label htmlFor="register-name" className={labelClass} style={labelStyle}>
-              이름
+              이름 (실명)
             </label>
             <input
               id="register-name"
               type="text"
               autoComplete="name"
-              placeholder="이름 입력"
+              placeholder="실명 입력"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
+              aria-describedby="register-name-help"
               className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all focus:ring-2"
               style={inputStyle}
             />
+            <p id="register-name-help" className="text-xs leading-relaxed" style={{ color: "var(--color-fg-ink-muted)" }}>
+              경기 기록·선수 카드·장내 호명에 그대로 표기되며, 참가 자격 확인도
+              실명 기준으로 진행됩니다.
+            </p>
+            {needsKoreanNameCheck(name) && (
+              <p
+                role="status"
+                className="rounded-xl px-3 py-2.5 text-xs leading-relaxed"
+                style={{
+                  background: "rgba(255,59,48,0.08)",
+                  border: "1px solid rgba(255,59,48,0.20)",
+                  color: "var(--destructive)",
+                }}
+              >
+                한글 실명이 아닙니다. 확인해 주세요.
+              </p>
+            )}
           </div>
 
           <div className="space-y-1.5">
