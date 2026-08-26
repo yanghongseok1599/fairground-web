@@ -67,6 +67,28 @@ export async function setPlayerRole(playerId: string, role: PlayerRole) {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * 참가 자격(선출 여부) 지정 — 규정 제22조.
+ * 자기신고만으로는 걸러지지 않으므로, 운영진이 JOIN KFA(대한축구협회) 등록
+ * 정보를 확인한 결과를 반영한다. true 로 지정되면 출전 명단 등재와 경기
+ * 이벤트 기록이 DB 레벨에서 거부된다.
+ */
+export async function setPlayerEligibility(playerId: string, isRegisteredPlayer: boolean) {
+  if (isDemoMode) {
+    const players = getLocalPlayers();
+    if (players[playerId]) {
+      players[playerId] = { ...players[playerId], hasPlayerExperience: isRegisteredPlayer };
+      saveLocalPlayers(players);
+    }
+    return;
+  }
+  const { error } = await supabase.rpc("set_player_eligibility", {
+    p_player_id: playerId,
+    p_is_registered_player: isRegisteredPlayer,
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function setTeamApproval(teamId: string, approved: boolean) {
   if (isDemoMode) {
     const teams = getLocalTeams();

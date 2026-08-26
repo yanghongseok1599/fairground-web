@@ -96,7 +96,7 @@ function AdminReferees() {
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>
                         <span><Phone className="mr-1 inline h-3.5 w-3.5" />{referee.phone || "전화번호 없음"}</span>
                         <span>{referee.email || "이메일 없음"}</span>
-                        <span>{referee.hasPlayerExperience ? "선수 경력 있음" : "선수 경력 없음"}</span>
+                        <span>{referee.hasPlayerExperience ? "선출" : "비선출"}</span>
                       </div>
                     </div>
                   </div>

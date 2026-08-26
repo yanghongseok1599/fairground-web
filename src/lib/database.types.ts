@@ -1713,6 +1713,10 @@ export type Database = {
         Args: { p_is_approved: boolean; p_player_id: string }
         Returns: undefined
       }
+      set_player_eligibility: {
+        Args: { p_player_id: string; p_is_registered_player: boolean }
+        Returns: undefined
+      }
       set_player_role: {
         Args: {
           p_player_id: string

@@ -1398,8 +1398,8 @@ export default function MyPage() {
                         value={player.gender === "male" ? "남성" : player.gender === "female" ? "여성" : player.gender === "other" ? "기타" : player.gender === "prefer_not_to_say" ? "응답 안 함" : "미입력"} />
                       <InfoRow icon={<Calendar className="w-4 h-4" />} label="생년월일"
                         value={player.birthDate || "미입력"} />
-                      <InfoRow icon={<Shield className="w-4 h-4" />} label="선수 경력"
-                        value={player.hasPlayerExperience ? "경력 있음" : "없음 / 처음"} />
+                      <InfoRow icon={<Shield className="w-4 h-4" />} label="참가 자격"
+                        value={player.hasPlayerExperience ? "선출 (출전 불가)" : "비선출"} />
                       <InfoRow icon={<Shield className="w-4 h-4" />} label="포지션"
                         value={POSITION_LABELS[player.position] || player.position} />
                       <InfoRow icon={<Flag className="w-4 h-4" />} label="국적"
@@ -1515,7 +1515,7 @@ export default function MyPage() {
                         }`,
                       }}
                     >
-                      선수 경력 있음
+                      선출
                     </button>
                     <button
                       type="button"
@@ -1530,7 +1530,7 @@ export default function MyPage() {
                         }`,
                       }}
                     >
-                      없음 / 처음
+                      비선출
                     </button>
                   </div>
 

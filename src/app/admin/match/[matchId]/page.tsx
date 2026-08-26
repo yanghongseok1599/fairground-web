@@ -423,31 +423,47 @@ function AdminMatchControl() {
     entries
       .map((e) => pool.find((p) => p.id === e.playerId))
       .filter((p): p is Player => Boolean(p));
-  const byNumber = (a: Player, b: Player) => {
-    const an = typeof a.number === "number" ? a.number : Number.MAX_SAFE_INTEGER;
-    const bn = typeof b.number === "number" ? b.number : Number.MAX_SAFE_INTEGER;
-    return an - bn || a.name.localeCompare(b.name, "ko");
+  // 등번호 정렬. 가입 시 number 기본값이 0 이라 "미지정"과 구분되지 않는데,
+  // 0 을 그대로 숫자로 취급하면 등번호를 아직 안 넣은 사람이 항상 맨 앞으로
+  // 와서 자동 코트 배치의 1순위가 된다. 0 이하는 미지정으로 보고 뒤로 보낸다.
+  const jerseyOrder = (p: Player) =>
+    typeof p.number === "number" && p.number > 0 ? p.number : Number.MAX_SAFE_INTEGER;
+  const byNumber = (a: Player, b: Player) =>
+    jerseyOrder(a) - jerseyOrder(b) || a.name.localeCompare(b.name, "ko");
+
+  // 출전 명단이 없을 때의 자동 배치 순서. 감독·매니저는 팀 스태프라 코트에
+  // 먼저 올라오면 안 된다. 다만 플레잉코치가 있을 수 있으므로 제외가 아니라
+  // 후순위로 미룬다 — 선수가 5명이 안 되면 그때 채워진다.
+  // 출전 명단이 제출된 경우에는 명단을 그대로 따르므로 이 정렬이 개입하지 않는다.
+  const byFieldPriority = (a: Player, b: Player) => {
+    const staff = (p: Player) => (p.teamRole === "coach" || p.teamRole === "manager" ? 1 : 0);
+    return staff(a) - staff(b) || byNumber(a, b);
   };
+  // 규정 제22조 — 선출은 출전할 수 없다. 감독(후순위)과 달리 예외가 없으므로
+  // 코트·벤치 후보에서 아예 제외한다. 서버(add_match_event / match_lineups
+  // 트리거)에서도 막지만, 심판이 탭할 수 없게 화면에서도 지운다.
+  const eligible = (list: Player[]) => list.filter((p) => !p.hasPlayerExperience);
+
   const buildOnCourt = (
     entries: MatchLineupEntry[],
     pool: Player[],
     fallbackActive: Player[],
   ): Player[] => {
     if (entries.length === 0) {
-      return [...fallbackActive].sort(byNumber).slice(0, COURT_PLAYER_LIMIT);
+      return eligible(fallbackActive).sort(byFieldPriority).slice(0, COURT_PLAYER_LIMIT);
     }
 
-    const starters = toPlayers(entries.filter((e) => e.isStarter), pool).sort(byNumber);
+    const starters = eligible(toPlayers(entries.filter((e) => e.isStarter), pool)).sort(byNumber);
     if (starters.length >= COURT_PLAYER_LIMIT) return starters.slice(0, COURT_PLAYER_LIMIT);
 
     const pickedIds = new Set(starters.map((p) => p.id));
-    const registeredFillers = toPlayers(entries.filter((e) => !e.isStarter), pool)
+    const registeredFillers = eligible(toPlayers(entries.filter((e) => !e.isStarter), pool))
       .filter((p) => !pickedIds.has(p.id))
       .sort(byNumber);
     const registeredFillerIds = new Set(registeredFillers.map((p) => p.id));
-    const rosterFillers = [...pool]
+    const rosterFillers = eligible(pool)
       .filter((p) => !pickedIds.has(p.id) && !registeredFillerIds.has(p.id))
-      .sort(byNumber)
+      .sort(byFieldPriority)
       .slice(0, COURT_PLAYER_LIMIT);
     const filler = [...registeredFillers, ...rosterFillers]
       .slice(0, COURT_PLAYER_LIMIT - starters.length);
@@ -462,10 +478,10 @@ function AdminMatchControl() {
     if (entries.length === 0) return [];
 
     const onCourtIds = new Set(onCourt.map((p) => p.id));
-    const explicitBench = toPlayers(entries.filter((e) => !e.isStarter), pool)
+    const explicitBench = eligible(toPlayers(entries.filter((e) => !e.isStarter), pool))
       .filter((p) => !onCourtIds.has(p.id));
     const explicitBenchIds = new Set(explicitBench.map((p) => p.id));
-    const rosterBench = [...pool]
+    const rosterBench = eligible(pool)
       .filter((p) => !onCourtIds.has(p.id) && !explicitBenchIds.has(p.id))
       .sort(byNumber);
 

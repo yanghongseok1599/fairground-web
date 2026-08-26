@@ -367,7 +367,13 @@ export default function RegisterPage() {
             }}
           >
             <p className="text-xs font-medium uppercase tracking-wider" style={labelStyle}>
-              선수 경력 여부
+              선출 여부 (참가 자격)
+            </p>
+            <p className="text-[13px] leading-[1.65]" style={{ color: "var(--color-fg-ink-muted)" }}>
+              중등부(중학교) 이상에서 선수로 등록된 이력이 있거나, K리그1·K리그2·
+              K3리그·K4리그(축구 남자), WK리그(축구 여자), FK리그(FK1·FK2)·
+              WFK리그(풋살)에서 활동한 이력이 있으면 <strong>선출</strong>입니다.
+              선출은 대회에 출전할 수 없습니다.
             </p>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -383,7 +389,7 @@ export default function RegisterPage() {
                   }`,
                 }}
               >
-                경력 있음
+                선출
               </button>
               <button
                 type="button"
@@ -398,7 +404,7 @@ export default function RegisterPage() {
                   }`,
                 }}
               >
-                없음 / 처음
+                비선출
               </button>
             </div>
           </div>

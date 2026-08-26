@@ -7,7 +7,7 @@ import { AdminPanel, AdminShell, AdminStatusPill } from "@/components/admin-shel
 import { PlayerProfilePhoto } from "@/components/player-profile-photo";
 import { useDataStore } from "@/stores/dataStore";
 import type { Player, PlayerRole } from "@/types";
-import { setPlayerApproval, setPlayerRole } from "@/lib/admin-actions";
+import { setPlayerApproval, setPlayerEligibility, setPlayerRole } from "@/lib/admin-actions";
 import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 
 const roleLabels: Record<PlayerRole, string> = {
@@ -50,6 +50,27 @@ function AdminPlayers() {
       setMessage({ tone: "success", text: `${player.name} ${approved ? "승인" : "승인 취소"} 처리했습니다.` });
     } catch (error) {
       setMessage({ tone: "error", text: error instanceof Error ? error.message : "승인 상태 변경에 실패했습니다." });
+    } finally {
+      setSavingId("");
+    }
+  };
+
+  // 규정 제22조 — JOIN KFA 확인 결과를 반영해 선출로 지정하면, 해당 선수는
+  // 출전 명단 등재와 경기 이벤트 기록이 DB 레벨에서 거부된다.
+  const updateEligibility = async (player: Player, isRegisteredPlayer: boolean) => {
+    if (savingId) return;
+    setSavingId(player.id);
+    setMessage(null);
+    try {
+      await setPlayerEligibility(player.id, isRegisteredPlayer);
+      setPlayers((prev) => prev.map((item) =>
+        item.id === player.id ? { ...item, hasPlayerExperience: isRegisteredPlayer } : item));
+      setMessage({
+        tone: "success",
+        text: `${player.name} ${isRegisteredPlayer ? "선출로 지정 — 출전 불가" : "비선출로 지정 — 출전 가능"}`,
+      });
+    } catch (error) {
+      setMessage({ tone: "error", text: error instanceof Error ? error.message : "참가 자격 변경에 실패했습니다." });
     } finally {
       setSavingId("");
     }
@@ -108,6 +129,22 @@ function AdminPlayers() {
                   </div>
                   <div className="relative z-10 flex flex-wrap items-center gap-2">
                     <AdminStatusPill tone={player.isApproved ? "blue" : "red"}>{player.isApproved ? "승인됨" : "승인 대기"}</AdminStatusPill>
+                    {player.hasPlayerExperience && (
+                      <AdminStatusPill tone="red">선출 · 출전 불가</AdminStatusPill>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => void updateEligibility(player, !player.hasPlayerExperience)}
+                      disabled={savingId === player.id}
+                      title="규정 제22조 — JOIN KFA 확인 결과를 반영합니다"
+                      className="inline-flex min-h-[42px] items-center gap-2 border px-3 text-sm font-bold transition-opacity disabled:cursor-wait disabled:opacity-70"
+                      style={player.hasPlayerExperience
+                        ? { borderColor: "rgba(0,71,171,0.18)", background: "#fff", color: "var(--primary)" }
+                        : { borderColor: "rgba(255,59,48,0.20)", background: "rgba(255,59,48,0.08)", color: "var(--destructive)" }}
+                    >
+                      {savingId === player.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
+                      {player.hasPlayerExperience ? "비선출로 변경" : "선출로 지정"}
+                    </button>
                     <select
                       value={player.role}
                       onChange={(event) => void updateRole(player, event.target.value as PlayerRole)}
