@@ -179,6 +179,8 @@ export interface Tournament {
   matchIds: string[];
   winningTeamId?: string;
   winningTeamName?: string;
+  /** 대진(예정 경기) 공개 여부. false 면 공개 페이지에서 숨긴다. */
+  fixturesPublished?: boolean;
   createdAt: number;
 }
 

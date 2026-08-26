@@ -247,8 +247,9 @@ export default function TournamentDetailPage() {
             </div>
           )}
 
-          {/* 예정 경기 */}
-          {scheduledMatches.length > 0 && (
+          {/* 예정 경기 — 운영진이 대진을 확정해 공개하기 전에는 숨긴다.
+              대진 초안이 참가팀에게 먼저 새어 나가면 조정할 때마다 혼선이 생긴다. */}
+          {tournament?.fixturesPublished && scheduledMatches.length > 0 && (
             <div>
               <h2 className="text-lg font-bold mb-4" style={{ fontFamily: "var(--font-outfit)", color: "#0D1B2A" }}>예정 경기</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

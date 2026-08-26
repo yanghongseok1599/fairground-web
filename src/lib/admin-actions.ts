@@ -118,6 +118,27 @@ export async function setTournamentGroups(tournamentId: string, groups: Tourname
   if (error) throw new Error(error.message);
 }
 
+/**
+ * 대진(예정 경기) 공개 여부.
+ * 공개 페이지 /tournaments/[id] 는 이 값이 true 일 때만 예정 경기를 보여준다.
+ * 대진 초안이 참가팀에게 먼저 새어 나가면 조정할 때마다 혼선이 생긴다.
+ */
+export async function setTournamentFixturesPublished(tournamentId: string, published: boolean) {
+  if (isDemoMode) {
+    const tournaments = getLocalTournaments();
+    if (tournaments[tournamentId]) {
+      tournaments[tournamentId] = { ...tournaments[tournamentId], fixturesPublished: published };
+      saveLocalTournaments(tournaments);
+    }
+    return;
+  }
+  const { error } = await supabase
+    .from("tournaments")
+    .update({ fixtures_published: published })
+    .eq("id", tournamentId);
+  if (error) throw new Error(error.message);
+}
+
 export async function setPlayerBan(playerId: string, banned: boolean, banMatchesRemaining: number) {
   if (isDemoMode) {
     const players = getLocalPlayers();

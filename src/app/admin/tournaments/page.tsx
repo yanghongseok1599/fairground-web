@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Save, Shuffle, Trash2, Users } from "lucide-react";
+import { AlertTriangle, Download, Eye, EyeOff, Loader2, Save, Shuffle, Trash2, Users } from "lucide-react";
 import { AdminGuard } from "@/components/admin-guard";
 import { AdminPanel, AdminShell, AdminStatusPill } from "@/components/admin-shell";
 import { useDataStore } from "@/stores/dataStore";
 import { setTournamentGroups } from "@/lib/admin-actions";
 import { splitIntoGroups, GROUP_NAMES } from "@/lib/tournament-groups";
+import { buildCueSheet, cueSheetToCsv, type CueSheetSettings } from "@/lib/cue-sheet";
+import { setTournamentFixturesPublished } from "@/lib/admin-actions";
 import type { Team, Tournament, TournamentGroup } from "@/types";
 
 export default function AdminTournamentsPage() {
@@ -23,6 +25,12 @@ function AdminTournaments() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [cue, setCue] = useState<CueSheetSettings>({
+    startTime: "10:00",
+    lunchStart: "13:00",
+    lunchMinutes: 50,
+  });
+  const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -191,6 +199,41 @@ function AdminTournaments() {
               </p>
             )}
 
+            <CueSheetSection
+              settings={cue}
+              onChange={setCue}
+              groups={GROUP_NAMES.map((name) => ({
+                name,
+                teamNames: (grouped.buckets[name] ?? []).map((t) => t.name),
+              })).filter((g) => g.teamNames.length > 0)}
+              published={Boolean(selected?.fixturesPublished)}
+              publishing={publishing}
+              onTogglePublish={async () => {
+                if (!selected || publishing) return;
+                setPublishing(true);
+                try {
+                  const next = !selected.fixturesPublished;
+                  await setTournamentFixturesPublished(selected.id, next);
+                  setTournaments((prev) =>
+                    prev.map((t) => (t.id === selected.id ? { ...t, fixturesPublished: next } : t)),
+                  );
+                  setMessage({
+                    tone: "success",
+                    text: next
+                      ? "대진을 공개했습니다 — 참가팀이 예정 경기를 볼 수 있습니다."
+                      : "대진을 비공개로 전환했습니다 — 참가팀에게 보이지 않습니다.",
+                  });
+                } catch (error) {
+                  setMessage({
+                    tone: "error",
+                    text: error instanceof Error ? error.message : "공개 설정 변경에 실패했습니다.",
+                  });
+                } finally {
+                  setPublishing(false);
+                }
+              }}
+            />
+
             <div className="mt-5 grid gap-4 lg:grid-cols-3">
               {GROUP_NAMES.map((name) => (
                 <GroupColumn
@@ -267,6 +310,134 @@ function GroupColumn({
             </li>
           ))}
         </ul>
+      )}
+    </div>
+  );
+}
+
+function CueSheetSection({
+  settings, onChange, groups, published, publishing, onTogglePublish,
+}: {
+  settings: CueSheetSettings;
+  onChange: (next: CueSheetSettings) => void;
+  groups: { name: string; teamNames: string[] }[];
+  published: boolean;
+  publishing: boolean;
+  onTogglePublish: () => void;
+}) {
+  const result = useMemo(() => buildCueSheet(groups, settings), [groups, settings]);
+
+  const download = () => {
+    const blob = new Blob(["﻿" + cueSheetToCsv(result.rows)], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "fairground-cuesheet.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const field = {
+    borderColor: "rgba(0,71,171,0.18)",
+    background: "#fff",
+    color: "var(--color-fg-ink)",
+  };
+
+  return (
+    <div className="mt-6 border p-4" style={{ borderColor: "rgba(0,71,171,0.14)" }}>
+      <div className="flex flex-wrap items-center gap-3">
+        <h3 className="fg-display text-lg font-black" style={{ color: "var(--color-fg-ink)" }}>큐시트</h3>
+        <AdminStatusPill tone={published ? "red" : "muted"}>
+          {published ? "대진 공개 중" : "비공개 — 참가팀에게 안 보임"}
+        </AdminStatusPill>
+
+        <button
+          type="button"
+          onClick={onTogglePublish}
+          disabled={publishing}
+          className="ml-auto inline-flex min-h-[38px] items-center gap-2 border px-3 text-sm font-bold disabled:opacity-60"
+          style={published
+            ? { borderColor: "rgba(255,59,48,0.20)", background: "rgba(255,59,48,0.08)", color: "var(--destructive)" }
+            : { borderColor: "rgba(0,71,171,0.18)", background: "#fff", color: "var(--primary)" }}
+        >
+          {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : published ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          {published ? "대진 비공개로" : "대진 공개하기"}
+        </button>
+      </div>
+
+      <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--color-fg-ink-muted)" }}>
+        아래 큐시트는 <strong>운영진 화면에만</strong> 표시됩니다. 참가팀이 보는 대회
+        페이지의 예정 경기는 위 <strong>대진 공개하기</strong>를 눌러야 나타납니다.
+      </p>
+
+      <div className="mt-4 flex flex-wrap items-end gap-3">
+        <label className="grid gap-1">
+          <span className="fg-label text-[10px]" style={{ color: "var(--color-fg-ink-muted)" }}>시작</span>
+          <input type="time" value={settings.startTime}
+                 onChange={(e) => onChange({ ...settings, startTime: e.target.value })}
+                 className="min-h-[38px] border px-2 text-sm font-bold" style={field} />
+        </label>
+        <label className="grid gap-1">
+          <span className="fg-label text-[10px]" style={{ color: "var(--color-fg-ink-muted)" }}>점심 시작</span>
+          <input type="time" value={settings.lunchStart}
+                 onChange={(e) => onChange({ ...settings, lunchStart: e.target.value })}
+                 className="min-h-[38px] border px-2 text-sm font-bold" style={field} />
+        </label>
+        <label className="grid gap-1">
+          <span className="fg-label text-[10px]" style={{ color: "var(--color-fg-ink-muted)" }}>점심(분)</span>
+          <input type="number" min={0} max={180} value={settings.lunchMinutes}
+                 onChange={(e) => onChange({ ...settings, lunchMinutes: Number(e.target.value) })}
+                 className="min-h-[38px] w-24 border px-2 text-sm font-bold" style={field} />
+        </label>
+        <button type="button" onClick={download} disabled={result.rows.length === 0}
+                className="inline-flex min-h-[38px] items-center gap-2 border px-3 text-sm font-bold disabled:opacity-50"
+                style={{ borderColor: "rgba(0,71,171,0.18)", background: "#fff", color: "var(--primary)" }}>
+          <Download className="h-4 w-4" /> CSV
+        </button>
+      </div>
+
+      {result.warnings.map((w) => (
+        <p key={w} className="mt-3 flex items-start gap-2 border px-3 py-2 text-xs font-bold"
+           style={{ borderColor: "rgba(255,59,48,0.20)", background: "rgba(255,59,48,0.08)", color: "var(--destructive)" }}>
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{w}
+        </p>
+      ))}
+
+      {result.rows.length === 0 ? (
+        <p className="mt-4 text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>
+          조 편성을 마치면 큐시트가 만들어집니다.
+        </p>
+      ) : (
+        <>
+          <p className="mt-4 text-xs font-bold" style={{ color: "var(--color-fg-ink-muted)" }}>
+            총 {result.rows.length}경기 · {Object.entries(result.courtEnd).map(([c, t]) => `${c} 종료 ${t}`).join(" · ")}
+          </p>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full min-w-[560px] border-collapse text-sm">
+              <thead>
+                <tr style={{ background: "var(--color-fg-paper-3)" }}>
+                  {["시작", "종료", "구장", "조", "대진"].map((h) => (
+                    <th key={h} className="border px-3 py-2 text-left text-xs font-black"
+                        style={{ borderColor: "rgba(0,71,171,0.12)", color: "var(--primary)" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {result.rows.map((r, i) => (
+                  <tr key={`${r.court}-${r.order}`} style={{ background: i % 2 ? "rgba(13,27,42,0.02)" : "#fff" }}>
+                    <td className="border px-3 py-2 font-bold" style={{ borderColor: "rgba(13,27,42,0.08)" }}>{r.start}</td>
+                    <td className="border px-3 py-2" style={{ borderColor: "rgba(13,27,42,0.08)", color: "var(--color-fg-ink-muted)" }}>{r.end}</td>
+                    <td className="border px-3 py-2" style={{ borderColor: "rgba(13,27,42,0.08)" }}>{r.court}</td>
+                    <td className="border px-3 py-2" style={{ borderColor: "rgba(13,27,42,0.08)" }}>{r.groupName}조</td>
+                    <td className="border px-3 py-2 font-bold" style={{ borderColor: "rgba(13,27,42,0.08)" }}>{r.home} vs {r.away}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

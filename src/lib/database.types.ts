@@ -1509,6 +1509,7 @@ export type Database = {
         Row: {
           created_at: string
           date: string | null
+          fixtures_published: boolean
           groups: Json
           id: string
           location: string | null
@@ -1521,6 +1522,7 @@ export type Database = {
         Insert: {
           created_at?: string
           date?: string | null
+          fixtures_published?: boolean
           groups?: Json
           id?: string
           location?: string | null
@@ -1533,6 +1535,7 @@ export type Database = {
         Update: {
           created_at?: string
           date?: string | null
+          fixtures_published?: boolean
           groups?: Json
           id?: string
           location?: string | null

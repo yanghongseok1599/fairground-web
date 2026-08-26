@@ -336,6 +336,7 @@ export function rowToTournament(r: TournamentRow): Tournament {
     matchIds: [],
     winningTeamId: r.winning_team_id ?? undefined,
     winningTeamName: r.winning_team_name ?? undefined,
+    fixturesPublished: Boolean(r.fixtures_published),
     createdAt: ts(r.created_at),
   };
 }
