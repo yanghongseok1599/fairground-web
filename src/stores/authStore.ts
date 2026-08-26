@@ -240,6 +240,10 @@ interface AuthState {
   register: (data: RegisterData) => Promise<void>;
   createPlayer: (data: CreatePlayerData) => Promise<void>;
   loginWithGoogle: (returnTo?: string) => Promise<void>;
+  /** 비밀번호 재설정 메일 발송. 짧은 ID(@fairground.local) 계정은 거부한다. */
+  requestPasswordReset: (loginId: string) => Promise<void>;
+  /** 로그인/복구 세션 상태에서 새 비밀번호 저장. */
+  updatePassword: (newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   updatePlayer: (data: Partial<Player>) => Promise<void>;
   uploadPlayerPhoto: (file: File) => Promise<string>;
@@ -457,6 +461,39 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       setState({ error: (e as Error).message, loading: false });
       throw e;
     }
+  },
+
+  // 비밀번호 재설정 메일 발송.
+  //
+  // 짧은 ID 가입자는 auth 이메일이 `<id>@fairground.local` 이라 메일이 닿지
+  // 않는다. 조용히 성공한 척하면 사용자가 오지 않는 메일을 기다리게 되므로
+  // 명시적으로 안내한다. 반대로 실제 이메일 계정은 가입 여부를 노출하지
+  // 않기 위해 존재 여부와 무관하게 동일한 응답을 준다(계정 열거 방지).
+  requestPasswordReset: async (loginId) => {
+    const email = normalizeLoginId(loginId);
+    if (!email) throw new Error("아이디 또는 이메일을 입력해주세요.");
+    if (email.endsWith(`@${SHORT_ID_DOMAIN}`)) {
+      throw new Error(
+        "아이디로 가입한 계정은 등록된 이메일이 없어 자동 재설정을 보낼 수 없습니다. 운영진에게 문의해주세요.",
+      );
+    }
+    if (isDemoMode) {
+      throw new Error("데모 모드에서는 비밀번호 재설정을 사용할 수 없습니다.");
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: new URL("/auth/reset-password", getAuthRedirectOrigin()).toString(),
+    });
+    if (error) throw new Error(error.message);
+  },
+
+  updatePassword: async (newPassword) => {
+    const password = newPassword.trim();
+    if (password.length < 8) throw new Error("비밀번호는 8자 이상이어야 합니다.");
+    if (isDemoMode) {
+      throw new Error("데모 모드에서는 비밀번호를 변경할 수 없습니다.");
+    }
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw new Error(error.message);
   },
 
   logout: async () => {

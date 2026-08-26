@@ -156,14 +156,22 @@ function LoginForm() {
         </Card>
 
         {/* Links */}
-        <div className="flex justify-center gap-4 text-sm">
-          <span className="text-muted-foreground">계정이 없으신가요?</span>
+        <div className="flex flex-col items-center gap-3 text-sm">
           <Link
-            href="/register"
-            className="font-semibold text-primary transition-opacity hover:opacity-80"
+            href="/auth/forgot-password"
+            className="min-h-11 inline-flex items-center font-semibold text-muted-foreground transition-opacity hover:opacity-80"
           >
-            회원가입
+            비밀번호를 잊으셨나요?
           </Link>
+          <div className="flex justify-center gap-4">
+            <span className="text-muted-foreground">계정이 없으신가요?</span>
+            <Link
+              href="/register"
+              className="font-semibold text-primary transition-opacity hover:opacity-80"
+            >
+              회원가입
+            </Link>
+          </div>
         </div>
       </div>
     </div>

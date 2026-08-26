@@ -176,7 +176,7 @@ function StatBox({ value, label, icon }: {
 
 export default function MyPage() {
   const router = useRouter();
-  const { user, player, initialized, logout, updatePlayer, uploadPlayerPhoto } = useAuth();
+  const { user, player, initialized, logout, updatePlayer, updatePassword, uploadPlayerPhoto } = useAuth();
   const store = useDataStore();
   const exportCardRef = useRef<HTMLDivElement>(null);
   const profilePhotoInputRef = useRef<HTMLInputElement>(null);
@@ -185,6 +185,11 @@ export default function MyPage() {
   const [sharing, setSharing] = useState(false);
   const [shareMessage, setShareMessage] = useState("");
   const [cardSkinChoice, setCardSkinChoice] = useState<PlayerCardSkin>("standard");
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
@@ -1716,6 +1721,110 @@ export default function MyPage() {
             <Shield className="h-4 w-4" />
             {getAdminEntryLabel(player?.role)} 페이지로 이동
           </Link>
+        )}
+
+        {/* ── 비밀번호 변경 ──
+            구글 전용 계정은 비밀번호가 없다. 그래도 updateUser 로 설정이
+            가능하므로 "설정"으로 문구만 바꿔 열어둔다(이메일 로그인 병행). */}
+        {user && (
+          <div
+            className="w-full rounded-2xl p-5"
+            style={{ background: "var(--color-fg-paper)", border: "1px solid var(--color-fg-line-soft)" }}
+          >
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4" style={{ color: "var(--primary)" }} />
+              <h3 className="text-sm font-bold" style={{ color: "var(--color-fg-ink)" }}>비밀번호 변경</h3>
+            </div>
+            {passwordOpen ? (
+              <form
+                className="mt-4 space-y-3"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  setPasswordMessage(null);
+                  if (newPassword !== newPasswordConfirm) {
+                    setPasswordMessage({ tone: "error", text: "두 비밀번호가 일치하지 않습니다." });
+                    return;
+                  }
+                  setPasswordSaving(true);
+                  try {
+                    await updatePassword(newPassword);
+                    setPasswordMessage({ tone: "success", text: "비밀번호를 변경했습니다." });
+                    setNewPassword("");
+                    setNewPasswordConfirm("");
+                    setPasswordOpen(false);
+                  } catch (err) {
+                    setPasswordMessage({
+                      tone: "error",
+                      text: err instanceof Error ? err.message : "변경에 실패했습니다.",
+                    });
+                  } finally {
+                    setPasswordSaving(false);
+                  }
+                }}
+              >
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="새 비밀번호 (8자 이상)"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  required
+                  minLength={8}
+                  className="w-full rounded-2xl px-4 py-3 text-sm outline-none"
+                  style={inputStyle}
+                />
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="새 비밀번호 확인"
+                  value={newPasswordConfirm}
+                  onChange={(event) => setNewPasswordConfirm(event.target.value)}
+                  required
+                  minLength={8}
+                  className="w-full rounded-2xl px-4 py-3 text-sm outline-none"
+                  style={inputStyle}
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setPasswordOpen(false); setPasswordMessage(null); }}
+                    className="min-h-[46px] rounded-xl text-sm font-bold"
+                    style={{ background: "var(--color-fg-paper)", border: "1px solid var(--color-fg-line-soft)", color: "var(--color-fg-ink)" }}
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={passwordSaving}
+                    className="min-h-[46px] rounded-xl text-sm font-bold disabled:opacity-60"
+                    style={{ background: "var(--primary)", color: "var(--color-fg-paper)" }}
+                  >
+                    {passwordSaving ? "변경 중..." : "변경하기"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setPasswordOpen(true)}
+                className="mt-4 min-h-[46px] w-full rounded-xl text-sm font-bold"
+                style={{ background: "var(--color-fg-paper)", border: "1px solid var(--primary)", color: "var(--primary)" }}
+              >
+                비밀번호 변경하기
+              </button>
+            )}
+            {passwordMessage && (
+              <p
+                role="status"
+                className="mt-3 rounded-xl px-3 py-2.5 text-xs leading-relaxed"
+                style={passwordMessage.tone === "success"
+                  ? { background: "rgba(0,71,171,0.06)", border: "1px solid rgba(0,71,171,0.16)", color: "var(--primary)" }
+                  : { background: "rgba(255,59,48,0.08)", border: "1px solid rgba(255,59,48,0.20)", color: "var(--destructive)" }}
+              >
+                {passwordMessage.text}
+              </p>
+            )}
+          </div>
         )}
 
         {/* ── 로그아웃 ── */}
