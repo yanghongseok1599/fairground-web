@@ -59,6 +59,24 @@ const DOCS = [
     version: "v1.2",
     footerLabel: "Fair Ground · 대회 규정 v1.2",
   },
+  {
+    key: "referee",
+    src: "public/document/files 2/페어그라운드_심판교육가이드_v2_3.md",
+    out: "public/document/fairground-referee-guide-v2.3.pdf",
+    title: "심판 교육 가이드",
+    subtitle: "Fair Ground 혼성 풋살 페스티벌 심판 집행 매뉴얼",
+    version: "v2.3",
+    footerLabel: "Fair Ground · 심판 교육 가이드 v2.3",
+  },
+  {
+    key: "captain",
+    src: "public/document/files 2/페어그라운드_주장교육가이드_v1_0.md",
+    out: "public/document/fairground-captain-guide-v1.0.pdf",
+    title: "주장 교육 가이드",
+    subtitle: "Fair Ground 혼성 풋살 페스티벌 — 팀 주장을 위한 안내",
+    version: "v1.0",
+    footerLabel: "Fair Ground · 주장 교육 가이드 v1.0",
+  },
 ];
 
 /* --------------------------------------------------------------- 브랜드 토큰 */
@@ -158,8 +176,16 @@ function parseMarkdown(md) {
     }
 
     if (line.startsWith(">")) {
-      const q = line.replace(/^>\s*/, "");
-      if (!seenBody) {
+      // 연속된 > 행은 한 인용 블록으로 묶는다(가이드 문서의 여러 줄 원칙 박스).
+      const quoted = [line.replace(/^>\s*/, "")];
+      while (i < lines.length && lines[i].trim().startsWith(">")) {
+        quoted.push(lines[i].trim().replace(/^>\s*/, ""));
+        i += 1;
+      }
+      const q = quoted.join(" ").trim();
+      // 표지 철학은 문서 첫 인용문 하나만. 심판·주장 가이드처럼 본문 시작 전
+      // 인용 박스가 더 있으면(핵심 원칙 등) 표지를 덮어쓰지 않고 본문 note 로 낸다.
+      if (!seenBody && !front.philosophy) {
         // "> **대회 철학** \"…\"" — 굵은 라벨과 본문을 분리한다(표지에서 라벨 중복 방지)
         const m = q.match(/^\*\*(.+?)\*\*\s*(.*)$/);
         front.philosophyLabel = m ? m[1].trim() : "대회 철학";
@@ -243,8 +269,10 @@ function articleStats(blocks) {
   const parts = blocks.filter((b) => b.k === "part").length;
   const chapters = blocks.filter((b) => b.k === "chapter").length;
   return {
-    min: Math.min(...nums),
-    max: Math.max(...nums),
+    // 심판·주장 가이드처럼 '제N조' 가 없는 문서는 min/max 가 ±Infinity 가 되므로
+    // null 로 두고, 표지·로그에서 장 수만 쓰게 한다.
+    min: nums.length ? Math.min(...nums) : null,
+    max: nums.length ? Math.max(...nums) : null,
     count: nums.length,
     parts,
     chapters,
@@ -345,9 +373,12 @@ function buildHtml(doc, parsed) {
   const stats = articleStats(blocks);
   const toc = buildToc(blocks);
   const eff = effectiveDate(blocks);
-  const scope = `제${stats.min}조 ~ 제${stats.max}조 (전 ${stats.count}개 조문${
-    stats.parts ? ` · ${stats.parts}부 ${stats.chapters}장` : ` · ${stats.chapters}장`
-  })`;
+  const structure = stats.parts
+    ? `${stats.parts}부 ${stats.chapters}장`
+    : `${stats.chapters}장`;
+  const scope = stats.count
+    ? `제${stats.min}조 ~ 제${stats.max}조 (전 ${stats.count}개 조문 · ${structure})`
+    : `전 ${structure}`;
 
   const tocHtml = toc
     .map((e) => {
@@ -530,7 +561,7 @@ function buildHtml(doc, parsed) {
 
   <p class="cover-note">
     본 문서는 Fair Ground 운영진이 확정한 공식 규정의 배포본입니다.
-    최신본은 fairground.kr 룰북 페이지에서 확인할 수 있으며, 웹 룰북과 본 문서의 내용이
+    최신본은 fairground-kor.com 룰북 페이지에서 확인할 수 있으며, 웹 룰북과 본 문서의 내용이
     상이한 경우 웹 룰북을 우선 적용합니다.
   </p>
 </section>
@@ -709,7 +740,11 @@ for (const doc of targets) {
   writeFileSync(outPath, pdf);
 
   console.log(
-    `[${doc.key}] ${doc.out} · ${(pdf.length / 1024).toFixed(0)}KB · 제${stats.min}조~제${stats.max}조 (${stats.count}개 조문)`
+    `[${doc.key}] ${doc.out} · ${(pdf.length / 1024).toFixed(0)}KB · ${
+      stats.count
+        ? `제${stats.min}조~제${stats.max}조 (${stats.count}개 조문)`
+        : `${stats.chapters}개 장`
+    }`
   );
 }
 
