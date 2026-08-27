@@ -228,6 +228,8 @@ interface CreatePlayerData {
   photoScale?: number;
   teamRole?: TeamRole;
   cardSkin?: PlayerCardSkin;
+  // 선수카드 등록 화면에서 받은 촬영물 홍보 활용 동의 시각(ms).
+  portraitConsentAt?: number;
 }
 
 interface AuthState {
@@ -405,6 +407,9 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
         teamRole: data.teamRole ?? existingPlayer?.teamRole,
         nationality: data.nationality || "KOR",
         gender: data.gender ?? existingPlayer?.gender ?? currentUser?.gender,
+        // 한 번 남은 동의 시각은 재등록/수정 시에도 덮어쓰지 않는다 —
+        // 최초 동의 시점이 증거로서의 의미를 가지기 때문.
+        portraitConsentAt: existingPlayer?.portraitConsentAt ?? data.portraitConsentAt,
         createdAt: existingPlayer?.createdAt ?? Date.now(),
       };
       if (isDemoMode) {

@@ -94,6 +94,9 @@ export function rowToPlayer(r: ProfileRow): Player {
     teamRole: r.team_role ?? undefined,
     attendanceStreak: r.attendance_streak ?? 0,
     attendanceStreakBest: r.attendance_streak_best ?? 0,
+    portraitConsentAt: r.portrait_consent_at
+      ? new Date(r.portrait_consent_at).getTime()
+      : undefined,
     createdAt: new Date(r.created_at).getTime(),
   };
 }
@@ -134,6 +137,9 @@ export function playerToInsert(p: Player): ProfileInsert {
     personal_values: p.personalValues ?? null,
     bio: p.bio ?? null,
     team_role: p.teamRole ?? null,
+    portrait_consent_at: p.portraitConsentAt
+      ? new Date(p.portraitConsentAt).toISOString()
+      : null,
   };
 }
 
@@ -165,6 +171,10 @@ export function playerPatchToRow(d: Partial<Player>): ProfileUpdate {
   if (d.personalValues !== undefined) u.personal_values = d.personalValues?.trim() || null;
   if (d.bio !== undefined) u.bio = d.bio?.trim() || null;
   if (d.teamRole !== undefined) u.team_role = d.teamRole ?? null;
+  if (d.portraitConsentAt !== undefined)
+    u.portrait_consent_at = d.portraitConsentAt
+      ? new Date(d.portraitConsentAt).toISOString()
+      : null;
   return u;
 }
 

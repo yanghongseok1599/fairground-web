@@ -882,6 +882,7 @@ export type Database = {
           photo_scale: number | null
           photo_url: string
           position: Database["public"]["Enums"]["position_t"]
+          portrait_consent_at: string | null
           profile_photo_locked: boolean
           profile_photo_url: string | null
           role: Database["public"]["Enums"]["player_role_t"]
@@ -921,6 +922,7 @@ export type Database = {
           photo_scale?: number | null
           photo_url?: string
           position?: Database["public"]["Enums"]["position_t"]
+          portrait_consent_at?: string | null
           profile_photo_locked?: boolean
           profile_photo_url?: string | null
           role?: Database["public"]["Enums"]["player_role_t"]
@@ -960,6 +962,7 @@ export type Database = {
           photo_scale?: number | null
           photo_url?: string
           position?: Database["public"]["Enums"]["position_t"]
+          portrait_consent_at?: string | null
           profile_photo_locked?: boolean
           profile_photo_url?: string | null
           role?: Database["public"]["Enums"]["player_role_t"]

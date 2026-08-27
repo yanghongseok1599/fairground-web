@@ -53,6 +53,9 @@ export interface Player {
   teamRole?: TeamRole;
   attendanceStreak?: number;
   attendanceStreakBest?: number;
+  // 대회 현장 촬영물의 홍보·마케팅 활용에 선수 본인이 동의한 시각(ms).
+  // undefined = 동의 기록 없음. 팀 대표의 대리 동의(Team.portraitConsentAt)와 별개.
+  portraitConsentAt?: number;
   createdAt: number;
 }
 

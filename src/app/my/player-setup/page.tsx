@@ -104,6 +104,7 @@ function PlayerSetupContent() {
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
   const [position, setPosition] = useState<Position | "">("");
+  const [portraitConsent, setPortraitConsent] = useState(false);
   const [role, setRole] = useState<Exclude<PlayerRole, "admin">>(presetRole);
   const [teamId, setTeamId] = useState("");
   const [nationality, setNationality] = useState("KOR");
@@ -296,6 +297,7 @@ function PlayerSetupContent() {
     e.preventDefault();
     clearError();
     if (!position) return;
+    if (!portraitConsent) return;
     try {
       let photoUrl = "";
       if (photoBlob) {
@@ -318,6 +320,7 @@ function PlayerSetupContent() {
         profilePhotoLocked: false,
         photoScale,
         cardSkin,
+        portraitConsentAt: Date.now(),
       });
       clearPendingCardSkin();
       setDone(true);
@@ -796,6 +799,30 @@ function PlayerSetupContent() {
               />
             </div>
           </div>
+
+          {/* 촬영물 홍보 활용 동의 — 선수 본인 동의. 팀 대표의 대리 동의와 별개로 받는다. */}
+          <label
+            className="flex items-start gap-3 rounded-2xl px-4 py-3.5"
+            style={inputStyle}
+          >
+            <input
+              type="checkbox"
+              checked={portraitConsent}
+              onChange={(e) => setPortraitConsent(e.target.checked)}
+              className="mt-0.5 h-5 w-5 shrink-0"
+              style={{ accentColor: "var(--color-fg-blue, #0047AB)" }}
+              required
+            />
+            <span
+              className="text-[13px] leading-[1.7]"
+              style={{ color: "var(--color-fg-ink-muted)" }}
+            >
+              대회·행사 현장에서 촬영되는 사진·영상에 본인이 등장할 수 있으며,
+              해당 촬영물이 FairGround의 홍보·마케팅 목적(온라인 채널·광고·인쇄물
+              등 상업적 이용 포함)으로 기간과 횟수의 제한 없이 사용되는 것에
+              동의합니다. 이에 대해 별도의 대가나 초상권을 주장하지 않습니다.
+            </span>
+          </label>
 
           {error && (
             <p
