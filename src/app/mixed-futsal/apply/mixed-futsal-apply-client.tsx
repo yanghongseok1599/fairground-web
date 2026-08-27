@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -43,10 +42,7 @@ import {
   MIXED_FUTSAL_GENDER_RULE_NOTE,
   MIXED_FUTSAL_GROUP_LABEL,
   MIXED_FUTSAL_GUARANTEE_LABEL,
-  MIXED_FUTSAL_JOIN_GROUND_IMAGE,
   MIXED_FUTSAL_MATCH_FORMAT_LABEL,
-  MIXED_FUTSAL_PHOTO_HEIGHT,
-  MIXED_FUTSAL_PHOTO_WIDTH,
   MIXED_FUTSAL_REFUND_NOTE,
   MIXED_FUTSAL_ROSTER_LABEL,
   MIXED_FUTSAL_SAFETY_LABEL,
@@ -178,7 +174,7 @@ export function MixedFutsalApplyClient() {
       style={{ wordBreak: "keep-all", overflowWrap: "break-word" }}
     >
       <section className="border-b border-[#D0D8E8] bg-[#0D1B2A] px-5 py-10 text-white sm:px-8 md:px-10 md:py-14">
-        <div className="mx-auto grid max-w-[1120px] gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+        <div className="mx-auto max-w-[1120px]">
           <div>
             <Link
               href={MIXED_FUTSAL_EVENT_PATH}
@@ -207,18 +203,6 @@ export function MixedFutsalApplyClient() {
                 탈락 없음 · {MIXED_FUTSAL_GUARANTEE_LABEL}
               </li>
             </ul>
-          </div>
-
-          <div className="mx-auto w-full max-w-[360px] border border-white/16 lg:max-w-none">
-            <Image
-              src={MIXED_FUTSAL_JOIN_GROUND_IMAGE}
-              alt="함께 만드는 그라운드 — 혼성 풋살 대회 참가 안내"
-              width={MIXED_FUTSAL_PHOTO_WIDTH}
-              height={MIXED_FUTSAL_PHOTO_HEIGHT}
-              sizes="(max-width: 1023px) 88vw, 34vw"
-              priority
-              className="h-auto w-full"
-            />
           </div>
         </div>
       </section>
