@@ -17,7 +17,8 @@ export interface AdminMenuItem {
     | "skillChallenge"
     | "popups"
     | "push"
-    | "groups";
+    | "groups"
+    | "entryFees";
 }
 
 export const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
@@ -36,6 +37,14 @@ export const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
     accent: "#0047AB",
     roles: ["admin"],
     metricKey: "groups",
+  },
+  {
+    title: "참가비 수납",
+    description: "팀별 참가비 청구 금액과 입금 여부, 미수금 현황",
+    href: "/admin/entry-fees",
+    accent: "#003080",
+    roles: ["admin"],
+    metricKey: "entryFees",
   },
   {
     title: "선수 승인",

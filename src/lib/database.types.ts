@@ -1505,6 +1505,42 @@ export type Database = {
           },
         ]
       }
+      tournament_entry_fees: {
+        Row: {
+          amount: number
+          id: string
+          memo: string | null
+          paid_at: string | null
+          status: string
+          team_id: string
+          tournament_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          amount?: number
+          id?: string
+          memo?: string | null
+          paid_at?: string | null
+          status?: string
+          team_id: string
+          tournament_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          amount?: number
+          id?: string
+          memo?: string | null
+          paid_at?: string | null
+          status?: string
+          team_id?: string
+          tournament_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       tournaments: {
         Row: {
           created_at: string
