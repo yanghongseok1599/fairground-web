@@ -96,6 +96,8 @@ export interface Team {
   // 리그 승강
   leagueTier: LeagueTier;
   participationStreak: number; // 연속 대회 참여 수 0–4 (대진 편성 시 휴식 시드 우선권)
+  // 대회 현장 촬영물의 홍보·마케팅 활용 동의 시각(ms). undefined = 동의 기록 없음.
+  portraitConsentAt?: number;
 }
 
 // ===== Match =====

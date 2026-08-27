@@ -1458,6 +1458,7 @@ export type Database = {
           member_count: number
           name: string
           participation_streak: number
+          portrait_consent_at: string | null
           season_stats: Json
           team_type: Database["public"]["Enums"]["team_type_t"]
         }
@@ -1475,6 +1476,7 @@ export type Database = {
           member_count?: number
           name: string
           participation_streak?: number
+          portrait_consent_at?: string | null
           season_stats?: Json
           team_type?: Database["public"]["Enums"]["team_type_t"]
         }
@@ -1492,6 +1494,7 @@ export type Database = {
           member_count?: number
           name?: string
           participation_streak?: number
+          portrait_consent_at?: string | null
           season_stats?: Json
           team_type?: Database["public"]["Enums"]["team_type_t"]
         }

@@ -147,6 +147,9 @@ export function MixedFutsalApplyClient() {
         teamType: "community",
         leagueTier: "bronze",
         participationStreak: 0,
+        // 체크박스는 위 검증을 통과해야만 여기 도달하므로, 제출 시각을 그대로
+        // 동의 시각으로 남긴다. 분쟁 시 "언제 동의했는가"의 근거가 된다.
+        portraitConsentAt: Date.now(),
       });
 
       await claimTeamCoach(createdId);

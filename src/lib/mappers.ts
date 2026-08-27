@@ -191,6 +191,7 @@ export function rowToTeam(r: TeamRow): Team {
     teamType: r.team_type,
     leagueTier: r.league_tier,
     participationStreak: r.participation_streak,
+    portraitConsentAt: r.portrait_consent_at ? ts(r.portrait_consent_at) : undefined,
   };
 }
 
@@ -210,6 +211,9 @@ export function teamToInsert(t: Omit<Team, "id"> & { id?: string }): TeamInsert 
     team_type: t.teamType ?? "community",
     league_tier: t.leagueTier ?? "bronze",
     participation_streak: t.participationStreak ?? 0,
+    portrait_consent_at: t.portraitConsentAt
+      ? new Date(t.portraitConsentAt).toISOString()
+      : null,
   };
 }
 
@@ -226,6 +230,10 @@ export function teamPatchToRow(d: Partial<Team>): TeamUpdate {
   if (d.introSubtitle !== undefined) u.intro_subtitle = d.introSubtitle ?? null;
   if (d.bannerUrl !== undefined) u.banner_url = d.bannerUrl ?? null;
   if (d.teamType !== undefined) u.team_type = d.teamType;
+  if (d.portraitConsentAt !== undefined)
+    u.portrait_consent_at = d.portraitConsentAt
+      ? new Date(d.portraitConsentAt).toISOString()
+      : null;
   return u;
 }
 
