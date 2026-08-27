@@ -84,6 +84,7 @@ export function MixedFutsalApplyClient() {
   const [captainName, setCaptainName] = useState("");
   const [captainPhone, setCaptainPhone] = useState("");
   const [mixConfirmed, setMixConfirmed] = useState(false);
+  const [portraitConsent, setPortraitConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [createdTeamId, setCreatedTeamId] = useState("");
@@ -119,6 +120,11 @@ export function MixedFutsalApplyClient() {
 
     if (!mixConfirmed) {
       setError(`혼성 구성 요건(${MIXED_FUTSAL_GENDER_RULE_LABEL})을 확인하고 체크해주세요.`);
+      return;
+    }
+
+    if (!portraitConsent) {
+      setError("현장 촬영물의 홍보 활용 동의에 체크해야 참가 신청을 제출할 수 있습니다.");
       return;
     }
 
@@ -457,6 +463,25 @@ export function MixedFutsalApplyClient() {
                       중에도 이 구성을 유지할 수 있고, 팀원 모두가{" "}
                       <strong className="font-black text-[#0D1B2A]">{MIXED_FUTSAL_ELIGIBILITY_LABEL}</strong>{" "}
                       참가 자격을 충족합니다.
+                    </span>
+                  </label>
+
+                  <label className="flex min-h-12 items-start gap-3 rounded-[var(--radius-md)] border border-[#D0D8E8] bg-[#F5F7FF] px-4 py-3.5">
+                    <input
+                      type="checkbox"
+                      checked={portraitConsent}
+                      onChange={(event) => setPortraitConsent(event.target.checked)}
+                      className="mt-0.5 h-5 w-5 shrink-0 accent-[#0047AB]"
+                      required
+                    />
+                    <span className="text-[14px] leading-[1.7] text-[#526277]">
+                      대회 현장에서 촬영되는 사진·영상이{" "}
+                      <strong className="font-black text-[#0D1B2A]">
+                        FairGround의 홍보·마케팅 목적(온라인 채널·광고·인쇄물 등 상업적 이용 포함)
+                      </strong>
+                      으로 기간과 횟수의 제한 없이 사용되는 것에 동의하며, 이에
+                      대해 별도의 대가나 초상권을 주장하지 않습니다. 팀 대표로서
+                      팀원 전원에게 이 내용을 고지하고 동의를 받았습니다.
                     </span>
                   </label>
 
