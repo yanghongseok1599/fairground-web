@@ -15,33 +15,42 @@ export interface PlayerCardPoseTemplate {
   };
 }
 
+export const ANONYMOUS_PLAYER_CARD_POSE_SOURCES = {
+  male01: "/images/player-card-poses/anonymous-mannequin-male-01.png",
+  male02: "/images/player-card-poses/anonymous-mannequin-male-02.png",
+  female01: "/images/player-card-poses/anonymous-mannequin-female-01.png",
+  female02: "/images/player-card-poses/anonymous-mannequin-female-02.png",
+} as const;
+
+// 기본 포즈는 특정 실존 인물을 묘사하지 않는 얼굴 없는 합성 마네킹이다.
+// 실제 사용자가 사진을 업로드한 경우에만 동의한 사용자 사진을 이 포즈에 합성한다.
 export const PLAYER_CARD_POSE_TEMPLATES: PlayerCardPoseTemplate[] = [
   {
-    id: "red-uniform-male-01",
+    id: "anonymous-mannequin-male-01",
     gender: "male",
     label: "남자 포즈 1",
-    src: "/images/player-card-poses/red-uniform-male-01.webp",
+    src: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.male01,
     faceTarget: { x: 37.8, y: 5.5, width: 24.2, height: 31.8 },
   },
   {
-    id: "red-uniform-male-02",
+    id: "anonymous-mannequin-male-02",
     gender: "male",
     label: "남자 포즈 2",
-    src: "/images/player-card-poses/red-uniform-male-02.webp",
+    src: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.male02,
     faceTarget: { x: 33.8, y: 4.6, width: 25.2, height: 33.5 },
   },
   {
-    id: "red-uniform-female-01",
+    id: "anonymous-mannequin-female-01",
     gender: "female",
     label: "여자 포즈 1",
-    src: "/images/player-card-poses/red-uniform-female-01.webp",
+    src: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.female01,
     faceTarget: { x: 37.8, y: 6.4, width: 24.4, height: 32.5 },
   },
   {
-    id: "red-uniform-female-02",
+    id: "anonymous-mannequin-female-02",
     gender: "female",
     label: "여자 포즈 2",
-    src: "/images/player-card-poses/red-uniform-female-02.webp",
+    src: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.female02,
     faceTarget: { x: 30.8, y: 6.8, width: 24.8, height: 33.4 },
   },
 ];

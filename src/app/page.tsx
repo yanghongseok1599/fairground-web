@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { useDataStore } from "@/stores/dataStore";
@@ -14,6 +13,7 @@ import type { TeamGalleryItem } from "@/components/team-circular-gallery";
 import { getClubLogoPreset } from "@/components/club-emblem";
 import { createTeamCardCanvas } from "@/lib/team-card-canvas";
 import { isFieldChampionTeam, leagueTierCardIndex } from "@/lib/team-home";
+import { ANONYMOUS_PLAYER_CARD_POSE_SOURCES } from "@/lib/player-card-pose-templates";
 import type { Team, Player } from "@/types";
 import { ArrowRight, MapPin, Trophy, Users } from "lucide-react";
 import { TeamMarquee } from "@/components/team-marquee";
@@ -28,10 +28,7 @@ import {
   MIXED_FUTSAL_EVENT_PATH,
   MIXED_FUTSAL_EVENT_TIME_LABEL,
   MIXED_FUTSAL_GUARANTEE_LABEL,
-  MIXED_FUTSAL_MATCH_DAY_IMAGE,
   MIXED_FUTSAL_MATCH_FORMAT_LABEL,
-  MIXED_FUTSAL_PHOTO_HEIGHT,
-  MIXED_FUTSAL_PHOTO_WIDTH,
   MIXED_FUTSAL_TEAM_COUNT_LABEL,
 } from "@/lib/mixed-futsal-event";
 
@@ -128,6 +125,7 @@ const HERO_STATIC_FALLBACK = (
   </div>
 );
 
+// 홈페이지 샘플은 특정 실존 인물을 묘사하지 않는 얼굴 없는 마네킹만 사용한다.
 const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
   {
     id: "showcase-bronze-1",
@@ -137,7 +135,7 @@ const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
     position: "FIXO",
     teamId: "showcase",
     nationality: "KOR",
-    photoUrl: "/images/players/showcase-player-4.png",
+    photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.male01,
     cardType: "bronze",
     cardRating: 72,
     stats: { goals: 2, assists: 3, games: 8, mom: 0 },
@@ -155,7 +153,7 @@ const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
     position: "ALA",
     teamId: "showcase",
     nationality: "KOR",
-    photoUrl: "/images/players/showcase-player-2.png",
+    photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.male02,
     cardType: "silver",
     cardRating: 84,
     stats: { goals: 6, assists: 5, games: 12, mom: 1 },
@@ -173,7 +171,7 @@ const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
     position: "PIVO",
     teamId: "showcase",
     nationality: "KOR",
-    photoUrl: "/images/players/showcase-player-3.png",
+    photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.female01,
     cardType: "gold",
     cardRating: 90,
     stats: { goals: 9, assists: 6, games: 14, mom: 2 },
@@ -191,7 +189,7 @@ const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
     position: "PIVO",
     teamId: "showcase",
     nationality: "KOR",
-    photoUrl: "/images/players/showcase-player-1.png",
+    photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.female02,
     cardType: "premium",
     cardRating: 104,
     stats: { goals: 14, assists: 7, games: 14, mom: 5 },
@@ -385,8 +383,7 @@ export default function HomePage() {
           UPCOMING TOURNAMENT — 홈에서 대회로 가는 유일한 상시 경로.
           히어로(흰 배경 풀뷰포트 영상) 바로 다음이라 딥블루 바탕으로 끊어
           "여기부터 다른 이야기" 라는 신호를 준다. 날짜·장소·포맷은 모두
-          mixed-futsal-event 상수에서 오고, 이미지는 비주얼 역할만 한다
-          (이미지 안에 새겨진 글자는 실제 일정과 다를 수 있음).
+          mixed-futsal-event 상수에서 온다.
           ============================================================ */}
       <section
         className="relative overflow-hidden px-5 py-14 sm:px-8 md:px-10 md:py-20"
@@ -431,11 +428,8 @@ export default function HomePage() {
                 {MIXED_FUTSAL_EVENT_NAME}
               </h2>
 
-              {/* 태블릿(768px)부터 2열로 나눈다. 1열을 유지하면 이미지가 본문
-                  폭 전체(≈630px)를 먹어 섹션이 1200px 넘게 늘어난다. */}
-              <div className="mt-6 grid gap-6 md:mt-8 md:grid-cols-[minmax(0,1fr)_240px] md:items-start md:gap-8 lg:mt-9 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-12">
-                {/* 날짜 → 조건 → CTA 순서를 먼저 둔다. 모바일에서 이미지를 앞에
-                    세우면 CTA 가 300px 넘게 밀려 "대회로 가는 길" 이 멀어진다. */}
+              <div className="mt-6 max-w-3xl md:mt-8 lg:mt-9">
+                {/* 날짜 → 조건 → CTA 순서로 대회 참여 흐름을 안내한다. */}
                 <div>
                   <p className="fg-label" style={{ color: "var(--color-fg-blue-soft)" }}>
                     DATE
@@ -519,28 +513,6 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* 비주얼 — 모바일에서는 섹션을 닫는 배너, 데스크탑에서는 우측 열.
-                    사실 정보는 전부 위 텍스트가 책임지고 이미지는 분위기만 담당한다
-                    (이미지에 새겨진 글자는 실제 일정과 다를 수 있음). */}
-                <div
-                  className="overflow-hidden rounded-[var(--radius-lg)] border"
-                  style={{
-                    borderColor: "rgba(255,255,255,0.22)",
-                    background: "rgba(13,27,42,0.35)",
-                  }}
-                >
-                  <Image
-                    src={MIXED_FUTSAL_MATCH_DAY_IMAGE}
-                    alt={`${MIXED_FUTSAL_EVENT_NAME} 혼성 풋살 경기 장면`}
-                    width={MIXED_FUTSAL_PHOTO_WIDTH}
-                    height={MIXED_FUTSAL_PHOTO_HEIGHT}
-                    sizes="(min-width: 1024px) 300px, (min-width: 768px) 240px, 100vw"
-                    // 모바일(1열)은 정사각 크롭. 이미지 안에 글자가 새겨져 있어
-                    // 이보다 납작하게 자르면 "DAY" 글자가 잘려 파손처럼 보인다.
-                    // 2열이 되는 768px 이상은 원본 비율(4:5) 그대로.
-                    className="aspect-square w-full object-cover object-top md:aspect-[4/5] md:object-center"
-                  />
-                </div>
               </div>
             </div>
           </div>

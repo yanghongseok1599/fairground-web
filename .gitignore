@@ -59,3 +59,15 @@ cors.json
 .vercel.bak*
 supabase/.temp
 docs/email-templates/preview-*.html
+
+node_modules/
+.next/
+venv/
+.venv/
+dist/
+build/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.local

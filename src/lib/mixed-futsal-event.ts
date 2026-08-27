@@ -79,6 +79,9 @@ export const MIXED_FUTSAL_ENTRY_FEE_REGULAR_AMOUNT = "450000";
 export const MIXED_FUTSAL_ENTRY_FEE_NOTE =
   "참가비는 9월 7일까지 신청하면 얼리버드 40만원, 9월 8일부터는 일반 45만원입니다. 납부 방법과 기한은 참가 신청 접수 후 운영진이 별도로 안내합니다.";
 
+export const MIXED_FUTSAL_PHOTO_WIDTH = 1200;
+export const MIXED_FUTSAL_PHOTO_HEIGHT = 1500;
+
 export const MIXED_FUTSAL_SIDE_EVENT_LABEL = "그라운드 챌린지";
 export const MIXED_FUTSAL_SIDE_EVENT_TIMING_LABEL = "조별 리그 종료 후";
 export const MIXED_FUTSAL_SIDE_EVENT_TIMING_NOTE =
@@ -93,16 +96,6 @@ export const MIXED_FUTSAL_SIDE_EVENTS = [
     body: "정해진 표적을 노려 정확도를 겨루는 부대 이벤트입니다. 실력과 상관없이 도전 자체가 기록이 됩니다.",
   },
 ] as const;
-
-export const MIXED_FUTSAL_POSTER_IMAGE = "/promotions/mixed-futsal/poster.webp";
-export const MIXED_FUTSAL_POSTER_WIDTH = 1000;
-export const MIXED_FUTSAL_POSTER_HEIGHT = 1250;
-export const MIXED_FUTSAL_PHOTO_WIDTH = 1200;
-export const MIXED_FUTSAL_PHOTO_HEIGHT = 1500;
-export const MIXED_FUTSAL_TEAM_IMAGE = "/promotions/mixed-futsal/team.webp";
-export const MIXED_FUTSAL_PLAY_IMAGE = "/promotions/mixed-futsal/play.webp";
-export const MIXED_FUTSAL_MATCH_DAY_IMAGE = "/promotions/mixed-futsal/match-day.webp";
-export const MIXED_FUTSAL_JOIN_GROUND_IMAGE = "/promotions/mixed-futsal/join-ground.webp";
 
 export const MIXED_FUTSAL_EVENT_TOURNAMENT: Tournament = {
   id: MIXED_FUTSAL_EVENT_TOURNAMENT_ID,

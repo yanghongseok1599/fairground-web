@@ -13,6 +13,7 @@ import {
 import { Section } from "@/components/section";
 import { PlayerCard } from "@/components/player-card";
 import { BADGES } from "@/constants/badges";
+import { ANONYMOUS_PLAYER_CARD_POSE_SOURCES } from "@/lib/player-card-pose-templates";
 import { MATCH_RULEBOOK_PDF_PATH } from "@/lib/rulebook-assets";
 import { SITE_URL } from "@/lib/site-config";
 import type { Player } from "@/types";
@@ -165,7 +166,7 @@ const CARD_SYSTEM_PLAYERS: Array<{ id: "bronze" | "silver" | "gold" | "premium";
       position: "ALA",
       teamId: "sample",
       nationality: "KOR",
-      photoUrl: "/images/players/showcase-player-4.png",
+      photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.female02,
       cardType: "bronze",
       cardRating: 72,
       stats: { goals: 2, assists: 3, games: 8, mom: 0 },
@@ -187,7 +188,7 @@ const CARD_SYSTEM_PLAYERS: Array<{ id: "bronze" | "silver" | "gold" | "premium";
       position: "PIVO",
       teamId: "sample",
       nationality: "KOR",
-      photoUrl: "/images/players/showcase-player-2.png",
+      photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.male02,
       cardType: "silver",
       cardRating: 84,
       stats: { goals: 6, assists: 5, games: 12, mom: 1 },
@@ -209,7 +210,7 @@ const CARD_SYSTEM_PLAYERS: Array<{ id: "bronze" | "silver" | "gold" | "premium";
       position: "ALA",
       teamId: "sample",
       nationality: "KOR",
-      photoUrl: "/images/players/showcase-player-3.png",
+      photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.female01,
       cardType: "gold",
       cardRating: 90,
       stats: { goals: 9, assists: 6, games: 14, mom: 2 },
@@ -231,7 +232,7 @@ const CARD_SYSTEM_PLAYERS: Array<{ id: "bronze" | "silver" | "gold" | "premium";
       position: "PIVO",
       teamId: "sample",
       nationality: "KOR",
-      photoUrl: "/images/players/showcase-player-1.png",
+      photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.male01,
       cardType: "premium",
       cardRating: 104,
       stats: { goals: 14, assists: 7, games: 14, mom: 5 },

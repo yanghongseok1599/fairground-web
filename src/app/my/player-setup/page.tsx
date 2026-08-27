@@ -11,6 +11,7 @@ import { PlayerCard } from "@/components/player-card";
 import { PlayerCardTierPreviewGrid } from "@/components/player-card-tier-preview-grid";
 import { compressImageBlob, removeBackgroundAndCompress } from "@/lib/image-compression";
 import { composeTeamlessPoseCardPhoto } from "@/lib/player-card-photo-composer";
+import { PLAYER_CARD_FRAME } from "@/lib/player-card-frame";
 import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
 import { shouldContinueGroundChallengeSetup } from "@/lib/player-onboarding";
 import {
@@ -57,7 +58,7 @@ const inputStyle: React.CSSProperties = {
   color: "var(--color-fg-ink)",
 };
 
-const PHOTO_OVERLAY = { x: 47, y: 14.5, w: 27, h: 38 };
+const PHOTO_OVERLAY = PLAYER_CARD_FRAME.pos.photo;
 
 export default function PlayerSetupPage() {
   return (

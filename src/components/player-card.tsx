@@ -3,12 +3,18 @@
 import type { Player, CardType } from "@/types";
 import { BADGES } from "@/constants/badges";
 import { useTeamLogoBackgroundRemoval } from "@/hooks/useTeamLogoBackgroundRemoval";
+import {
+  PLAYER_CARD_FRAME,
+  PLAYER_CARD_FRAME_ID,
+  getPlayerCardFrameDimensions,
+  type PlayerCardSize,
+} from "@/lib/player-card-frame";
 import { isHologramPlayerCard } from "@/lib/player-card-skin";
 import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
 
 interface PlayerCardProps {
   player: Player;
-  size?: "sm" | "md" | "lg" | "xl" | "export";
+  size?: PlayerCardSize;
   teamLogo?: string;
   onClick?: () => void;
   disableHoverScale?: boolean;
@@ -26,43 +32,15 @@ function countryToFlagCode(code: string): string {
 }
 
 // ============================================================
-// ★ 카드 레이아웃 프리셋 (cardType 별) ★
-// 02_ux-architect §3 여정D / §7 — 좌표 매직넘버를 LAYOUT[cardType]로 분리.
-// gold-card-ducktape.png / premium-card.png 실드 외곽선 픽셀 분석 데이터 기반:
-//   실드 폭: 상단(y=8%) 43%, 중앙(y=50%) 63%, 하단(y=90%) 43%
-// 두 카드 모두 1080x1240 세로형 캔버스 기준으로 같은 크기/형태를 유지.
+// ★ 카드 비주얼 스킨 (cardType 별) ★
+// 위치와 크기는 PLAYER_CARD_FRAME에서만 관리한다. 카드 등급은 배경과 잉크만
+// 바꿀 수 있으므로 어느 화면에서 사용해도 콘텐츠 슬롯은 완전히 동일하다.
 // ============================================================
 const DEBUG = false;
 
-interface CardLayout {
+interface CardVisualSkin {
   /** 배경 이미지 경로 */
   bg: string;
-  /** 카드 높이 / 너비 비율 */
-  aspect: number;
-  /** 좌측 열(레이팅·포지션·로고·국기) 중심선 (%) */
-  leftColCenter: number;
-  /** 각 요소 위치 (카드 세로형 캔버스 기준 %) */
-  pos: {
-    rating: { y: number };
-    pos: { y: number };
-    logo: { y: number };
-    flag: { y: number };
-    photo: { x: number; y: number; w: number; h: number };
-    name: { y: number; w: number };
-    badges: { y: number };
-    stats: { y: number };
-  };
-  /** 폰트/이미지 크기 (카드 너비의 %) */
-  fontPct: {
-    rating: number;
-    pos: number;
-    flag: number;
-    name: number;
-    statVal: number;
-    statLabel: number;
-    badge: number;
-    logo: number;
-  };
   /** 티어별 잉크(텍스트) — 브랜드키트 토큰만 참조(하드코딩 hex 금지).
    *  solid = var(--card-ink-*), rgb = rgba 합성용 CSS 변수 채널. */
   ink: {
@@ -77,54 +55,23 @@ type VisualCardType = CardType | "hologram";
 
 // "gold" 티어 = standard 기본 트리트먼트. 색은 브랜드키트 토큰만 사용.
 // (CardType 값 "gold" 는 데이터 호환 위해 유지하되, 시각은 gold 색 아님)
-const GOLD_LAYOUT: CardLayout = {
+const STANDARD_SKIN: CardVisualSkin = {
   bg: "/images/gold-card-ducktape.webp?v=4",
-  aspect: 1240 / 1080,
-  leftColCenter: 33,
-  pos: {
-    rating: { y: 14.5 },
-    pos: { y: 28 },
-    logo: { y: 34.5 },
-    flag: { y: 45.5 },
-    photo: { x: 43.5, y: 11, w: 36, h: 42.5 },
-    name: { y: 54.5, w: 48 },
-    badges: { y: 63.5 },
-    stats: { y: 75.5 },
-  },
-  fontPct: {
-    rating: 11,
-    pos: 4.5,
-    flag: 9.3,
-    name: 5.5,
-    statVal: 5,
-    statLabel: 3.2,
-    badge: 4.5,
-    logo: 11.2,
-  },
   ink: {
     solid: "var(--card-ink-standard)",
     rgb: "var(--card-ink-standard-rgb)",
   },
 };
 
-const PREMIUM_LAYOUT: CardLayout = {
-  ...GOLD_LAYOUT,
+const PREMIUM_SKIN: CardVisualSkin = {
   bg: "/images/premium-card-matched.webp?v=4",
-  aspect: 1240 / 1080,
-  pos: {
-    ...GOLD_LAYOUT.pos,
-    name: { y: 54.5, w: 48 },
-    badges: { y: 63.5 },
-    stats: { y: 75.5 },
-  },
   ink: {
     solid: "var(--card-ink-premium)",
     rgb: "var(--card-ink-premium-rgb)",
   },
 };
 
-const BRONZE_LAYOUT: CardLayout = {
-  ...GOLD_LAYOUT,
+const BRONZE_SKIN: CardVisualSkin = {
   bg: "/images/bronze-card.webp?v=9",
   ink: {
     solid: "#3b2112",
@@ -132,8 +79,7 @@ const BRONZE_LAYOUT: CardLayout = {
   },
 };
 
-const SILVER_LAYOUT: CardLayout = {
-  ...GOLD_LAYOUT,
+const SILVER_SKIN: CardVisualSkin = {
   bg: "/images/silver-card.webp?v=9",
   ink: {
     solid: "#152033",
@@ -141,8 +87,7 @@ const SILVER_LAYOUT: CardLayout = {
   },
 };
 
-const HOLOGRAM_LAYOUT: CardLayout = {
-  ...GOLD_LAYOUT,
+const HOLOGRAM_SKIN: CardVisualSkin = {
   bg: "/images/hologram-card.webp?v=3",
   ink: {
     solid: "var(--card-ink-standard)",
@@ -150,12 +95,12 @@ const HOLOGRAM_LAYOUT: CardLayout = {
   },
 };
 
-const LAYOUT: Record<VisualCardType, CardLayout> = {
-  bronze: BRONZE_LAYOUT,
-  silver: SILVER_LAYOUT,
-  gold: GOLD_LAYOUT,
-  premium: PREMIUM_LAYOUT,
-  hologram: HOLOGRAM_LAYOUT,
+const CARD_SKIN: Record<VisualCardType, CardVisualSkin> = {
+  bronze: BRONZE_SKIN,
+  silver: SILVER_SKIN,
+  gold: STANDARD_SKIN,
+  premium: PREMIUM_SKIN,
+  hologram: HOLOGRAM_SKIN,
 };
 
 const CARD_TYPE_LABEL: Record<CardType, string> = {
@@ -171,14 +116,6 @@ export function getCardTypeFromRating(rating: number): CardType {
   if (rating >= 80) return "silver";
   return "bronze";
 }
-const sizeConfig = {
-  sm: { w: 130 },
-  md: { w: 200 },
-  lg: { w: 280 },
-  xl: { w: 560 },
-  export: { w: 850 },
-};
-
 export function PlayerCard({
   player,
   size = "md",
@@ -186,19 +123,19 @@ export function PlayerCard({
   onClick,
   disableHoverScale = false,
 }: PlayerCardProps) {
-  const cardW = sizeConfig[size].w;
+  const { width: cardW, height: cardH } = getPlayerCardFrameDimensions(size);
 
   const cardType = getCardTypeFromRating(player.cardRating);
   const visualCardType: VisualCardType = isHologramPlayerCard(player) ? "hologram" : cardType;
-  const layout = LAYOUT[visualCardType] ?? GOLD_LAYOUT;
+  const skin = CARD_SKIN[visualCardType] ?? STANDARD_SKIN;
   const processedTeamLogo = useTeamLogoBackgroundRemoval(teamLogo);
-  const cardH = Math.round(cardW * layout.aspect);
-  const { pos: POS, fontPct: FONT_PCT, leftColCenter: LEFT_COL_CENTER, ink } = layout;
+  const { pos: POS, fontPct: FONT_PCT, leftColCenter: LEFT_COL_CENTER } = PLAYER_CARD_FRAME;
+  const { ink } = skin;
   const playerPhotoScale = player.photoScale ?? DEFAULT_CARD_PHOTO_SCALE;
 
   const fs = {
     rating: Math.round(cardW * FONT_PCT.rating / 100),
-    pos: Math.round(cardW * FONT_PCT.pos / 100),
+    pos: Math.round(cardW * FONT_PCT.position / 100),
     flag: Math.round(cardW * FONT_PCT.flag / 100),
     name: Math.round(cardW * FONT_PCT.name / 100),
     statVal: Math.round(cardW * FONT_PCT.statVal / 100),
@@ -215,7 +152,7 @@ export function PlayerCard({
     <>
       {/* Card Background (티어별) — 장식, 의미는 컨테이너 aria-label 이 제공 */}
       <img
-        src={layout.bg}
+        src={skin.bg}
         alt=""
         aria-hidden="true"
         className="absolute inset-0 h-full w-full object-contain drop-shadow-lg"
@@ -263,7 +200,7 @@ export function PlayerCard({
         className="absolute font-black"
         style={{
           left: `${LEFT_COL_CENTER}%`,
-          top: `${POS.pos.y}%`,
+          top: `${POS.position.y}%`,
           transform: "translateX(-50%)",
           color: `rgba(${ink.rgb}, 0.8)`,
           fontSize: fs.pos,
@@ -505,6 +442,8 @@ export function PlayerCard({
         type="button"
         onClick={onClick}
         aria-label={ariaLabel}
+        data-player-card-frame={PLAYER_CARD_FRAME_ID}
+        data-player-card-size={size}
         className={`relative block cursor-pointer select-none appearance-none border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)] ${
           disableHoverScale ? "" : "transition-transform hover:scale-105"
         }`}
@@ -519,6 +458,8 @@ export function PlayerCard({
     <div
       role="img"
       aria-label={ariaLabel}
+      data-player-card-frame={PLAYER_CARD_FRAME_ID}
+      data-player-card-size={size}
       className={`relative select-none ${disableHoverScale ? "" : "transition-transform hover:scale-105"}`}
       style={{ width: cardW, height: cardH }}
     >

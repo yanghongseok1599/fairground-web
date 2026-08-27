@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { PlayerCard } from "@/components/player-card";
+import type { PlayerCardSize } from "@/lib/player-card-frame";
 import type { Player } from "@/types";
 
-type CardSize = "lg" | "xl" | "export";
+type CardSize = Extract<PlayerCardSize, "lg" | "xl" | "export">;
 
 interface PlayerCardCaptureFrameProps {
   player: Player;

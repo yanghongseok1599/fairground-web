@@ -8,6 +8,7 @@ import { PlayerCard } from "@/components/player-card";
 import { useAuth } from "@/hooks/useAuth";
 import { GROUND_CHALLENGE_EVENT_QUERY_VALUE } from "@/lib/player-card-skin";
 import { shouldContinueGroundChallengeSetup } from "@/lib/player-onboarding";
+import { ANONYMOUS_PLAYER_CARD_POSE_SOURCES } from "@/lib/player-card-pose-templates";
 import {
   SKILL_CHALLENGE_DATE_FULL_LABEL,
   SKILL_CHALLENGE_EVENT_NAME,
@@ -29,8 +30,8 @@ const SAMPLE_PLAYER: Player = {
   teamId: "ground-challenge",
   teamName: "FairGround",
   nationality: "KOR",
-  photoUrl: "/images/player-card-poses/red-uniform-male-02.webp",
-  profilePhotoUrl: "/images/player-card-poses/red-uniform-male-02.webp",
+  photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.male02,
+  profilePhotoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.male02,
   photoScale: 0.98,
   cardType: "gold",
   cardSkin: "hologram",

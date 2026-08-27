@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -51,14 +50,7 @@ import {
   MIXED_FUTSAL_GROUP_LABEL,
   MIXED_FUTSAL_GUARANTEE_LABEL,
   MIXED_FUTSAL_GUARANTEE_NOTE,
-  MIXED_FUTSAL_MATCH_DAY_IMAGE,
   MIXED_FUTSAL_MATCH_FORMAT_LABEL,
-  MIXED_FUTSAL_PHOTO_HEIGHT,
-  MIXED_FUTSAL_PHOTO_WIDTH,
-  MIXED_FUTSAL_PLAY_IMAGE,
-  MIXED_FUTSAL_POSTER_HEIGHT,
-  MIXED_FUTSAL_POSTER_IMAGE,
-  MIXED_FUTSAL_POSTER_WIDTH,
   MIXED_FUTSAL_REFUND_LABEL,
   MIXED_FUTSAL_REFUND_NOTE,
   MIXED_FUTSAL_REGULATIONS,
@@ -70,7 +62,6 @@ import {
   MIXED_FUTSAL_SIDE_EVENT_LABEL,
   MIXED_FUTSAL_SIDE_EVENT_TIMING_LABEL,
   MIXED_FUTSAL_TEAM_COUNT_LABEL,
-  MIXED_FUTSAL_TEAM_IMAGE,
   MIXED_FUTSAL_WEATHER_LABEL,
   MIXED_FUTSAL_WEATHER_NOTE,
 } from "@/lib/mixed-futsal-event";
@@ -82,10 +73,6 @@ export const metadata: Metadata = createSeoMetadata({
   title: `${MIXED_FUTSAL_EVENT_NAME} — 대회 안내`,
   description: `${MIXED_FUTSAL_EVENT_DATE_FULL_LABEL} ${MIXED_FUTSAL_EVENT_TIME_LABEL}, ${MIXED_FUTSAL_EVENT_LOCATION_FULL_LABEL}에서 열리는 ${MIXED_FUTSAL_EVENT_NAME}. ${MIXED_FUTSAL_TEAM_COUNT_LABEL}(${MIXED_FUTSAL_GROUP_LABEL}) 규모, ${MIXED_FUTSAL_MATCH_FORMAT_LABEL}, ${MIXED_FUTSAL_FORMAT_SUMMARY_LABEL}으로 탈락 없이 ${MIXED_FUTSAL_GUARANTEE_LABEL}. 참가비 ${MIXED_FUTSAL_ENTRY_FEE_LABEL}.`,
   path: MIXED_FUTSAL_EVENT_PATH,
-  image: MIXED_FUTSAL_POSTER_IMAGE,
-  imageWidth: MIXED_FUTSAL_POSTER_WIDTH,
-  imageHeight: MIXED_FUTSAL_POSTER_HEIGHT,
-  imageAlt: `${MIXED_FUTSAL_EVENT_NAME} 포스터`,
   keywords: [
     "혼성 풋살 대회",
     "혼성풋살대회",
@@ -158,7 +145,6 @@ const sportsEventData = {
   name: MIXED_FUTSAL_EVENT_NAME,
   description: `${MIXED_FUTSAL_EVENT_LOCATION_FULL_LABEL}에서 열리는 아마추어 혼성 풋살 대회. ${MIXED_FUTSAL_TEAM_COUNT_LABEL}이 ${MIXED_FUTSAL_GROUP_LABEL}으로 나뉘어 ${MIXED_FUTSAL_FORMAT_SUMMARY_LABEL}을 치르며, 탈락 없이 ${MIXED_FUTSAL_GUARANTEE_LABEL}.`,
   url: absoluteUrl(MIXED_FUTSAL_EVENT_PATH),
-  image: absoluteUrl(MIXED_FUTSAL_POSTER_IMAGE),
   startDate: MIXED_FUTSAL_EVENT_START_ISO,
   endDate: MIXED_FUTSAL_EVENT_END_ISO,
   eventStatus: "https://schema.org/EventScheduled",
@@ -248,7 +234,7 @@ export default function MixedFutsalPage() {
         style={{ wordBreak: "keep-all", overflowWrap: "break-word" }}
       >
         <section className="bg-[#0D1B2A] px-5 py-12 text-white sm:px-8 sm:py-16 md:px-10 md:py-20">
-          <div className="mx-auto grid max-w-[1320px] gap-10 lg:grid-cols-[1.06fr_0.94fr] lg:items-center">
+          <div className="mx-auto max-w-4xl">
             <div>
               <p className="fg-label text-[11px] text-[#D6E4FF]">MIXED FUTSAL 2026</p>
               <h1 className="mt-4 text-[36px] font-black leading-[1.08] text-white sm:text-[56px] sm:leading-[1.04] md:text-[68px]">
@@ -315,17 +301,6 @@ export default function MixedFutsalPage() {
               </div>
             </div>
 
-            <div className="mx-auto w-full max-w-[460px] border border-white/16 bg-[#0D1B2A] lg:max-w-none">
-              <Image
-                src={MIXED_FUTSAL_MATCH_DAY_IMAGE}
-                alt="혼성 풋살 대회 경기 당일 분위기"
-                width={MIXED_FUTSAL_PHOTO_WIDTH}
-                height={MIXED_FUTSAL_PHOTO_HEIGHT}
-                sizes="(max-width: 1023px) 92vw, 46vw"
-                priority
-                className="h-auto w-full"
-              />
-            </div>
           </div>
         </section>
 
@@ -469,17 +444,7 @@ export default function MixedFutsalPage() {
         </section>
 
         <section className="px-5 py-12 sm:px-8 sm:py-14 md:px-10 md:py-20">
-          <div className="mx-auto grid max-w-[1320px] gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
-            <div className="mx-auto w-full max-w-[460px] border border-[#D0D8E8] bg-[#EEF3FF] lg:max-w-none">
-              <Image
-                src={MIXED_FUTSAL_TEAM_IMAGE}
-                alt="혼성 풋살 대회에 함께 참가하는 팀"
-                width={MIXED_FUTSAL_PHOTO_WIDTH}
-                height={MIXED_FUTSAL_PHOTO_HEIGHT}
-                sizes="(max-width: 1023px) 92vw, 44vw"
-                className="h-auto w-full"
-              />
-            </div>
+          <div className="mx-auto max-w-4xl">
             <div>
               <p className="fg-label mb-3 text-[11px] text-[#0047AB]">TEAM &amp; ELIGIBILITY</p>
               <h2 className="text-[27px] font-black leading-[1.18] sm:text-[42px] sm:leading-tight">
@@ -532,7 +497,7 @@ export default function MixedFutsalPage() {
         </section>
 
         <section className="border-y border-[#D0D8E8] bg-[#EEF3FF] px-5 py-12 sm:px-8 sm:py-14 md:px-10 md:py-20">
-          <div className="mx-auto grid max-w-[1320px] gap-10 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
+          <div className="mx-auto max-w-4xl">
             <div>
               <p className="fg-label mb-3 text-[11px] text-[#0047AB]">GROUND CHALLENGE</p>
               <h2 className="text-[27px] font-black leading-[1.18] sm:text-[42px] sm:leading-tight">
@@ -567,16 +532,6 @@ export default function MixedFutsalPage() {
               </div>
             </div>
 
-            <div className="mx-auto w-full max-w-[460px] border border-[#D0D8E8] bg-white lg:max-w-none">
-              <Image
-                src={MIXED_FUTSAL_PLAY_IMAGE}
-                alt="혼성 풋살 대회 경기 장면"
-                width={MIXED_FUTSAL_PHOTO_WIDTH}
-                height={MIXED_FUTSAL_PHOTO_HEIGHT}
-                sizes="(max-width: 1023px) 92vw, 42vw"
-                className="h-auto w-full"
-              />
-            </div>
           </div>
         </section>
 
@@ -666,17 +621,7 @@ export default function MixedFutsalPage() {
         </section>
 
         <section className="border-t border-[#D0D8E8] bg-[#F5F7FF] px-5 py-12 sm:px-8 sm:py-14 md:px-10 md:py-20">
-          <div className="mx-auto grid max-w-[1320px] gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
-            <div className="mx-auto w-full max-w-[420px] border border-[#D0D8E8] bg-white lg:max-w-none">
-              <Image
-                src={MIXED_FUTSAL_POSTER_IMAGE}
-                alt={`${MIXED_FUTSAL_EVENT_NAME} 공식 포스터`}
-                width={MIXED_FUTSAL_POSTER_WIDTH}
-                height={MIXED_FUTSAL_POSTER_HEIGHT}
-                sizes="(max-width: 1023px) 92vw, 40vw"
-                className="h-auto w-full"
-              />
-            </div>
+          <div className="mx-auto max-w-4xl">
             <div>
               <div className="mb-5 inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-[#D0D8E8] bg-white px-4 py-2 text-[13px] font-bold text-[#0047AB]">
                 <ShieldCheck className="h-4 w-4" aria-hidden />
@@ -709,7 +654,7 @@ export default function MixedFutsalPage() {
 
               <p className="mt-4 border-l-2 border-[#0047AB] bg-white px-4 py-3 text-[13px] leading-[1.7] text-[#526277] sm:text-[14px]">
                 공식 일정과 장소는 이 페이지에 적힌 내용을 기준으로 합니다.
-                포스터 이미지에 표기된 일부 문구와 다를 수 있으니, 위 안내를
+                외부 안내물에 표기된 일부 문구와 다를 수 있으니, 위 안내를
                 확인해주세요.
               </p>
 

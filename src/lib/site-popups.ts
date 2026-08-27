@@ -1,6 +1,11 @@
 import { isDemoMode, supabase } from "@/config/supabase";
 import type { Database } from "@/lib/database.types";
 
+export {
+  joinPopupTitleLines,
+  splitPopupTitleLines,
+} from "@/lib/site-popup-title";
+
 type SitePopupRow = Database["public"]["Tables"]["site_popups"]["Row"];
 type SitePopupInsert = Database["public"]["Tables"]["site_popups"]["Insert"];
 type SitePopupUpdate = Database["public"]["Tables"]["site_popups"]["Update"];
