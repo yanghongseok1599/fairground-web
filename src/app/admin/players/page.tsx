@@ -18,6 +18,15 @@ const roleLabels: Record<PlayerRole, string> = {
   admin: "관리자",
 };
 
+// 촬영물 홍보 활용 동의 시각 표시용. toLocaleDateString("ko-KR") 은
+// "2026. 8. 28." 처럼 공백/마침표가 지저분해서 직접 만든다.
+function formatConsentDate(ms: number): string {
+  const d = new Date(ms);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}.${mm}.${dd}`;
+}
+
 export default function AdminPlayersPage() {
   return <AdminGuard allow={["admin"]}><AdminPlayers /></AdminGuard>;
 }
@@ -28,6 +37,7 @@ function AdminPlayers() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState("");
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const consentedCount = players.filter((item) => item.portraitConsentAt).length;
 
   const reload = async () => {
     setLoading(true);
@@ -101,6 +111,12 @@ function AdminPlayers() {
       <AdminPanel>
         <div className="border-b px-5 py-4" style={{ borderColor: "rgba(0,71,171,0.14)" }}>
           <div className="fg-label" style={{ color: "var(--primary)" }}>PLAYERS · {players.length}</div>
+          {/* 촬영물을 실제로 홍보에 쓸 때 "몇 명에게 동의를 받았는가"를 한눈에.
+              미동의자는 마이페이지 동의 카드로 회수된다. */}
+          <div className="mt-1 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>
+            촬영물 활용 동의 {consentedCount} / {players.length}
+            {players.length > consentedCount && ` · 미동의 ${players.length - consentedCount}명`}
+          </div>
           {message && (
             <div
               role="status"
@@ -137,6 +153,13 @@ function AdminPlayers() {
                         운영진이 실명 여부를 함께 확인할 수 있도록 표시한다. */}
                     {needsKoreanNameCheck(player.name) && (
                       <AdminStatusPill tone="red">실명 확인 필요</AdminStatusPill>
+                    )}
+                    {player.portraitConsentAt ? (
+                      <AdminStatusPill tone="blue">
+                        촬영동의 {formatConsentDate(player.portraitConsentAt)}
+                      </AdminStatusPill>
+                    ) : (
+                      <AdminStatusPill tone="muted">촬영 미동의</AdminStatusPill>
                     )}
                     <button
                       type="button"
