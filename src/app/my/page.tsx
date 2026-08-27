@@ -32,6 +32,7 @@ import { canManageTeam } from "@/lib/team-permissions";
 import { CardProgress } from "@/components/card-progress";
 import { PlayerProfilePhoto } from "@/components/player-profile-photo";
 import { PushEnableCard } from "@/components/push-enable-card";
+import { PortraitConsentCard } from "@/components/portrait-consent-card";
 import { compressImageBlob, removeBackgroundAndCompress } from "@/lib/image-compression";
 import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 
@@ -1728,6 +1729,11 @@ export default function MyPage() {
             모바일에는 알림을 켤 상시 진입점이 없었다. 헤더 종 토글은
             hidden xl:flex 라 데스크톱 전용이고, 하단 배너는 닫으면 그 방문
             동안 다시 뜨지 않는다. 여기에 항상 두어 언제든 켜고 끌 수 있게 한다. */}
+        {/* ── 촬영물 활용 동의 ──
+            선수카드 등록·대회 신청 화면의 동의 문항 도입 이전에 카드를 만든
+            선수들은 동의 기록이 없다. 기록이 없는 동안에만 노출된다. */}
+        {user && <PortraitConsentCard />}
+
         {user && <PushEnableCard />}
 
         {/* ── 비밀번호 변경 ──
