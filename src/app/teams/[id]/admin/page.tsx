@@ -227,7 +227,7 @@ export default function TeamAdminPage() {
   const refresh = async () => {
     const [resolvedTeam, resolvedPlayers, resolvedRequests] = await Promise.all([
       store.fetchTeam(id),
-      store.fetchTeamPlayers(id),
+      store.fetchTeamAdminMembers(id),
       store.fetchTeamJoinRequests(id, "pending"),
     ]);
     setTeam(resolvedTeam ?? null);

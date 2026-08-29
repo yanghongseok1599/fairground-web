@@ -31,6 +31,8 @@ import type { Database } from "@/lib/database.types";
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type ProfileInsert = Database["public"]["Tables"]["profiles"]["Insert"];
 type ProfileUpdate = Database["public"]["Tables"]["profiles"]["Update"];
+type PublicProfileRow = Database["public"]["Views"]["public_player_profiles"]["Row"];
+type TeamMemberProfileRow = Database["public"]["Views"]["team_member_player_profiles"]["Row"];
 type TeamRow = Database["public"]["Tables"]["teams"]["Row"];
 type TeamInsert = Database["public"]["Tables"]["teams"]["Insert"];
 type TeamUpdate = Database["public"]["Tables"]["teams"]["Update"];
@@ -56,7 +58,41 @@ type ActivityEventRow = Database["public"]["Tables"]["activity_events"]["Row"];
 
 const ts = (s: string | null): number => (s ? new Date(s).getTime() : 0);
 
-export function rowToPlayer(r: ProfileRow): Player {
+export const PUBLIC_PLAYER_PROFILE_SELECT = [
+  "id",
+  "name",
+  "number",
+  "position",
+  "team_id",
+  "nationality",
+  "photo_url",
+  "profile_photo_url",
+  "profile_photo_locked",
+  "photo_scale",
+  "photo_offset_x",
+  "card_type",
+  "card_skin",
+  "card_rating",
+  "goals",
+  "assists",
+  "games",
+  "mom",
+  "badges",
+  "is_banned",
+  "ban_matches_remaining",
+  "season_yellow_cards",
+  "is_approved",
+  "role",
+  "attendance_streak",
+  "attendance_streak_best",
+  "mbti",
+  "disposition",
+  "personal_values",
+  "bio",
+  "created_at",
+].join(",") as "id,name,number,position,team_id,nationality,photo_url,profile_photo_url,profile_photo_locked,photo_scale,photo_offset_x,card_type,card_skin,card_rating,goals,assists,games,mom,badges,is_banned,ban_matches_remaining,season_yellow_cards,is_approved,role,attendance_streak,attendance_streak_best,mbti,disposition,personal_values,bio,created_at";
+
+export function rowToPublicPlayer(r: PublicProfileRow): Player {
   return {
     id: r.id,
     uid: r.id,
@@ -82,22 +118,35 @@ export function rowToPlayer(r: ProfileRow): Player {
     },
     isApproved: r.is_approved,
     role: r.role,
+    mbti: r.mbti ?? undefined,
+    disposition: r.disposition ?? undefined,
+    personalValues: r.personal_values ?? undefined,
+    bio: r.bio ?? undefined,
+    attendanceStreak: r.attendance_streak ?? 0,
+    attendanceStreakBest: r.attendance_streak_best ?? 0,
+    createdAt: new Date(r.created_at).getTime(),
+  };
+}
+
+export function rowToPlayer(r: ProfileRow): Player {
+  return {
+    ...rowToPublicPlayer(r),
     phone: r.phone ?? undefined,
     email: r.email ?? undefined,
     gender: (r.gender as Player["gender"]) ?? undefined,
     birthDate: r.birth_date ?? undefined,
     hasPlayerExperience: r.has_player_experience ?? undefined,
-    mbti: r.mbti ?? undefined,
-    disposition: r.disposition ?? undefined,
-    personalValues: r.personal_values ?? undefined,
-    bio: r.bio ?? undefined,
     teamRole: r.team_role ?? undefined,
-    attendanceStreak: r.attendance_streak ?? 0,
-    attendanceStreakBest: r.attendance_streak_best ?? 0,
     portraitConsentAt: r.portrait_consent_at
       ? new Date(r.portrait_consent_at).getTime()
       : undefined,
-    createdAt: new Date(r.created_at).getTime(),
+  };
+}
+
+export function rowToTeamMemberPlayer(r: TeamMemberProfileRow): Player {
+  return {
+    ...rowToPublicPlayer(r),
+    teamRole: r.team_role ?? undefined,
   };
 }
 
@@ -176,6 +225,32 @@ export function playerPatchToRow(d: Partial<Player>): ProfileUpdate {
       ? new Date(d.portraitConsentAt).toISOString()
       : null;
   return u;
+}
+
+// 일반 본인 프로필 수정에서는 권한 판정에 쓰이는 필드를 절대 쓰지 않는다.
+// 같은 값을 다시 보내는 기존 화면은 호환을 위해 no-op으로 허용하지만, 실제
+// 변경은 전용 팀 가입/감독 등록/관리자 RPC를 사용해야 한다.
+export function selfEditablePlayerPatch(
+  d: Partial<Player>,
+  current: Player,
+): Partial<Player> {
+  const protectedFields: Array<keyof Pick<Player, "teamId" | "teamRole" | "role">> = [
+    "teamId",
+    "teamRole",
+    "role",
+  ];
+
+  for (const field of protectedFields) {
+    if (Object.prototype.hasOwnProperty.call(d, field) && d[field] !== current[field]) {
+      throw new Error("팀 소속과 역할은 전용 가입·권한 변경 절차에서만 바꿀 수 있습니다.");
+    }
+  }
+
+  const editable = { ...d };
+  delete editable.teamId;
+  delete editable.teamRole;
+  delete editable.role;
+  return editable;
 }
 
 // ===== Team =====

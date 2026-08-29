@@ -14,7 +14,7 @@ export async function generateMetadata(
   if (isDemoMode) return FALLBACK;
   const { id } = await params;
   const { data } = await supabaseServer
-    .from("profiles")
+    .from("public_player_profiles")
     .select("name, number, position, bio, photo_url, profile_photo_url, profile_photo_locked, is_approved, is_banned")
     .eq("id", id)
     .maybeSingle();

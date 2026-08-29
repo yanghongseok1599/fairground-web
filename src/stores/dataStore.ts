@@ -4,6 +4,9 @@ import { create } from "zustand";
 import { supabase, isDemoMode } from "@/config/supabase";
 import {
   rowToPlayer,
+  rowToPublicPlayer,
+  rowToTeamMemberPlayer,
+  PUBLIC_PLAYER_PROFILE_SELECT,
   rowToTeam,
   teamToInsert,
   teamPatchToRow,
@@ -29,6 +32,7 @@ import {
   type NoticeInputCreate,
   type BoardPostInputCreate,
 } from "@/lib/mappers";
+import { useAuthStore } from "@/stores/authStore";
 import { calculateCardRating } from "@/utils/formatters";
 import type {
   Player,
@@ -154,6 +158,7 @@ interface DataState {
 
   // --- Read (공개 페이지 소비 — 시그니처 보존) ---
   fetchPlayers: () => Promise<Player[]>;
+  fetchPublicPlayers: () => Promise<Player[]>;
   fetchPlayer: (id: string) => Promise<Player | null>;
   fetchTeams: () => Promise<Team[]>;
   fetchTeam: (id: string) => Promise<Team | null>;
@@ -255,6 +260,7 @@ interface DataState {
   // --- Team roles ---
   // 팀 멤버 조회 (fetchTeamPlayers의 의미적 별칭).
   fetchTeamMembers: (teamId: string) => Promise<Player[]>;
+  fetchTeamAdminMembers: (teamId: string) => Promise<Player[]>;
   // 소유자 없는 팀을 승인된 멤버 본인이 감독으로 복구 등록.
   claimTeamCoach: (teamId: string) => Promise<void>;
   // 멤버의 팀 역할 변경. 권한은 Supabase RPC(set_team_member_role)가 강제.
@@ -518,7 +524,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       setState({ players });
       return list;
     }
-    const { data, error } = await supabase.from("profiles").select("*");
+    const { data, error } = await supabase.rpc("get_admin_profiles");
     if (error) {
       console.error("[dataStore] fetchPlayers:", error.message);
       return [];
@@ -534,6 +540,29 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     return list;
   },
 
+  fetchPublicPlayers: async () => {
+    if (isDemoMode) {
+      return Object.entries(getLocalPlayers())
+        .map(([id, player]) => ({ ...player, id }))
+        .filter((player) => player.isApproved && !player.penaltyStatus.isBanned);
+    }
+    const { data, error } = await supabase
+      .from("public_player_profiles")
+      .select(PUBLIC_PLAYER_PROFILE_SELECT);
+    if (error) {
+      console.error("[dataStore] fetchPublicPlayers:", error.message);
+      return [];
+    }
+    const players: Record<string, Player> = {};
+    const list = (data ?? []).map((row) => {
+      const player = rowToPublicPlayer(row);
+      players[player.id] = player;
+      return player;
+    });
+    setState({ players });
+    return list;
+  },
+
   fetchPlayer: async (id) => {
     if (isDemoMode) {
       const players = getLocalPlayers();
@@ -543,10 +572,14 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     }
     const cached = getState().players[id];
     if (cached) return cached;
-    const { data, error } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
+    const { data, error } = await supabase
+      .from("public_player_profiles")
+      .select(PUBLIC_PLAYER_PROFILE_SELECT)
+      .eq("id", id)
+      .maybeSingle();
     if (error) { console.error("[dataStore] fetchPlayer:", error.message); return null; }
     if (!data) return null;
-    const player = rowToPlayer(data);
+    const player = rowToPublicPlayer(data);
     setState((s) => ({ players: { ...s.players, [id]: player } }));
     return player;
   },
@@ -597,9 +630,12 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       const players = getLocalPlayers();
       return Object.entries(players).filter(([, p]) => p.teamId === teamId).map(([id, p]) => ({ ...p, id }));
     }
-    const { data, error } = await supabase.from("profiles").select("*").eq("team_id", teamId);
+    const { data, error } = await supabase
+      .from("public_player_profiles")
+      .select(PUBLIC_PLAYER_PROFILE_SELECT)
+      .eq("team_id", teamId);
     if (error) { console.error("[dataStore] fetchTeamPlayers:", error.message); return []; }
-    return (data ?? []).map(rowToPlayer);
+    return (data ?? []).map(rowToPublicPlayer);
   },
 
   fetchTournaments: async () => {
@@ -1378,9 +1414,30 @@ export const useDataStore = create<DataState>((setState, getState) => ({
   },
 
   // ===== Team roles =====
-  // fetchTeamMembers: 의미 명확성을 위한 별칭. 권한·필터는 RLS·UI 가드에서 처리.
+  // 승인된 팀 멤버용 roster: 공개 카드 필드 + 팀 역할만 반환한다.
   fetchTeamMembers: async (teamId) => {
-    return getState().fetchTeamPlayers(teamId);
+    if (isDemoMode) return getState().fetchTeamPlayers(teamId);
+    const { data, error } = await supabase.rpc("get_team_member_profiles", {
+      p_team_id: teamId,
+    });
+    if (error) {
+      console.error("[dataStore] fetchTeamMembers:", error.message);
+      return [];
+    }
+    return (data ?? []).map(rowToTeamMemberPlayer);
+  },
+
+  // 감독/admin 전용 전체 프로필. 서버 RPC가 팀 권한을 확인한 뒤 PII를 반환한다.
+  fetchTeamAdminMembers: async (teamId) => {
+    if (isDemoMode) return getState().fetchTeamPlayers(teamId);
+    const { data, error } = await supabase.rpc("get_team_admin_profiles", {
+      p_team_id: teamId,
+    });
+    if (error) {
+      console.error("[dataStore] fetchTeamAdminMembers:", error.message);
+      return [];
+    }
+    return (data ?? []).map(rowToPlayer);
   },
 
   claimTeamCoach: async (teamId) => {
@@ -1396,6 +1453,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     if (fresh) {
       setState((s) => ({ teams: { ...s.teams, [teamId]: fresh } }));
     }
+    await useAuthStore.getState().refreshPlayer();
   },
 
   // 멤버 역할 변경. 최종 강제는 security definer RPC(set_team_member_role).
@@ -1432,16 +1490,14 @@ export const useDataStore = create<DataState>((setState, getState) => ({
   // 조건: team_role='coach' AND is_approved=false.
   fetchPendingCoachApplications: async () => {
     if (isDemoMode) return [];
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("team_role", "coach")
-      .eq("is_approved", false);
+    const { data, error } = await supabase.rpc("get_admin_profiles");
     if (error) {
       console.error("[dataStore] fetchPendingCoachApplications:", error.message);
       return [];
     }
-    return (data ?? []).map(rowToPlayer);
+    return (data ?? [])
+      .filter((row) => row.team_role === "coach" && !row.is_approved)
+      .map(rowToPlayer);
   },
 
   // 감독 승인 — admin 전용. RLS 가 차단 시 호출부에서 에러 표시.
@@ -1615,7 +1671,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
   searchProfilesByName: async (query) => {
     if (!query.trim()) return [];
     const { data, error } = await supabase
-      .from("profiles")
+      .from("public_player_profiles")
       .select("id,name,photo_url,profile_photo_url,profile_photo_locked,team_id")
       .ilike("name", `%${query.trim()}%`)
       .limit(8);
@@ -1724,38 +1780,81 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     if (isDemoMode) return [];
     let q = supabase
       .from("team_join_requests")
-      .select("*, profiles:player_id(name,email,phone,position,number,gender,birth_date), teams:team_id(name)")
+      .select("*")
       .eq("team_id", teamId)
       .order("created_at", { ascending: false });
     if (status) q = q.eq("status", status);
-    const { data, error } = await q;
-    if (error) {
-      console.error("[dataStore] fetchTeamJoinRequests:", error.message);
+    const [requestsResult, profilesResult, teamResult] = await Promise.all([
+      q,
+      supabase.rpc("get_team_join_request_profiles", { p_team_id: teamId }),
+      supabase.from("teams").select("name").eq("id", teamId).maybeSingle(),
+    ]);
+    if (requestsResult.error || profilesResult.error || teamResult.error) {
+      console.error(
+        "[dataStore] fetchTeamJoinRequests:",
+        requestsResult.error?.message ?? profilesResult.error?.message ?? teamResult.error?.message,
+      );
       return [];
     }
-    return (data ?? []).map((r) => rowToTeamJoinRequest(r as unknown as JoinReqRow));
+    const profilesById = new Map(
+      (profilesResult.data ?? []).map((profile) => [profile.id, profile]),
+    );
+    return (requestsResult.data ?? []).map((request) => {
+      const profile = profilesById.get(request.player_id);
+      return rowToTeamJoinRequest({
+        ...request,
+        profiles: profile ? {
+          name: profile.name,
+          email: profile.email,
+          phone: profile.phone,
+          position: profile.position,
+          number: profile.number,
+          gender: profile.gender as Gender | null,
+          birth_date: profile.birth_date,
+        } : null,
+        teams: teamResult.data,
+      } as JoinReqRow);
+    });
   },
 
   fetchMyJoinRequests: async (playerId) => {
     if (isDemoMode) return [];
-    const { data, error } = await supabase
-      .from("team_join_requests")
-      .select("*, profiles:player_id(name,email,phone,position,number,gender,birth_date), teams:team_id(name)")
-      .eq("player_id", playerId)
-      .order("created_at", { ascending: false });
-    if (error) {
-      console.error("[dataStore] fetchMyJoinRequests:", error.message);
+    const [requestsResult, profileResult] = await Promise.all([
+      supabase
+        .from("team_join_requests")
+        .select("*, teams:team_id(name)")
+        .eq("player_id", playerId)
+        .order("created_at", { ascending: false }),
+      supabase.rpc("get_my_profile").eq("id", playerId).maybeSingle(),
+    ]);
+    if (requestsResult.error || profileResult.error) {
+      console.error(
+        "[dataStore] fetchMyJoinRequests:",
+        requestsResult.error?.message ?? profileResult.error?.message,
+      );
       return [];
     }
-    return (data ?? []).map((r) => rowToTeamJoinRequest(r as unknown as JoinReqRow));
+    const profile = profileResult.data;
+    return (requestsResult.data ?? []).map((request) => rowToTeamJoinRequest({
+      ...request,
+      profiles: profile ? {
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        position: profile.position,
+        number: profile.number,
+        gender: profile.gender as Gender | null,
+        birth_date: profile.birth_date,
+      } : null,
+    } as unknown as JoinReqRow));
   },
 
   setTeamJoinRequestStatus: async (requestId, status) => {
     if (isDemoMode) throw new Error("데모 모드에서는 처리할 수 없습니다");
-    const { error } = await supabase
-      .from("team_join_requests")
-      .update({ status })
-      .eq("id", requestId);
+    const { error } = await supabase.rpc("process_team_join_request", {
+      p_request_id: requestId,
+      p_status: status,
+    });
     if (error) {
       console.error("[dataStore] setTeamJoinRequestStatus:", error.message);
       throw new Error(error.message);
@@ -1968,7 +2067,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
         .ilike("name", pattern)
         .limit(limit),
       supabase
-        .from("profiles")
+        .from("public_player_profiles")
         .select("id, name, photo_url, profile_photo_url, profile_photo_locked, number, team_id")
         .eq("is_approved", true)
         .ilike("name", pattern)
@@ -2153,10 +2252,8 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       : "card_rating";
 
     const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("is_approved", true)
-      .eq("is_banned", false)
+      .from("public_player_profiles")
+      .select(PUBLIC_PLAYER_PROFILE_SELECT)
       .gt(orderCol, 0)
       .order(orderCol, { ascending: false })
       .order("name", { ascending: true })
@@ -2165,6 +2262,6 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       console.error("[dataStore] fetchLeaderboard:", error.message);
       return [];
     }
-    return (data ?? []).map(rowToPlayer);
+    return (data ?? []).map(rowToPublicPlayer);
   },
 }));

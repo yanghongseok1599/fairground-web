@@ -135,7 +135,7 @@ export async function fetchSkillChallengeParticipants(eventSlug = SKILL_CHALLENG
   }
 
   const [{ data: playersData, error: playersError }, { data: recordsData, error: recordsError }] = await Promise.all([
-    supabase.from("profiles").select("*").eq("card_skin", "hologram").order("created_at", { ascending: false }),
+    supabase.rpc("get_admin_profiles"),
     supabase.from("skill_challenge_records").select("*").eq("event_slug", eventSlug),
   ]);
 
@@ -147,6 +147,8 @@ export async function fetchSkillChallengeParticipants(eventSlug = SKILL_CHALLENG
   );
 
   return ((playersData ?? []) as ProfileRow[])
+    .filter((row) => row.card_skin === "hologram")
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .map((row) => {
       const player = rowToPlayer(row);
       return { player, record: records.get(player.id) };

@@ -22,7 +22,7 @@ export default function PlayersPage() {
   const [posFilter, setPosFilter] = useState<PositionFilter>("all");
 
   useEffect(() => {
-    store.fetchPlayers().then((list) => {
+    store.fetchPublicPlayers().then((list) => {
       const approved = list
         .filter((p) => p.isApproved && !p.teamId && p.role === "player")
         .sort((a, b) => b.cardRating - a.cardRating);

@@ -3,7 +3,12 @@
 import { create } from "zustand";
 import { supabase, isDemoMode } from "@/config/supabase";
 import { SITE_URL } from "@/lib/site-config";
-import { rowToPlayer, playerToInsert, playerPatchToRow } from "@/lib/mappers";
+import {
+  rowToPlayer,
+  playerToInsert,
+  playerPatchToRow,
+  selfEditablePlayerPatch,
+} from "@/lib/mappers";
 import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
 import {
   clearPendingCardSkin,
@@ -236,7 +241,7 @@ function hasLocalAdminSession(): boolean {
 
 // 프로필 행 조회 (없으면 null). 에러는 호출부에 표면화(은폐 catch 금지 — D-H).
 async function fetchProfile(uid: string): Promise<Player | null> {
-  const { data, error } = await supabase.from("profiles").select("*").eq("id", uid).maybeSingle();
+  const { data, error } = await supabase.rpc("get_my_profile").eq("id", uid).maybeSingle();
   if (error) {
     console.error("[authStore] fetchProfile failed:", error.message);
     throw new Error(error.message);
@@ -291,6 +296,7 @@ interface AuthState {
   /** 로그인/복구 세션 상태에서 새 비밀번호 저장. */
   updatePassword: (newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshPlayer: () => Promise<Player | null>;
   updatePlayer: (data: Partial<Player>) => Promise<void>;
   uploadPlayerPhoto: (file: File) => Promise<string>;
   clearError: () => void;
@@ -548,6 +554,19 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
     setState({ user: null, player: null });
   },
 
+  refreshPlayer: async () => {
+    const state = getState();
+    if (!state.user) return null;
+    if (isDemoMode) {
+      const player = getLocalPlayers()[state.user.uid] ?? null;
+      setState({ player });
+      return player;
+    }
+    const player = await fetchProfile(state.user.uid);
+    setState({ player });
+    return player;
+  },
+
   updatePlayer: async (data) => {
     const state = useAuthStore.getState();
     if (!state.user || !state.player) return;
@@ -561,17 +580,22 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       return;
     }
 
-    // RLS: 본인 행만, 특권컬럼(role/is_approved/stats)은 트리거가 거부.
+    // 팀 소속/역할은 전용 RPC만 변경한다. 같은 값을 다시 보내는 기존 화면은
+    // no-op으로 제거하고, 실제 변경 시도는 명시적으로 거부한다.
+    const editableData = selfEditablePlayerPatch(data, state.player);
+    if (Object.keys(editableData).length === 0) return;
+
+    // RLS: 본인 행만, 특권컬럼은 DB trigger가 최종 거부.
     const { error } = await supabase
       .from("profiles")
-      .update(playerPatchToRow(data))
+      .update(playerPatchToRow(editableData))
       .eq("id", state.user.uid);
     if (error) {
       console.error("[authStore] updatePlayer failed:", error.message);
       setState({ error: error.message });
       throw new Error(error.message);
     }
-    setState({ player: { ...state.player, ...data } });
+    setState({ player: { ...state.player, ...editableData } });
   },
 
   uploadPlayerPhoto: async (file) => {
@@ -659,17 +683,15 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
                 pendingCardSkin === GROUND_CHALLENGE_PLAYER_CARD_SKIN &&
                 player.cardSkin !== GROUND_CHALLENGE_PLAYER_CARD_SKIN
               ) {
-                const { data, error } = await supabase
+                const { error } = await supabase
                   .from("profiles")
                   .update({ card_skin: GROUND_CHALLENGE_PLAYER_CARD_SKIN })
-                  .eq("id", sUser.id)
-                  .select("*")
-                  .single();
+                  .eq("id", sUser.id);
                 if (error) {
                   console.error("[authStore] apply pending card skin failed:", error.message);
                 } else {
                   clearPendingCardSkin();
-                  player = rowToPlayer(data);
+                  player = await fetchProfile(sUser.id);
                 }
               }
               setState({

@@ -1606,7 +1606,48 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_player_profiles: {
+        Row: {
+          assists: number
+          attendance_streak: number
+          attendance_streak_best: number
+          badges: string[]
+          ban_matches_remaining: number
+          bio: string | null
+          card_rating: number
+          card_skin: "standard" | "hologram"
+          card_type: Database["public"]["Enums"]["card_type_t"]
+          created_at: string
+          disposition: string | null
+          games: number
+          goals: number
+          id: string
+          is_approved: boolean
+          is_banned: boolean
+          mbti: string | null
+          mom: number
+          name: string
+          nationality: string
+          number: number
+          personal_values: string | null
+          photo_offset_x: number | null
+          photo_scale: number | null
+          photo_url: string
+          position: Database["public"]["Enums"]["position_t"]
+          profile_photo_locked: boolean
+          profile_photo_url: string | null
+          role: Database["public"]["Enums"]["player_role_t"]
+          season_yellow_cards: number
+          team_id: string | null
+        }
+        Relationships: []
+      }
+      team_member_player_profiles: {
+        Row: Database["public"]["Views"]["public_player_profiles"]["Row"] & {
+          team_role: Database["public"]["Enums"]["team_role_t"] | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       add_match_event: {
@@ -1635,6 +1676,26 @@ export type Database = {
       forfeit_match: {
         Args: { p_match_id: string; p_forfeit_team_id: string }
         Returns: undefined
+      }
+      get_admin_profiles: {
+        Args: never
+        Returns: Database["public"]["Tables"]["profiles"]["Row"][]
+      }
+      get_my_profile: {
+        Args: never
+        Returns: Database["public"]["Tables"]["profiles"]["Row"][]
+      }
+      get_team_admin_profiles: {
+        Args: { p_team_id: string }
+        Returns: Database["public"]["Tables"]["profiles"]["Row"][]
+      }
+      get_team_join_request_profiles: {
+        Args: { p_team_id: string }
+        Returns: Database["public"]["Tables"]["profiles"]["Row"][]
+      }
+      get_team_member_profiles: {
+        Args: { p_team_id: string }
+        Returns: Database["public"]["Views"]["team_member_player_profiles"]["Row"][]
       }
       enforce_user_rate_limit: {
         Args: {
@@ -1743,6 +1804,13 @@ export type Database = {
         Returns: undefined
       }
       promote_team: { Args: { p_team_id: string }; Returns: undefined }
+      process_team_join_request: {
+        Args: {
+          p_request_id: string
+          p_status: Database["public"]["Enums"]["team_join_status_t"]
+        }
+        Returns: undefined
+      }
       record_participation: { Args: { p_team_id: string }; Returns: undefined }
       relegate_team: { Args: { p_team_id: string }; Returns: undefined }
       reset_participation_streak: {
