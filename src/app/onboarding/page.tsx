@@ -23,8 +23,8 @@ import {
  * Users land here right after /register; they pick one of two paths and we
  * forward to /my/player-setup with the role pre-filled (and locked).
  *
- * If the user already has a player row, they don't need to onboard — bounce
- * to /my so they can manage from there.
+ * OAuth가 미완성 player 행을 먼저 생성할 수 있으므로, 행 존재 여부가 아니라
+ * 선수카드 설정 완료 여부로 온보딩 통과를 결정한다.
  */
 export default function OnboardingPage() {
   const router = useRouter();
@@ -68,7 +68,7 @@ export default function OnboardingPage() {
     }
   }, [initialized, user, player, router, onboardingReturnTo, isGroundChallengeCard, groundChallengeSetupHref]);
 
-  if (!initialized || !user || player) {
+  if (!initialized || !user) {
     return (
       <main
         className="flex min-h-screen items-center justify-center"

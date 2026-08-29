@@ -12,6 +12,8 @@ import {
 } from "@/lib/player-card-skin";
 import type { Gender, Player, PlayerCardSkin, PlayerRole, Position, TeamRole } from "@/types";
 
+type FairGroundOAuthProvider = "google" | "kakao";
+
 // Supabase auth.users 를 앱 전반이 쓰는 최소 형태로 노출.
 // Firebase User.uid 호환을 위해 Supabase user.id 를 uid 로 매핑.
 export interface AuthUser {
@@ -116,6 +118,42 @@ function getAuthRedirectOrigin(): string {
   const { hostname, origin } = window.location;
   if (hostname === "localhost" || hostname === "127.0.0.1") return origin;
   return SITE_URL;
+}
+
+async function startOAuthSignIn(
+  provider: FairGroundOAuthProvider,
+  returnTo?: string,
+): Promise<void> {
+  if (isDemoMode) {
+    const providerName = provider === "kakao" ? "카카오" : "Google";
+    throw new Error(`데모 모드에서는 ${providerName} 로그인을 사용할 수 없습니다. 이메일로 가입해주세요.`);
+  }
+
+  // OAuth 리다이렉트 플로우 (implicit — 토큰이 URL hash 로 복귀).
+  // /auth/callback 클라이언트 페이지가 detectSessionInUrl 처리를 기다린 뒤
+  // returnTo 로 이동한다. 세션 감지/프로필 자동생성은 init()이 수행한다.
+  let redirectTo: string | undefined;
+  if (typeof window !== "undefined") {
+    const callbackUrl = new URL("/auth/callback", getAuthRedirectOrigin());
+    if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
+      callbackUrl.searchParams.set("returnTo", returnTo);
+    }
+    redirectTo = callbackUrl.toString();
+  }
+
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo },
+  });
+  if (error) throw new Error(error.message);
+}
+
+function getOAuthDisplayName(userMetadata: Record<string, unknown>, email: string | null): string {
+  for (const key of ["name", "full_name", "preferred_username", "user_name", "nickname"]) {
+    const value = userMetadata[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return email ?? "";
 }
 
 function makePlayer(
@@ -242,6 +280,7 @@ interface AuthState {
   register: (data: RegisterData) => Promise<void>;
   createPlayer: (data: CreatePlayerData) => Promise<void>;
   loginWithGoogle: (returnTo?: string) => Promise<void>;
+  loginWithKakao: (returnTo?: string) => Promise<void>;
   /** 비밀번호 재설정 메일 발송. 짧은 ID(@fairground.local) 계정은 거부한다. */
   requestPasswordReset: (loginId: string) => Promise<void>;
   /** 로그인/복구 세션 상태에서 새 비밀번호 저장. */
@@ -441,26 +480,18 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
   loginWithGoogle: async (returnTo?: string) => {
     setState({ loading: true, error: null });
     try {
-      if (isDemoMode) {
-        throw new Error("데모 모드에서는 Google 로그인을 사용할 수 없습니다. 이메일로 가입해주세요.");
-      }
-      // OAuth 리다이렉트 플로우 (implicit — 토큰이 URL hash 로 복귀).
-      // /auth/callback 클라 페이지가 detectSessionInUrl 처리를 기다린 뒤
-      // returnTo 로 이동. 세션 감지/프로필 자동생성은 init()의
-      // onAuthStateChange 가 수행한다.
-      let redirectTo: string | undefined;
-      if (typeof window !== "undefined") {
-        const cb = new URL("/auth/callback", getAuthRedirectOrigin());
-        if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
-          cb.searchParams.set("returnTo", returnTo);
-        }
-        redirectTo = cb.toString();
-      }
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo },
-      });
-      if (error) throw new Error(error.message);
+      await startOAuthSignIn("google", returnTo);
+      // 리다이렉트되므로 여기서 setState 불필요(페이지 이탈).
+    } catch (e) {
+      setState({ error: (e as Error).message, loading: false });
+      throw e;
+    }
+  },
+
+  loginWithKakao: async (returnTo?: string) => {
+    setState({ loading: true, error: null });
+    try {
+      await startOAuthSignIn("kakao", returnTo);
       // 리다이렉트되므로 여기서 setState 불필요(페이지 이탈).
     } catch (e) {
       setState({ error: (e as Error).message, loading: false });
@@ -607,7 +638,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
               if (!player) {
                 const created = makePlayer(
                   sUser.id,
-                  (sUser.user_metadata?.full_name as string) || sUser.email || "",
+                  getOAuthDisplayName(sUser.user_metadata ?? {}, sUser.email ?? null),
                   "",
                   "",
                   { email: sUser.email ?? undefined, gender: authGender, cardSkin: pendingCardSkin }

@@ -15,6 +15,7 @@ export function useAuth() {
     register: store.register,
     createPlayer: store.createPlayer,
     loginWithGoogle: store.loginWithGoogle,
+    loginWithKakao: store.loginWithKakao,
     requestPasswordReset: store.requestPasswordReset,
     updatePassword: store.updatePassword,
     logout: store.logout,

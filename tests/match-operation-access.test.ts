@@ -6,7 +6,6 @@ const match = { homeTeamId: "H", awayTeamId: "A" };
 type TrackPlayer = NonNullable<Parameters<typeof resolveMatchTrack>[0]>;
 
 const player = (overrides: Partial<TrackPlayer> & Pick<TrackPlayer, "role">): TrackPlayer => ({
-  role: "player",
   isApproved: true,
   teamId: "",
   teamRole: undefined,
