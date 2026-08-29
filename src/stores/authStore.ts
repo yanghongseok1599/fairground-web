@@ -29,7 +29,7 @@ const LS_SESSION = "fg_session";
 const LS_DEV_ADMIN_SESSION = "fg_dev_admin_session";
 const SHORT_ID_DOMAIN = "fairground.local";
 const LOCAL_ADMIN_EMAIL = `admin@${SHORT_ID_DOMAIN}`;
-const LOCAL_ADMIN_PASSWORD = "3412";
+const LOCAL_ADMIN_PASSWORD = process.env.NEXT_PUBLIC_DEMO_ADMIN_PASSWORD?.trim() ?? "";
 
 interface LocalUser {
   uid: string;
@@ -102,11 +102,16 @@ function normalizeLoginId(value: string): string {
 function canUseLocalAdminOverride(): boolean {
   if (typeof window === "undefined") return false;
   if (process.env.NODE_ENV === "production") return false;
+  if (!isDemoMode) return false;
   return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 }
 
 function isLocalAdminCredentials(email: string, password: string): boolean {
-  return normalizeLoginId(email) === LOCAL_ADMIN_EMAIL && password.trim() === LOCAL_ADMIN_PASSWORD;
+  return (
+    LOCAL_ADMIN_PASSWORD.length > 0 &&
+    normalizeLoginId(email) === LOCAL_ADMIN_EMAIL &&
+    password.trim() === LOCAL_ADMIN_PASSWORD
+  );
 }
 
 function isLocalAdminLogin(email: string, password: string): boolean {

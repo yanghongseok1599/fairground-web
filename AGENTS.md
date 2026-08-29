@@ -26,5 +26,7 @@
 ## 검증과 기록
 
 - Supabase 안전장치를 변경하면 `npm run test:supabase-safety`를 실행한다.
+- 의존성 또는 보안 설정을 변경하면 `npm run security:audit`와 `npm run test:security`를 실행한다.
+- 보안 기준선이 달라지면 `docs/security-baseline.md`도 함께 갱신한다.
 - 애플리케이션 변경은 최소한 `npm run lint`, `npx tsc --noEmit`, 관련 테스트, `npm run build`로 검증한다.
 - 운영 환경을 실제로 변경하지 않았다면 완료 보고에 이를 명확히 적는다. 백업이나 diff가 실패했다면 성공으로 기록하지 않는다.
