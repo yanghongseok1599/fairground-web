@@ -26,7 +26,8 @@ import {
   isValidRegistrationProfile,
   needsKoreanNameCheck,
 } from "@/lib/registration-profile";
-import { downloadElementAsPng, shareElementAsPng } from "@/lib/card-download";
+import { savePngBlob, sharePngBlob } from "@/lib/card-download";
+import { usePreparedElementPng } from "@/hooks/usePreparedElementPng";
 import { getAdminEntryLabel, isAdminLikeRole } from "@/lib/admin-access";
 import { canManageTeam } from "@/lib/team-permissions";
 import { CardProgress } from "@/components/card-progress";
@@ -35,6 +36,11 @@ import { PushEnableCard } from "@/components/push-enable-card";
 import { PortraitConsentCard } from "@/components/portrait-consent-card";
 import { compressImageBlob, removeBackgroundAndCompress } from "@/lib/image-compression";
 import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
+import { getPlayerCardShareUrls } from "@/lib/player-card-share-links";
+import {
+  isKakaoPlayerCardShareConfigured,
+  sharePlayerCardWithKakao,
+} from "@/lib/kakao-player-card-share";
 
 /* ===========================================================
  * Light theme (White&Blue) — FairGround BrandKit 2026
@@ -218,6 +224,7 @@ export default function MyPage() {
   const managedTeamId = player?.teamId || registeredTeamId;
   const canManageCurrentTeam = canManageTeam(player, team);
   const isPendingTeamMember = Boolean(player?.teamId && !player.isApproved);
+  const kakaoShareConfigured = isKakaoPlayerCardShareConfigured();
 
   // 보유 카드 목록 — 대회 카드는 항상, 그라운드 챌린지 카드는 받은 선수만.
   const unlockedCardSkins = getUnlockedCardSkins(player);
@@ -285,27 +292,83 @@ export default function MyPage() {
     };
   }, [player?.id, store]);
 
+  const cardExportRevision = JSON.stringify({
+    player,
+    teamLogo: team?.logo,
+    cardSkinChoice,
+  });
+  const {
+    blob: preparedCardBlob,
+    error: cardImageError,
+    isPreparing: cardImagePreparing,
+    retry: retryCardImage,
+  } = usePreparedElementPng(
+    exportCardRef,
+    cardExportRevision,
+    Boolean(initialized && player && player.role !== "admin"),
+  );
+
   const handleSave = async () => {
-    if (!exportCardRef.current || !player) return;
+    if (!player) return;
+    if (!preparedCardBlob) {
+      setShareMessage("카드 이미지를 다시 준비하고 있습니다.");
+      retryCardImage();
+      return;
+    }
+
     setShareMessage("");
     setSaving(true);
     try {
-      await downloadElementAsPng(exportCardRef.current, `${player.name}-fairground.png`);
-    } catch (e) {
-      console.error(e);
+      const result = await savePngBlob(preparedCardBlob, `${player.name}-fairground.png`);
+      setShareMessage(
+        result === "native-save"
+          ? "열린 메뉴에서 ‘이미지 저장’을 누르면 사진 앱에 저장됩니다."
+          : "카드 이미지 저장을 시작했습니다.",
+      );
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      setShareMessage("이미지를 저장하지 못했습니다. 다시 시도해주세요.");
+      console.error(error);
     } finally {
       setSaving(false);
+      window.setTimeout(() => setShareMessage(""), 5000);
     }
   };
 
   const handleShare = async () => {
-    if (!exportCardRef.current || !player) return;
+    if (!player) return;
+    if (!preparedCardBlob) {
+      setShareMessage("카드 이미지를 다시 준비하고 있습니다.");
+      retryCardImage();
+      return;
+    }
+
     setShareMessage("");
     setSharing(true);
     try {
-      const result = await shareElementAsPng(exportCardRef.current, `${player.name}-fairground.png`, {
+      const { playerUrl, createCardUrl } = getPlayerCardShareUrls(
+        window.location.origin,
+        player.id,
+      );
+      try {
+        const sharedWithKakao = await sharePlayerCardWithKakao({
+          cardBlob: preparedCardBlob,
+          origin: window.location.origin,
+          playerId: player.id,
+          playerName: player.name,
+        });
+        if (sharedWithKakao) {
+          setShareMessage("카카오톡에 선수 카드와 만들기 버튼을 함께 보냅니다.");
+          return;
+        }
+      } catch (kakaoError) {
+        console.error("[player-card] Kakao share failed; falling back to native share", kakaoError);
+      }
+
+      const result = await sharePngBlob(preparedCardBlob, `${player.name}-fairground.png`, {
         title: `${player.name} - FairGround`,
-        text: "FairGround 선수 카드",
+        text: `${player.name}님의 FairGround 선수 카드\n${playerUrl}\n\n나도 선수카드 만들기\n${createCardUrl}`,
+        url: playerUrl,
       });
       if (result === "downloaded") {
         setShareMessage("이 브라우저는 이미지 공유를 지원하지 않아 저장으로 처리했습니다.");
@@ -875,7 +938,7 @@ export default function MyPage() {
                 <div className="mt-4 grid w-full max-w-[760px] grid-cols-2 gap-3 sm:mt-5 sm:gap-4">
                   <button
                     onClick={handleShare}
-                    disabled={sharing || saving}
+                    disabled={sharing || saving || cardImagePreparing || !preparedCardBlob}
                     className="min-h-[52px] min-w-0 flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50 sm:rounded-2xl sm:text-base"
                     style={{
                       background: "var(--color-fg-paper)",
@@ -883,14 +946,20 @@ export default function MyPage() {
                       color: "var(--primary)",
                     }}
                   >
-                    {sharing
+                    {sharing || cardImagePreparing
                       ? <Loader2 className="w-4 h-4 animate-spin" />
                       : <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />}
-                    {sharing ? "준비 중" : "공유하기"}
+                    {cardImagePreparing
+                      ? "준비 중"
+                      : sharing
+                        ? "공유 중"
+                        : kakaoShareConfigured
+                          ? "카카오로 공유"
+                          : "공유하기"}
                   </button>
                   <button
                     onClick={handleSave}
-                    disabled={saving || sharing}
+                    disabled={saving || sharing || cardImagePreparing || !preparedCardBlob}
                     className="min-h-[52px] min-w-0 flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50 sm:rounded-2xl sm:text-base"
                     style={{
                       background: "var(--primary)",
@@ -898,10 +967,10 @@ export default function MyPage() {
                       boxShadow: "var(--shadow-sm)",
                     }}
                   >
-                    {saving
+                    {saving || cardImagePreparing
                       ? <Loader2 className="w-4 h-4 animate-spin" />
                       : <Download className="w-4 h-4 sm:w-5 sm:h-5" />}
-                    {saving ? "저장 중" : "저장하기"}
+                    {cardImagePreparing ? "준비 중" : saving ? "저장 중" : "저장하기"}
                   </button>
                 </div>
                 {canChooseCardSkin && (
@@ -913,6 +982,16 @@ export default function MyPage() {
                   <p className="mt-3 w-full max-w-[760px] text-center text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>
                     {shareMessage}
                   </p>
+                )}
+                {cardImageError && !shareMessage && (
+                  <button
+                    type="button"
+                    onClick={retryCardImage}
+                    className="mt-3 text-xs font-bold underline underline-offset-4"
+                    style={{ color: "var(--primary)" }}
+                  >
+                    카드 이미지 준비 실패 · 다시 시도
+                  </button>
                 )}
               </div>
             </section>

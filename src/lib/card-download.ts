@@ -1,6 +1,9 @@
 const TARGET_EXPORT_PX = 2400;
 const MIN_EXPORT_SCALE = 3;
 const MAX_EXPORT_SCALE = 8;
+const NATIVE_SHARE_HANDOFF_TIMEOUT_MS = 1500;
+
+export type PngDeliveryResult = "shared" | "downloaded" | "native-save";
 
 function getExportScale(element: HTMLElement): number {
   const rect = element.getBoundingClientRect();
@@ -57,37 +60,98 @@ export async function elementToPngBlob(element: HTMLElement): Promise<Blob> {
   return blob;
 }
 
+export function isAppleMobileDevice(
+  userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent,
+  maxTouchPoints = typeof navigator === "undefined" ? 0 : navigator.maxTouchPoints,
+): boolean {
+  return (
+    /iPhone|iPad|iPod/i.test(userAgent) ||
+    (/Macintosh/i.test(userAgent) && maxTouchPoints > 1)
+  );
+}
+
+function createPngFile(blob: Blob, filename: string) {
+  return new File([blob], filename, {
+    type: "image/png",
+    lastModified: Date.now(),
+  });
+}
+
+function canShareFile(file: File): boolean {
+  return (
+    typeof navigator !== "undefined" &&
+    typeof navigator.share === "function" &&
+    typeof navigator.canShare === "function" &&
+    navigator.canShare({ files: [file] })
+  );
+}
+
+async function openNativeShare(shareData: ShareData): Promise<void> {
+  const sharePromise = navigator.share(shareData);
+
+  // Some WebKit versions do not settle navigator.share() after "Save Image".
+  // The native sheet has already received the file, so do not leave the UI
+  // permanently stuck in a loading state while waiting for that promise.
+  await Promise.race([
+    sharePromise,
+    new Promise<void>((resolve) => {
+      window.setTimeout(resolve, NATIVE_SHARE_HANDOFF_TIMEOUT_MS);
+    }),
+  ]);
+}
+
 function downloadPngBlob(blob: Blob, filename: string) {
   const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.download = filename;
   link.href = objectUrl;
+  link.style.display = "none";
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(objectUrl);
+  link.remove();
+
+  // Revoking immediately can cancel blob downloads in iOS WebKit.
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 }
 
-export async function downloadElementAsPng(element: HTMLElement, filename: string) {
-  const blob = await elementToPngBlob(element);
-  downloadPngBlob(blob, filename);
-}
-
-export async function shareElementAsPng(
-  element: HTMLElement,
+export async function savePngBlob(
+  blob: Blob,
   filename: string,
-  shareData: { title?: string; text?: string } = {}
-): Promise<"shared" | "downloaded"> {
-  const blob = await elementToPngBlob(element);
-  const file = new File([blob], filename, { type: "image/png" });
-  const canShareFile =
-    typeof navigator.canShare === "function" &&
-    navigator.canShare({ files: [file] });
+): Promise<PngDeliveryResult> {
+  const file = createPngFile(blob, filename);
 
-  if (typeof navigator.share === "function" && canShareFile) {
-    await navigator.share({
-      ...shareData,
-      files: [file],
-    });
-    return "shared";
+  if (isAppleMobileDevice() && canShareFile(file)) {
+    try {
+      await openNativeShare({ files: [file] });
+      return "native-save";
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") throw error;
+      downloadPngBlob(blob, filename);
+      return "downloaded";
+    }
+  }
+
+  downloadPngBlob(blob, filename);
+  return "downloaded";
+}
+
+export async function sharePngBlob(
+  blob: Blob,
+  filename: string,
+  shareData: Pick<ShareData, "title" | "text" | "url"> = {},
+): Promise<PngDeliveryResult> {
+  const file = createPngFile(blob, filename);
+
+  if (canShareFile(file)) {
+    try {
+      await openNativeShare({
+        ...shareData,
+        files: [file],
+      });
+      return "shared";
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") throw error;
+    }
   }
 
   downloadPngBlob(blob, filename);
