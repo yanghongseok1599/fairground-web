@@ -3,10 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/supabase/check-safety.mjs dev",
     "dev": "next dev",
     "build": "next build && next-sitemap",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "supabase:safety": "node scripts/supabase/check-safety.mjs status",
+    "supabase:migrations": "npx supabase migration list --linked",
+    "test:supabase-safety": "node --test tests/supabase-safety.test.mjs"
   },
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",
