@@ -9,6 +9,7 @@ import {
   playerPatchToRow,
   selfEditablePlayerPatch,
 } from "@/lib/mappers";
+import { readPhotoFile, requireSavedRow, registrationError } from "@/lib/registration/reliability";
 import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
 import {
   clearPendingCardSkin,
@@ -249,6 +250,8 @@ async function fetchProfile(uid: string): Promise<Player | null> {
   return data ? rowToPlayer(data) : null;
 }
 
+let authHydrationVersion = 0;
+
 // ===== Store =====
 interface RegisterData {
   email: string;
@@ -298,6 +301,8 @@ interface AuthState {
   logout: () => Promise<void>;
   refreshPlayer: () => Promise<Player | null>;
   updatePlayer: (data: Partial<Player>) => Promise<void>;
+  /** 팀 탈퇴 — 무소속으로 전환. 팀 대표는 소유권 이전 후에만 가능(서버에서 거부). */
+  leaveTeam: () => Promise<void>;
   uploadPlayerPhoto: (file: File) => Promise<string>;
   clearError: () => void;
   init: () => () => void;
@@ -347,7 +352,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       const player = await fetchProfile(uid);
       setState({ user: makeUser(uid, data.user.email ?? normalizedEmail), player, loading: false });
     } catch (e) {
-      setState({ error: (e as Error).message, loading: false });
+      setState({ error: registrationError(e), loading: false });
       throw e;
     }
   },
@@ -402,6 +407,11 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       if (error) throw new Error(error.message);
       if (!signUp.user) throw new Error("가입에 실패했습니다");
       const uid = signUp.user.id;
+      if (!signUp.session) {
+        // Email verification is not an authenticated session.
+        setState({ user: null, player: null, loading: false });
+        return;
+      }
       // 트리거가 생성한 행과 동일한 기본값으로 로컬 상태를 구성(즉시 UI 반영용).
       // 실제 영속화는 트리거가 담당하며, 다음 init()의 fetchProfile이 정본을 읽어온다.
       const player = makePlayer(uid, data.name, data.phone, data.teamId, {
@@ -417,7 +427,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
         loading: false,
       });
     } catch (e) {
-      setState({ error: (e as Error).message, loading: false });
+      setState({ error: registrationError(e), loading: false });
       throw e;
     }
   },
@@ -426,21 +436,26 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
     setState({ loading: true, error: null });
     try {
       const currentUser = getState().user;
-      const existingPlayer = getState().player;
+      const existingPlayer = isDemoMode ? getState().player : currentUser ? await fetchProfile(currentUser.uid) : null;
       const uid = isDemoMode ? generateUid() : currentUser?.uid;
       if (!uid) {
         throw new Error("로그인이 필요합니다");
       }
+      if (data.role === "referee" && existingPlayer && existingPlayer.role !== "referee") {
+        throw new Error("기존 계정의 심판 권한은 관리자가 승인해야 합니다. 선수로 등록을 마친 뒤 심판 등록을 문의해주세요.");
+      }
       const player: Player = {
+        ...existingPlayer,
         id: uid,
         uid,
         name: data.name,
         number: data.number,
         position: data.position,
-        teamId: data.teamId,
-        photoUrl: data.photoUrl || "",
-        profilePhotoUrl: data.profilePhotoUrl || data.photoUrl || "",
-        profilePhotoLocked: data.profilePhotoLocked ?? false,
+        teamId: existingPlayer?.teamId ?? "",
+        photoUrl: data.photoUrl || existingPlayer?.photoUrl || "",
+        profilePhotoUrl: existingPlayer?.profilePhotoLocked ? existingPlayer.profilePhotoUrl
+          : data.profilePhotoUrl || data.photoUrl || existingPlayer?.profilePhotoUrl || "",
+        profilePhotoLocked: existingPlayer?.profilePhotoLocked ?? data.profilePhotoLocked ?? false,
         photoScale: data.photoScale ?? DEFAULT_CARD_PHOTO_SCALE,
         cardType: existingPlayer?.cardType ?? "gold",
         cardSkin: data.cardSkin ?? existingPlayer?.cardSkin ?? "standard",
@@ -453,8 +468,8 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
           seasonYellowCards: 0,
         },
         isApproved: existingPlayer?.isApproved ?? false,
-        role: data.role ?? existingPlayer?.role ?? "player",
-        teamRole: data.teamRole ?? existingPlayer?.teamRole,
+        role: existingPlayer?.role ?? "player",
+        teamRole: existingPlayer?.teamRole,
         nationality: data.nationality || "KOR",
         gender: data.gender ?? existingPlayer?.gender ?? currentUser?.gender,
         // 한 번 남은 동의 시각은 재등록/수정 시에도 덮어쓰지 않는다 —
@@ -470,20 +485,33 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
         setState({ user: makeUser(uid, `${uid}@anonymous.local`), player, loading: false });
         return;
       }
-      const existing = existingPlayer ?? await fetchProfile(uid);
-      if (existing) {
-        const { error } = await supabase
+      let savedPlayer: Player;
+      if (existingPlayer) {
+        // Only submitted card fields: never resubmit membership, stats, badges,
+        // approval, role, or a stale consent timestamp from an earlier read.
+        const patch = {
+          name: player.name, number: player.number, position: player.position,
+          nationality: player.nationality, photoScale: player.photoScale,
+          cardSkin: player.cardSkin,
+          ...(data.photoUrl ? { photoUrl: data.photoUrl } : {}),
+          ...(!existingPlayer.profilePhotoLocked && data.profilePhotoUrl
+            ? { profilePhotoUrl: data.profilePhotoUrl } : {}),
+          ...(!existingPlayer.portraitConsentAt && data.portraitConsentAt
+            ? { portraitConsentAt: data.portraitConsentAt } : {}),
+        };
+        const { data: saved, error } = await supabase
           .from("profiles")
-          .update(playerPatchToRow(player))
-          .eq("id", uid);
-        if (error) throw new Error(error.message);
+          .update(playerPatchToRow(patch))
+          .eq("id", uid).select("*").single();
+        savedPlayer = rowToPlayer(requireSavedRow(saved, error));
       } else {
-        const { error } = await supabase.from("profiles").insert(playerToInsert(player));
-        if (error) throw new Error(error.message);
+        const { data: saved, error } = await supabase.from("profiles")
+          .insert(playerToInsert(player)).select("*").single();
+        savedPlayer = rowToPlayer(requireSavedRow(saved, error));
       }
-      setState({ player, loading: false });
+      if (getState().user?.uid === uid) setState({ player: savedPlayer, loading: false });
     } catch (e) {
-      setState({ error: (e as Error).message, loading: false });
+      setState({ error: registrationError(e), loading: false });
       throw e;
     }
   },
@@ -494,7 +522,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       await startOAuthSignIn("google", returnTo);
       // 리다이렉트되므로 여기서 setState 불필요(페이지 이탈).
     } catch (e) {
-      setState({ error: (e as Error).message, loading: false });
+      setState({ error: registrationError(e), loading: false });
       throw e;
     }
   },
@@ -505,7 +533,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       await startOAuthSignIn("kakao", returnTo);
       // 리다이렉트되므로 여기서 setState 불필요(페이지 이탈).
     } catch (e) {
-      setState({ error: (e as Error).message, loading: false });
+      setState({ error: registrationError(e), loading: false });
       throw e;
     }
   },
@@ -569,7 +597,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
 
   updatePlayer: async (data) => {
     const state = useAuthStore.getState();
-    if (!state.user || !state.player) return;
+    if (!state.user || !state.player) throw new Error("로그인 정보가 없습니다. 입력을 유지한 채 다시 로그인해주세요.");
 
     if (isDemoMode) {
       const updated = { ...state.player, ...data };
@@ -586,27 +614,46 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
     if (Object.keys(editableData).length === 0) return;
 
     // RLS: 본인 행만, 특권컬럼은 DB trigger가 최종 거부.
-    const { error } = await supabase
+    const { data: saved, error } = await supabase
       .from("profiles")
       .update(playerPatchToRow(editableData))
-      .eq("id", state.user.uid);
+      .eq("id", state.user.uid).select("id").single();
     if (error) {
       console.error("[authStore] updatePlayer failed:", error.message);
       setState({ error: error.message });
       throw new Error(error.message);
     }
-    setState({ player: { ...state.player, ...editableData } });
+    requireSavedRow(saved, error);
+    if (getState().user?.uid === state.user.uid) {
+      setState({ player: { ...(getState().player ?? state.player), ...editableData } });
+    }
   },
 
-  uploadPlayerPhoto: async (file) => {
-    // NOTE(상용화 후속): 현재는 base64 data URL 반환(원 동작 보존).
-    // Supabase Storage 버킷 업로드로 교체 예정 — DB에 대용량 base64 저장은 비효율.
-    return new Promise<string>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
-    });
+  leaveTeam: async () => {
+    const state = useAuthStore.getState();
+    if (!state.user || !state.player) return;
+    if (!state.player.teamId) throw new Error("소속된 팀이 없습니다");
+
+    if (isDemoMode) {
+      const updated = { ...state.player, teamId: "", teamRole: "member" as const };
+      const players = getLocalPlayers();
+      players[state.user.uid] = updated;
+      saveLocalPlayers(players);
+      setState({ player: updated });
+      return;
+    }
+
+    // team_id 직접 수정은 가드 트리거가 막는다 — 전용 RPC 만 인가된 경로다.
+    const { error } = await supabase.rpc("leave_team");
+    if (error) {
+      console.error("[authStore] leaveTeam failed:", error.message);
+      setState({ error: error.message });
+      throw new Error(error.message);
+    }
+    setState({ player: { ...state.player, teamId: "", teamRole: "member" } });
   },
+
+  uploadPlayerPhoto: readPhotoFile,
 
   clearError: () => setState({ error: null }),
 
@@ -642,6 +689,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
     }
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const hydrationVersion = ++authHydrationVersion;
       const sUser = session?.user;
       if (sUser) {
         const authGender = normalizeAuthGender(sUser.user_metadata?.gender);
@@ -661,6 +709,8 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
         setTimeout(() => {
           void (async () => {
             try {
+              if (hydrationVersion !== authHydrationVersion) return;
+              const playerBeforeRead = getState().player;
               let player = await fetchProfile(sUser.id);
               const pendingCardSkin = readPendingCardSkin();
               // OAuth 최초 로그인 시 프로필 자동 생성.
@@ -694,16 +744,24 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
                   player = await fetchProfile(sUser.id);
                 }
               }
+              if (hydrationVersion !== authHydrationVersion) return;
+              // A form may have committed while the auth refresh was reading.
+              // Keep its newer local record until the next authoritative refresh.
+              const latest = getState();
+              if (latest.user?.uid === sUser.id && latest.player !== playerBeforeRead && latest.player) player = latest.player;
               setState({
                 user: makeUser(sUser.id, sUser.email ?? null, authGender),
                 player,
                 loading: false,
                 initialized: true,
               });
-            } catch {
+            } catch (e) {
+              if (hydrationVersion !== authHydrationVersion) return;
+              const latest = getState();
               setState({
                 user: makeUser(sUser.id, sUser.email ?? null, authGender),
-                player: null,
+                player: latest.user?.uid === sUser.id ? latest.player : null,
+                error: registrationError(e, "프로필을 불러오지 못했습니다. 다시 확인해주세요."),
                 loading: false,
                 initialized: true,
               });

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
 import { useDataStore } from "@/stores/dataStore";
 import { supabase } from "@/config/supabase";
@@ -13,11 +14,13 @@ import type { TeamGalleryItem } from "@/components/team-circular-gallery";
 import { getClubLogoPreset } from "@/components/club-emblem";
 import { createTeamCardCanvas } from "@/lib/team-card-canvas";
 import { isFieldChampionTeam, leagueTierCardIndex } from "@/lib/team-home";
-import { ANONYMOUS_PLAYER_CARD_POSE_SOURCES } from "@/lib/player-card-pose-templates";
+import { FICTIONAL_PLAYER_CARD_POSE_SOURCES } from "@/lib/player-card-pose-templates";
 import type { Team, Player } from "@/types";
-import { ArrowRight, MapPin, Trophy, Users } from "lucide-react";
+import { ArrowRight, MapPin, Ticket, Trophy, Users } from "lucide-react";
 import { TeamMarquee } from "@/components/team-marquee";
 import { HomePromotionPopup } from "@/components/home-promotion-popup";
+import { MIXED_FUTSAL_COVER_IMAGE_PATH } from "@/lib/mixed-futsal-assets";
+import { SPONSOR_PROPOSAL_PATH } from "@/lib/site-config";
 // 대회 정보는 전부 이 상수 모듈에서 가져온다. 날짜/장소를 홈에 문자열로
 // 하드코딩하면 대회 정보가 바뀔 때 홈만 뒤처져 잘못된 안내가 남는다.
 import {
@@ -27,6 +30,7 @@ import {
   MIXED_FUTSAL_EVENT_NAME,
   MIXED_FUTSAL_EVENT_PATH,
   MIXED_FUTSAL_EVENT_TIME_LABEL,
+  MIXED_FUTSAL_ENTRY_FEE_LABEL,
   MIXED_FUTSAL_GUARANTEE_LABEL,
   MIXED_FUTSAL_MATCH_FORMAT_LABEL,
   MIXED_FUTSAL_TEAM_COUNT_LABEL,
@@ -125,7 +129,7 @@ const HERO_STATIC_FALLBACK = (
   </div>
 );
 
-// 홈페이지 샘플은 특정 실존 인물을 묘사하지 않는 얼굴 없는 마네킹만 사용한다.
+// 홈페이지 샘플은 특정 실존 인물을 참조하지 않은 한국인 남자 가상 선수만 사용한다.
 const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
   {
     id: "showcase-bronze-1",
@@ -135,7 +139,8 @@ const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
     position: "FIXO",
     teamId: "showcase",
     nationality: "KOR",
-    photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.male01,
+    photoUrl: FICTIONAL_PLAYER_CARD_POSE_SOURCES.male01,
+    gender: "male",
     cardType: "bronze",
     cardRating: 72,
     stats: { goals: 2, assists: 3, games: 8, mom: 0 },
@@ -153,7 +158,8 @@ const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
     position: "ALA",
     teamId: "showcase",
     nationality: "KOR",
-    photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.male02,
+    photoUrl: FICTIONAL_PLAYER_CARD_POSE_SOURCES.male02,
+    gender: "male",
     cardType: "silver",
     cardRating: 84,
     stats: { goals: 6, assists: 5, games: 12, mom: 1 },
@@ -171,7 +177,8 @@ const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
     position: "PIVO",
     teamId: "showcase",
     nationality: "KOR",
-    photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.female01,
+    photoUrl: FICTIONAL_PLAYER_CARD_POSE_SOURCES.male03,
+    gender: "male",
     cardType: "gold",
     cardRating: 90,
     stats: { goals: 9, assists: 6, games: 14, mom: 2 },
@@ -189,7 +196,8 @@ const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
     position: "PIVO",
     teamId: "showcase",
     nationality: "KOR",
-    photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.female02,
+    photoUrl: FICTIONAL_PLAYER_CARD_POSE_SOURCES.male04,
+    gender: "male",
     cardType: "premium",
     cardRating: 104,
     stats: { goals: 14, assists: 7, games: 14, mom: 5 },
@@ -276,6 +284,11 @@ const TOURNAMENT_FACTS = [
     icon: Trophy,
     label: "GUARANTEE",
     value: MIXED_FUTSAL_GUARANTEE_LABEL,
+  },
+  {
+    icon: Ticket,
+    label: "ENTRY FEE",
+    value: MIXED_FUTSAL_ENTRY_FEE_LABEL,
   },
 ] as const;
 
@@ -398,7 +411,7 @@ export default function HomePage() {
               "radial-gradient(120% 90% at 10% 0%, rgba(0,71,171,0.55), transparent 62%), radial-gradient(90% 70% at 100% 100%, rgba(13,27,42,0.5), transparent 62%)",
           }}
         />
-        <div className="relative mx-auto max-w-[1320px]">
+        <div className="relative mx-auto grid max-w-[1320px] gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)] lg:items-center lg:gap-14">
           <div className="flex items-start gap-4 md:gap-6">
             <span
               className="fg-mono mt-2 shrink-0 text-[11px]"
@@ -510,12 +523,45 @@ export default function HomePage() {
                     >
                       대회 안내
                     </Link>
+                    <Link
+                      href={SPONSOR_PROPOSAL_PATH}
+                      className="group inline-flex min-h-[52px] items-center justify-center gap-2 rounded-[var(--radius-md)] border px-7 fg-display text-[15px] tracking-[0.06em] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                      style={{
+                        borderColor: "rgba(255,255,255,0.45)",
+                        color: "var(--color-fg-paper)",
+                        outlineColor: "var(--color-fg-paper)",
+                      }}
+                      aria-label="협찬 제안서 보기"
+                    >
+                      협찬 제안서
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </Link>
                   </div>
                 </div>
 
               </div>
             </div>
           </div>
+
+          <Link
+            href={MIXED_FUTSAL_EVENT_PATH}
+            className="group mx-auto block w-full max-w-[420px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+            aria-label={`${MIXED_FUTSAL_EVENT_NAME} 대회 안내 보기`}
+          >
+            <div className="relative aspect-[4/5] overflow-hidden bg-[#06152B] shadow-[0_28px_70px_rgba(0,0,0,0.34)]">
+              <Image
+                src={MIXED_FUTSAL_COVER_IMAGE_PATH}
+                alt={`${MIXED_FUTSAL_EVENT_NAME} 공식 포스터`}
+                fill
+                sizes="(max-width: 1023px) min(90vw, 420px), 420px"
+                className="object-contain transition-transform duration-300 group-hover:scale-[1.012] motion-reduce:transition-none"
+              />
+            </div>
+            <span className="mt-3 flex items-center justify-between text-[12px] font-bold text-white/68">
+              공식 대회 포스터
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 motion-reduce:transition-none" aria-hidden />
+            </span>
+          </Link>
         </div>
       </section>
 

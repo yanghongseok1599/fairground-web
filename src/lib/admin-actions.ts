@@ -102,6 +102,37 @@ export async function setTeamApproval(teamId: string, approved: boolean) {
   if (error) throw new Error(error.message);
 }
 
+/** 팀 삭제 — 잘못 만든 팀을 목록에서 없앤다. */
+export async function deleteTeam(teamId: string) {
+  if (isDemoMode) {
+    const teams = getLocalTeams();
+    delete teams[teamId];
+    saveLocalTeams(teams);
+    return;
+  }
+  // 경기 기록이 있는 팀을 지우면 matches.home/away_team_id 가 NULL 이 되어
+  // 팀 없는 유령 경기가 남는다. 그 경우는 삭제가 아니라 "승인 취소"가 정답.
+  // ponytail: 운영자 실수 방지용 클라이언트 가드(삭제 권한 자체는 RLS
+  // p_teams_write = is_referee_or_admin 이 강제). 서버 강제가 필요해지면
+  // delete_team RPC 로 옮길 것.
+  const { count, error: countError } = await supabase
+    .from("matches")
+    .select("id", { count: "exact", head: true })
+    .or(`home_team_id.eq.${teamId},away_team_id.eq.${teamId}`);
+  if (countError) throw new Error(countError.message);
+  if (count && count > 0) {
+    throw new Error(`경기 기록이 ${count}건 있어 삭제할 수 없습니다. "승인 취소"를 사용하세요.`);
+  }
+
+  // RLS 로 거부되면 delete 는 에러 없이 0행을 지운다 — 조용한 실패를 막기 위해
+  // 삭제된 행을 돌려받아 확인한다.
+  const { data, error } = await supabase.from("teams").delete().eq("id", teamId).select("id");
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) {
+    throw new Error("삭제되지 않았습니다. 관리자 권한을 확인해 주세요.");
+  }
+}
+
 export async function setTournamentGroups(tournamentId: string, groups: TournamentGroup[]) {
   if (isDemoMode) {
     const tournaments = getLocalTournaments();

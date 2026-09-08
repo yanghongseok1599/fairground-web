@@ -6,9 +6,14 @@ import { useTeamLogoBackgroundRemoval } from "@/hooks/useTeamLogoBackgroundRemov
 import {
   PLAYER_CARD_FRAME,
   PLAYER_CARD_FRAME_ID,
+  PLAYER_CARD_PRESET_ID,
   getPlayerCardFrameDimensions,
   type PlayerCardSize,
 } from "@/lib/player-card-frame";
+import {
+  PLAYER_CARD_IMAGE_SET_ID,
+  resolvePlayerCardPhoto,
+} from "@/lib/player-card-pose-templates";
 import { isHologramPlayerCard } from "@/lib/player-card-skin";
 import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
 
@@ -132,6 +137,7 @@ export function PlayerCard({
   const { pos: POS, fontPct: FONT_PCT, leftColCenter: LEFT_COL_CENTER } = PLAYER_CARD_FRAME;
   const { ink } = skin;
   const playerPhotoScale = player.photoScale ?? DEFAULT_CARD_PHOTO_SCALE;
+  const playerPhotoUrl = resolvePlayerCardPhoto(player);
 
   const fs = {
     rating: Math.round(cardW * FONT_PCT.rating / 100),
@@ -294,39 +300,26 @@ export function PlayerCard({
           zIndex: 1,
         }}
       >
-        {player.photoUrl ? (
-          <img
-            src={player.photoUrl}
-            alt=""
-            aria-hidden="true"
-            className="block"
-            style={(playerPhotoScale !== 1) || player.photoOffsetX ? {
-              width: "auto",
-              height: "100%",
-              maxWidth: "none",
-              transform: `scale(${playerPhotoScale}) translateX(${player.photoOffsetX ?? 0}%)`,
-              transformOrigin: "center bottom",
-              filter: "drop-shadow(0 8px 10px rgba(0,0,0,0.28))",
-            } : {
-              width: "auto",
-              height: "100%",
-              maxWidth: "none",
-              filter: "drop-shadow(0 8px 10px rgba(0,0,0,0.28))",
-            }}
-          />
-        ) : (
-          <div
-            className="flex h-full w-full items-center justify-center"
-            style={{ background: "transparent" }}
-          >
-            <span
-              className="font-bold"
-              style={{ fontSize: fs.rating * 0.6, color: `rgba(${ink.rgb}, 0.12)` }}
-            >
-              {player.number}
-            </span>
-          </div>
-        )}
+        <img
+          src={playerPhotoUrl}
+          alt=""
+          aria-hidden="true"
+          className="block"
+          style={(playerPhotoScale !== 1) || player.photoOffsetX ? {
+            width: "auto",
+            height: "100%",
+            maxWidth: "none",
+            transform: `scale(${playerPhotoScale}) translateX(${player.photoOffsetX ?? 0}%)`,
+            transformOrigin: "center bottom",
+            filter: "drop-shadow(0 8px 10px rgba(0,0,0,0.28))",
+          } : {
+            width: "auto",
+            height: "100%",
+            maxWidth: "none",
+            filter: "drop-shadow(0 8px 10px rgba(0,0,0,0.28))",
+          }}
+          draggable={false}
+        />
       </div>
 
       {/* Name Bar */}
@@ -443,6 +436,8 @@ export function PlayerCard({
         onClick={onClick}
         aria-label={ariaLabel}
         data-player-card-frame={PLAYER_CARD_FRAME_ID}
+        data-player-card-image-set={PLAYER_CARD_IMAGE_SET_ID}
+        data-player-card-preset={PLAYER_CARD_PRESET_ID}
         data-player-card-size={size}
         className={`relative block cursor-pointer select-none appearance-none border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)] ${
           disableHoverScale ? "" : "transition-transform hover:scale-105"
@@ -459,6 +454,8 @@ export function PlayerCard({
       role="img"
       aria-label={ariaLabel}
       data-player-card-frame={PLAYER_CARD_FRAME_ID}
+      data-player-card-image-set={PLAYER_CARD_IMAGE_SET_ID}
+      data-player-card-preset={PLAYER_CARD_PRESET_ID}
       data-player-card-size={size}
       className={`relative select-none ${disableHoverScale ? "" : "transition-transform hover:scale-105"}`}
       style={{ width: cardW, height: cardH }}

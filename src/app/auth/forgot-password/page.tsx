@@ -4,6 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, MailCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  SITE_CONTACT_EMAIL,
+  SITE_CONTACT_MAILTO,
+} from "@/lib/site-config";
 
 /**
  * 비밀번호 찾기 — 재설정 메일 요청.
@@ -114,6 +118,16 @@ export default function ForgotPasswordPage() {
             <p className="text-xs leading-relaxed" style={{ color: "var(--color-fg-ink-muted)" }}>
               구글로 가입하셨다면 비밀번호가 없습니다. 로그인 화면에서
               <strong> Google로 계속</strong>을 눌러주세요.
+            </p>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--color-fg-ink-muted)" }}>
+              계정 복구에 도움이 필요하면{" "}
+              <a
+                href={SITE_CONTACT_MAILTO}
+                className="font-bold underline underline-offset-4 transition-colors hover:text-[color:var(--primary)]"
+              >
+                {SITE_CONTACT_EMAIL}
+              </a>
+              으로 문의해주세요.
             </p>
           </form>
         )}

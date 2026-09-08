@@ -1,8 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckCircle, ChevronDown, Camera, X, Loader2 } from "lucide-react";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { useSubmission } from "@/hooks/useSubmission";
+import { photoDraftToBlob, readPhotoFile, registrationError } from "@/lib/registration/reliability";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
 import { COUNTRIES } from "@/constants/countries";
@@ -53,17 +57,17 @@ function filterEarnedBadgeIds(badgeIds: string[], earnedBadgeIds: Set<string> | 
 
 export default function CardEditPage() {
   const router = useRouter();
-  const { user, player, loading, error, clearError, updatePlayer, uploadPlayerPhoto, initialized } = useAuth();
+  const { user, player, loading, error, clearError, updatePlayer, leaveTeam, uploadPlayerPhoto, initialized } = useAuth();
   const { teams, fetchTeams, fetchMyBadges } = useDataStore();
 
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
   const [position, setPosition] = useState<Position | "">("");
   const [teamId, setTeamId] = useState("");
+  const [formError, setFormError] = useState("");
+  const [leaving, setLeaving] = useState(false);
   const [nationality, setNationality] = useState("KOR");
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
-  const [sourcePhotoBlob, setSourcePhotoBlob] = useState<Blob | null>(null);
-  const [cutoutPhotoBlob, setCutoutPhotoBlob] = useState<Blob | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [cardPhotoPreview, setCardPhotoPreview] = useState<string | null>(null);
   const [bgProcessing, setBgProcessing] = useState(false);
@@ -71,6 +75,8 @@ export default function CardEditPage() {
   const [badges, setBadges] = useState<string[]>([]);
   const [earnedBadgeIds, setEarnedBadgeIds] = useState<Set<string> | null>(null);
   const [done, setDone] = useState(false);
+  const submission = useSubmission();
+  const [photoDraft, setPhotoDraft] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const dragging = useRef(false);
@@ -80,9 +86,11 @@ export default function CardEditPage() {
   const touchStartY = useRef(0);
   const touchStartScale = useRef(1);
 
-  // 기존 데이터로 초기화
+  const seededPlayerRef = useRef<string | null>(null);
+  // Initialize once; token refresh must not erase an in-progress edit.
   useEffect(() => {
-    if (player) {
+    if (player && seededPlayerRef.current !== player.id) {
+      seededPlayerRef.current = player.id;
       setName(player.name);
       setNumber(String(player.number));
       setPosition(player.position);
@@ -92,6 +100,16 @@ export default function CardEditPage() {
       setBadges(player.badges ?? []);
     }
   }, [player]);
+
+  const draft = useFormDraft(user && !done ? `card-edit:${user.uid}` : null,
+    { name, number, position, nationality, photoScale, photoDraft, badges }, (d) => {
+      setName(d.name); setNumber(d.number); setPosition(d.position); setNationality(d.nationality);
+      setPhotoScale(d.photoScale); setPhotoDraft(d.photoDraft);
+      if (d.photoDraft) {
+        setPhotoBlob(photoDraftToBlob(d.photoDraft)); setPhotoPreview(d.photoDraft); setCardPhotoPreview(d.photoDraft);
+      }
+      setBadges(d.badges);
+    });
 
   useEffect(() => { fetchTeams(); }, [fetchTeams]);
 
@@ -173,30 +191,12 @@ export default function CardEditPage() {
     }
   };
 
-  const setProcessedPhoto = (blob: Blob) => {
-    if (photoPreview) URL.revokeObjectURL(photoPreview);
-    if (cardPhotoPreview) URL.revokeObjectURL(cardPhotoPreview);
-    setPhotoPreview(URL.createObjectURL(blob));
-    setCardPhotoPreview(URL.createObjectURL(blob));
-    setPhotoBlob(blob);
-  };
-
-  const reprocessUploadedPhoto = async (nextTeamId: string) => {
-    if (!sourcePhotoBlob || !cutoutPhotoBlob) return;
-    setBgProcessing(true);
-    try {
-      const finalPhoto = await buildCardPhotoBlob(nextTeamId, sourcePhotoBlob, cutoutPhotoBlob);
-      setProcessedPhoto(finalPhoto);
-    } finally {
-      setBgProcessing(false);
-    }
-  };
-
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    if (photoPreview) URL.revokeObjectURL(photoPreview);
-    if (cardPhotoPreview) URL.revokeObjectURL(cardPhotoPreview);
+    if (!file || bgProcessing) return;
+    setBgProcessing(true);
+    setFormError("");
+    try {
 
     const compressed = await compressImageBlob(file, {
       maxPx: 1400,
@@ -207,8 +207,6 @@ export default function CardEditPage() {
     setPhotoPreview(compressedPreviewUrl);
     setCardPhotoPreview(null);
     setPhotoBlob(compressed);
-    setSourcePhotoBlob(compressed);
-    setCutoutPhotoBlob(null);
 
     setBgProcessing(true);
     try {
@@ -222,7 +220,6 @@ export default function CardEditPage() {
       } catch (error) {
         console.error("[CardEdit] background removal failed:", error);
       }
-      setCutoutPhotoBlob(optimizedPhoto);
       const finalPhoto = await buildCardPhotoBlob(teamId, compressed, optimizedPhoto);
       setPhotoPreview(URL.createObjectURL(finalPhoto));
       setCardPhotoPreview(URL.createObjectURL(finalPhoto));
@@ -231,12 +228,14 @@ export default function CardEditPage() {
     } finally {
       setBgProcessing(false);
     }
+    } catch (e) {
+      setFormError(registrationError(e, "사진을 처리하지 못했습니다. 다른 이미지로 다시 선택해주세요."));
+    } finally { setBgProcessing(false); }
   };
 
   const handleRemovePhoto = () => {
     setPhotoBlob(null);
-    setSourcePhotoBlob(null);
-    setCutoutPhotoBlob(null);
+    setPhotoDraft("");
     if (photoPreview) URL.revokeObjectURL(photoPreview);
     if (cardPhotoPreview) URL.revokeObjectURL(cardPhotoPreview);
     setPhotoPreview(null);
@@ -244,22 +243,46 @@ export default function CardEditPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleTeamChange = (nextTeamId: string) => {
-    setTeamId(nextTeamId);
-    void reprocessUploadedPhoto(nextTeamId);
+  // 팀 탈퇴 — 소속 변경의 유일한 출구. 서버(leave_team RPC)가 팀 대표는 거부한다.
+  const handleLeaveTeam = async () => {
+    if (!selectedTeam) return;
+    if (!confirm(`${selectedTeam.name}에서 탈퇴할까요?\n\n무소속이 되고, 다른 팀 홈에서 다시 가입 신청할 수 있습니다.`)) return;
+    clearError();
+    setFormError("");
+    setLeaving(true);
+    try {
+      await leaveTeam();
+      setTeamId("");
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "탈퇴에 실패했습니다.");
+    } finally {
+      setLeaving(false);
+    }
   };
+
+  useEffect(() => {
+    if (!photoBlob) return;
+    let cancelled = false;
+    void readPhotoFile(photoBlob).then((value) => { if (!cancelled) setPhotoDraft(value); })
+      .catch((e) => { if (!cancelled) setFormError(registrationError(e)); });
+    return () => { cancelled = true; };
+  }, [photoBlob]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
-    if (!position || !earnedBadgeIds) return;
+    setFormError("");
+    if (!name.trim() || !position || !/^[1-9]\d?$/.test(number)) {
+      setFormError("이름, 포지션, 등번호(1~99)를 확인해주세요."); return;
+    }
+    if (!earnedBadgeIds) { setFormError("배지 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요."); return; }
+    if (bgProcessing || !draft.ready || !submission.begin()) return;
     const equippedEarnedBadges = filterEarnedBadgeIds(badges, earnedBadgeIds);
     try {
       const updates: Partial<Player> = {
         name: name.trim(),
         number: parseInt(number, 10),
         position: position as Position,
-        teamId: teamId || "",
         nationality,
         photoScale,
         badges: equippedEarnedBadges,
@@ -279,11 +302,14 @@ export default function CardEditPage() {
       }
 
       await updatePlayer(updates);
+      draft.clear();
       setDone(true);
       setTimeout(() => router.push("/my"), 1500);
-    } catch {
-      // error in store
-    }
+    } catch (err) {
+      // 저장 실패를 삼키면 버튼이 "아무 반응 없음"으로 보인다. 스토어가 못 잡는
+      // 클라이언트측 검증 실패(예: 자기수정 금지 필드)도 여기서 화면에 띄운다.
+      setFormError(registrationError(err));
+    } finally { submission.end(); }
   };
 
   if (!initialized || (initialized && !user)) {
@@ -413,6 +439,9 @@ export default function CardEditPage() {
       </div>
 
       <form onSubmit={handleSubmit} className={`${PUBLIC_PAGE_GUTTER_CLASS} py-8`}>
+        {draft.message && <p role="status" className="text-sm md:col-span-2">{draft.message}</p>}
+        <fieldset disabled={submission.submitting || bgProcessing || !draft.ready} className="contents">
+
         <div className={`${PUBLIC_PAGE_CONTENT_CLASS} space-y-6`}>
 
         {/* 카드 미리보기 + 사진 업로드 */}
@@ -685,29 +714,43 @@ export default function CardEditPage() {
           )}
         </div>
 
-        {/* 팀 */}
+        {/* 팀 — 소속은 가입 신청 절차로만 바뀐다. DB 트리거가 직접 수정을 거부하므로
+            여기서 고를 수 있게 두면 저장이 조용히 실패한다(읽기 전용). */}
         <div>
-          <FieldLabel htmlFor="cardedit-team">
-            팀 <span style={{ color: "var(--color-fg-ink-muted)" }}>(선택사항)</span>
-          </FieldLabel>
-          <div className="relative">
-            <select
-              id="cardedit-team"
-              value={teamId}
-              onChange={(e) => handleTeamChange(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl text-sm outline-none appearance-none"
-              style={{ ...inputStyle, paddingRight: "2.5rem" }}
-            >
-              <option value="">팀 선택</option>
-              {Object.values(teams).map((team) => (
-                <option key={team.id} value={team.id}>{team.name}</option>
-              ))}
-            </select>
-            <ChevronDown
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
-              style={{ color: "var(--color-fg-ink-muted)" }}
-            />
+          <FieldLabel htmlFor="cardedit-team">팀</FieldLabel>
+          <div
+            id="cardedit-team"
+            className="w-full px-4 py-3 rounded-2xl text-sm flex items-center justify-between gap-3"
+            style={inputStyle}
+          >
+            <span style={{ color: selectedTeam ? "var(--color-fg-ink)" : "var(--color-fg-ink-muted)" }}>
+              {selectedTeam?.name ?? "무소속"}
+            </span>
+            {selectedTeam ? (
+              <button
+                type="button"
+                onClick={() => void handleLeaveTeam()}
+                disabled={leaving}
+                className="whitespace-nowrap text-xs font-bold disabled:opacity-40"
+                style={{ color: "var(--destructive)" }}
+              >
+                {leaving ? "탈퇴 중…" : "팀 탈퇴"}
+              </button>
+            ) : (
+              <Link
+                href="/teams"
+                className="whitespace-nowrap text-xs font-bold"
+                style={{ color: "var(--primary)" }}
+              >
+                팀 찾아 가입 신청 →
+              </Link>
+            )}
           </div>
+          <p className="mt-2 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>
+            {selectedTeam
+              ? "팀을 옮기려면 먼저 탈퇴한 뒤, 옮길 팀 홈에서 가입 신청하세요. 팀 대표는 대표를 넘긴 뒤에만 탈퇴할 수 있습니다."
+              : "팀 홈에서 가입 신청하면 팀 운영진 승인 후 소속이 반영됩니다."}
+          </p>
         </div>
 
         {/* 국적 */}
@@ -732,20 +775,20 @@ export default function CardEditPage() {
           </div>
         </div>
 
-        {error && (
+        {(formError || error) && (
           <p
             className="text-sm px-1"
             style={{ color: "var(--destructive)" }}
             role="alert"
             aria-live="polite"
           >
-            {error}
+            {formError || error}
           </p>
         )}
 
         <button
           type="submit"
-          disabled={loading || bgProcessing || !position || !name.trim() || !number || earnedBadgeIds === null}
+          disabled={loading || submission.submitting || bgProcessing || !draft.ready || earnedBadgeIds === null}
           className="w-full py-4 rounded-2xl text-sm font-black transition-all hover:opacity-90 disabled:opacity-30"
           style={{
             background: "var(--primary)",
@@ -756,7 +799,7 @@ export default function CardEditPage() {
             boxShadow: "var(--shadow-sm)",
           }}
         >
-          {loading ? "저장 중..." : "수정 저장하기"}
+          {loading || submission.submitting ? "저장 중..." : "수정 저장하기"}
         </button>
 
         <p className="text-center text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>
@@ -773,6 +816,7 @@ export default function CardEditPage() {
         </div>
 
         </div>
+      </fieldset>
       </form>
     </div>
   );

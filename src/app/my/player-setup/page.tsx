@@ -4,6 +4,9 @@ import { Suspense, useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle, ChevronDown, Camera, X, Loader2 } from "lucide-react";
 import { needsKoreanNameCheck } from "@/lib/registration-profile";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { useSubmission } from "@/hooks/useSubmission";
+import { photoDraftToBlob, readPhotoFile, registrationError } from "@/lib/registration/reliability";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
 import { COUNTRIES } from "@/constants/countries";
@@ -13,7 +16,7 @@ import { compressImageBlob, removeBackgroundAndCompress } from "@/lib/image-comp
 import { composeTeamlessPoseCardPhoto } from "@/lib/player-card-photo-composer";
 import { PLAYER_CARD_FRAME } from "@/lib/player-card-frame";
 import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
-import { shouldContinueGroundChallengeSetup } from "@/lib/player-onboarding";
+import { hasCompletedPlayerCardSetup } from "@/lib/player-onboarding";
 import {
   clearPendingCardSkin,
   getCardSkinFromSearchParams,
@@ -98,8 +101,8 @@ function PlayerSetupContent() {
     getCardSkinFromSearchParams(searchParams) ?? readPendingCardSkin() ?? "standard",
   );
   const isGroundChallengeCard = cardSkin === GROUND_CHALLENGE_PLAYER_CARD_SKIN;
-  const canContinueGroundChallengeSetup =
-    isGroundChallengeCard && shouldContinueGroundChallengeSetup(player);
+  const canContinuePlayerSetup =
+    !hasCompletedPlayerCardSetup(player);
 
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
@@ -115,7 +118,10 @@ function PlayerSetupContent() {
   const [cardPhotoPreview, setCardPhotoPreview] = useState<string | null>(null); // 카드: 배경제거
   const [bgProcessing, setBgProcessing] = useState(false);
   const [photoScale, setPhotoScale] = useState(DEFAULT_CARD_PHOTO_SCALE);
+  const [formError, setFormError] = useState("");
   const [done, setDone] = useState(false);
+  const submission = useSubmission();
+  const [photoDraft, setPhotoDraft] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 카드 위 드래그로 사진 크기 조절
@@ -136,13 +142,13 @@ function PlayerSetupContent() {
       router.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`);
       return;
     }
-    if (player && !canContinueGroundChallengeSetup) {
+    if (player && !canContinuePlayerSetup && !submission.submitting && !formError && !done) {
       router.replace("/my/card-edit");
     }
-  }, [initialized, user, player, router, playerSetupSearch, canContinueGroundChallengeSetup]);
+  }, [initialized, user, player, router, playerSetupSearch, canContinuePlayerSetup, submission.submitting, formError, done]);
 
   useEffect(() => {
-    if (!player || !canContinueGroundChallengeSetup) return;
+    if (!player || !canContinuePlayerSetup) return;
     if (seededPlayerRef.current === player.id) return;
     seededPlayerRef.current = player.id;
     const nextRole =
@@ -156,7 +162,17 @@ function PlayerSetupContent() {
     setTeamId((current) => current || player.teamId || "");
     setNationality((current) => current || player.nationality || "KOR");
     setPhotoScale(player.photoScale || DEFAULT_CARD_PHOTO_SCALE);
-  }, [player, canContinueGroundChallengeSetup, presetRole]);
+  }, [player, canContinuePlayerSetup, presetRole]);
+
+  const draft = useFormDraft(user && !done ? `player-setup:${user.uid}` : null,
+    { name, number, position, nationality, photoScale, photoDraft, role, teamId, portraitConsent }, (d) => {
+      setName(d.name); setNumber(d.number); setPosition(d.position); setNationality(d.nationality);
+      setPhotoScale(d.photoScale); setPhotoDraft(d.photoDraft);
+      if (d.photoDraft) {
+        setPhotoBlob(photoDraftToBlob(d.photoDraft)); setPhotoPreview(d.photoDraft); setCardPhotoPreview(d.photoDraft);
+      }
+      setRole(d.role); setTeamId(d.teamId); setPortraitConsent(d.portraitConsent);
+    });
 
   // 전역 마우스 이벤트 (드래그 중 커서가 벗어나도 작동)
   useEffect(() => {
@@ -232,9 +248,10 @@ function PlayerSetupContent() {
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    if (photoPreview) URL.revokeObjectURL(photoPreview);
-    if (cardPhotoPreview) URL.revokeObjectURL(cardPhotoPreview);
+    if (!file || bgProcessing) return;
+    setBgProcessing(true);
+    setFormError("");
+    try {
 
     const compressed = await compressImageBlob(file, {
       maxPx: 1400,
@@ -270,10 +287,14 @@ function PlayerSetupContent() {
     } finally {
       setBgProcessing(false);
     }
+    } catch (e) {
+      setFormError(registrationError(e, "사진을 처리하지 못했습니다. 다른 이미지로 다시 선택해주세요."));
+    } finally { setBgProcessing(false); }
   };
 
   const handleRemovePhoto = () => {
     setPhotoBlob(null);
+    setPhotoDraft("");
     setSourcePhotoBlob(null);
     setCutoutPhotoBlob(null);
     if (photoPreview) URL.revokeObjectURL(photoPreview);
@@ -293,11 +314,23 @@ function PlayerSetupContent() {
     void reprocessUploadedPhoto(teamId, nextRole);
   };
 
+  useEffect(() => {
+    if (!photoBlob) return;
+    let cancelled = false;
+    void readPhotoFile(photoBlob).then((value) => { if (!cancelled) setPhotoDraft(value); })
+      .catch((e) => { if (!cancelled) setFormError(registrationError(e)); });
+    return () => { cancelled = true; };
+  }, [photoBlob]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
-    if (!position) return;
-    if (!portraitConsent) return;
+    setFormError("");
+    if (!name.trim() || !position || !/^[1-9]\d?$/.test(number)) {
+      setFormError("이름, 포지션, 등번호(1~99)를 확인해주세요."); return;
+    }
+    if (!portraitConsent) { setFormError("촬영물 활용 동의 항목을 확인해주세요."); return; }
+    if (bgProcessing || !draft.ready || !submission.begin()) return;
     try {
       let photoUrl = "";
       if (photoBlob) {
@@ -322,17 +355,26 @@ function PlayerSetupContent() {
         cardSkin,
         portraitConsentAt: Date.now(),
       });
+      // Membership is a separate, recoverable request; profile writes never move a player.
+      if (teamId && teamId !== player?.teamId) {
+        try { await useDataStore.getState().requestJoinTeam(teamId); }
+        catch (e) {
+          setFormError(`선수 정보는 저장되었습니다. 팀 가입 신청은 완료하지 못했습니다. ${registrationError(e)}`);
+          return;
+        }
+      }
       clearPendingCardSkin();
+      draft.clear();
       setDone(true);
       // 가입 완료 후 마이페이지로 — 거기서 본인 카드/팀 상태를 확인할 수 있다.
       // (이전엔 /players 전체 목록으로 가서 본인 카드가 어디 있는지 모호했음)
-      setTimeout(() => router.push("/my"), 1800);
-    } catch {
-      // error in store
-    }
+      setTimeout(() => router.push(role === "captain" && !teamId ? "/my/team" : "/my"), 1800);
+    } catch (e) {
+      setFormError(registrationError(e));
+    } finally { submission.end(); }
   };
 
-  if (!initialized || !user || (player && !canContinueGroundChallengeSetup)) {
+  if (!initialized || !user || (player && !canContinuePlayerSetup && !submission.submitting && !formError && !done)) {
     return (
       <div className="flex min-h-screen items-center justify-center" style={{ background: "var(--color-fg-paper)" }}>
         <div
@@ -457,6 +499,9 @@ function PlayerSetupContent() {
       </div>
 
       <form onSubmit={handleSubmit} className="mx-auto max-w-lg space-y-6 px-5 py-8 sm:px-8 md:grid md:max-w-5xl md:grid-cols-[minmax(0,460px)_320px] md:items-start md:gap-12 md:space-y-0 md:px-10">
+        {draft.message && <p role="status" className="text-sm md:col-span-2">{draft.message}</p>}
+        <fieldset disabled={submission.submitting || bgProcessing || !draft.ready} className="contents">
+
 
         {/* 모바일은 세로 스택, 데스크톱은 오른쪽 미리보기 컬럼. */}
         <div className="flex flex-col items-center gap-5 py-2 md:order-2 md:sticky md:top-28">
@@ -761,6 +806,7 @@ function PlayerSetupContent() {
             <div className="relative">
               <select
                 id="setup-team"
+                disabled={Boolean(player?.teamId)}
                 value={teamId}
                 onChange={(e) => handleTeamChange(e.target.value)}
                 className="w-full px-4 py-3 rounded-2xl text-sm outline-none appearance-none"
@@ -824,20 +870,20 @@ function PlayerSetupContent() {
             </span>
           </label>
 
-          {error && (
+          {(formError || error) && (
             <p
               className="text-sm px-1"
               style={{ color: "var(--destructive)" }}
               role="alert"
               aria-live="polite"
             >
-              {error}
+              {formError || error}
             </p>
           )}
 
           <button
             type="submit"
-            disabled={loading || bgProcessing || !position || !name.trim() || !number}
+            disabled={loading || submission.submitting || bgProcessing || !draft.ready}
             className="w-full py-4 rounded-2xl text-sm font-black transition-all hover:opacity-90 disabled:opacity-30"
             style={{
               background: "var(--primary)",
@@ -848,7 +894,7 @@ function PlayerSetupContent() {
               boxShadow: "var(--shadow-sm)",
             }}
           >
-            {loading ? "생성 중..." : "선수 카드 생성하기"}
+            {loading || submission.submitting ? "저장 중..." : "선수 카드 생성하기"}
           </button>
 
           <p className="text-center text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>
@@ -864,6 +910,7 @@ function PlayerSetupContent() {
           </p>
         </div>
 
+      </fieldset>
       </form>
     </div>
   );

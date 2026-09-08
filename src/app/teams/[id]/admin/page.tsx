@@ -10,6 +10,7 @@ import {
   UserCheck,
   XCircle,
 } from "lucide-react";
+import { registrationError } from "@/lib/registration/reliability";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
 import { setPlayerApproval } from "@/lib/admin-actions";
@@ -223,16 +224,22 @@ export default function TeamAdminPage() {
   const [busyPlayerId, setBusyPlayerId] = useState<string | null>(null);
   const [busyRequestId, setBusyRequestId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   const refresh = async () => {
+    setLoadError("");
+    try {
     const [resolvedTeam, resolvedPlayers, resolvedRequests] = await Promise.all([
-      store.fetchTeam(id),
+      store.fetchTeam(id, true),
       store.fetchTeamAdminMembers(id),
       store.fetchTeamJoinRequests(id, "pending"),
     ]);
     setTeam(resolvedTeam ?? null);
     setPlayers(resolvedPlayers);
     setJoinRequests(resolvedRequests);
+    } catch (error) {
+      setLoadError(registrationError(error, "팀 운영 정보를 불러오지 못했습니다."));
+    }
   };
 
   useEffect(() => {
@@ -287,7 +294,10 @@ export default function TeamAdminPage() {
   if (!team) {
     return (
       <main className="flex min-h-screen items-center justify-center pt-[92px]" style={{ background: "var(--color-fg-paper)", color: "var(--color-fg-ink-muted)" }}>
-        팀을 찾을 수 없습니다
+        <div className="space-y-3 px-4 text-center">
+          <p role="alert">{loadError || "팀을 찾을 수 없습니다"}</p>
+          {loadError && <button type="button" onClick={() => void refresh()} className="underline">다시 확인</button>}
+        </div>
       </main>
     );
   }
@@ -345,6 +355,10 @@ export default function TeamAdminPage() {
             </div>
           </section>
         )}
+
+        {loadError && <p role="alert" className="text-sm">{loadError}
+          <button type="button" className="ml-3 underline" onClick={() => void refresh()}>다시 확인</button>
+        </p>}
 
         {message && (
           <div className="mb-6 rounded-2xl border px-4 py-3 text-sm font-bold" style={{ borderColor: "rgba(0,71,171,0.14)", background: "rgba(255,255,255,0.88)", color: "var(--primary)" }}>

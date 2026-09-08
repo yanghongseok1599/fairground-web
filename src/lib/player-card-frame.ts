@@ -6,6 +6,12 @@
  */
 export const PLAYER_CARD_FRAME_ID = "fairground-player-card-v1";
 
+/**
+ * 화면 표시, 미리보기, 저장 PNG가 함께 사용하는 완성형 카드 프리셋.
+ * 새 카드 사용처는 개별 좌표를 만들지 않고 PlayerCard 컴포넌트와 이 ID를 공유한다.
+ */
+export const PLAYER_CARD_PRESET_ID = "fairground-player-card-complete-v1";
+
 export type PlayerCardSize = "sm" | "md" | "lg" | "xl" | "export";
 
 const PLAYER_CARD_POS = Object.freeze({

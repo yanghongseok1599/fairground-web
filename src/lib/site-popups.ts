@@ -1,5 +1,17 @@
 import { isDemoMode, supabase } from "@/config/supabase";
 import type { Database } from "@/lib/database.types";
+import {
+  MIXED_FUTSAL_APPLY_PATH,
+  MIXED_FUTSAL_ENTRY_FEE_EARLY_LABEL,
+  MIXED_FUTSAL_ENTRY_FEE_REGULAR_LABEL,
+  MIXED_FUTSAL_EVENT_DATE_FULL_LABEL,
+  MIXED_FUTSAL_EVENT_LOCATION_LABEL,
+  MIXED_FUTSAL_EVENT_NAME,
+  MIXED_FUTSAL_EVENT_PATH,
+  MIXED_FUTSAL_GENDER_RULE_LABEL,
+  MIXED_FUTSAL_GUARANTEE_LABEL,
+} from "@/lib/mixed-futsal-event";
+import { MIXED_FUTSAL_COVER_IMAGE_PATH } from "@/lib/mixed-futsal-assets";
 
 export {
   joinPopupTitleLines,
@@ -161,6 +173,38 @@ function isWithinWindow(popup: SitePopup, now = Date.now()): boolean {
   return true;
 }
 
+const BUILT_IN_MIXED_FUTSAL_POPUP: SitePopup = {
+  id: "built-in-mixed-futsal-2026",
+  placement: "home",
+  name: MIXED_FUTSAL_EVENT_NAME,
+  isActive: true,
+  priority: 300,
+  dismissVersion: 1,
+  displayDelayMs: 650,
+  eyebrow: "MIXED FUTSAL 2026",
+  title: "제1회 페어그라운드|혼성 풋살 대회",
+  body: "남녀가 한 팀으로 함께 뛰고, 참가한 모든 팀이 끝까지 경기를 즐기는 풋살 페스티벌입니다.",
+  detailOne: MIXED_FUTSAL_EVENT_LOCATION_LABEL,
+  detailTwo: MIXED_FUTSAL_EVENT_DATE_FULL_LABEL,
+  detailThree: `${MIXED_FUTSAL_ENTRY_FEE_EARLY_LABEL} · ${MIXED_FUTSAL_ENTRY_FEE_REGULAR_LABEL}`,
+  detailFour: `${MIXED_FUTSAL_GENDER_RULE_LABEL} · ${MIXED_FUTSAL_GUARANTEE_LABEL}`,
+  imageUrl: MIXED_FUTSAL_COVER_IMAGE_PATH,
+  ctaLabel: "참가 신청하기",
+  ctaHref: MIXED_FUTSAL_APPLY_PATH,
+  secondaryLabel: "대회 안내 보기",
+  secondaryHref: MIXED_FUTSAL_EVENT_PATH,
+  startsAt: null,
+  endsAt: "2026-10-03T14:59:59+00:00",
+  createdAt: "2026-08-28T00:00:00+00:00",
+  updatedAt: "2026-08-28T00:00:00+00:00",
+  updatedBy: null,
+};
+
+function getBuiltInPopup(placement: SitePopupPlacement): SitePopup | null {
+  if (placement !== "home" || !isWithinWindow(BUILT_IN_MIXED_FUTSAL_POPUP)) return null;
+  return BUILT_IN_MIXED_FUTSAL_POPUP;
+}
+
 export function getEmptyPopupDraft(): SitePopupDraft {
   return {
     id: undefined,
@@ -216,7 +260,8 @@ export function popupToDraft(popup: SitePopup): SitePopupDraft {
 export async function fetchActiveSitePopup(
   placement: SitePopupPlacement = "home",
 ): Promise<SitePopup | null> {
-  if (isDemoMode) return null;
+  const builtInPopup = getBuiltInPopup(placement);
+  if (isDemoMode) return builtInPopup;
 
   const { data, error } = await supabase
     .from("site_popups")
@@ -229,12 +274,21 @@ export async function fetchActiveSitePopup(
 
   if (error) {
     console.error("[site-popups] fetchActiveSitePopup:", error.message);
-    return null;
+    return builtInPopup;
   }
 
-  return (data ?? [])
+  const candidates = (data ?? [])
     .map(rowToSitePopup)
-    .find((popup) => isWithinWindow(popup)) ?? null;
+    .filter((popup) => isWithinWindow(popup));
+
+  if (builtInPopup && !candidates.some((popup) => popup.name === builtInPopup.name)) {
+    candidates.push(builtInPopup);
+  }
+
+  return candidates.sort((a, b) => {
+    if (a.priority !== b.priority) return b.priority - a.priority;
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+  })[0] ?? null;
 }
 
 export async function fetchAdminSitePopups(): Promise<SitePopup[]> {

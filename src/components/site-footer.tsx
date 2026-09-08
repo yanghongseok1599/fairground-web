@@ -1,6 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import {
+  SITE_CONTACT_EMAIL,
+  SITE_CONTACT_MAILTO,
+  SPONSOR_PROPOSAL_PATH,
+} from "@/lib/site-config";
 
 const FOOTER_LINKS = [
   { href: "/live", label: "라이브" },
@@ -10,6 +15,7 @@ const FOOTER_LINKS = [
   { href: "/teams", label: "팀" },
   { href: "/notices", label: "공지사항" },
   { href: "/board", label: "자유게시판" },
+  { href: SPONSOR_PROPOSAL_PATH, label: "협찬 제안서" },
 ];
 
 export function SiteFooter() {
@@ -96,6 +102,21 @@ export function SiteFooter() {
               >
                 모두가 승리하는 그라운드. 실시간 스코어·개인 스탯·선수 카드로 모든 경기가 기록됩니다.
               </p>
+              <address className="mt-6 not-italic">
+                <a
+                  href={SITE_CONTACT_MAILTO}
+                  aria-label={`FairGround 공식 문의 메일 ${SITE_CONTACT_EMAIL}`}
+                  className="group inline-flex flex-col gap-1"
+                  style={{ color: "var(--color-fg-ink-muted)" }}
+                >
+                  <span className="fg-label text-[10px] tracking-[0.12em]">
+                    OFFICIAL CONTACT
+                  </span>
+                  <span className="text-[13px] underline decoration-transparent underline-offset-4 transition-colors group-hover:text-[color:var(--primary)] group-hover:decoration-current">
+                    {SITE_CONTACT_EMAIL}
+                  </span>
+                </a>
+              </address>
             </div>
 
             {/* Nav */}

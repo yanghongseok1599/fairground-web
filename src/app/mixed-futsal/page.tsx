@@ -22,6 +22,7 @@ import {
   Users,
 } from "lucide-react";
 import { MixedFutsalEligibilityTable } from "@/components/mixed-futsal-eligibility-table";
+import { MixedFutsalCardNews } from "@/components/mixed-futsal-card-news";
 import {
   MIXED_FUTSAL_APPLY_PATH,
   MIXED_FUTSAL_ELIGIBILITY_LABEL,
@@ -303,6 +304,8 @@ export default function MixedFutsalPage() {
 
           </div>
         </section>
+
+        <MixedFutsalCardNews />
 
         <section className="border-b border-[#D0D8E8] bg-white px-5 py-10 sm:px-8 sm:py-12 md:px-10">
           <div className="mx-auto grid max-w-[1320px] gap-6 md:grid-cols-[0.88fr_1.12fr] md:items-end">

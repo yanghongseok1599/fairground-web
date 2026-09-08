@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
-import { SITE_NAME, SITE_URL } from "@/lib/site-config";
+import {
+  SITE_CONTACT_EMAIL,
+  SITE_NAME,
+  SITE_URL,
+} from "@/lib/site-config";
 
 // Versioned filename avoids stale previews in Kakao/OG debugger caches.
 export const DEFAULT_OG_IMAGE = "/og-image-futsal-shoes-v2.png";
@@ -137,12 +141,19 @@ export function organizationJsonLd(): JsonLd {
     name: SITE_NAME,
     alternateName: ["페어그라운드", "FairGround Futsal"],
     url: SITE_URL,
+    email: SITE_CONTACT_EMAIL,
     logo: absoluteUrl("/favicon-192.png?v=2"),
     description:
       "풋살대회, 팀 운영, 실시간 경기 기록, 선수카드를 연결하는 아마추어 스포츠 플랫폼",
     areaServed: {
       "@type": "Country",
       name: "대한민국",
+    },
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "customer support",
+      email: SITE_CONTACT_EMAIL,
+      availableLanguage: ["Korean", "English"],
     },
     knowsAbout: [
       "풋살대회",

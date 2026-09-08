@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { PlayerCard } from "@/components/player-card";
-import type { PlayerCardSize } from "@/lib/player-card-frame";
+import { PLAYER_CARD_PRESET_ID, type PlayerCardSize } from "@/lib/player-card-frame";
 import type { Player } from "@/types";
 
 type CardSize = Extract<PlayerCardSize, "lg" | "xl" | "export">;
@@ -53,6 +53,7 @@ export function PlayerCardCaptureFrame({
   return (
     <div
       ref={frameRef}
+      data-player-card-export-preset={PLAYER_CARD_PRESET_ID}
       className={`relative overflow-hidden rounded-2xl ${className}`}
       style={{
         width: displayWidth ?? boxSize,

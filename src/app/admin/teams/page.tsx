@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Users, XCircle, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
+import { CheckCircle2, Users, XCircle, ArrowUpCircle, ArrowDownCircle, Trash2 } from "lucide-react";
 import { AdminGuard } from "@/components/admin-guard";
 import { AdminPanel, AdminShell, AdminStatusPill } from "@/components/admin-shell";
 import { ClubEmblem } from "@/components/club-emblem";
 import { useDataStore } from "@/stores/dataStore";
 import type { Team } from "@/types";
-import { setTeamApproval } from "@/lib/admin-actions";
+import { deleteTeam, setTeamApproval } from "@/lib/admin-actions";
 import { LEAGUE_TIER_LABEL, nextLeagueTier } from "@/lib/team-home";
 import type { LeagueTier } from "@/types";
 
@@ -118,6 +118,22 @@ function AdminTeams() {
     }
   };
 
+  // 팀 삭제 — 잘못 만든 팀 정리. 경기 기록이 있는 팀은 deleteTeam 이 거부한다(그 경우는 승인 취소).
+  const removeTeam = async (team: Team) => {
+    if (!confirm(
+      `"${team.name}" 팀을 삭제합니다.\n\n· 소속 멤버는 모두 무소속으로 바뀝니다\n· 팀 게시글·공지·갤러리·회비 기록도 함께 삭제됩니다\n· 되돌릴 수 없습니다\n\n계속할까요?`
+    )) return;
+    setSavingId(team.id);
+    try {
+      await deleteTeam(team.id);
+      setTeams((prev) => prev.filter((it) => it.id !== team.id));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "삭제 실패");
+    } finally {
+      setSavingId("");
+    }
+  };
+
   return (
     <AdminShell
       eyebrow="TEAM REVIEW"
@@ -161,6 +177,7 @@ function AdminTeams() {
                     {team.leagueTier !== "bronze" && (
                       <button onClick={() => void relegate(team)} disabled={savingId === team.id} className="inline-flex items-center gap-1.5 border px-3 py-2 text-xs font-bold" style={{ borderColor: "rgba(255,59,48,0.20)", background: "rgba(255,59,48,0.08)", color: "var(--destructive)" }} title="시즌 하위 2팀 강등 — 한 단계 아래"><ArrowDownCircle className="h-4 w-4" /> 강등</button>
                     )}
+                    <button onClick={() => void removeTeam(team)} disabled={savingId === team.id} className="inline-flex items-center gap-1.5 border px-3 py-2 text-xs font-bold" style={{ borderColor: "rgba(255,59,48,0.35)", background: "var(--destructive)", color: "#fff" }} title="팀 삭제 — 경기 기록이 있는 팀은 삭제할 수 없습니다"><Trash2 className="h-4 w-4" /> 삭제</button>
                   </div>
                 </div>
               </div>

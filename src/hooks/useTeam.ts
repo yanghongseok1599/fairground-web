@@ -10,26 +10,26 @@ export function useTeam(teamId?: string) {
   const fetchTeam = useDataStore((s) => s.fetchTeam);
   const cached = useDataStore((s) => (teamId ? s.teams[teamId] : undefined));
 
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
+    let cancelled = false;
     if (!teamId) {
-      queueMicrotask(() => setLoading(false));
-      return;
+      queueMicrotask(() => { if (!cancelled) { setTeam(null); setLoading(false); setError(""); } });
+      return () => { cancelled = true; };
     }
+    queueMicrotask(() => { if (!cancelled) { setError(""); setLoading(!cached); } });
     if (cached) {
-      queueMicrotask(() => {
-        setTeam(cached);
-        setLoading(false);
-      });
-      return;
+      queueMicrotask(() => { if (!cancelled) { setTeam(cached); setLoading(false); } });
+    } else {
+      fetchTeam(teamId, true).then((t) => { if (!cancelled) setTeam(t); })
+        .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : "팀을 불러오지 못했습니다."); })
+        .finally(() => { if (!cancelled) setLoading(false); });
     }
-    queueMicrotask(() => setLoading(true));
-    fetchTeam(teamId).then((t) => {
-      setTeam(t);
-      setLoading(false);
-    });
-  }, [teamId, cached, fetchTeam]);
+    return () => { cancelled = true; };
+  }, [teamId, cached, fetchTeam, retry]);
 
-  return { team, loading };
+  return { team: team?.id === teamId ? team : null, loading, error, retry: () => setRetry((v) => v + 1) };
 }
 
 export function useTeams() {

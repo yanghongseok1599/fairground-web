@@ -1,0 +1,40 @@
+# FairGround — 코드/DB 스키마 정합성 게이트
+#
+# 코드가 참조하는 Supabase 객체가 대상 DB에 실제로 있는지 확인한다.
+# SUPABASE_DB_URL 시크릿이 없으면 CI=true 이므로 검사는 실패한다(fail closed).
+# 근거와 절차: docs/supabase-deploy-gate.md
+name: db-parity
+
+on:
+  push:
+    branches:
+      - main
+      - feat/supabase-migration
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: 스키마 정합성 검사
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: node scripts/supabase/check-schema-parity.mjs
+
+      - name: Supabase 환경 분리 검사
+        run: npm run test:supabase-safety
+
+      - name: 스캐너 단위 테스트
+        run: npm run test:schema-parity

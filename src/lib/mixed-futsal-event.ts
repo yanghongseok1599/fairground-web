@@ -71,13 +71,16 @@ export const MIXED_FUTSAL_SAFETY_LABEL = "강슛·슬라이딩 금지";
 export const MIXED_FUTSAL_SAFETY_NOTE =
   "혼성 경기에서 모두가 안전하게 뛸 수 있도록 강슛과 슬라이딩을 금지합니다.";
 
-export const MIXED_FUTSAL_ENTRY_FEE_LABEL = "얼리버드 40만원 · 일반 45만원";
-export const MIXED_FUTSAL_ENTRY_FEE_EARLY_LABEL = "얼리버드 (~9월 7일) 40만원";
+export const MIXED_FUTSAL_EARLY_BIRD_DEADLINE_LABEL = "9월 7일까지";
+export const MIXED_FUTSAL_ENTRY_FEE_LABEL =
+  `얼리버드 ${MIXED_FUTSAL_EARLY_BIRD_DEADLINE_LABEL} 40만원 · 일반 45만원`;
+export const MIXED_FUTSAL_ENTRY_FEE_EARLY_LABEL =
+  `얼리버드 (${MIXED_FUTSAL_EARLY_BIRD_DEADLINE_LABEL}) 40만원`;
 export const MIXED_FUTSAL_ENTRY_FEE_REGULAR_LABEL = "일반 (9월 8일~) 45만원";
 export const MIXED_FUTSAL_ENTRY_FEE_EARLY_AMOUNT = "400000";
 export const MIXED_FUTSAL_ENTRY_FEE_REGULAR_AMOUNT = "450000";
 export const MIXED_FUTSAL_ENTRY_FEE_NOTE =
-  "참가비는 9월 7일까지 신청하면 얼리버드 40만원, 9월 8일부터는 일반 45만원입니다. 납부 방법과 기한은 참가 신청 접수 후 운영진이 별도로 안내합니다.";
+  `참가비는 ${MIXED_FUTSAL_EARLY_BIRD_DEADLINE_LABEL} 신청하면 얼리버드 40만원, 9월 8일부터는 일반 45만원입니다. 납부 방법과 기한은 참가 신청 접수 후 운영진이 별도로 안내합니다.`;
 
 export const MIXED_FUTSAL_PHOTO_WIDTH = 1200;
 export const MIXED_FUTSAL_PHOTO_HEIGHT = 1500;

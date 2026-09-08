@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import {
   PLAYER_CARD_FRAME,
   PLAYER_CARD_FRAME_ID,
+  PLAYER_CARD_PRESET_ID,
   PLAYER_CARD_WIDTH_PX,
   getPlayerCardFrameDimensions,
   type PlayerCardSize,
 } from "../src/lib/player-card-frame.ts";
 
 assert.equal(PLAYER_CARD_FRAME_ID, "fairground-player-card-v1");
+assert.equal(PLAYER_CARD_PRESET_ID, "fairground-player-card-complete-v1");
 assert.equal(Object.isFrozen(PLAYER_CARD_FRAME), true);
 assert.equal(Object.isFrozen(PLAYER_CARD_FRAME.pos), true);
 assert.equal(Object.isFrozen(PLAYER_CARD_FRAME.pos.photo), true);

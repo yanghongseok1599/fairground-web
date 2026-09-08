@@ -1650,6 +1650,10 @@ export type Database = {
       }
     }
     Functions: {
+      register_team: {
+        Args: { p_request_id: string; p_name: string; p_logo?: string; p_founded_year?: number | null; p_team_type?: string; p_portrait_consent_at?: string | null };
+        Returns: Database["public"]["Tables"]["teams"]["Row"];
+      };
       add_match_event: {
         Args: {
           p_half?: number
@@ -1735,6 +1739,7 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_referee_or_admin: { Args: never; Returns: boolean }
+      leave_team: { Args: never; Returns: undefined }
       notify_next_match_ready: { Args: { p_match_id: string }; Returns: number }
       pause_match: { Args: { p_match_id: string }; Returns: undefined }
       resume_match: { Args: { p_match_id: string }; Returns: undefined }

@@ -21,3 +21,6 @@ function normalizeSiteUrl(value?: string): string {
 export const SITE_URL = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL);
 
 export const SITE_NAME = "FairGround";
+export const SITE_CONTACT_EMAIL = "info@fairground-kor.com";
+export const SITE_CONTACT_MAILTO = `mailto:${SITE_CONTACT_EMAIL}`;
+export const SPONSOR_PROPOSAL_PATH = "/proposal/partner";

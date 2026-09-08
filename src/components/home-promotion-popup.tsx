@@ -10,6 +10,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { fetchActiveSitePopup, type SitePopup } from "@/lib/site-popups";
+import {
+  isMixedFutsalPromotion,
+  MIXED_FUTSAL_COVER_IMAGE_PATH,
+} from "@/lib/mixed-futsal-assets";
 
 /* 팝업 표면은 거의 검정(#05070a). 브랜드키트에 레드가 없으므로 강조는 전부
  * 블루 계열로 처리한다. 다크 위 대비(WCAG AA) 기준 실측값:
@@ -152,7 +156,9 @@ export function HomePromotionPopup() {
   const primaryLabel = popup.ctaLabel;
   const secondaryHref = popup.secondaryHref;
   const secondaryLabel = popup.secondaryLabel;
-  const visualImageUrl = popup.imageUrl;
+  const visualImageUrl = isMixedFutsalPromotion(popup)
+    ? MIXED_FUTSAL_COVER_IMAGE_PATH
+    : popup.imageUrl;
 
   return (
     <Dialog

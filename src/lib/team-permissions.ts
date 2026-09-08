@@ -42,6 +42,11 @@ export function canManageTeam(player: MaybePlayer, team: MaybeTeam): boolean {
   return player.teamId === team.id && hasTeamOperationsPermission(player);
 }
 
+/** Pending owners may correct registration details; operations stay approval-gated. */
+export function canEditTeamDetails(player: MaybePlayer, team: MaybeTeam): boolean {
+  return Boolean(player && team && (player.role === "admin" || team.captainId === player.id));
+}
+
 /**
  * Stricter gate for member-management UI (assigning team_role to other players).
  * 감독 and 매니저 can manage roles for their own team; captainId remains a

@@ -22,6 +22,9 @@ import {
 } from "lucide-react";
 import { MixedFutsalEligibilityTable } from "@/components/mixed-futsal-eligibility-table";
 import { PushEnableCard } from "@/components/push-enable-card";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { useSubmission } from "@/hooks/useSubmission";
+import { registrationError } from "@/lib/registration/reliability";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
 import {
@@ -78,14 +81,14 @@ export function MixedFutsalApplyClient() {
   const router = useRouter();
   const { user, player, initialized, updatePlayer } = useAuth();
   const createTeam = useDataStore((state) => state.createTeam);
-  const claimTeamCoach = useDataStore((state) => state.claimTeamCoach);
 
   const [teamName, setTeamName] = useState("");
   const [captainName, setCaptainName] = useState("");
   const [captainPhone, setCaptainPhone] = useState("");
   const [mixConfirmed, setMixConfirmed] = useState(false);
   const [portraitConsent, setPortraitConsent] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const submission = useSubmission();
+  const { submitting } = submission;
   const [error, setError] = useState("");
   const [createdTeamId, setCreatedTeamId] = useState("");
 
@@ -94,6 +97,12 @@ export function MixedFutsalApplyClient() {
     setCaptainName((current) => current || player.name || "");
     setCaptainPhone((current) => current || player.phone || "");
   }, [player]);
+
+  const draft = useFormDraft(user && !createdTeamId ? `mixed-team:${user.uid}` : null,
+    { teamName, captainName, captainPhone, mixConfirmed, portraitConsent }, (d) => {
+      setTeamName(d.teamName); setCaptainName(d.captainName); setCaptainPhone(d.captainPhone);
+      setMixConfirmed(d.mixConfirmed); setPortraitConsent(d.portraitConsent);
+    });
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -128,8 +137,11 @@ export function MixedFutsalApplyClient() {
       return;
     }
 
-    setSubmitting(true);
+    if (!draft.ready || !submission.begin()) return;
     try {
+      // Save contact corrections first. Team creation below commits membership
+      // atomically, so no fallible follow-up can mislabel a created team as failed.
+      await updatePlayer({ name: trimmedCaptainName, phone: trimmedCaptainPhone });
       const createdId = await createTeam({
         name: trimmedTeamName,
         logo: "",
@@ -152,28 +164,13 @@ export function MixedFutsalApplyClient() {
         portraitConsentAt: Date.now(),
       });
 
-      await claimTeamCoach(createdId);
-      // 팀 소개에 신청 내용을 덤프하지 않으므로, 대표 연락처는 대표자
-      // 프로필에 남겨 운영진이 승인 검수 때 연락할 수 있게 한다.
-      await updatePlayer({
-        teamId: createdId,
-        teamRole: "coach",
-        ...(trimmedCaptainPhone && trimmedCaptainPhone !== player.phone
-          ? { phone: trimmedCaptainPhone }
-          : {}),
-      });
-      localStorage.setItem("fg_registered_team_id", createdId);
+      draft.clear();
       setCreatedTeamId(createdId);
+      try { localStorage.setItem(`fg_registered_team_id:${user.uid}`, createdId); } catch { /* DB saved. */ }
     } catch (err) {
-      console.error("[MixedFutsalApply] submit failed:", err);
-      const messageText = err instanceof Error ? err.message : "";
-      setError(
-        messageText.includes("row-level security")
-          ? "팀 등록 권한 설정이 필요합니다. 관리자에게 문의해주세요."
-          : "참가 신청 제출에 실패했습니다. 잠시 후 다시 시도해주세요.",
-      );
+      setError(registrationError(err, "참가 신청을 완료하지 못했습니다. 입력은 유지됩니다."));
     } finally {
-      setSubmitting(false);
+      submission.end();
     }
   };
 
@@ -394,6 +391,9 @@ export function MixedFutsalApplyClient() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="p-6 sm:p-8">
+                {draft.message && <p role="status" className="text-sm">{draft.message}</p>}
+                <fieldset disabled={submitting || !draft.ready} className="contents">
+
                 <p className="fg-label text-[11px] text-[#0047AB]">TEAM APPLICATION</p>
                 <h2 className="mt-2 text-[24px] font-black leading-tight">참가팀 정보 입력</h2>
                 <div className="mt-6 grid gap-5">
@@ -522,6 +522,7 @@ export function MixedFutsalApplyClient() {
                   제출하면 팀이 승인 대기 상태로 등록됩니다. 참가비 납부 방법과
                   기한은 신청 접수 후 운영진이 별도로 안내합니다.
                 </p>
+              </fieldset>
               </form>
             )}
           </section>

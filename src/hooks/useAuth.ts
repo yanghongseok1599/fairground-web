@@ -20,6 +20,7 @@ export function useAuth() {
     updatePassword: store.updatePassword,
     logout: store.logout,
     updatePlayer: store.updatePlayer,
+    leaveTeam: store.leaveTeam,
     uploadPlayerPhoto: store.uploadPlayerPhoto,
     clearError: store.clearError,
   };

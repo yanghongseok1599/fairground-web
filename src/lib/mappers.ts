@@ -212,8 +212,8 @@ export function playerPatchToRow(d: Partial<Player>): ProfileUpdate {
   if (d.role !== undefined) u.role = d.role;
   if (d.phone !== undefined) u.phone = d.phone ?? null;
   if (d.email !== undefined) u.email = d.email ?? null;
-  if (d.gender !== undefined) u.gender = d.gender ?? null;
-  if (d.birthDate !== undefined) u.birth_date = d.birthDate ?? null;
+  if (d.gender !== undefined) u.gender = d.gender || null;
+  if (d.birthDate !== undefined) u.birth_date = d.birthDate?.trim() || null;
   if (d.hasPlayerExperience !== undefined) u.has_player_experience = d.hasPlayerExperience ?? false;
   if (d.mbti !== undefined) u.mbti = d.mbti?.trim() || null;
   if (d.disposition !== undefined) u.disposition = d.disposition?.trim() || null;
@@ -268,7 +268,7 @@ export function rowToTeam(r: TeamRow): Team {
     captainId: r.captain_id ?? undefined,
     foundedYear: r.founded_year ?? undefined,
     memberCount: r.member_count,
-    seasonStats: (r.season_stats as unknown as TeamSeasonStats) ?? EMPTY_TEAM_STATS,
+    seasonStats: { ...EMPTY_TEAM_STATS, ...(r.season_stats as unknown as Partial<TeamSeasonStats>) },
     createdAt: ts(r.created_at),
     description: r.description ?? undefined,
     introSubtitle: r.intro_subtitle ?? undefined,
@@ -308,12 +308,12 @@ export function teamPatchToRow(d: Partial<Team>): TeamUpdate {
   if (d.logo !== undefined) u.logo = d.logo;
   if (d.isApproved !== undefined) u.is_approved = d.isApproved;
   if (d.captainId !== undefined) u.captain_id = d.captainId ?? null;
-  if (d.foundedYear !== undefined) u.founded_year = d.foundedYear ?? null;
+  if (Object.prototype.hasOwnProperty.call(d, "foundedYear")) u.founded_year = d.foundedYear ?? null;
   if (d.memberCount !== undefined) u.member_count = d.memberCount;
   if (d.seasonStats !== undefined) u.season_stats = d.seasonStats as unknown as TeamUpdate["season_stats"];
-  if (d.description !== undefined) u.description = d.description ?? null;
-  if (d.introSubtitle !== undefined) u.intro_subtitle = d.introSubtitle ?? null;
-  if (d.bannerUrl !== undefined) u.banner_url = d.bannerUrl ?? null;
+  if (Object.prototype.hasOwnProperty.call(d, "description")) u.description = d.description ?? null;
+  if (Object.prototype.hasOwnProperty.call(d, "introSubtitle")) u.intro_subtitle = d.introSubtitle ?? null;
+  if (Object.prototype.hasOwnProperty.call(d, "bannerUrl")) u.banner_url = d.bannerUrl ?? null;
   if (d.teamType !== undefined) u.team_type = d.teamType;
   if (d.portraitConsentAt !== undefined)
     u.portrait_consent_at = d.portraitConsentAt

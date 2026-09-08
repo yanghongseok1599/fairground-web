@@ -15,6 +15,32 @@
 - 실제 운영 회원 데이터를 개발 환경에 복사하지 않는다. 개발 데이터는 익명화된 `supabase/seed.sql`로 관리한다.
 - DB 스키마 변경은 SQL 마이그레이션으로만 남기고, 개발 환경 검증과 운영 백업을 거친 뒤 운영에 적용한다.
 
+## 대상 프로젝트 고정 (타 서비스와의 분리)
+
+Supabase MCP 커넥터는 **계정 단위**라 이 리포 전용이 아니다. 같은 조직의 다른
+서비스가 같은 커넥터를 공유하며, 커넥터 하나로 아래 프로젝트에 전부 접근된다.
+
+| ref | 이름 | 이 리포에서 |
+|---|---|---|
+| `ovtnmslyjzvghirdvife` | **Fairground** | 유일한 허용 대상 |
+| `yhlyrchmnchcvqzrfcsp` | autoceo-brand-radar | 금지 |
+| `sftsvmiceuxybukjbywu` | gym-dashboard | 금지 |
+| `cpxalgolpsebmctzeabo` | trainermilestone-blogbooster, saju | 금지 |
+| `ykyrdwllilffczgryvfv` | trainermilestone-blogbenchmarker | 금지 |
+| `ycouvwyejugzjudaqcty` | trainer-milestone | 금지 |
+
+규칙:
+
+- 이 리포에서 실행하는 모든 Supabase 호출의 `project_id` 는 `ovtnmslyjzvghirdvife`
+  여야 한다. 다른 ref가 나오면 즉시 중단하고 사용자에게 알린다.
+- 진단 쿼리를 보내기 **전에** 대상 ref를 확인한다. 커넥터가 둘 이상 붙어 있으면
+  기본 커넥터가 다른 프로젝트를 가리키고 있을 수 있다 — 실제로 그런 사고가 날 뻔했다.
+- `supabase/.temp/project-ref` 가 `ovtnmslyjzvghirdvife` 인지 확인한다.
+  `./scripts/check-migration-drift.sh` 는 이 검증을 내장하고 있어, 다른 프로젝트에
+  link 되어 있으면 아무 조회도 하지 않고 중단한다.
+- 반대 방향도 성립한다: 다른 서비스의 리포에서 Fairground 를 건드리지 않는다.
+  해당 리포의 지침에도 같은 취지의 금지 조항을 둔다.
+
 ## 현재 마이그레이션 보호 상태
 
 - 로컬과 원격 마이그레이션 이력이 불일치하고 로컬 이력만으로 빈 DB를 재구성할 수 없다.
@@ -30,3 +56,13 @@
 - 보안 기준선이 달라지면 `docs/security-baseline.md`도 함께 갱신한다.
 - 애플리케이션 변경은 최소한 `npm run lint`, `npx tsc --noEmit`, 관련 테스트, `npm run build`로 검증한다.
 - 운영 환경을 실제로 변경하지 않았다면 완료 보고에 이를 명확히 적는다. 백업이나 diff가 실패했다면 성공으로 기록하지 않는다.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

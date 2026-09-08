@@ -71,3 +71,6 @@ __pycache__/
 .DS_Store
 .env
 .env.local
+
+# 로컬 스크래치 이미지 (codex 임시 산출물)
+.codex_tmp-*

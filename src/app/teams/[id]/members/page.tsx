@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { Users, Shield } from "lucide-react";
 import { useDataStore } from "@/stores/dataStore";
+import { useSubmission } from "@/hooks/useSubmission";
+import { registrationError } from "@/lib/registration/reliability";
 import { useAuth } from "@/hooks/useAuth";
 import { PlayerProfilePhoto } from "@/components/player-profile-photo";
 import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
@@ -43,11 +45,16 @@ export default function TeamMembersPage() {
   const [members, setMembers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState("");
+  const submission = useSubmission();
+  const [notice, setNotice] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const reload = async () => {
     setLoading(true);
-    const [t, list] = await Promise.all([fetchTeam(teamId), fetchTeamMembers(teamId)]);
+    setError(null);
+    try {
+    const [t, list] = await Promise.all([fetchTeam(teamId, true), fetchTeamMembers(teamId)]);
+    if (!t) throw new Error("팀 정보를 찾을 수 없습니다.");
     setTeam(t);
     setMembers(
       [...list].sort((a, b) => {
@@ -60,13 +67,15 @@ export default function TeamMembersPage() {
         return a.name.localeCompare(b.name);
       }),
     );
-    setLoading(false);
+    } catch (e) {
+      setError(registrationError(e, "팀원 정보를 불러오지 못했습니다. 다시 확인해주세요."));
+    } finally { setLoading(false); }
   };
 
   useEffect(() => {
-    void reload();
+    if (initialized && currentPlayer) void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teamId]);
+  }, [teamId, initialized, currentPlayer?.id]);
 
   // 권한 UX 가드 — admin 또는 본인 팀의 감독/매니저. 가드는
   // lib/team-permissions.canManageTeamMembers 한 곳에서 관리.
@@ -93,7 +102,8 @@ export default function TeamMembersPage() {
   // 본인 행은 권한 변경 옵션 비활성 (트리거가 self 변경 거부).
   const handleRoleChange = async (target: Player, newRole: TeamRole | "") => {
     if (!canManage) return;
-    if (!newRole) return;
+    if (!newRole || !submission.begin()) return;
+    setNotice("");
     setError(null);
     setSavingId(target.id);
     try {
@@ -105,39 +115,51 @@ export default function TeamMembersPage() {
       setError(msg);
     } finally {
       setSavingId("");
+      submission.end();
     }
   };
 
   // 소유권 이전 — 현재 소유자/admin 만. 확인 후 RPC 호출, 성공 시 목록 갱신.
   const handleTransfer = async (target: Player) => {
-    if (!canTransferOwnership) return;
+    if (!canTransferOwnership || submission.submitting || !target.isApproved) return;
     const ok = window.confirm(
       `'${target.name}'님에게 팀 소유권을 이전할까요?\n\n` +
         `이전 후 ${target.name}님이 팀 정보 수정·운영형태 변경 등 소유자 권한을 갖게 됩니다. ` +
         `되돌리려면 새 소유자가 다시 이전해야 합니다.`,
     );
-    if (!ok) return;
+    if (!ok || !submission.begin()) return;
+    setNotice("");
     setError(null);
     setSavingId(target.id);
     try {
       await transferTeamOwnership(teamId, target.id);
+      setTeam((old) => old ? { ...old, captainId: target.id } : old);
+      setNotice(`${target.name}님에게 팀 소유권이 이전되었습니다.`);
+      // reload catches read failures; never label a committed transfer as failed.
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "소유권 이전에 실패했습니다");
     } finally {
       setSavingId("");
+      submission.end();
     }
   };
 
-  if (!initialized) {
+  if (!initialized || (currentPlayer && loading && !team)) {
     return (
       <main className="min-h-screen pt-[60px] flex items-center justify-center" style={{ background: "var(--color-fg-paper-2)" }}>
         <p className="text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>
-          확인 중…
+          {error || "확인 중…"}
         </p>
       </main>
     );
   }
+
+  if (error && !team) return (
+    <div className="space-y-3 p-6"><p role="alert">{error}</p>
+      <button type="button" onClick={() => void reload()}>팀원 정보 다시 확인</button>
+    </div>
+  );
 
   if (!canManage) {
     return (
@@ -189,6 +211,7 @@ export default function TeamMembersPage() {
         </p>
       </div>
 
+      {notice && <p role="status" className="text-sm text-blue-700">{notice}</p>}
       {error && (
         <div
           role="alert"
@@ -200,6 +223,7 @@ export default function TeamMembersPage() {
           }}
         >
           {error}
+          <button type="button" className="ml-3 underline" onClick={() => void reload()}>다시 확인</button>
         </div>
       )}
 
@@ -256,7 +280,7 @@ export default function TeamMembersPage() {
                     ? selectableRoles
                     : [...selectableRoles, currentTeamRole];
                   const disableRoleChange =
-                    isSelf || savingId === m.id || (currentTeamRole === "coach" && !canEditCoach);
+                    isSelf || submission.submitting || (currentTeamRole === "coach" && !canEditCoach);
                   return (
                     <li key={m.id} className="p-5">
                       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -322,7 +346,7 @@ export default function TeamMembersPage() {
                             <button
                               type="button"
                               onClick={() => void handleTransfer(m)}
-                              disabled={savingId === m.id}
+                              disabled={submission.submitting || !m.isApproved}
                               className="min-h-[42px] whitespace-nowrap rounded-md px-3 text-xs font-bold transition-colors disabled:opacity-50"
                               style={{
                                 background: "var(--color-fg-paper)",
@@ -330,7 +354,7 @@ export default function TeamMembersPage() {
                                 border: "1px solid var(--color-fg-line-soft)",
                               }}
                             >
-                              소유권 이전
+                              {savingId === m.id ? "처리 중…" : "소유권 이전"}
                             </button>
                           )}
                         </div>

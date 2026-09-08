@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { registrationFetch } from "@/lib/registration/reliability";
 import type { Database } from "@/lib/database.types";
 
 // FairGround Supabase (project ovtnmslyjzvghirdvife, 서울 ap-northeast-2)
@@ -29,6 +30,7 @@ function createSupabaseBrowserClient(): SupabaseClient<Database> {
     supabaseUrl ?? "https://demo.supabase.co",
     supabaseKey ?? "demo-publishable-key",
     {
+      global: { fetch: registrationFetch },
       auth: {
         persistSession: true,
         autoRefreshToken: true,

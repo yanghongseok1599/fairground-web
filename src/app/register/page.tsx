@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { SocialAuthButtons } from "@/components/auth/social-auth-buttons";
 import { needsKoreanNameCheck } from "@/lib/registration-profile";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { useSubmission } from "@/hooks/useSubmission";
+import { registrationError } from "@/lib/registration/reliability";
 import { useAuth } from "@/hooks/useAuth";
 import {
   getCardSkinFromSearchParams,
@@ -40,7 +43,7 @@ const PASSWORD_POLICY = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, loginWithGoogle, loginWithKakao, loading, error, clearError } = useAuth();
+  const { user, register, loginWithGoogle, loginWithKakao, loading, error, clearError } = useAuth();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -78,6 +81,13 @@ export default function RegisterPage() {
   // 감독 신청 분기는 /onboarding으로 일원화. 이전의 applyAsCoach 토글 +
   // teamsForCoach fetch + coach 신청 후속 로직은 이 페이지에서 제거됨.
 
+  const submission = useSubmission();
+  const draft = useFormDraft(success ? null : "signup",
+    { name, phone, email, gender, birthDate, hasPlayerExperience }, (d) => {
+      setName(d.name); setPhone(d.phone); setEmail(d.email); setGender(d.gender);
+      setBirthDate(d.birthDate); setHasPlayerExperience(d.hasPlayerExperience);
+    });
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
@@ -104,6 +114,7 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!draft.ready || !submission.begin()) return;
     try {
       await register({
         email: email.trim(),
@@ -124,14 +135,11 @@ export default function RegisterPage() {
 
       // 그라운드 챌린지 유입은 일반 온보딩을 건너뛰고 이벤트 카드 설정으로 바로 보낸다.
       // 일반 가입은 기존처럼 완료 화면에서 /onboarding으로 이동한다.
-      if (isGroundChallengeCard) {
-        router.push(groundChallengeSetupHref);
-        return;
-      }
+      draft.clear();
       setSuccess(true);
-    } catch {
-      // error is set in the store
-    }
+    } catch (e) {
+      setFormError(registrationError(e));
+    } finally { submission.end(); }
   };
 
   const handleGoogleRegister = async () => {
@@ -141,7 +149,7 @@ export default function RegisterPage() {
       rememberPendingCardSkin(eventCardSkin);
       await loginWithGoogle(onboardingHref);
       // Google 가입도 유입 목적에 맞춰 일반 온보딩 또는 그라운드 챌린지 카드 설정으로 보낸다.
-      router.push(onboardingHref);
+      // OAuth completes navigation after returning from the provider.
     } catch {
       // error is set in the store
     }
@@ -175,13 +183,13 @@ export default function RegisterPage() {
               className="mt-3 text-sm leading-relaxed"
               style={{ color: "var(--color-fg-ink-muted)" }}
             >
-              계정이 생성되었습니다. 다음 화면에서 감독/선수 중 시작 방식을 선택해주세요.
+              {user ? "계정이 생성되었습니다. 다음 화면에서 감독/선수 중 시작 방식을 선택해주세요." : "가입 요청이 접수되었습니다. 이메일의 인증 링크를 누른 뒤 로그인해주세요."}
               <br />
               일부 운영 기능은 관리자 승인 후 활성화됩니다.
             </p>
           </div>
           <button
-            onClick={() => router.push(onboardingHref)}
+            onClick={() => router.push(user ? onboardingHref : "/login")}
             className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all hover:opacity-90"
             style={{
               background: "var(--primary)",
@@ -189,7 +197,7 @@ export default function RegisterPage() {
               boxShadow: "var(--shadow-sm)",
             }}
           >
-            다음
+            {user ? "다음" : "이메일 인증 후 로그인"}
           </button>
         </div>
       </div>
@@ -246,7 +254,7 @@ export default function RegisterPage() {
         </div>
 
         <SocialAuthButtons
-          disabled={loading}
+          disabled={loading || submission.submitting || !draft.ready}
           googleLabel="Google로 가입"
           onGoogle={handleGoogleRegister}
           onKakao={handleKakaoRegister}
@@ -269,6 +277,9 @@ export default function RegisterPage() {
 
         {/* Form */}
         <form onSubmit={handleRegister} className="space-y-4">
+          {draft.message && <p role="status" className="text-sm">{draft.message}</p>}
+          <fieldset disabled={submission.submitting || !draft.ready} className="contents">
+
           <div className="space-y-1.5">
             <label htmlFor="register-name" className={labelClass} style={labelStyle}>
               이름 (실명)
@@ -482,7 +493,7 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || submission.submitting || !draft.ready}
             className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-40 mt-2"
             style={{
               background: "var(--primary)",
@@ -492,6 +503,7 @@ export default function RegisterPage() {
           >
             {loading ? "처리 중..." : "가입하기"}
           </button>
+        </fieldset>
         </form>
 
         <p className="text-center text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>

@@ -2,16 +2,18 @@
 
 import type { ReactNode } from "react";
 import { PlayerCard } from "@/components/player-card";
-import { ANONYMOUS_PLAYER_CARD_POSE_SOURCES } from "@/lib/player-card-pose-templates";
+import {
+  FICTIONAL_PLAYER_CARD_POSE_SOURCES,
+  resolvePlayerCardPhoto,
+} from "@/lib/player-card-pose-templates";
 import type { CardType, Player, PlayerStats } from "@/types";
 
-export const DEFAULT_PLAYER_CARD_PHOTO = ANONYMOUS_PLAYER_CARD_POSE_SOURCES.male01;
+export const DEFAULT_PLAYER_CARD_PHOTO = FICTIONAL_PLAYER_CARD_POSE_SOURCES.male01;
 
 type TierPreview = {
   type: CardType;
   label: string;
   rating: number;
-  photoUrl: string;
   stats: PlayerStats;
   badges: string[];
 };
@@ -21,7 +23,6 @@ const CARD_TIER_PREVIEWS: TierPreview[] = [
     type: "bronze",
     label: "브론즈",
     rating: 72,
-    photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.female02,
     stats: { goals: 2, assists: 3, games: 8, mom: 0 },
     badges: ["fair_play"],
   },
@@ -29,7 +30,6 @@ const CARD_TIER_PREVIEWS: TierPreview[] = [
     type: "silver",
     label: "실버",
     rating: 84,
-    photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.male02,
     stats: { goals: 6, assists: 5, games: 12, mom: 1 },
     badges: ["playmaker", "iron_man"],
   },
@@ -37,7 +37,6 @@ const CARD_TIER_PREVIEWS: TierPreview[] = [
     type: "gold",
     label: "골드",
     rating: 90,
-    photoUrl: ANONYMOUS_PLAYER_CARD_POSE_SOURCES.female01,
     stats: { goals: 9, assists: 6, games: 14, mom: 2 },
     badges: ["first_goal", "match_winner"],
   },
@@ -45,7 +44,6 @@ const CARD_TIER_PREVIEWS: TierPreview[] = [
     type: "premium",
     label: "플래티넘",
     rating: 104,
-    photoUrl: DEFAULT_PLAYER_CARD_PHOTO,
     stats: { goals: 14, assists: 7, games: 14, mom: 5 },
     badges: ["champion", "golden_boot", "mvp"],
   },
@@ -56,11 +54,13 @@ function hasVisibleStats(stats: PlayerStats) {
 }
 
 function buildTierPlayer(basePlayer: Player, tier: TierPreview, customPhotoUrl?: string): Player {
+  const resolvedPhotoUrl = customPhotoUrl?.trim() || resolvePlayerCardPhoto(basePlayer);
+
   return {
     ...basePlayer,
     id: `${basePlayer.id}-${tier.type}-preview`,
     uid: `${basePlayer.uid}-${tier.type}-preview`,
-    photoUrl: customPhotoUrl || tier.photoUrl,
+    photoUrl: resolvedPhotoUrl,
     cardType: tier.type,
     cardRating: tier.rating,
     stats: hasVisibleStats(basePlayer.stats) ? basePlayer.stats : tier.stats,
