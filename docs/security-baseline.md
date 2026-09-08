@@ -35,3 +35,11 @@ npm run build
 - 로컬·원격 마이그레이션 이력 불일치가 해소되기 전에는 보안 SQL도 운영에 직접 push하지 않는다.
 - OAuth는 현재 브라우저 implicit 흐름이다. 별도 개발 환경과 서버 쿠키 전략이 준비되면 PKCE/SSR 전환을 독립 작업으로 검토한다.
 - Codex Security 플러그인 설치는 승인됐지만 현재 작업에서는 도구 활성화가 완료되지 않았다. 활성화 후 전문 스캔 결과를 이 문서에 추가한다.
+
+
+## 2026-09-08 등록 무결성 점검 시 재확인
+
+- 전체 `npm run security:audit`: 개발 의존성 4건으로 실패(높음 1·보통 2·낮음 1). `@humanfs/node`, `browserslist`, `postcss-selector-parser`, `qs`가 대상이다.
+- 변경 전 HEAD의 package.json/package-lock.json을 별도 디렉터리에서 검사해도 같은 목록과 건수를 재현했다. 새로 추가한 로컬 DB 시험용 `pg` 의존성이 원인은 아니다.
+- `npm run security:audit -- --omit=dev`: 취약점 0건. `npm run test:security`: 7개 통과.
+- 등록 오류 수정 범위에서는 관련 없는 개발 도구 일괄 업데이트를 수행하지 않았다. 위 4건의 전이 의존성 갱신과 재검증은 남아 있다. 2026-08-29의 0건 기록을 현재 전체 감사 결과로 해석하지 않는다.

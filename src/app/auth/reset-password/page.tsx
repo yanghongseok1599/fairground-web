@@ -122,7 +122,7 @@ function ResetPasswordInner() {
   );
 }
 
-export function PasswordField({
+function PasswordField({
   id, label, value, onChange, placeholder,
 }: {
   id: string; label: string; value: string;

@@ -14,10 +14,14 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { useSubmission } from "@/hooks/useSubmission";
+import { registrationError } from "@/lib/registration/reliability";
 import { useTeam } from "@/hooks/useTeam";
 import { useDataStore } from "@/stores/dataStore";
 import {
   canManageTeam as canManageTeamHelper,
+  canEditTeamDetails,
 } from "@/lib/team-permissions";
 import { AdminHeader } from "@/components/admin-header";
 import { AdminLoading } from "@/components/admin-loading";
@@ -104,7 +108,7 @@ function TeamLogoUploadHint() {
 
 export default function MyTeamPage() {
   const router = useRouter();
-  const { player, initialized, updatePlayer } = useAuth();
+  const { user, player, initialized } = useAuth();
   const createTeam = useDataStore((s) => s.createTeam);
   const updateTeam = useDataStore((s) => s.updateTeam);
   const claimTeamCoach = useDataStore((s) => s.claimTeamCoach);
@@ -112,7 +116,7 @@ export default function MyTeamPage() {
   const [registeredTeamId, setRegisteredTeamId] = useState("");
   const [queryTeamId, setQueryTeamId] = useState("");
   const activeTeamId = player?.teamId || queryTeamId || registeredTeamId || undefined;
-  const { team, loading: teamLoading } = useTeam(activeTeamId);
+  const { team, loading: teamLoading, error: teamError, retry: retryTeam } = useTeam(activeTeamId);
 
   const [name, setName] = useState("");
   const [logo, setLogo] = useState("");
@@ -122,7 +126,9 @@ export default function MyTeamPage() {
   // 필요하므로(멤버 신뢰 영향) 일단 생성 시 1회 선택.
   const [teamType, setTeamType] = useState<"community" | "club">("community");
   const [logoProcessing, setLogoProcessing] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const submission = useSubmission();
+  const { submitting } = submission;
+  const [savedMessage, setSavedMessage] = useState("");
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
@@ -140,21 +146,29 @@ export default function MyTeamPage() {
   // RLS-aligned director permissions. Pending players and regular members
   // can view team details only; operation surfaces stay hidden.
   const canManageTeamStrict = canManageTeamHelper(player, team);
-  const canManageTeam = canManageTeamStrict;
+  const canManageTeam = canEditTeamDetails(player, team);
   const isLocalRegisteredTeam =
     Boolean(registeredTeamId) && team?.id === registeredTeamId;
 
   useEffect(() => {
-    const savedTeamId = localStorage.getItem(REGISTERED_TEAM_ID_KEY) || "";
-    setRegisteredTeamId(savedTeamId);
-
+    if (!user) { setRegisteredTeamId(""); return; }
+    try {
+      setRegisteredTeamId(localStorage.getItem(`${REGISTERED_TEAM_ID_KEY}:${user.uid}`) || "");
+    } catch { /* Storage is optional; server membership is authoritative. */ }
     const params = new URLSearchParams(window.location.search);
-    const teamId = params.get("teamId") || "";
-    if (!teamId) return;
-    localStorage.setItem(REGISTERED_TEAM_ID_KEY, teamId);
-    setQueryTeamId(teamId);
-    setRegisteredTeamId(teamId);
-  }, []);
+    setQueryTeamId(params.get("teamId") || "");
+  }, [user]);
+
+  const createDraft = useFormDraft(user && !activeTeamId && !success ? `team-create:${user.uid}` : null,
+    { name, logo, foundedYear, teamType }, (draft) => {
+      setName(draft.name); setLogo(draft.logo); setFoundedYear(draft.foundedYear); setTeamType(draft.teamType);
+    });
+  const editDraft = useFormDraft(user && team && editing ? `team-edit:${user.uid}:${team.id}` : null,
+    { editName, editLogo, editFoundedYear, editIntroSubtitle, editDescription, editBannerUrl, editTeamType }, (draft) => {
+      setEditName(draft.editName); setEditLogo(draft.editLogo); setEditFoundedYear(draft.editFoundedYear);
+      setEditIntroSubtitle(draft.editIntroSubtitle); setEditDescription(draft.editDescription);
+      setEditBannerUrl(draft.editBannerUrl); setEditTeamType(draft.editTeamType);
+    });
 
   const handleLogoFile = async (
     file: File | undefined,
@@ -186,12 +200,14 @@ export default function MyTeamPage() {
     e.preventDefault();
     setError("");
 
+    if (!player || !user) { setError("로그인 후 선수 프로필을 확인해주세요."); return; }
+    if (logoProcessing || !createDraft.ready) return;
     if (!name.trim()) {
       setError("팀 이름을 입력해주세요");
       return;
     }
 
-    setSubmitting(true);
+    if (!submission.begin()) return;
     try {
       const createdTeamId = await createTeam({
         name: name.trim(),
@@ -216,28 +232,20 @@ export default function MyTeamPage() {
         leagueTier: "bronze",
         participationStreak: 0,
       });
-      if (player) {
-        await claimTeamCoach(createdTeamId);
-        await updatePlayer({ teamId: createdTeamId, teamRole: "coach" });
-      }
-      localStorage.setItem(REGISTERED_TEAM_ID_KEY, createdTeamId);
+      createDraft.clear();
       setRegisteredTeamId(createdTeamId);
-      setSuccess(false);
+      setSuccess(true);
+      try { localStorage.setItem(`${REGISTERED_TEAM_ID_KEY}:${user.uid}`, createdTeamId); } catch { /* Saved in DB. */ }
     } catch (err) {
-      console.error("[MyTeamPage] createTeam failed:", err);
-      const message = err instanceof Error ? err.message : "";
-      setError(
-        message.includes("row-level security")
-          ? "팀 등록 권한 설정이 필요합니다. 관리자에게 문의해주세요."
-          : "팀 등록에 실패했습니다. 다시 시도해주세요."
-      );
+      setError(registrationError(err, "팀 등록을 완료하지 못했습니다. 입력은 유지됩니다."));
     } finally {
-      setSubmitting(false);
+      submission.end();
     }
   };
 
   const startEdit = () => {
     if (!team) return;
+    setError(""); setSavedMessage("");
     setEditName(team.name);
     setEditLogo(team.logo);
     setEditFoundedYear(team.foundedYear?.toString() || "");
@@ -250,7 +258,7 @@ export default function MyTeamPage() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!team) return;
+    if (!team || editLogoProcessing || !editDraft.ready) return;
     setError("");
 
     if (!editName.trim()) {
@@ -268,11 +276,11 @@ export default function MyTeamPage() {
       if (!ok) return;
     }
 
-    setSubmitting(true);
+    if (!submission.begin()) return;
     try {
       await updateTeam(team.id, {
         name: editName.trim(),
-        logo: editLogo.trim() || team.logo,
+        logo: editLogo.trim(),
         foundedYear: editFoundedYear
           ? parseInt(editFoundedYear, 10)
           : undefined,
@@ -281,12 +289,14 @@ export default function MyTeamPage() {
         bannerUrl: editBannerUrl.trim() || undefined,
         teamType: editTeamType,
       });
+      editDraft.clear();
       setEditing(false);
+      setSavedMessage("팀 정보가 저장되었습니다.");
     } catch (err) {
       console.error("[MyTeamPage] updateTeam failed:", err);
-      setError("팀 정보 수정에 실패했습니다.");
+      setError(registrationError(err, "팀 정보 수정에 실패했습니다. 입력은 유지됩니다."));
     } finally {
-      setSubmitting(false);
+      submission.end();
     }
   };
 
@@ -307,6 +317,19 @@ export default function MyTeamPage() {
       </div>
     );
   }
+
+  if (!user || !player) return (
+    <main className="mx-auto max-w-md space-y-4 px-4 py-12">
+      <p role="alert">팀 등록·수정에는 로그인이 필요합니다.</p>
+      <Link href="/login?returnTo=%2Fmy%2Fteam">로그인하고 계속하기</Link>
+    </main>
+  );
+  if (teamError || (activeTeamId && !team && !success)) return (
+    <main className="mx-auto max-w-md space-y-4 px-4 py-12">
+      <p role="alert">{teamError || "기존 팀 정보를 확인하지 못했습니다. 새 팀을 만들기 전에 등록 결과를 확인해주세요."}</p>
+      <Button onClick={retryTeam}>팀 정보 다시 확인</Button>
+    </main>
+  );
 
   // Success screen after team creation
   if (success) {
@@ -364,6 +387,8 @@ export default function MyTeamPage() {
         <AdminHeader title="팀 관리" />
 
         <main className="mx-auto max-w-md space-y-4 px-4 py-4">
+          {savedMessage && <p role="status" className="text-sm text-blue-700">{savedMessage}</p>}
+          {error && !editing && <p role="alert" className="text-sm text-red-600">{error}</p>}
           {/* Back */}
           <Button
             variant="ghost"
@@ -399,10 +424,10 @@ export default function MyTeamPage() {
                     onClick={async () => {
                       if (!team || !player) return;
                       setError("");
-                      setSubmitting(true);
+                      if (!submission.begin()) return;
                       try {
                         await claimTeamCoach(team.id);
-                        await updatePlayer({ teamRole: "coach" });
+
                         // claimTeamCoach revalidates the team store; the
                         // canManageTeamStrict flag flips on next render.
                       } catch (err) {
@@ -419,7 +444,7 @@ export default function MyTeamPage() {
                             : "감독 등록에 실패했습니다. 다시 시도해주세요.",
                         );
                       } finally {
-                        setSubmitting(false);
+                        submission.end();
                       }
                     }}
                   >
@@ -442,10 +467,14 @@ export default function MyTeamPage() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleUpdate} className="space-y-4">
+                  {editDraft.message && <p role="status" className="text-sm">{editDraft.message}</p>}
+                  <fieldset disabled={submitting || !editDraft.ready} className="space-y-4">
                   <div className="space-y-2">
-                    <Label>팀 이름</Label>
+                    <Label htmlFor="editTeamName">팀 이름</Label>
                     <Input
+                      id="editTeamName"
                       value={editName}
+                      maxLength={100}
                       onChange={(e) => setEditName(e.target.value)}
                       required
                     />
@@ -491,9 +520,10 @@ export default function MyTeamPage() {
                     <TeamLogoUploadHint />
                   </div>
                   <div className="space-y-2">
-                    <Label>창단 연도</Label>
+                    <Label htmlFor="editFoundedYear">창단 연도</Label>
                     <Input
                       type="number"
+                      id="editFoundedYear"
                       value={editFoundedYear}
                       onChange={(e) => setEditFoundedYear(e.target.value)}
                       placeholder="2024"
@@ -572,7 +602,7 @@ export default function MyTeamPage() {
                     )}
                   </div>
 
-                  {error && <p className="text-sm text-red-500">{error}</p>}
+                  {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
 
                   <div className="flex gap-3">
                     <Button
@@ -598,6 +628,7 @@ export default function MyTeamPage() {
                       취소
                     </Button>
                   </div>
+                  </fieldset>
                 </form>
               </CardContent>
             </Card>
@@ -708,7 +739,7 @@ export default function MyTeamPage() {
                   boards (notices/gallery/chat) handle their own role-based
                   edit UI on the board pages themselves, so they don't need a
                   separate admin entry point here. */}
-              {canManageTeam && (
+              {canManageTeamStrict && (
                 <div className="space-y-2">
                   <p
                     className="px-1 text-xs font-semibold tracking-wide"
@@ -814,6 +845,8 @@ export default function MyTeamPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleCreate} className="space-y-4">
+              {createDraft.message && <p role="status" className="text-sm">{createDraft.message}</p>}
+              <fieldset disabled={submitting || !createDraft.ready} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="teamName">
                   팀 이름 <span className="text-red-500">*</span>
@@ -821,6 +854,7 @@ export default function MyTeamPage() {
                 <Input
                   id="teamName"
                   value={name}
+                  maxLength={100}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="팀 이름 입력"
                   required
@@ -915,7 +949,7 @@ export default function MyTeamPage() {
                 </div>
               </div>
 
-              {error && <p className="text-sm text-red-500">{error}</p>}
+              {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
 
               <Button
                 type="submit"
@@ -928,6 +962,7 @@ export default function MyTeamPage() {
                     ? "이미지 처리 중..."
                     : "팀 등록하기"}
               </Button>
+            </fieldset>
             </form>
           </CardContent>
         </Card>

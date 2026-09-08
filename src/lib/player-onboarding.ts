@@ -7,7 +7,9 @@ export function hasCompletedPlayerCardSetup(player: Player | null | undefined): 
     Number.isFinite(player.number) &&
     player.number > 0 &&
     Boolean(player.position) &&
-    Boolean(player.photoUrl?.trim())
+    // Photos are optional. A submitted consent timestamp plus the required
+    // card fields also marks a completed setup; OAuth defaults have neither.
+    (Boolean(player.photoUrl?.trim()) || Boolean(player.portraitConsentAt))
   );
 }
 

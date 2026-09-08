@@ -9,6 +9,9 @@ import {
   Download, Share2, Loader2, Pencil, Save, X, Phone, Calendar, UserRound,
   Award, Brain, Camera,
 } from "lucide-react";
+import { useFormDraft } from "@/hooks/useFormDraft";
+import { useSubmission } from "@/hooks/useSubmission";
+import { registrationError } from "@/lib/registration/reliability";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
 import { PlayerCardCaptureFrame } from "@/components/player-card-capture-frame";
@@ -23,13 +26,12 @@ import {
 } from "@/lib/player-card-skin";
 import {
   buildEditableProfileUpdate,
-  isValidRegistrationProfile,
   needsKoreanNameCheck,
 } from "@/lib/registration-profile";
 import { savePngBlob, sharePngBlob } from "@/lib/card-download";
 import { usePreparedElementPng } from "@/hooks/usePreparedElementPng";
 import { getAdminEntryLabel, isAdminLikeRole } from "@/lib/admin-access";
-import { canManageTeam } from "@/lib/team-permissions";
+import { canEditTeamDetails, canManageTeam } from "@/lib/team-permissions";
 import { CardProgress } from "@/components/card-progress";
 import { PlayerProfilePhoto } from "@/components/player-profile-photo";
 import { PushEnableCard } from "@/components/push-enable-card";
@@ -243,7 +245,7 @@ export default function MyPage() {
   };
 
   useEffect(() => {
-    if (!player) return;
+    if (!player || editingProfile) return;
     setProfileForm({
       name: player.name || "",
       email: player.email || user?.email || "",
@@ -256,7 +258,7 @@ export default function MyPage() {
       personalValues: player.personalValues || "",
       bio: player.bio || "",
     });
-  }, [player, user?.email]);
+  }, [player, user?.email, editingProfile]);
 
   useEffect(() => {
     return () => {
@@ -267,14 +269,14 @@ export default function MyPage() {
   }, []);
 
   useEffect(() => {
-    const localTeamId = localStorage.getItem(REGISTERED_TEAM_ID_KEY) || "";
+    let localTeamId = "";
+    try { localTeamId = user ? localStorage.getItem(`${REGISTERED_TEAM_ID_KEY}:${user.uid}`) || "" : ""; } catch { /* optional cache */ }
     setRegisteredTeamId(localTeamId);
     const teamId = player?.teamId || localTeamId;
-    if (teamId) {
-      store.fetchTeam(teamId).then(setTeam);
-    }
+    if (teamId) void store.fetchTeam(teamId).then(setTeam).catch(() => setTeam(null));
+    else setTeam(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [player?.teamId]);
+  }, [player?.teamId, user?.uid]);
 
   // 본인 가입 신청 상태 — pending(승인 대기) 또는 최근 rejected(7일 이내) 1건씩
   // 노출. approved는 player.teamId가 이미 세팅되니 별도 안내 불필요.
@@ -388,14 +390,19 @@ export default function MyPage() {
     }
   };
 
+  const profileSubmission = useSubmission();
+  const profileDraft = useFormDraft(user && editingProfile ? `profile-edit:${user.uid}` : null,
+    profileForm, setProfileForm);
+
   const handleProfileSave = async () => {
     if (!player) return;
     const update = buildEditableProfileUpdate(profileForm);
-    if (!isValidRegistrationProfile(update)) {
-      setProfileMessage("이름, 전화번호, 이메일, 성별, 생년월일을 모두 입력해주세요.");
+    if (!update.name || !update.email) {
+      setProfileMessage("이름과 이메일을 입력해주세요.");
       return;
     }
 
+    if (!profileDraft.ready || !profileSubmission.begin()) return;
     setProfileSaving(true);
     setProfileMessage("");
     try {
@@ -406,17 +413,19 @@ export default function MyPage() {
         gender: update.gender as Gender,
         birthDate: update.birthDate,
         hasPlayerExperience: update.hasPlayerExperience,
-        mbti: profileForm.mbti.trim() || undefined,
-        disposition: profileForm.disposition.trim() || undefined,
-        personalValues: profileForm.personalValues.trim() || undefined,
-        bio: profileForm.bio.trim() || undefined,
+        mbti: profileForm.mbti.trim(),
+        disposition: profileForm.disposition.trim(),
+        personalValues: profileForm.personalValues.trim(),
+        bio: profileForm.bio.trim(),
       });
+      profileDraft.clear();
       setEditingProfile(false);
       setProfileMessage("개인정보가 저장되었습니다.");
     } catch (error) {
-      setProfileMessage(error instanceof Error ? error.message : "개인정보 저장에 실패했습니다.");
+      setProfileMessage(registrationError(error));
     } finally {
       setProfileSaving(false);
+      profileSubmission.end();
     }
   };
 
@@ -1332,6 +1341,11 @@ export default function MyPage() {
                             팀 운영
                           </Link>
                         )}
+                        {canEditTeamDetails(player, team) && (
+                          <Link href="/my/team" className="col-span-2 inline-flex min-h-[44px] items-center justify-center rounded-xl border px-4 py-3 text-xs font-bold" style={{ color: "var(--primary)", borderColor: "var(--color-fg-line-soft)" }}>
+                            팀 정보 수정
+                          </Link>
+                        )}
                         {isPendingTeamMember && (
                           <p className="col-span-2 text-center text-[11px]" style={{ color: "var(--color-fg-ink-muted)" }}>
                             팀 승인 완료 후 팀 운영을 사용할 수 있습니다.
@@ -1530,7 +1544,7 @@ export default function MyPage() {
                   )}
                 </>
               ) : (
-                <div className="space-y-4 py-5">
+                <fieldset disabled={profileSaving || !profileDraft.ready} className="space-y-4 py-5">
                   <div className="space-y-1.5">
                     <label htmlFor="my-name" className="text-[10px] uppercase tracking-wider" style={labelStyleMono}>이름 (실명)</label>
                     <input
@@ -1719,6 +1733,7 @@ export default function MyPage() {
                       {profileMessage}
                     </p>
                   )}
+                    {profileDraft.message && <p role="status" className="text-sm">{profileDraft.message}</p>}
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -1748,7 +1763,7 @@ export default function MyPage() {
                       저장
                     </button>
                   </div>
-                </div>
+                </fieldset>
               )}
             </div>
             {!editingProfile && profileMessage && (

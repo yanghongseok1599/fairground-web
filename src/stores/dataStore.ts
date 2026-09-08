@@ -1,5 +1,6 @@
 "use client";
 
+import { requireSavedRow, registrationError } from "@/lib/registration/reliability";
 import { create } from "zustand";
 import { supabase, isDemoMode } from "@/config/supabase";
 import {
@@ -8,7 +9,6 @@ import {
   rowToTeamMemberPlayer,
   PUBLIC_PLAYER_PROFILE_SELECT,
   rowToTeam,
-  teamToInsert,
   teamPatchToRow,
   rowToEvent,
   rowToMatch,
@@ -161,7 +161,7 @@ interface DataState {
   fetchPublicPlayers: () => Promise<Player[]>;
   fetchPlayer: (id: string) => Promise<Player | null>;
   fetchTeams: () => Promise<Team[]>;
-  fetchTeam: (id: string) => Promise<Team | null>;
+  fetchTeam: (id: string, force?: boolean) => Promise<Team | null>;
   fetchTeamPlayers: (teamId: string) => Promise<Player[]>;
   fetchTournaments: () => Promise<Tournament[]>;
   fetchTournament: (id: string) => Promise<Tournament | null>;
@@ -608,7 +608,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     return list;
   },
 
-  fetchTeam: async (id) => {
+  fetchTeam: async (id, force = false) => {
     if (isDemoMode) {
       const teams = getLocalTeams();
       const team = teams[id] || null;
@@ -616,9 +616,13 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       return team;
     }
     const cached = getState().teams[id];
-    if (cached) return cached;
+    if (cached && !force) return cached;
     const { data, error } = await supabase.from("teams").select("*").eq("id", id).maybeSingle();
-    if (error) { console.error("[dataStore] fetchTeam:", error.message); return null; }
+    if (error) {
+      if (force) throw new Error(registrationError(error, "팀 정보를 불러오지 못했습니다."));
+      console.error("[dataStore] fetchTeam:", error.message);
+      return null;
+    }
     if (!data) return null;
     const team = rowToTeam(data);
     setState((s) => ({ teams: { ...s.teams, [id]: team } }));
@@ -788,14 +792,35 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       setState((s) => ({ teams: { ...s.teams, [id]: newTeam } }));
       return id;
     }
-    const { data, error } = await supabase
-      .from("teams")
-      .insert(teamToInsert({ ...team, captainId: team.captainId || undefined }))
-      .select("*")
-      .single();
-    if (error || !data) throw new Error(error?.message ?? "createTeam failed");
+    const uid = useAuthStore.getState().user?.uid;
+    if (!uid) throw new Error("팀 등록에는 로그인이 필요합니다.");
+    const requestKey = `fg_team_registration_request:${uid}`;
+    // Keep the ID until a server response confirms the transaction. Retrying
+    // after a lost response recovers the same record instead of inserting again.
+    let requestId: string;
+    try {
+      requestId = sessionStorage.getItem(requestKey) || crypto.randomUUID();
+      sessionStorage.setItem(requestKey, requestId);
+    } catch {
+      requestId = crypto.randomUUID(); // Server also serializes by account.
+    }
+    const { data, error } = await supabase.rpc("register_team", {
+      p_request_id: requestId,
+      p_name: team.name,
+      p_logo: team.logo ?? "",
+      p_founded_year: team.foundedYear ?? null,
+      p_team_type: team.teamType ?? "community",
+      p_portrait_consent_at: team.portraitConsentAt ? new Date(team.portraitConsentAt).toISOString() : null,
+    });
+    requireSavedRow(data, error);
+    if (!data) throw new Error("등록 결과를 확인하지 못했습니다.");
+    try { sessionStorage.removeItem(requestKey); } catch { /* Already committed. */ }
     const created = rowToTeam(data);
     setState((s) => ({ teams: { ...s.teams, [created.id]: created } }));
+    const auth = useAuthStore.getState();
+    if (auth.user?.uid === uid && auth.player) {
+      useAuthStore.setState({ player: { ...auth.player, teamId: created.id, teamRole: "coach" } });
+    }
     return created.id;
   },
 
@@ -809,11 +834,16 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       }
       return;
     }
-    const { error } = await supabase.from("teams").update(teamPatchToRow(data)).eq("id", id);
+    // RLS 로 막히면 update 는 에러 없이 0행을 지나간다 — 아래 로컬 상태만 바뀌어
+    // "저장된 것처럼" 보이고 새로고침하면 되돌아간다. 수정된 행을 돌려받아 확인한다.
+    const { data: rows, error } = await supabase
+      .from("teams")
+      .update(teamPatchToRow(data))
+      .eq("id", id)
+      .select("*").single();
     if (error) { console.error("[dataStore] updateTeam:", error.message); throw new Error(error.message); }
-    setState((s) => ({
-      teams: { ...s.teams, [id]: s.teams[id] ? { ...s.teams[id], ...data } : s.teams[id] },
-    }));
+    const saved = rowToTeam(requireSavedRow(rows, error));
+    setState((s) => ({ teams: { ...s.teams, [id]: saved } }));
   },
 
   // 승강 RPC 공통 처리 — 호출 후 해당 팀 재조회로 상태 반영. admin 검증은 RPC 내부.
@@ -1422,7 +1452,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     });
     if (error) {
       console.error("[dataStore] fetchTeamMembers:", error.message);
-      return [];
+      throw new Error(registrationError(error, "팀원 목록을 불러오지 못했습니다."));
     }
     return (data ?? []).map(rowToTeamMemberPlayer);
   },
@@ -1435,13 +1465,15 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     });
     if (error) {
       console.error("[dataStore] fetchTeamAdminMembers:", error.message);
-      return [];
+      throw new Error(registrationError(error, "팀원 목록을 불러오지 못했습니다."));
     }
     return (data ?? []).map(rowToPlayer);
   },
 
   claimTeamCoach: async (teamId) => {
     if (isDemoMode) return;
+    const actorId = useAuthStore.getState().user?.uid;
+    if (!actorId) throw new Error("로그인이 필요합니다.");
     const { error } = await supabase.rpc("claim_team_coach", {
       p_team_id: teamId,
     });
@@ -1449,11 +1481,15 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       console.error("[dataStore] claimTeamCoach:", error.message);
       throw new Error(error.message);
     }
-    const fresh = await getState().fetchTeam(teamId);
-    if (fresh) {
-      setState((s) => ({ teams: { ...s.teams, [teamId]: fresh } }));
+    // The command has committed. A later read must not turn this into a
+    // registration failure or ask the participant to repeat the write.
+    const auth = useAuthStore.getState();
+    if (auth.player && auth.user?.uid === actorId) {
+      useAuthStore.setState({ player: { ...auth.player, teamId, teamRole: "coach" } });
+      setState((s) => ({ teams: s.teams[teamId]
+        ? { ...s.teams, [teamId]: { ...s.teams[teamId], captainId: actorId } }
+        : s.teams }));
     }
-    await useAuthStore.getState().refreshPlayer();
   },
 
   // 멤버 역할 변경. 최종 강제는 security definer RPC(set_team_member_role).
@@ -1484,6 +1520,9 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       console.error("[dataStore] transferTeamOwnership:", error.message);
       throw new Error(error.message);
     }
+    setState((s) => ({ teams: s.teams[teamId]
+      ? { ...s.teams, [teamId]: { ...s.teams[teamId], captainId: newOwnerId } }
+      : s.teams }));
   },
 
   // 감독 신청 대기 큐 (admin 전용 UX, RLS 가 anon/일반에 차단).
@@ -1763,6 +1802,11 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     const { data: { user } } = await supabase.auth.getUser();
     const uid = user?.id;
     if (!uid) throw new Error("로그인이 필요합니다");
+    const findPending = () => supabase.from("team_join_requests").select("id")
+      .eq("team_id", teamId).eq("player_id", uid).eq("status", "pending").maybeSingle();
+    const existing = await findPending();
+    if (existing.error) throw new Error(registrationError(existing.error));
+    if (existing.data) return existing.data.id;
     const { data, error } = await supabase
       .from("team_join_requests")
       .insert({
@@ -1772,7 +1816,12 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       })
       .select("id")
       .single();
-    if (error || !data) throw new Error(error?.message ?? "가입 신청에 실패했습니다");
+    if (error?.code === "23505") {
+      const pending = await findPending();
+      if (!pending.error && pending.data) return pending.data.id;
+    }
+    requireSavedRow(data, error);
+    if (!data) throw new Error("가입 신청 결과를 확인하지 못했습니다.");
     return data.id;
   },
 

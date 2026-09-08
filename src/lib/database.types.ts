@@ -1650,6 +1650,10 @@ export type Database = {
       }
     }
     Functions: {
+      register_team: {
+        Args: { p_request_id: string; p_name: string; p_logo?: string; p_founded_year?: number | null; p_team_type?: string; p_portrait_consent_at?: string | null };
+        Returns: Database["public"]["Tables"]["teams"]["Row"];
+      };
       add_match_event: {
         Args: {
           p_half?: number
