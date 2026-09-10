@@ -5,12 +5,20 @@ for (const scale of [0.5, 0.92, 1, 1.5, 2.5]) {
   const styles = getUpperBodyPortraitStyles(scale, 12, true);
   assert.equal(styles.frame.overflow, "hidden");
   assert.equal(styles.crop.overflow, "hidden", "하반신은 확대/축소 전에 잘라낸다");
-  assert.equal(styles.crop.transformOrigin, "center top", "머리 위치는 위에 고정");
+  assert.equal(styles.crop.transformOrigin, "center bottom", "상반신 하단을 카드 구분선에 고정");
   assert.equal(styles.crop.transform, `scale(${scale})`);
   assert.equal(styles.image.height, `${100 / UPPER_BODY_VISIBLE_FRACTION}%`);
   assert.equal(styles.image.width, "auto", "인물 비율은 유지");
   assert.equal(styles.image.top, 0);
   assert.equal(styles.image.transform, "translateX(calc(-50% + 12%))");
+
+  // CSS scale around the bottom must leave the crop's lower edge unchanged,
+  // including the default 92% and the smallest supported card photo scale.
+  for (const height of [63, 98, 137, 273, 415]) {
+    const originY: number = styles.crop.transformOrigin === "center bottom" ? height : 0;
+    const scaledBottom: number = originY + (height - originY) * scale;
+    assert.equal(scaledBottom, height, `${scale}배에서도 하단 빈틈이 없어야 한다`);
+  }
 }
 assert.equal(getUpperBodyPortraitStyles(NaN).crop.transform, "scale(1)");
 assert.equal(getUpperBodyPortraitStyles(100).crop.transform, "scale(2.5)");
