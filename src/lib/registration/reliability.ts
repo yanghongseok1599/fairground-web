@@ -40,16 +40,7 @@ export async function registrationFetch(input: RequestInfo | URL, init?: Request
   }
 }
 
-export function readPhotoFile(file: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => typeof reader.result === "string"
-      ? resolve(reader.result) : reject(new Error("사진을 읽지 못했습니다. 다시 선택해주세요."));
-    reader.onerror = () => reject(new Error("사진을 읽지 못했습니다. 다시 선택해주세요."));
-    reader.onabort = () => reject(new Error("사진 읽기가 중단되었습니다. 다시 선택해주세요."));
-    reader.readAsDataURL(file);
-  });
-}
+export { readPhotoFile } from "../player-card/read-photo-file";
 
 export function photoDraftToBlob(dataUrl: string): Blob {
   const match = /^data:(image\/[\w.+-]+);base64,(.*)$/.exec(dataUrl);

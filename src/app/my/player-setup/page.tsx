@@ -207,6 +207,7 @@ function PlayerSetupContent() {
   }, [cardPhotoPreview, photoPreview]);
 
   const choosePhoto = (mode: PlayerCardPhotoMode) => {
+    if (submission.submitting) return;
     photoModeRef.current = mode;
     setPhotoMode(mode);
     fileInputRef.current?.click();
@@ -244,6 +245,7 @@ function PlayerSetupContent() {
   };
 
   const handleRemovePhoto = () => {
+    if (submission.submitting) return;
     photoRequestRef.current++;
     setBgProcessing(false);
     setPhotoError("");

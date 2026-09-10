@@ -173,6 +173,7 @@ export default function CardEditPage() {
   }, [cardPhotoPreview, photoPreview, player?.photoUrl]);
 
   const choosePhoto = (mode: PlayerCardPhotoMode) => {
+    if (submission.submitting) return;
     photoModeRef.current = mode;
     setPhotoMode(mode);
     fileInputRef.current?.click();
@@ -206,6 +207,7 @@ export default function CardEditPage() {
   };
 
   const handleRemovePhoto = () => {
+    if (submission.submitting) return;
     photoRequestRef.current++;
     setBgProcessing(false);
     setPhotoError("");
