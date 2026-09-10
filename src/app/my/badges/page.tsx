@@ -74,6 +74,8 @@ export default function MyBadgesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [loadRevision, setLoadRevision] = useState(0);
 
   // 초기 로딩: 마스터 + 본인 진행도.
   useEffect(() => {
@@ -85,6 +87,7 @@ export default function MyBadgesPage() {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setLoadError("");
       try {
         const [masters, mine] = await Promise.all([
           store.fetchAllBadges(),
@@ -94,13 +97,15 @@ export default function MyBadgesPage() {
         setAllBadges(masters);
         setMyBadges(mine);
         setEquipped((player.badges ?? []).slice(0, MAX_EQUIPPED));
+      } catch {
+        if (!cancelled) setLoadError("배지를 불러오지 못했습니다. 기존 장착 상태는 변경되지 않았습니다.");
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialized, player?.id]);
+  }, [initialized, player?.id, loadRevision]);
 
   // 빠른 검색용 인덱스.
   const masterById = useMemo(() => {
@@ -222,6 +227,13 @@ export default function MyBadgesPage() {
         </div>
       </div>
     );
+  }
+
+  if (loadError) {
+    return <div className="min-h-screen px-6 pt-[100px] text-center">
+      <p role="alert">{loadError}</p>
+      <button type="button" className="mt-4 rounded-xl border px-4 py-2" onClick={() => setLoadRevision((value) => value + 1)}>배지 다시 불러오기</button>
+    </div>;
   }
 
   const totalEarned = earnedBadges.length;

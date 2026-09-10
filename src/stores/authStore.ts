@@ -9,7 +9,8 @@ import {
   playerPatchToRow,
   selfEditablePlayerPatch,
 } from "@/lib/mappers";
-import { readPhotoFile, requireSavedRow, registrationError } from "@/lib/registration/reliability";
+import { readPhotoFile, registrationError } from "@/lib/registration/reliability";
+import { requireSavedProfile } from "@/lib/registration/saved-profile";
 import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
 import {
   clearPendingCardSkin,
@@ -503,11 +504,11 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
           .from("profiles")
           .update(playerPatchToRow(patch))
           .eq("id", uid).select("*").single();
-        savedPlayer = rowToPlayer(requireSavedRow(saved, error));
+        savedPlayer = requireSavedProfile(saved, error, uid);
       } else {
         const { data: saved, error } = await supabase.from("profiles")
           .insert(playerToInsert(player)).select("*").single();
-        savedPlayer = rowToPlayer(requireSavedRow(saved, error));
+        savedPlayer = requireSavedProfile(saved, error, uid);
       }
       if (getState().user?.uid === uid) setState({ player: savedPlayer, loading: false });
     } catch (e) {
@@ -617,16 +618,17 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
     const { data: saved, error } = await supabase
       .from("profiles")
       .update(playerPatchToRow(editableData))
-      .eq("id", state.user.uid).select("id").single();
+      .eq("id", state.user.uid).select("*").single();
     if (error) {
       console.error("[authStore] updatePlayer failed:", error.message);
       setState({ error: error.message });
       throw new Error(error.message);
     }
-    requireSavedRow(saved, error);
-    if (getState().user?.uid === state.user.uid) {
-      setState({ player: { ...(getState().player ?? state.player), ...editableData } });
+    const savedPlayer = requireSavedProfile(saved, error, state.user.uid);
+    if (getState().user?.uid !== state.user.uid) {
+      throw new Error("로그인 계정이 변경되었습니다. 저장 결과를 해당 계정에서 확인해주세요.");
     }
+    setState({ player: savedPlayer });
   },
 
   leaveTeam: async () => {

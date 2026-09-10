@@ -17,6 +17,7 @@ import {
 import { getPlayerCardDisplaySkin, type PlayerCardContext } from "@/lib/player-card-skin";
 import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
 import { UpperBodyPortrait } from "@/components/upper-body-portrait";
+import { shouldShowPlayerPortraitShadow } from "@/lib/player-card/upper-body-portrait";
 
 interface PlayerCardProps {
   player: Player;
@@ -307,7 +308,7 @@ export function PlayerCard({
           src={playerPhotoUrl}
           scale={playerPhotoScale}
           offsetX={player.photoOffsetX ?? 0}
-          shadow={player.gender !== "female"}
+          shadow={shouldShowPlayerPortraitShadow(player.gender)}
         />
       </div>
 

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckCircle, ChevronDown, Camera, X, Loader2 } from "lucide-react";
 import { useFormDraft } from "@/hooks/useFormDraft";
+import { useCardBadgeEligibility } from "@/hooks/useCardBadgeEligibility";
+import { cardBadgePatch, filterEarnedBadgeIds } from "@/lib/player-card/badge-edit";
 import { useSubmission } from "@/hooks/useSubmission";
 import { photoDraftToBlob, readPhotoFile, registrationError } from "@/lib/registration/reliability";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,6 +17,7 @@ import { PlayerCard } from "@/components/player-card";
 import { compressImageBlob } from "@/lib/image-compression";
 import { preparePlayerCardPhoto, type PlayerCardPhotoMode } from "@/lib/player-card/photo-registration";
 import { PlayerCardPhotoOptions } from "@/components/player-card-photo-options";
+import { PlayerCardPhotoError } from "@/components/player-card-photo-error";
 import { UpperBodyPortrait } from "@/components/upper-body-portrait";
 import { DEFAULT_CARD_PHOTO_SCALE, getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 import { FAIRGROUND_OPS_TEAM_LOGO } from "@/lib/team-logo-assets";
@@ -51,15 +54,17 @@ const inputStyle: React.CSSProperties = {
   color: "var(--color-fg-ink)",
 };
 
-function filterEarnedBadgeIds(badgeIds: string[], earnedBadgeIds: Set<string> | null): string[] {
-  if (!earnedBadgeIds) return [];
-  return badgeIds.filter((id) => earnedBadgeIds.has(id)).slice(0, 4);
+export default function CardEditPage() {
+  const { user, player } = useAuth();
+  // Same-account refresh keeps edits; switching accounts resets every local field/photo.
+  return <CardEditForm key={`${user?.uid ?? "guest"}:${player?.id ?? "none"}`} />;
 }
 
-export default function CardEditPage() {
+function CardEditForm() {
   const router = useRouter();
   const { user, player, loading, error, clearError, updatePlayer, leaveTeam, uploadPlayerPhoto, initialized } = useAuth();
-  const { teams, fetchTeams, fetchMyBadges } = useDataStore();
+  const { teams, fetchTeams } = useDataStore();
+  const { earnedBadgeIds, badgeError, retryBadges } = useCardBadgeEligibility(player?.id);
 
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
@@ -75,7 +80,7 @@ export default function CardEditPage() {
   const [photoError, setPhotoError] = useState("");
   const [photoScale, setPhotoScale] = useState(DEFAULT_CARD_PHOTO_SCALE);
   const [badges, setBadges] = useState<string[]>([]);
-  const [earnedBadgeIds, setEarnedBadgeIds] = useState<Set<string> | null>(null);
+  const [badgesEdited, setBadgesEdited] = useState(false);
   const [done, setDone] = useState(false);
   const submission = useSubmission();
   const [photoDraft, setPhotoDraft] = useState("");
@@ -106,39 +111,19 @@ export default function CardEditPage() {
     }
   }, [player]);
 
-  const draft = useFormDraft(user && !done ? `card-edit:${user.uid}` : null,
-    { name, number, position, nationality, photoScale, photoDraft, badges }, (d) => {
+  const draft = useFormDraft(user && player?.id === user.uid && !done ? `card-edit:${user.uid}` : null,
+    // Optional metadata keeps older drafts readable without treating stale badges as edits.
+    { name, number, position, nationality, photoScale, photoDraft, badges, ...(badgesEdited ? { badgesEdited: true } : {}) }, (d) => {
       setName(d.name); setNumber(d.number); setPosition(d.position); setNationality(d.nationality);
       setPhotoScale(d.photoScale); setPhotoDraft(d.photoDraft);
       if (d.photoDraft) {
         setPhotoBlob(photoDraftToBlob(d.photoDraft)); setPhotoPreview(d.photoDraft); setCardPhotoPreview(d.photoDraft);
       }
       setBadges(d.badges);
+      setBadgesEdited(d.badgesEdited === true);
     });
 
   useEffect(() => { fetchTeams(); }, [fetchTeams]);
-
-  useEffect(() => {
-    if (!player?.id) {
-      setEarnedBadgeIds(null);
-      setBadges([]);
-      return;
-    }
-
-    let cancelled = false;
-    setEarnedBadgeIds(null);
-    (async () => {
-      const rows = await fetchMyBadges(player.id);
-      if (cancelled) return;
-      const earned = new Set(rows.filter((row) => row.isEarned).map((row) => row.badgeId));
-      setEarnedBadgeIds(earned);
-      setBadges((prev) => filterEarnedBadgeIds(prev, earned));
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [player?.id, fetchMyBadges]);
 
   useEffect(() => {
     if (!initialized) return;
@@ -254,9 +239,7 @@ export default function CardEditPage() {
     if (!name.trim() || !position || !/^[1-9]\d?$/.test(number)) {
       setFormError("이름, 포지션, 등번호(1~99)를 확인해주세요."); return;
     }
-    if (!earnedBadgeIds) { setFormError("배지 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요."); return; }
     if (bgProcessing || !draft.ready || !submission.begin()) return;
-    const equippedEarnedBadges = filterEarnedBadgeIds(badges, earnedBadgeIds);
     try {
       const updates: Partial<Player> = {
         name: name.trim(),
@@ -264,7 +247,7 @@ export default function CardEditPage() {
         position: position as Position,
         nationality,
         photoScale,
-        badges: equippedEarnedBadges,
+        ...cardBadgePatch(badges, earnedBadgeIds, badgesEdited),
       };
 
       // 새 사진이 있으면 업로드
@@ -359,6 +342,7 @@ export default function CardEditPage() {
     position: (position as Position) || "ALA",
     teamId: teamId || "",
     nationality: nationality || "KOR",
+    gender: player?.gender ?? user?.gender,
     photoUrl: currentCardPhoto,
     photoScale,
     cardType: player?.cardType ?? "gold",
@@ -536,7 +520,7 @@ export default function CardEditPage() {
               </div>
             </div>
             <PlayerCardPhotoOptions onSelect={choosePhoto} disabled={bgProcessing || submission.submitting} />
-            {photoError && <p role="alert" className="mt-3 max-w-[280px] text-center text-sm text-red-600">{photoError}</p>}
+            <PlayerCardPhotoError message={photoError} onDismiss={() => setPhotoError("")} />
             {currentCardPhoto && (
               <div className="mt-3 flex w-full max-w-[280px] flex-col items-center gap-2">
                 <p className="text-[10px] text-center leading-relaxed" style={{ color: "var(--color-fg-ink-muted)" }}>
@@ -643,7 +627,12 @@ export default function CardEditPage() {
         {/* 뱃지 선택 */}
         <div>
           <FieldLabel>뱃지 <span style={{ color: "var(--color-fg-ink-muted)" }}>({selectedEarnedBadges.length}/4)</span></FieldLabel>
-          {earnedBadgeIds === null ? (
+          {badgeError ? (
+            <div className="rounded-2xl border p-4 text-sm">
+              <p role="alert">{badgeError}</p>
+              <button type="button" onClick={retryBadges} className="mt-2 rounded-xl border px-4 py-2 font-bold" style={{ color: "var(--primary)" }}>배지 다시 불러오기</button>
+            </div>
+          ) : earnedBadgeIds === null ? (
             <p className="rounded-2xl px-4 py-5 text-center text-xs" style={{ color: "var(--color-fg-ink-muted)", border: "1px dashed var(--color-fg-line-soft)" }}>
               획득한 뱃지를 확인하는 중입니다
             </p>
@@ -662,8 +651,10 @@ export default function CardEditPage() {
                     aria-pressed={selected}
                     onClick={() => {
                       if (selected) {
+                        setBadgesEdited(true);
                         setBadges((prev) => prev.filter((id) => id !== badge.id));
                       } else if (selectedEarnedBadges.length < 4) {
+                        setBadgesEdited(true);
                         setBadges((prev) => filterEarnedBadgeIds([...prev, badge.id], earnedBadgeIds));
                       }
                     }}
@@ -765,7 +756,7 @@ export default function CardEditPage() {
 
         <button
           type="submit"
-          disabled={loading || submission.submitting || bgProcessing || !!photoError || !draft.ready || earnedBadgeIds === null}
+          disabled={loading || submission.submitting || bgProcessing || !!photoError || !draft.ready}
           className="w-full py-4 rounded-2xl text-sm font-black transition-all hover:opacity-90 disabled:opacity-30"
           style={{
             background: "var(--primary)",

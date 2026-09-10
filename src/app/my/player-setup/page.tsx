@@ -15,6 +15,7 @@ import { PlayerCardTierPreviewGrid } from "@/components/player-card-tier-preview
 import { compressImageBlob } from "@/lib/image-compression";
 import { preparePlayerCardPhoto, type PlayerCardPhotoMode } from "@/lib/player-card/photo-registration";
 import { PlayerCardPhotoOptions } from "@/components/player-card-photo-options";
+import { PlayerCardPhotoError } from "@/components/player-card-photo-error";
 import { UpperBodyPortrait } from "@/components/upper-body-portrait";
 import { PLAYER_CARD_FRAME } from "@/lib/player-card-frame";
 import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
@@ -388,6 +389,7 @@ function PlayerSetupContent() {
     position: (position as Position) || "ALA",
     teamId: teamId || "",
     nationality: nationality || "KOR",
+    gender: user?.gender,
     photoUrl: currentCardPhoto,
     photoScale,
     cardType: "gold",
@@ -603,7 +605,7 @@ function PlayerSetupContent() {
               )}
             </div>
             <PlayerCardPhotoOptions onSelect={choosePhoto} disabled={bgProcessing || submission.submitting} />
-            {photoError && <p role="alert" className="mt-3 max-w-[280px] text-center text-sm text-red-600">{photoError}</p>}
+            <PlayerCardPhotoError message={photoError} onDismiss={() => setPhotoError("")} />
             {photoPreview ? (
               <div className="flex flex-col items-center gap-2 w-full">
                 <p className="text-[10px] text-center leading-relaxed" style={{ color: "var(--color-fg-ink-muted)" }}>

@@ -3,6 +3,11 @@ import type { CSSProperties } from "react";
 /** Display-only crop: retain original saved photos and hide the lower body. */
 export const UPPER_BODY_VISIBLE_FRACTION = 0.72;
 
+/** Public profiles omit private gender data: missing gender must not add a shadow. */
+export function shouldShowPlayerPortraitShadow(gender?: string): boolean {
+  return gender === "male";
+}
+
 export function getUpperBodyPortraitStyles(scale = 1, offsetX = 0, shadow = false): Record<"frame" | "crop" | "image", CSSProperties> {
   const safeScale = Number.isFinite(scale) ? Math.min(2.5, Math.max(0.5, scale)) : 1;
   const safeOffset = Number.isFinite(offsetX) ? offsetX : 0;

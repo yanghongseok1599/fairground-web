@@ -5,7 +5,7 @@ const load = moduleLoader();
 const { requireSavedRow, registrationError, registrationFetch } = load('src/lib/registration/reliability.ts');
 const { readDraft, writeDraft, removeDraft } = load('src/lib/registration/draft-storage.ts');
 const { canEditTeamDetails, canManageTeamMembers } = load('src/lib/team-permissions.ts');
-const { teamPatchToRow, playerPatchToRow } = load('src/lib/mappers.ts');
+const { teamPatchToRow, playerPatchToRow, playerToInsert } = load('src/lib/mappers.ts');
 
 test('RLS zero-row save and server errors never count as success', () => {
   assert.throws(() => requireSavedRow(null,null), /저장이 확인되지/);
@@ -51,9 +51,9 @@ test('profile save checks returned row before touching local state', async () =>
   assert.ok(f.requests[0].steps.some(x=>x[0]==='single'));
 });
 test('profile successful patch preserves statistics and membership', async () => {
-  const f=storeFixture(); f.responses.push({data:{id:'player-1'},error:null});
+  const f=storeFixture(); f.responses.push({data:{...playerToInsert(f.player),name:'server normalized',created_at:new Date(f.player.createdAt).toISOString()},error:null});
   await f.auth.getState().updatePlayer({name:'new'});
-  assert.equal(f.auth.getState().player.name,'new');
+  assert.equal(f.auth.getState().player.name,'server normalized');
   assert.deepEqual(f.auth.getState().player.stats,f.player.stats);
   assert.deepEqual(f.requests[0].steps.find(x=>x[0]==='update')[1],{name:'new'});
 });

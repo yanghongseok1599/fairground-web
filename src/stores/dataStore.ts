@@ -2201,7 +2201,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       .eq("player_id", playerId);
     if (error) {
       console.error("[dataStore] fetchMyBadges:", error.message);
-      return [];
+      throw new Error("배지를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
     }
     type Row = { badge_id: string; is_earned: boolean; progress: number; earned_at: string | null };
     return ((data ?? []) as unknown as Row[]).map((r) => ({
