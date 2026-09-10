@@ -307,7 +307,7 @@ export function PlayerCard({
           src={playerPhotoUrl}
           scale={playerPhotoScale}
           offsetX={player.photoOffsetX ?? 0}
-          shadow
+          shadow={player.gender !== "female"}
         />
       </div>
 
