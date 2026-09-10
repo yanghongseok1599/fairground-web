@@ -15,6 +15,7 @@ import { PlayerCardTierPreviewGrid } from "@/components/player-card-tier-preview
 import { compressImageBlob } from "@/lib/image-compression";
 import { preparePlayerCardPhoto, type PlayerCardPhotoMode } from "@/lib/player-card/photo-registration";
 import { PlayerCardPhotoOptions } from "@/components/player-card-photo-options";
+import { UpperBodyPortrait } from "@/components/upper-body-portrait";
 import { PLAYER_CARD_FRAME } from "@/lib/player-card-frame";
 import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
 import { hasCompletedPlayerCardSetup } from "@/lib/player-onboarding";
@@ -576,8 +577,7 @@ function PlayerSetupContent() {
                 }}
               >
                 {photoPreview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photoPreview} alt="preview" className="h-full w-full object-contain object-center" />
+                  <UpperBodyPortrait src={photoPreview} alt="상반신 사진 미리보기" />
                 ) : (
                   <div className="flex flex-col items-center gap-2">
                     <Camera className="w-6 h-6" style={{ color: "var(--color-fg-ink-muted)" }} />

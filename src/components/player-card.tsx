@@ -16,6 +16,7 @@ import {
 } from "@/lib/player-card-pose-templates";
 import { getPlayerCardDisplaySkin, type PlayerCardContext } from "@/lib/player-card-skin";
 import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
+import { UpperBodyPortrait } from "@/components/upper-body-portrait";
 
 interface PlayerCardProps {
   player: Player;
@@ -302,25 +303,11 @@ export function PlayerCard({
           zIndex: 1,
         }}
       >
-        <img
+        <UpperBodyPortrait
           src={playerPhotoUrl}
-          alt=""
-          aria-hidden="true"
-          className="block"
-          style={(playerPhotoScale !== 1) || player.photoOffsetX ? {
-            width: "auto",
-            height: "100%",
-            maxWidth: "none",
-            transform: `scale(${playerPhotoScale}) translateX(${player.photoOffsetX ?? 0}%)`,
-            transformOrigin: "center bottom",
-            filter: "drop-shadow(0 8px 10px rgba(0,0,0,0.28))",
-          } : {
-            width: "auto",
-            height: "100%",
-            maxWidth: "none",
-            filter: "drop-shadow(0 8px 10px rgba(0,0,0,0.28))",
-          }}
-          draggable={false}
+          scale={playerPhotoScale}
+          offsetX={player.photoOffsetX ?? 0}
+          shadow
         />
       </div>
 

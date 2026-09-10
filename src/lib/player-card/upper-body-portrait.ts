@@ -1,0 +1,20 @@
+import type { CSSProperties } from "react";
+
+/** Display-only crop: retain original saved photos and hide the lower body. */
+export const UPPER_BODY_VISIBLE_FRACTION = 0.72;
+
+export function getUpperBodyPortraitStyles(scale = 1, offsetX = 0, shadow = false): Record<"frame" | "crop" | "image", CSSProperties> {
+  const safeScale = Number.isFinite(scale) ? Math.min(2.5, Math.max(0.5, scale)) : 1;
+  const safeOffset = Number.isFinite(offsetX) ? offsetX : 0;
+  return {
+    frame: { position: "relative", width: "100%", height: "100%", overflow: "hidden" },
+    // Crop BEFORE user zoom: zooming out cannot reveal shorts/legs again.
+    crop: { position: "absolute", inset: 0, overflow: "hidden", transform: `scale(${safeScale})`, transformOrigin: "center top" },
+    image: {
+      position: "absolute", top: 0, left: "50%", display: "block", width: "auto",
+      height: `${100 / UPPER_BODY_VISIBLE_FRACTION}%`, maxWidth: "none",
+      transform: `translateX(calc(-50% + ${safeOffset}%))`,
+      filter: shadow ? "drop-shadow(0 8px 10px rgba(0,0,0,0.28))" : undefined,
+    },
+  };
+}

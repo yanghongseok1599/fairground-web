@@ -15,6 +15,7 @@ import { PlayerCard } from "@/components/player-card";
 import { compressImageBlob } from "@/lib/image-compression";
 import { preparePlayerCardPhoto, type PlayerCardPhotoMode } from "@/lib/player-card/photo-registration";
 import { PlayerCardPhotoOptions } from "@/components/player-card-photo-options";
+import { UpperBodyPortrait } from "@/components/upper-body-portrait";
 import { DEFAULT_CARD_PHOTO_SCALE, getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 import { FAIRGROUND_OPS_TEAM_LOGO } from "@/lib/team-logo-assets";
 import { PUBLIC_PAGE_CONTENT_CLASS, PUBLIC_PAGE_GUTTER_CLASS } from "@/lib/page-layout";
@@ -508,8 +509,7 @@ export default function CardEditPage() {
                   }}
                 >
                   {currentThumbPhoto ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={currentThumbPhoto} alt="preview" className="h-full w-full object-contain object-center" />
+                    <UpperBodyPortrait src={currentThumbPhoto} alt="상반신 사진 미리보기" />
                   ) : (
                     <div className="flex flex-col items-center gap-2">
                       <Camera className="h-7 w-7" style={{ color: "var(--color-fg-ink-muted)" }} />
