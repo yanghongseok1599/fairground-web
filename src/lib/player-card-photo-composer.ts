@@ -1,228 +1,103 @@
 import type { Gender } from "@/types";
-import {
-  type PlayerCardPoseTemplate,
-  getTeamlessPlayerCardPose,
-} from "@/lib/player-card-pose-templates";
-
-type FaceBounds = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-type FaceDetectionResult = {
-  boundingBox: FaceBounds | DOMRectReadOnly;
-};
-
-type FaceDetectorConstructor = new (options?: {
-  fastMode?: boolean;
-  maxDetectedFaces?: number;
-}) => {
-  detect(source: ImageBitmap): Promise<FaceDetectionResult[]>;
-};
-
-declare global {
-  interface Window {
-    FaceDetector?: FaceDetectorConstructor;
-  }
-}
+import { getTeamlessPlayerCardPose } from "@/lib/player-card-pose-templates";
+import { detectCardFace } from "@/lib/player-card/face-landmarks";
+import { faceMaskAlpha, triangleTransform, type Point, type Triangle } from "@/lib/player-card/face-geometry";
 
 interface ComposeTeamlessPosePhotoOptions {
   sourcePhoto: Blob;
-  cutoutPhoto: Blob;
   gender?: Gender | null;
   seed?: string;
   mimeType?: "image/webp" | "image/png";
   quality?: number;
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-function loadImageFromBlob(blob: Blob): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(blob);
-    const image = new Image();
-    image.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(image);
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("이미지를 불러오지 못했습니다."));
-    };
-    image.src = url;
-  });
-}
-
-function loadImageFromSrc(src: string): Promise<HTMLImageElement> {
+function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("포즈 템플릿을 불러오지 못했습니다."));
+    image.onerror = () => reject(new Error("이미지를 불러오지 못했습니다. 다시 시도해주세요."));
     image.src = src;
   });
 }
 
-function canvasToBlob(
-  canvas: HTMLCanvasElement,
-  mimeType: "image/webp" | "image/png",
-  quality: number,
-): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          reject(new Error("선수카드용 포즈 이미지 생성에 실패했습니다."));
-          return;
-        }
-        resolve(blob);
-      },
-      mimeType,
-      quality,
-    );
-  });
-}
-
-function fallbackFaceBounds(image: HTMLImageElement): FaceBounds {
-  const portraitBias = image.height >= image.width;
-  const width = image.width * (portraitBias ? 0.62 : 0.54);
-  const height = image.height * (portraitBias ? 0.54 : 0.62);
-  return {
-    x: (image.width - width) / 2,
-    y: image.height * 0.04,
-    width,
-    height,
-  };
-}
-
-async function detectFaceBounds(blob: Blob, image: HTMLImageElement): Promise<FaceBounds> {
-  if (typeof window === "undefined" || !window.FaceDetector || !("createImageBitmap" in window)) {
-    return fallbackFaceBounds(image);
-  }
-
-  let bitmap: ImageBitmap | null = null;
-  try {
-    bitmap = await createImageBitmap(blob);
-    const detector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
-    const faces = await detector.detect(bitmap);
-    const face = faces[0]?.boundingBox;
-    if (!face) return fallbackFaceBounds(image);
-
-    const raw = {
-      x: face.x,
-      y: face.y,
-      width: face.width,
-      height: face.height,
-    };
-
-    const expandedWidth = raw.width * 1.9;
-    const expandedHeight = raw.height * 2.35;
-    return {
-      x: clamp(raw.x - raw.width * 0.45, 0, image.width),
-      y: clamp(raw.y - raw.height * 0.78, 0, image.height),
-      width: clamp(expandedWidth, 1, image.width),
-      height: clamp(expandedHeight, 1, image.height),
-    };
-  } catch {
-    return fallbackFaceBounds(image);
-  } finally {
-    bitmap?.close();
-  }
-}
-
-function fitCropToTarget(crop: FaceBounds, target: FaceBounds): FaceBounds {
-  let { x, y, width, height } = crop;
-  const cropAspect = width / height;
-  const targetAspect = target.width / target.height;
-
-  if (cropAspect > targetAspect) {
-    const nextWidth = height * targetAspect;
-    x += (width - nextWidth) / 2;
-    width = nextWidth;
-  } else {
-    const nextHeight = width / targetAspect;
-    y += (height - nextHeight) / 2;
-    height = nextHeight;
-  }
-
-  return { x, y, width, height };
-}
-
-function clampCropToImage(crop: FaceBounds, image: HTMLImageElement): FaceBounds {
-  const width = clamp(crop.width, 1, image.width);
-  const height = clamp(crop.height, 1, image.height);
-  return {
-    x: clamp(crop.x, 0, image.width - width),
-    y: clamp(crop.y, 0, image.height - height),
-    width,
-    height,
-  };
-}
-
-function toTemplateTarget(template: PlayerCardPoseTemplate, image: HTMLImageElement): FaceBounds {
-  return {
-    x: (template.faceTarget.x / 100) * image.width,
-    y: (template.faceTarget.y / 100) * image.height,
-    width: (template.faceTarget.width / 100) * image.width,
-    height: (template.faceTarget.height / 100) * image.height,
-  };
+function createCanvas(width: number, height: number) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("선수카드용 이미지 생성에 실패했습니다.");
+  return { canvas, context };
 }
 
 export async function composeTeamlessPoseCardPhoto({
-  sourcePhoto,
-  cutoutPhoto,
-  gender,
-  seed,
-  mimeType = "image/webp",
-  quality = 0.92,
+  sourcePhoto, gender, seed, mimeType = "image/webp", quality = 0.92,
 }: ComposeTeamlessPosePhotoOptions): Promise<Blob> {
   const template = getTeamlessPlayerCardPose(gender, seed);
-  const [templateImage, sourceImage, cutoutImage] = await Promise.all([
-    loadImageFromSrc(template.src),
-    loadImageFromBlob(sourcePhoto),
-    loadImageFromBlob(cutoutPhoto),
-  ]);
+  const sourceUrl = URL.createObjectURL(sourcePhoto);
+  try {
+    const [source, templateImage, { FaceLandmarker }] = await Promise.all([
+      loadImage(sourceUrl), loadImage(template.src), import("@mediapipe/tasks-vision"),
+    ]);
+    const sourceLandmarks = await detectCardFace(source);
+    const targetLandmarks = await detectCardFace(templateImage);
+    const width = templateImage.naturalWidth;
+    const height = templateImage.naturalHeight;
+    const { canvas, context } = createCanvas(width, height);
+    const { canvas: faceCanvas, context: faceContext } = createCanvas(width, height);
+    context.drawImage(templateImage, 0, 0);
 
-  const canvas = document.createElement("canvas");
-  canvas.width = templateImage.naturalWidth || templateImage.width;
-  canvas.height = templateImage.naturalHeight || templateImage.height;
+    const sourcePoints = sourceLandmarks.map((p) => ({ x: p.x * source.naturalWidth, y: p.y * source.naturalHeight }));
+    const targetPoints = targetLandmarks.map((p) => ({ x: p.x * width, y: p.y * height }));
+    const connections = FaceLandmarker.FACE_LANDMARKS_TESSELATION;
+    for (let i = 0; i < connections.length; i += 3) {
+      const indices = [connections[i].start, connections[i].end, connections[i + 1].end];
+      const from = indices.map((index) => sourcePoints[index]) as unknown as Triangle;
+      const to = indices.map((index) => targetPoints[index]) as unknown as Triangle;
+      const transform = triangleTransform(from, to);
+      if (!transform) continue;
+      const center = { x: (to[0].x + to[1].x + to[2].x) / 3, y: (to[0].y + to[1].y + to[2].y) / 3 };
+      faceContext.save();
+      faceContext.beginPath();
+      // Subpixel overlap prevents transparent seams between adjoining triangles.
+      to.forEach((point, index) => {
+        const length = Math.hypot(point.x - center.x, point.y - center.y) || 1;
+        const x = point.x + (point.x - center.x) * 0.7 / length;
+        const y = point.y + (point.y - center.y) * 0.7 / length;
+        if (index === 0) faceContext.moveTo(x, y);
+        else faceContext.lineTo(x, y);
+      });
+      faceContext.closePath();
+      faceContext.clip();
+      faceContext.setTransform(...transform);
+      faceContext.drawImage(source, 0, 0);
+      faceContext.restore();
+    }
 
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("선수카드용 포즈 이미지 생성에 실패했습니다.");
+    const outline: Point[] = FaceLandmarker.FACE_LANDMARKS_FACE_OVAL.map(({ start }) => targetPoints[start]);
+    const left = Math.max(0, Math.floor(Math.min(...outline.map((p) => p.x))));
+    const top = Math.max(0, Math.floor(Math.min(...outline.map((p) => p.y))));
+    const right = Math.min(width, Math.ceil(Math.max(...outline.map((p) => p.x))));
+    const bottom = Math.min(height, Math.ceil(Math.max(...outline.map((p) => p.y))));
+    const facePixels = faceContext.getImageData(left, top, right - left, bottom - top);
+    const templatePixels = context.getImageData(left, top, right - left, bottom - top);
+    const feather = (right - left) * 0.06;
+    for (let y = 0; y < facePixels.height; y++) {
+      for (let x = 0; x < facePixels.width; x++) {
+        const offset = (y * facePixels.width + x) * 4;
+        // Pixel alpha works on iOS Safari too (Canvas filter is not required).
+        facePixels.data[offset + 3] *= faceMaskAlpha({ x: left + x + 0.5, y: top + y + 0.5 }, outline, feather)
+          * templatePixels.data[offset + 3] / 255;
+      }
+    }
+    faceContext.clearRect(0, 0, width, height);
+    faceContext.putImageData(facePixels, left, top);
+    context.drawImage(faceCanvas, 0, 0);
+
+    return await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("선수카드용 이미지 생성에 실패했습니다."));
+    }, mimeType, quality));
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
   }
-
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(templateImage, 0, 0, canvas.width, canvas.height);
-
-  const detected = await detectFaceBounds(sourcePhoto, sourceImage);
-  const sourceToCutout = {
-    x: (detected.x / sourceImage.width) * cutoutImage.width,
-    y: (detected.y / sourceImage.height) * cutoutImage.height,
-    width: (detected.width / sourceImage.width) * cutoutImage.width,
-    height: (detected.height / sourceImage.height) * cutoutImage.height,
-  };
-  const target = toTemplateTarget(template, templateImage);
-  const crop = clampCropToImage(fitCropToTarget(sourceToCutout, target), cutoutImage);
-
-  context.save();
-  context.shadowColor = "rgba(0, 0, 0, 0.18)";
-  context.shadowBlur = Math.max(canvas.width, canvas.height) * 0.006;
-  context.drawImage(
-    cutoutImage,
-    crop.x,
-    crop.y,
-    crop.width,
-    crop.height,
-    target.x,
-    target.y,
-    target.width,
-    target.height,
-  );
-  context.restore();
-
-  return canvasToBlob(canvas, mimeType, quality);
 }

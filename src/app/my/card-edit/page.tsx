@@ -71,6 +71,7 @@ export default function CardEditPage() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [cardPhotoPreview, setCardPhotoPreview] = useState<string | null>(null);
   const [bgProcessing, setBgProcessing] = useState(false);
+  const [photoError, setPhotoError] = useState("");
   const [photoScale, setPhotoScale] = useState(DEFAULT_CARD_PHOTO_SCALE);
   const [badges, setBadges] = useState<string[]>([]);
   const [earnedBadgeIds, setEarnedBadgeIds] = useState<Set<string> | null>(null);
@@ -78,6 +79,7 @@ export default function CardEditPage() {
   const submission = useSubmission();
   const [photoDraft, setPhotoDraft] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoRequestRef = useRef(0);
 
   const dragging = useRef(false);
   const dragStartY = useRef(0);
@@ -175,65 +177,48 @@ export default function CardEditPage() {
   const buildCardPhotoBlob = async (
     nextTeamId: string,
     sourceBlob: Blob,
-    cutoutBlob: Blob,
   ) => {
-    if (!shouldUseTeamlessPose(nextTeamId)) return cutoutBlob;
-    try {
-      return await composeTeamlessPoseCardPhoto({
+    if (shouldUseTeamlessPose(nextTeamId)) {
+      return composeTeamlessPoseCardPhoto({
         sourcePhoto: sourceBlob,
-        cutoutPhoto: cutoutBlob,
         gender: player?.gender,
         seed: `${player?.uid ?? user?.uid ?? ""}-${name}-${number}`,
       });
-    } catch (error) {
-      console.error("[CardEdit] teamless pose composition failed:", error);
-      return cutoutBlob;
     }
+    return removeBackgroundAndCompress(sourceBlob, { maxPx: 1400, mimeType: "image/webp", quality: 0.92 });
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || bgProcessing) return;
+    const input = e.target;
+    const requestId = ++photoRequestRef.current;
     setBgProcessing(true);
+    setPhotoError("");
     setFormError("");
     try {
-
-    const compressed = await compressImageBlob(file, {
-      maxPx: 1400,
-      mimeType: "image/webp",
-      quality: 0.9,
-    });
-    const compressedPreviewUrl = URL.createObjectURL(compressed);
-    setPhotoPreview(compressedPreviewUrl);
-    setCardPhotoPreview(null);
-    setPhotoBlob(compressed);
-
-    setBgProcessing(true);
-    try {
-      let optimizedPhoto = compressed;
-      try {
-        optimizedPhoto = await removeBackgroundAndCompress(compressed, {
-          maxPx: 1400,
-          mimeType: "image/webp",
-          quality: 0.92,
-        });
-      } catch (error) {
-        console.error("[CardEdit] background removal failed:", error);
-      }
-      const finalPhoto = await buildCardPhotoBlob(teamId, compressed, optimizedPhoto);
+      const compressed = await compressImageBlob(file, { maxPx: 1400, mimeType: "image/webp", quality: 0.9 });
+      const finalPhoto = await buildCardPhotoBlob(teamId, compressed);
+      if (requestId !== photoRequestRef.current) return;
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+      if (cardPhotoPreview) URL.revokeObjectURL(cardPhotoPreview);
       setPhotoPreview(URL.createObjectURL(finalPhoto));
       setCardPhotoPreview(URL.createObjectURL(finalPhoto));
       setPhotoBlob(finalPhoto);
-      URL.revokeObjectURL(compressedPreviewUrl);
-    } finally {
-      setBgProcessing(false);
-    }
     } catch (e) {
-      setFormError(registrationError(e, "사진을 처리하지 못했습니다. 다른 이미지로 다시 선택해주세요."));
-    } finally { setBgProcessing(false); }
+      if (requestId === photoRequestRef.current) setPhotoError(registrationError(e, "사진을 처리하지 못했습니다. 다른 이미지로 다시 선택해주세요."));
+    } finally {
+      if (requestId === photoRequestRef.current) {
+        setBgProcessing(false);
+        input.value = "";
+      }
+    }
   };
 
   const handleRemovePhoto = () => {
+    photoRequestRef.current++;
+    setBgProcessing(false);
+    setPhotoError("");
     setPhotoBlob(null);
     setPhotoDraft("");
     if (photoPreview) URL.revokeObjectURL(photoPreview);
@@ -270,6 +255,7 @@ export default function CardEditPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (photoError) return;
     clearError();
     setFormError("");
     if (!name.trim() || !position || !/^[1-9]\d?$/.test(number)) {
@@ -410,7 +396,7 @@ export default function CardEditPage() {
         >
           <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" style={{ color: "var(--primary)" }} />
           <div>
-            <p className="text-sm font-bold" style={{ color: "var(--color-fg-ink)" }}>배경 제거 중...</p>
+            <p className="text-sm font-bold" style={{ color: "var(--color-fg-ink)" }}>{shouldUseTeamlessPose(teamId) ? "얼굴 합성 중..." : "배경 제거 중..."}</p>
             <p className="text-xs mt-0.5" style={{ color: "var(--color-fg-ink-muted)" }}>잠시만 기다려주세요</p>
           </div>
         </div>
@@ -559,6 +545,7 @@ export default function CardEditPage() {
                 )}
               </div>
             </div>
+            {photoError && <p role="alert" className="mt-3 max-w-[280px] text-center text-sm text-red-600">{photoError}</p>}
             {currentCardPhoto && (
               <div className="mt-3 flex w-full max-w-[280px] flex-col items-center gap-2">
                 <p className="text-[10px] text-center leading-relaxed" style={{ color: "var(--color-fg-ink-muted)" }}>
@@ -788,7 +775,7 @@ export default function CardEditPage() {
 
         <button
           type="submit"
-          disabled={loading || submission.submitting || bgProcessing || !draft.ready || earnedBadgeIds === null}
+          disabled={loading || submission.submitting || bgProcessing || !!photoError || !draft.ready || earnedBadgeIds === null}
           className="w-full py-4 rounded-2xl text-sm font-black transition-all hover:opacity-90 disabled:opacity-30"
           style={{
             background: "var(--primary)",

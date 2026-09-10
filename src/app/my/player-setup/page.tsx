@@ -113,16 +113,17 @@ function PlayerSetupContent() {
   const [nationality, setNationality] = useState("KOR");
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null); // 배경제거본 저장용
   const [sourcePhotoBlob, setSourcePhotoBlob] = useState<Blob | null>(null);
-  const [cutoutPhotoBlob, setCutoutPhotoBlob] = useState<Blob | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);   // 프로필 썸네일
   const [cardPhotoPreview, setCardPhotoPreview] = useState<string | null>(null); // 카드: 배경제거
   const [bgProcessing, setBgProcessing] = useState(false);
+  const [photoError, setPhotoError] = useState("");
   const [photoScale, setPhotoScale] = useState(DEFAULT_CARD_PHOTO_SCALE);
   const [formError, setFormError] = useState("");
   const [done, setDone] = useState(false);
   const submission = useSubmission();
   const [photoDraft, setPhotoDraft] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoRequestRef = useRef(0);
 
   // 카드 위 드래그로 사진 크기 조절
   const dragging = useRef(false);
@@ -211,20 +212,15 @@ function PlayerSetupContent() {
     nextTeamId: string,
     nextRole: Exclude<PlayerRole, "admin">,
     sourceBlob: Blob,
-    cutoutBlob: Blob,
   ) => {
-    if (!shouldUseTeamlessPose(nextTeamId, nextRole)) return cutoutBlob;
-    try {
-      return await composeTeamlessPoseCardPhoto({
+    if (shouldUseTeamlessPose(nextTeamId, nextRole)) {
+      return composeTeamlessPoseCardPhoto({
         sourcePhoto: sourceBlob,
-        cutoutPhoto: cutoutBlob,
         gender: user?.gender,
         seed: `${user?.uid ?? ""}-${name}-${number}`,
       });
-    } catch (error) {
-      console.error("[PlayerSetup] teamless pose composition failed:", error);
-      return cutoutBlob;
     }
+    return removeBackgroundAndCompress(sourceBlob, { maxPx: 1400, mimeType: "image/webp", quality: 0.92 });
   };
 
   const setProcessedPhoto = (blob: Blob) => {
@@ -236,67 +232,56 @@ function PlayerSetupContent() {
   };
 
   const reprocessUploadedPhoto = async (nextTeamId: string, nextRole = role) => {
-    if (!sourcePhotoBlob || !cutoutPhotoBlob) return;
+    if (!sourcePhotoBlob) return;
+    const requestId = ++photoRequestRef.current;
     setBgProcessing(true);
+    setPhotoError("");
+    setFormError("");
     try {
-      const finalPhoto = await buildCardPhotoBlob(nextTeamId, nextRole, sourcePhotoBlob, cutoutPhotoBlob);
-      setProcessedPhoto(finalPhoto);
+      const finalPhoto = await buildCardPhotoBlob(nextTeamId, nextRole, sourcePhotoBlob);
+      if (requestId === photoRequestRef.current) setProcessedPhoto(finalPhoto);
+    } catch (error) {
+      if (requestId === photoRequestRef.current) {
+        setTeamId(teamId);
+        setRole(role);
+        setPhotoError(registrationError(error, "사진 합성에 실패했습니다. 다른 사진으로 다시 시도해주세요."));
+      }
     } finally {
-      setBgProcessing(false);
+      if (requestId === photoRequestRef.current) setBgProcessing(false);
     }
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || bgProcessing) return;
+    const input = e.target;
+    const requestId = ++photoRequestRef.current;
     setBgProcessing(true);
+    setPhotoError("");
     setFormError("");
     try {
-
-    const compressed = await compressImageBlob(file, {
-      maxPx: 1400,
-      mimeType: "image/webp",
-      quality: 0.9,
-    });
-    const compressedPreviewUrl = URL.createObjectURL(compressed);
-    setPhotoPreview(compressedPreviewUrl);
-    setCardPhotoPreview(null);
-    setPhotoBlob(compressed);
-    setSourcePhotoBlob(compressed);
-    setCutoutPhotoBlob(null);
-
-    // 카드/프로필 공통 배경제거본 생성.
-    setBgProcessing(true);
-    try {
-      let optimizedPhoto = compressed;
-      try {
-        optimizedPhoto = await removeBackgroundAndCompress(compressed, {
-          maxPx: 1400,
-          mimeType: "image/webp",
-          quality: 0.92,
-        });
-      } catch (error) {
-        console.error("[PlayerSetup] background removal failed:", error);
-      }
-      setCutoutPhotoBlob(optimizedPhoto);
-      const finalPhoto = await buildCardPhotoBlob(teamId, role, compressed, optimizedPhoto);
-      setPhotoPreview(URL.createObjectURL(finalPhoto));
-      setCardPhotoPreview(URL.createObjectURL(finalPhoto));
-      setPhotoBlob(finalPhoto);
-      URL.revokeObjectURL(compressedPreviewUrl);
-    } finally {
-      setBgProcessing(false);
-    }
+      const compressed = await compressImageBlob(file, { maxPx: 1400, mimeType: "image/webp", quality: 0.9 });
+      const finalPhoto = await buildCardPhotoBlob(teamId, role, compressed);
+      if (requestId !== photoRequestRef.current) return;
+      setSourcePhotoBlob(compressed);
+      setProcessedPhoto(finalPhoto);
     } catch (e) {
-      setFormError(registrationError(e, "사진을 처리하지 못했습니다. 다른 이미지로 다시 선택해주세요."));
-    } finally { setBgProcessing(false); }
+      if (requestId === photoRequestRef.current) setPhotoError(registrationError(e, "사진을 처리하지 못했습니다. 다른 이미지로 다시 선택해주세요."));
+    } finally {
+      if (requestId === photoRequestRef.current) {
+        setBgProcessing(false);
+        input.value = "";
+      }
+    }
   };
 
   const handleRemovePhoto = () => {
+    photoRequestRef.current++;
+    setBgProcessing(false);
+    setPhotoError("");
     setPhotoBlob(null);
     setPhotoDraft("");
     setSourcePhotoBlob(null);
-    setCutoutPhotoBlob(null);
     if (photoPreview) URL.revokeObjectURL(photoPreview);
     if (cardPhotoPreview) URL.revokeObjectURL(cardPhotoPreview);
     setPhotoPreview(null);
@@ -305,11 +290,13 @@ function PlayerSetupContent() {
   };
 
   const handleTeamChange = (nextTeamId: string) => {
+    if (bgProcessing) return;
     setTeamId(nextTeamId);
     void reprocessUploadedPhoto(nextTeamId, role);
   };
 
   const handleRoleChange = (nextRole: Exclude<PlayerRole, "admin">) => {
+    if (bgProcessing) return;
     setRole(nextRole);
     void reprocessUploadedPhoto(teamId, nextRole);
   };
@@ -324,6 +311,7 @@ function PlayerSetupContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (photoError) return;
     clearError();
     setFormError("");
     if (!name.trim() || !position || !/^[1-9]\d?$/.test(number)) {
@@ -464,7 +452,7 @@ function PlayerSetupContent() {
         >
           <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" style={{ color: "var(--primary)" }} />
           <div>
-            <p className="text-sm font-bold" style={{ color: "var(--color-fg-ink)" }}>배경 제거 중...</p>
+            <p className="text-sm font-bold" style={{ color: "var(--color-fg-ink)" }}>{shouldUseTeamlessPose(teamId) ? "얼굴 합성 중..." : "배경 제거 중..."}</p>
             <p className="text-xs mt-0.5" style={{ color: "var(--color-fg-ink-muted)" }}>잠시만 기다려주세요</p>
           </div>
         </div>
@@ -649,6 +637,7 @@ function PlayerSetupContent() {
                 </button>
               )}
             </div>
+            {photoError && <p role="alert" className="mt-3 max-w-[280px] text-center text-sm text-red-600">{photoError}</p>}
             {photoPreview ? (
               <div className="flex flex-col items-center gap-2 w-full">
                 <p className="text-[10px] text-center leading-relaxed" style={{ color: "var(--color-fg-ink-muted)" }}>
@@ -883,7 +872,7 @@ function PlayerSetupContent() {
 
           <button
             type="submit"
-            disabled={loading || submission.submitting || bgProcessing || !draft.ready}
+            disabled={loading || submission.submitting || bgProcessing || !!photoError || !draft.ready}
             className="w-full py-4 rounded-2xl text-sm font-black transition-all hover:opacity-90 disabled:opacity-30"
             style={{
               background: "var(--primary)",

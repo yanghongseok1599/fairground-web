@@ -7,12 +7,6 @@ export interface PlayerCardPoseTemplate {
   gender: PlayerCardPoseGender;
   label: string;
   src: string;
-  faceTarget: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
 }
 
 /**
@@ -47,42 +41,36 @@ const PLAYER_CARD_POSE_TEMPLATE_VALUES = [
     gender: "male",
     label: "남자 포즈 1",
     src: FICTIONAL_PLAYER_CARD_POSE_SOURCES.male01,
-    faceTarget: Object.freeze({ x: 37.8, y: 5.5, width: 24.2, height: 31.8 }),
   },
   {
     id: "fictional-korean-male-ivory-02",
     gender: "male",
     label: "남자 포즈 2",
     src: FICTIONAL_PLAYER_CARD_POSE_SOURCES.male02,
-    faceTarget: Object.freeze({ x: 33.8, y: 4.6, width: 25.2, height: 33.5 }),
   },
   {
     id: "fictional-korean-male-charcoal-03",
     gender: "male",
     label: "남자 포즈 3",
     src: FICTIONAL_PLAYER_CARD_POSE_SOURCES.male03,
-    faceTarget: Object.freeze({ x: 37.8, y: 6.4, width: 24.4, height: 32.5 }),
   },
   {
     id: "fictional-korean-male-blue-04",
     gender: "male",
     label: "남자 포즈 4",
     src: FICTIONAL_PLAYER_CARD_POSE_SOURCES.male04,
-    faceTarget: Object.freeze({ x: 30.8, y: 6.8, width: 24.8, height: 33.4 }),
   },
   {
     id: "fictional-korean-female-burgundy-01",
     gender: "female",
     label: "여자 포즈 1",
     src: FICTIONAL_PLAYER_CARD_POSE_SOURCES.female01,
-    faceTarget: Object.freeze({ x: 37.8, y: 6.4, width: 24.4, height: 32.5 }),
   },
   {
     id: "fictional-korean-female-ivory-02",
     gender: "female",
     label: "여자 포즈 2",
     src: FICTIONAL_PLAYER_CARD_POSE_SOURCES.female02,
-    faceTarget: Object.freeze({ x: 30.8, y: 6.8, width: 24.8, height: 33.4 }),
   },
 ] satisfies PlayerCardPoseTemplate[];
 

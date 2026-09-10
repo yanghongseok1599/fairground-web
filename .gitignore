@@ -74,3 +74,6 @@ __pycache__/
 
 # 로컬 스크래치 이미지 (codex 임시 산출물)
 .codex_tmp-*
+
+# Generated from the pinned MediaPipe dependency by postinstall.
+/public/vendor/mediapipe/
