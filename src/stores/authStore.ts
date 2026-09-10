@@ -503,14 +503,17 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
         const { data: saved, error } = await supabase
           .from("profiles")
           .update(playerPatchToRow(patch))
-          .eq("id", uid).select("*").single();
-        savedPlayer = requireSavedProfile(saved, error, uid);
+          .eq("id", uid).select("id").single();
+        savedPlayer = await requireSavedProfile(saved, error, uid, fetchProfile);
       } else {
         const { data: saved, error } = await supabase.from("profiles")
-          .insert(playerToInsert(player)).select("*").single();
-        savedPlayer = requireSavedProfile(saved, error, uid);
+          .insert(playerToInsert(player)).select("id").single();
+        savedPlayer = await requireSavedProfile(saved, error, uid, fetchProfile);
       }
-      if (getState().user?.uid === uid) setState({ player: savedPlayer, loading: false });
+      if (getState().user?.uid !== uid) {
+        throw new Error("로그인 계정이 변경되었습니다. 저장 결과를 해당 계정에서 확인해주세요.");
+      }
+      setState({ player: savedPlayer, loading: false });
     } catch (e) {
       setState({ error: registrationError(e), loading: false });
       throw e;
@@ -618,13 +621,13 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
     const { data: saved, error } = await supabase
       .from("profiles")
       .update(playerPatchToRow(editableData))
-      .eq("id", state.user.uid).select("*").single();
+      .eq("id", state.user.uid).select("id").single();
     if (error) {
       console.error("[authStore] updatePlayer failed:", error.message);
       setState({ error: error.message });
       throw new Error(error.message);
     }
-    const savedPlayer = requireSavedProfile(saved, error, state.user.uid);
+    const savedPlayer = await requireSavedProfile(saved, error, state.user.uid, fetchProfile);
     if (getState().user?.uid !== state.user.uid) {
       throw new Error("로그인 계정이 변경되었습니다. 저장 결과를 해당 계정에서 확인해주세요.");
     }

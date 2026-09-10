@@ -51,7 +51,7 @@ test('profile save checks returned row before touching local state', async () =>
   assert.ok(f.requests[0].steps.some(x=>x[0]==='single'));
 });
 test('profile successful patch preserves statistics and membership', async () => {
-  const f=storeFixture(); f.responses.push({data:{...playerToInsert(f.player),name:'server normalized',created_at:new Date(f.player.createdAt).toISOString()},error:null});
+  const f=storeFixture(); f.responses.push({data:{id:'player-1'},error:null},{data:{...playerToInsert(f.player),name:'server normalized',created_at:new Date(f.player.createdAt).toISOString()},error:null});
   await f.auth.getState().updatePlayer({name:'new'});
   assert.equal(f.auth.getState().player.name,'server normalized');
   assert.deepEqual(f.auth.getState().player.stats,f.player.stats);
@@ -61,6 +61,7 @@ test('existing player setup never resubmits badges, privilege, membership or pri
   const f=storeFixture();
   f.responses.push({data:{id:'player-1',name:'원래 이름',number:7,position:'ALA',role:'player',is_approved:true,team_id:null,
     goals:19,assists:7,games:22,mom:3,badges:['earned'],phone:'01000000000',portrait_consent_at:'2026-01-01T00:00:00Z',created_at:'2026-01-01T00:00:00Z'},error:null},
+    {data:{id:'player-1'},error:null},
     {data:{id:'player-1',name:'new',number:9,position:'PIVO',role:'player',is_approved:true,team_id:null,
       goals:19,assists:7,games:22,mom:3,badges:['earned'],phone:'01000000000',portrait_consent_at:'2026-01-01T00:00:00Z',created_at:'2026-01-01T00:00:00Z'},error:null});
   await f.auth.getState().createPlayer({name:'new',number:9,position:'PIVO',teamId:'another-team',role:'captain',teamRole:'coach',portraitConsentAt:Date.now()});
@@ -159,7 +160,7 @@ test('a delayed auth read cannot resurrect the user after sign-out', async () =>
 test('player setup uses the committed row when membership or match statistics changed during the form', async () => {
   const f=storeFixture();
   const before={id:'player-1',name:'old',number:7,position:'ALA',role:'player',team_id:null,goals:19,created_at:'2026-01-01'};
-  f.responses.push({data:before,error:null},{data:{...before,name:'new',team_id:'approved-while-saving',goals:20},error:null});
+  f.responses.push({data:before,error:null},{data:{id:'player-1'},error:null},{data:{...before,name:'new',team_id:'approved-while-saving',goals:20},error:null});
   await f.auth.getState().createPlayer({name:'new',number:9,position:'PIVO'});
   assert.equal(f.auth.getState().player.teamId,'approved-while-saving');
   assert.equal(f.auth.getState().player.stats.goals,20);

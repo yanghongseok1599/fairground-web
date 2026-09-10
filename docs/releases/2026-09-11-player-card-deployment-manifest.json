@@ -1,0 +1,86 @@
+{
+  "baselineDeployment": "dpl_HNnfpgSAFHDCEvNQfxiaJs1bLX9d",
+  "deployment": "dpl_7wsVYBauKB29PkjBx1SixcDnDjHD",
+  "runtimeFiles": [
+    {
+      "path": "src/app/my/badges/page.tsx",
+      "previousSha256": "de946d037687d351241f0c1d6afdca8d15fc2d53dfa486b92ce54363b0db96e3",
+      "sha256": "2c2ce22510e403a47c595ebf2cfb87474b1384d5c6e13b9dbeda43a6ff7b147b"
+    },
+    {
+      "path": "src/app/my/card-edit/page.tsx",
+      "previousSha256": "620cf8a45f3ca49d41b774e45ecded1dfe4f52cbcba8087bd9190a965f97d5c3",
+      "sha256": "00c393797a7efeaa2fd255b82b40269bfcd6f775b87d1fc71451fc94ed110fb2"
+    },
+    {
+      "path": "src/app/my/player-setup/page.tsx",
+      "previousSha256": "2120f042789415cd67ba861a900f1319fef0e68bbd935b2b25ad10eb5dbe787a",
+      "sha256": "a82a1e21db000eef54246451627eee1167bc7489e0858e5bd0947d101f11698a"
+    },
+    {
+      "path": "src/components/player-card-photo-error.tsx",
+      "previousSha256": null,
+      "sha256": "457be8d314811df1245dc30a91c6e781bd57294acf9aa8d49f7a8c2e7da663a7"
+    },
+    {
+      "path": "src/components/player-card.tsx",
+      "previousSha256": "0add0e378eb9f4278b677eeefb09e2e69848220f10962191c4f85ac9234e90d2",
+      "sha256": "9a27c25c4d330cd5c576827ff6b0feb1628b27df9aba469d0d65e1ff7adb6c1b"
+    },
+    {
+      "path": "src/config/supabase.ts",
+      "previousSha256": "8eea4c19452204ab752e9c9cf0a343dcf1f28880c2fd495a7fa316f6350c7ce2",
+      "sha256": "fa9e12661e14e011985902d4b5ee9e006aa663f06cb15d0d1a3c4816304c5c7d"
+    },
+    {
+      "path": "src/hooks/useCardBadgeEligibility.ts",
+      "previousSha256": null,
+      "sha256": "6edf7b6601642106c76d2132fd236ffbe82ea6a9373ae26a41f288094954e64c"
+    },
+    {
+      "path": "src/hooks/useFormDraft.ts",
+      "previousSha256": null,
+      "sha256": "cf80ea81e0ccd2669923bd6b6ca221ed311717cbcd75fbc75883a2e77d89aedc"
+    },
+    {
+      "path": "src/lib/player-card/badge-edit.ts",
+      "previousSha256": null,
+      "sha256": "0ac0a51267b84844d489c24fe4197b5cb48d675d140c8b25a203e3c28a3695d8"
+    },
+    {
+      "path": "src/lib/player-card/upper-body-portrait.ts",
+      "previousSha256": "ea329b976574716b508091f25c890b58389d7beb67b108d526725635041d4196",
+      "sha256": "199302428023492afa681a5e22898cbc61d01ab2d1ffe48e6a36d1024e8e131b"
+    },
+    {
+      "path": "src/lib/player-onboarding.ts",
+      "previousSha256": "035a64ef2b29748bd79a39f4378c5f5cdefd06d6decd0605a971675d1d317800",
+      "sha256": "a0d133aa6c3429f9e98fe36d4827888494ba7d70c67916f0db7d2d7037ef5744"
+    },
+    {
+      "path": "src/lib/registration/draft-storage.ts",
+      "previousSha256": null,
+      "sha256": "fb05dbe1a34c04fdb23c83022e08fd7825ff1843a063c9b245af4107f9ddcbe4"
+    },
+    {
+      "path": "src/lib/registration/reliability.ts",
+      "previousSha256": null,
+      "sha256": "58c0992d9b22251b683b5c5c074407b668e5956d9b15a762ff08d85bb81978fd"
+    },
+    {
+      "path": "src/lib/registration/saved-profile.ts",
+      "previousSha256": null,
+      "sha256": "2917e2b5d1c405669e3c4cdaf1710938c98b36fd23db0ce0f13c93be3dabc57f"
+    },
+    {
+      "path": "src/stores/authStore.ts",
+      "previousSha256": "38686fca8c96ee90fbd7e4fcb5b14f74de72aad9d2cc19ce78d13e87f81dc0c5",
+      "sha256": "989d5dfe5eaf731fd986eba7b1d0e9a2fdd30425fdb4b444ad0e1bbc2e8ef45e"
+    },
+    {
+      "path": "src/stores/dataStore.ts",
+      "previousSha256": "a905de7f8d1a83dc6e55224ffb7e6246e78ed679b0e566648496b1bb5c63d30e",
+      "sha256": "52625aa13184cc2d084364386d8d87c1321216a903c0393915a212529832c024"
+    }
+  ]
+}

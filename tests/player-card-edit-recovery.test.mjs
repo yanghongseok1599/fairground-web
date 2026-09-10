@@ -46,22 +46,43 @@ test('zero-row, wrong-account and server errors do not modify the local player',
 test('profile save uses canonical server photo, badges and statistics', async () => {
   const f = storeFixture();
   const row = { ...playerToInsert(f.player), name: 'server', photo_url: 'server-photo', goals: 20, badges: ['first_goal'], created_at: new Date().toISOString() };
-  f.responses.push({ data: row, error: null });
+  f.responses.push({ data: { id: row.id }, error: null }, { data: row, error: null });
   await f.auth.getState().updatePlayer({ name: 'client', photoUrl: 'client-photo' });
   assert.equal(f.auth.getState().player.photoUrl, 'server-photo');
   assert.equal(f.auth.getState().player.stats.goals, 20);
   assert.deepEqual(f.auth.getState().player.badges, ['first_goal']);
-  assert.ok(f.requests[0].steps.some(([method, selection]) => method === 'select' && selection === '*'));
+  assert.ok(f.requests[0].steps.some(([method, selection]) => method === 'select' && selection === 'id'));
+  assert.equal(f.requests[1].rpc, 'get_my_profile');
 });
 test('a late save cannot overwrite a switched account or claim success', async () => {
   const f = storeFixture(); let complete;
   f.responses.push(new Promise(resolve => { complete = resolve; }));
+  f.responses.push({ data: { ...playerToInsert(f.player), created_at: new Date().toISOString() }, error: null });
   const save = f.auth.getState().updatePlayer({ name: 'old account edit' });
   await Promise.resolve();
   f.auth.setState({ user: { uid: 'other' }, player: { ...f.player, id: 'other', name: '다른 선수' } });
   complete({ data: { ...playerToInsert(f.player), created_at: new Date().toISOString() }, error: null });
   await assert.rejects(save, /계정이 변경/);
   assert.equal(f.auth.getState().player.name, '다른 선수');
+});
+test('failed or wrong-account canonical read never invents a saved local record', async () => {
+  for (const response of [{ data: null, error: { message: 'network failed' } }, { data: null, error: null }, { data: { id: 'other', created_at: '2026-01-01' }, error: null }]) {
+    const f = storeFixture();
+    f.responses.push({ data: { id: 'player-1' }, error: null }, response);
+    await assert.rejects(f.auth.getState().updatePlayer({ name: 'attempted' }), /저장.*확인/);
+    assert.equal(f.auth.getState().player.name, '원래 이름');
+    assert.equal(f.requests.filter(r => r.table === 'profiles').length, 1);
+  }
+});
+test('new player insert verifies only id then loads the own-profile RPC', async () => {
+  const f = storeFixture();
+  f.auth.setState({ player: null });
+  f.responses.push({ data: null, error: null }, { data: { id: 'player-1' }, error: null },
+    { data: { ...playerToInsert(f.player), name: 'server new', created_at: '2026-01-01' }, error: null });
+  await f.auth.getState().createPlayer({ name: 'client', number: 7, position: 'ALA' });
+  assert.equal(f.auth.getState().player.name, 'server new');
+  assert.deepEqual(f.requests[1].steps.find(([method]) => method === 'select'), ['select', 'id']);
+  assert.equal(f.requests[2].rpc, 'get_my_profile');
 });
 test('female and public gender-omitted portraits never get shadows', () => {
   for (const gender of ['female', undefined, 'other', 'prefer_not_to_say']) assert.equal(shouldShowPlayerPortraitShadow(gender), false);
