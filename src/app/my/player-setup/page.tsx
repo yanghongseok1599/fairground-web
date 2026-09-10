@@ -12,8 +12,9 @@ import { useDataStore } from "@/stores/dataStore";
 import { COUNTRIES } from "@/constants/countries";
 import { PlayerCard } from "@/components/player-card";
 import { PlayerCardTierPreviewGrid } from "@/components/player-card-tier-preview-grid";
-import { compressImageBlob, removeBackgroundAndCompress } from "@/lib/image-compression";
-import { composeTeamlessPoseCardPhoto } from "@/lib/player-card-photo-composer";
+import { compressImageBlob } from "@/lib/image-compression";
+import { preparePlayerCardPhoto, type PlayerCardPhotoMode } from "@/lib/player-card/photo-registration";
+import { PlayerCardPhotoOptions } from "@/components/player-card-photo-options";
 import { PLAYER_CARD_FRAME } from "@/lib/player-card-frame";
 import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
 import { hasCompletedPlayerCardSetup } from "@/lib/player-onboarding";
@@ -112,7 +113,6 @@ function PlayerSetupContent() {
   const [teamId, setTeamId] = useState("");
   const [nationality, setNationality] = useState("KOR");
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null); // 배경제거본 저장용
-  const [sourcePhotoBlob, setSourcePhotoBlob] = useState<Blob | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);   // 프로필 썸네일
   const [cardPhotoPreview, setCardPhotoPreview] = useState<string | null>(null); // 카드: 배경제거
   const [bgProcessing, setBgProcessing] = useState(false);
@@ -124,6 +124,8 @@ function PlayerSetupContent() {
   const [photoDraft, setPhotoDraft] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoRequestRef = useRef(0);
+  const [photoMode, setPhotoMode] = useState<PlayerCardPhotoMode>("face");
+  const photoModeRef = useRef<PlayerCardPhotoMode>("face");
 
   // 카드 위 드래그로 사진 크기 조절
   const dragging = useRef(false);
@@ -204,23 +206,10 @@ function PlayerSetupContent() {
     return () => el.removeEventListener("wheel", handler);
   }, [cardPhotoPreview, photoPreview]);
 
-  const shouldUseTeamlessPose = (nextTeamId: string, nextRole = role) => {
-    return nextRole !== "referee" && (isGroundChallengeCard || !nextTeamId);
-  };
-
-  const buildCardPhotoBlob = async (
-    nextTeamId: string,
-    nextRole: Exclude<PlayerRole, "admin">,
-    sourceBlob: Blob,
-  ) => {
-    if (shouldUseTeamlessPose(nextTeamId, nextRole)) {
-      return composeTeamlessPoseCardPhoto({
-        sourcePhoto: sourceBlob,
-        gender: user?.gender,
-        seed: `${user?.uid ?? ""}-${name}-${number}`,
-      });
-    }
-    return removeBackgroundAndCompress(sourceBlob, { maxPx: 1400, mimeType: "image/webp", quality: 0.92 });
+  const choosePhoto = (mode: PlayerCardPhotoMode) => {
+    photoModeRef.current = mode;
+    setPhotoMode(mode);
+    fileInputRef.current?.click();
   };
 
   const setProcessedPhoto = (blob: Blob) => {
@@ -229,26 +218,6 @@ function PlayerSetupContent() {
     setPhotoPreview(URL.createObjectURL(blob));
     setCardPhotoPreview(URL.createObjectURL(blob));
     setPhotoBlob(blob);
-  };
-
-  const reprocessUploadedPhoto = async (nextTeamId: string, nextRole = role) => {
-    if (!sourcePhotoBlob) return;
-    const requestId = ++photoRequestRef.current;
-    setBgProcessing(true);
-    setPhotoError("");
-    setFormError("");
-    try {
-      const finalPhoto = await buildCardPhotoBlob(nextTeamId, nextRole, sourcePhotoBlob);
-      if (requestId === photoRequestRef.current) setProcessedPhoto(finalPhoto);
-    } catch (error) {
-      if (requestId === photoRequestRef.current) {
-        setTeamId(teamId);
-        setRole(role);
-        setPhotoError(registrationError(error, "사진 합성에 실패했습니다. 다른 사진으로 다시 시도해주세요."));
-      }
-    } finally {
-      if (requestId === photoRequestRef.current) setBgProcessing(false);
-    }
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -261,9 +230,8 @@ function PlayerSetupContent() {
     setFormError("");
     try {
       const compressed = await compressImageBlob(file, { maxPx: 1400, mimeType: "image/webp", quality: 0.9 });
-      const finalPhoto = await buildCardPhotoBlob(teamId, role, compressed);
+      const finalPhoto = await preparePlayerCardPhoto(compressed, photoModeRef.current, user?.gender);
       if (requestId !== photoRequestRef.current) return;
-      setSourcePhotoBlob(compressed);
       setProcessedPhoto(finalPhoto);
     } catch (e) {
       if (requestId === photoRequestRef.current) setPhotoError(registrationError(e, "사진을 처리하지 못했습니다. 다른 이미지로 다시 선택해주세요."));
@@ -281,7 +249,6 @@ function PlayerSetupContent() {
     setPhotoError("");
     setPhotoBlob(null);
     setPhotoDraft("");
-    setSourcePhotoBlob(null);
     if (photoPreview) URL.revokeObjectURL(photoPreview);
     if (cardPhotoPreview) URL.revokeObjectURL(cardPhotoPreview);
     setPhotoPreview(null);
@@ -292,13 +259,11 @@ function PlayerSetupContent() {
   const handleTeamChange = (nextTeamId: string) => {
     if (bgProcessing) return;
     setTeamId(nextTeamId);
-    void reprocessUploadedPhoto(nextTeamId, role);
   };
 
   const handleRoleChange = (nextRole: Exclude<PlayerRole, "admin">) => {
     if (bgProcessing) return;
     setRole(nextRole);
-    void reprocessUploadedPhoto(teamId, nextRole);
   };
 
   useEffect(() => {
@@ -452,7 +417,7 @@ function PlayerSetupContent() {
         >
           <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" style={{ color: "var(--primary)" }} />
           <div>
-            <p className="text-sm font-bold" style={{ color: "var(--color-fg-ink)" }}>{shouldUseTeamlessPose(teamId) ? "얼굴 합성 중..." : "배경 제거 중..."}</p>
+            <p className="text-sm font-bold" style={{ color: "var(--color-fg-ink)" }}>{photoMode === "face" ? "준타스 유니폼에 얼굴 합성 중..." : "내 유니폼 사진 배경 제거 중..."}</p>
             <p className="text-xs mt-0.5" style={{ color: "var(--color-fg-ink-muted)" }}>잠시만 기다려주세요</p>
           </div>
         </div>
@@ -588,7 +553,7 @@ function PlayerSetupContent() {
               className="text-[10px] uppercase tracking-[2px] self-center"
               style={{ color: "var(--color-fg-ink-muted)", fontFamily: "var(--font-space-mono)" }}
             >
-              프로필 사진 <span style={{ color: "var(--color-fg-ink-muted)" }}>(선택)</span>
+              사진 등록하기 <span style={{ color: "var(--color-fg-ink-muted)" }}>(선택)</span>
             </p>
             <input
               ref={fileInputRef}
@@ -598,10 +563,8 @@ function PlayerSetupContent() {
               onChange={handlePhotoChange}
             />
             <div className="relative">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="프로필 사진 업로드"
+              <div
+                aria-label="프로필 사진 미리보기"
                 className="w-24 h-24 rounded-2xl overflow-hidden flex items-center justify-center transition-all hover:opacity-80"
                 style={{
                   background: photoPreview ? "transparent" : "var(--color-fg-paper-2)",
@@ -620,11 +583,11 @@ function PlayerSetupContent() {
                       className="text-[10px] uppercase tracking-wider text-center"
                       style={{ color: "var(--color-fg-ink-muted)", fontFamily: "var(--font-space-mono)" }}
                     >
-                      사진 추가
+                      아래에서 선택
                     </span>
                   </div>
                 )}
-              </button>
+              </div>
               {photoPreview && (
                 <button
                   type="button"
@@ -637,11 +600,11 @@ function PlayerSetupContent() {
                 </button>
               )}
             </div>
+            <PlayerCardPhotoOptions onSelect={choosePhoto} disabled={bgProcessing || submission.submitting} />
             {photoError && <p role="alert" className="mt-3 max-w-[280px] text-center text-sm text-red-600">{photoError}</p>}
             {photoPreview ? (
               <div className="flex flex-col items-center gap-2 w-full">
                 <p className="text-[10px] text-center leading-relaxed" style={{ color: "var(--color-fg-ink-muted)" }}>
-                  탭하여 변경<br />
                   카드 사진 드래그로 크기조절
                 </p>
                 {/* 크기 표시 */}

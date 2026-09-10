@@ -12,9 +12,9 @@ import { useDataStore } from "@/stores/dataStore";
 import { COUNTRIES } from "@/constants/countries";
 import { BADGES } from "@/constants/badges";
 import { PlayerCard } from "@/components/player-card";
-import { compressImageBlob, removeBackgroundAndCompress } from "@/lib/image-compression";
-import { composeTeamlessPoseCardPhoto } from "@/lib/player-card-photo-composer";
-import { isHologramPlayerCard } from "@/lib/player-card-skin";
+import { compressImageBlob } from "@/lib/image-compression";
+import { preparePlayerCardPhoto, type PlayerCardPhotoMode } from "@/lib/player-card/photo-registration";
+import { PlayerCardPhotoOptions } from "@/components/player-card-photo-options";
 import { DEFAULT_CARD_PHOTO_SCALE, getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 import { FAIRGROUND_OPS_TEAM_LOGO } from "@/lib/team-logo-assets";
 import { PUBLIC_PAGE_CONTENT_CLASS, PUBLIC_PAGE_GUTTER_CLASS } from "@/lib/page-layout";
@@ -80,6 +80,8 @@ export default function CardEditPage() {
   const [photoDraft, setPhotoDraft] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const photoRequestRef = useRef(0);
+  const [photoMode, setPhotoMode] = useState<PlayerCardPhotoMode>("face");
+  const photoModeRef = useRef<PlayerCardPhotoMode>("face");
 
   const dragging = useRef(false);
   const dragStartY = useRef(0);
@@ -170,22 +172,10 @@ export default function CardEditPage() {
     return () => el.removeEventListener("wheel", handler);
   }, [cardPhotoPreview, photoPreview, player?.photoUrl]);
 
-  const shouldUseTeamlessPose = (nextTeamId: string) => {
-    return player?.role !== "referee" && (isHologramPlayerCard(player) || !nextTeamId);
-  };
-
-  const buildCardPhotoBlob = async (
-    nextTeamId: string,
-    sourceBlob: Blob,
-  ) => {
-    if (shouldUseTeamlessPose(nextTeamId)) {
-      return composeTeamlessPoseCardPhoto({
-        sourcePhoto: sourceBlob,
-        gender: player?.gender,
-        seed: `${player?.uid ?? user?.uid ?? ""}-${name}-${number}`,
-      });
-    }
-    return removeBackgroundAndCompress(sourceBlob, { maxPx: 1400, mimeType: "image/webp", quality: 0.92 });
+  const choosePhoto = (mode: PlayerCardPhotoMode) => {
+    photoModeRef.current = mode;
+    setPhotoMode(mode);
+    fileInputRef.current?.click();
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,7 +188,7 @@ export default function CardEditPage() {
     setFormError("");
     try {
       const compressed = await compressImageBlob(file, { maxPx: 1400, mimeType: "image/webp", quality: 0.9 });
-      const finalPhoto = await buildCardPhotoBlob(teamId, compressed);
+      const finalPhoto = await preparePlayerCardPhoto(compressed, photoModeRef.current, player?.gender ?? user?.gender);
       if (requestId !== photoRequestRef.current) return;
       if (photoPreview) URL.revokeObjectURL(photoPreview);
       if (cardPhotoPreview) URL.revokeObjectURL(cardPhotoPreview);
@@ -396,7 +386,7 @@ export default function CardEditPage() {
         >
           <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" style={{ color: "var(--primary)" }} />
           <div>
-            <p className="text-sm font-bold" style={{ color: "var(--color-fg-ink)" }}>{shouldUseTeamlessPose(teamId) ? "얼굴 합성 중..." : "배경 제거 중..."}</p>
+            <p className="text-sm font-bold" style={{ color: "var(--color-fg-ink)" }}>{photoMode === "face" ? "준타스 유니폼에 얼굴 합성 중..." : "내 유니폼 사진 배경 제거 중..."}</p>
             <p className="text-xs mt-0.5" style={{ color: "var(--color-fg-ink-muted)" }}>잠시만 기다려주세요</p>
           </div>
         </div>
@@ -493,7 +483,7 @@ export default function CardEditPage() {
                 className="mt-1 text-lg font-black"
                 style={{ color: "var(--color-fg-ink)", fontFamily: "var(--font-pretendard)" }}
               >
-                사진 첨부
+                사진 등록하기
               </h2>
             </div>
             <input
@@ -505,10 +495,8 @@ export default function CardEditPage() {
             />
             <div className="flex w-full max-w-[280px] justify-center">
               <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  aria-label="프로필 사진 업로드"
+                <div
+                  aria-label="프로필 사진 미리보기"
                   className="flex h-40 w-40 items-center justify-center overflow-hidden rounded-[28px] transition-all hover:opacity-80 sm:h-44 sm:w-44 md:h-[184px] md:w-[184px]"
                   style={{
                     background: currentThumbPhoto ? "transparent" : "var(--color-fg-paper-2)",
@@ -527,11 +515,11 @@ export default function CardEditPage() {
                         className="text-[10px] uppercase tracking-wider text-center"
                         style={{ color: "var(--color-fg-ink-muted)", fontFamily: "var(--font-space-mono)" }}
                       >
-                        사진 추가
+                        아래에서 등록 방식 선택
                       </span>
                     </div>
                   )}
-                </button>
+                </div>
                 {photoPreview && (
                   <button
                     type="button"
@@ -545,11 +533,11 @@ export default function CardEditPage() {
                 )}
               </div>
             </div>
+            <PlayerCardPhotoOptions onSelect={choosePhoto} disabled={bgProcessing || submission.submitting} />
             {photoError && <p role="alert" className="mt-3 max-w-[280px] text-center text-sm text-red-600">{photoError}</p>}
             {currentCardPhoto && (
               <div className="mt-3 flex w-full max-w-[280px] flex-col items-center gap-2">
                 <p className="text-[10px] text-center leading-relaxed" style={{ color: "var(--color-fg-ink-muted)" }}>
-                  탭하여 변경<br />
                   카드 미리보기를 위아래로 드래그하면 사진 크기가 조절됩니다
                 </p>
                 <div

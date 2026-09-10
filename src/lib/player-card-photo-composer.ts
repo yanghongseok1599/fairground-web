@@ -7,6 +7,7 @@ interface ComposeTeamlessPosePhotoOptions {
   sourcePhoto: Blob;
   gender?: Gender | null;
   seed?: string;
+  templateSrc?: string;
   mimeType?: "image/webp" | "image/png";
   quality?: number;
 }
@@ -30,13 +31,13 @@ function createCanvas(width: number, height: number) {
 }
 
 export async function composeTeamlessPoseCardPhoto({
-  sourcePhoto, gender, seed, mimeType = "image/webp", quality = 0.92,
+  sourcePhoto, gender, seed, templateSrc, mimeType = "image/webp", quality = 0.92,
 }: ComposeTeamlessPosePhotoOptions): Promise<Blob> {
-  const template = getTeamlessPlayerCardPose(gender, seed);
+  const poseSrc = templateSrc ?? getTeamlessPlayerCardPose(gender, seed).src;
   const sourceUrl = URL.createObjectURL(sourcePhoto);
   try {
     const [source, templateImage, { FaceLandmarker }] = await Promise.all([
-      loadImage(sourceUrl), loadImage(template.src), import("@mediapipe/tasks-vision"),
+      loadImage(sourceUrl), loadImage(poseSrc), import("@mediapipe/tasks-vision"),
     ]);
     const sourceLandmarks = await detectCardFace(source);
     const targetLandmarks = await detectCardFace(templateImage);
