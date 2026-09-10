@@ -1,5 +1,6 @@
 import type { FaceLandmarker } from "@mediapipe/tasks-vision";
 import { requireSingleFace } from "./face-geometry";
+import { loadVisionModel } from "./vision-model";
 
 let detectorPromise: Promise<FaceLandmarker> | undefined;
 
@@ -8,10 +9,9 @@ export async function getFaceLandmarker(): Promise<FaceLandmarker> {
     detectorPromise = (async () => {
       const { FaceLandmarker, FilesetResolver } = await import("@mediapipe/tasks-vision");
       const vision = await FilesetResolver.forVisionTasks("/vendor/mediapipe/0.10.32");
-      const response = await fetch("/models/face-landmarker/face_landmarker.task", { signal: AbortSignal.timeout(30_000) });
-      if (!response.ok) throw new Error("얼굴 인식 모델을 불러오지 못했습니다. 다시 시도해주세요.");
+      const model = await loadVisionModel("/models/face-landmarker/face_landmarker.task");
       return FaceLandmarker.createFromOptions(vision, {
-        baseOptions: { modelAssetBuffer: new Uint8Array(await response.arrayBuffer()), delegate: "CPU" },
+        baseOptions: { modelAssetBuffer: model, delegate: "CPU" },
         runningMode: "IMAGE",
         numFaces: 2,
         minFaceDetectionConfidence: 0.5,

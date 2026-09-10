@@ -121,6 +121,7 @@ export default function SkillChallengePage() {
             <div className="relative flex justify-center">
               <PlayerCard
                 player={SAMPLE_PLAYER}
+                cardContext="challenge"
                 size="lg"
                 teamLogo={TEAM_LOGO}
                 disableHoverScale

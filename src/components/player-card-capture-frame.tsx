@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { PlayerCard } from "@/components/player-card";
 import { PLAYER_CARD_PRESET_ID, type PlayerCardSize } from "@/lib/player-card-frame";
 import type { Player } from "@/types";
+import type { PlayerCardContext } from "@/lib/player-card-skin";
 
 type CardSize = Extract<PlayerCardSize, "lg" | "xl" | "export">;
 
@@ -16,6 +17,7 @@ interface PlayerCardCaptureFrameProps {
   logoHeight?: number;
   displayWidth?: number | string;
   className?: string;
+  cardContext?: PlayerCardContext;
 }
 
 export function PlayerCardCaptureFrame({
@@ -27,6 +29,7 @@ export function PlayerCardCaptureFrame({
   logoHeight = Math.round(boxSize * 0.055),
   displayWidth,
   className = "",
+  cardContext = "league",
 }: PlayerCardCaptureFrameProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   const [renderedWidth, setRenderedWidth] = useState(boxSize);
@@ -98,7 +101,7 @@ export function PlayerCardCaptureFrame({
       ))}
       <div className="absolute inset-0 flex items-center justify-center" style={{ paddingBottom: "6%" }}>
         <div style={{ transform: `scale(${visualScale})`, transformOrigin: "center center" }}>
-          <PlayerCard player={player} size={cardSize} teamLogo={teamLogo} disableHoverScale />
+          <PlayerCard player={player} cardContext={cardContext} size={cardSize} teamLogo={teamLogo} disableHoverScale />
         </div>
       </div>
       <div

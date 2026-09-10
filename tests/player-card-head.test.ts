@@ -1,0 +1,24 @@
+import assert from "node:assert/strict";
+import { alignWholeHead, foregroundAlpha, transformHeadPoint, wholeHeadAlpha } from "../src/lib/player-card/head-geometry.ts";
+
+const source = Array.from({ length: 478 }, () => ({ x: 50, y: 50 }));
+source[33] = { x: 20, y: 30 }; source[263] = { x: 80, y: 30 }; source[152] = { x: 50, y: 100 };
+const target = source.map((p) => ({ x: 2 * p.x + 100, y: 2 * p.y + 80 }));
+const matrix = alignWholeHead(source, target);
+assert.deepEqual(transformHeadPoint(source[152], matrix), target[152]);
+assert.deepEqual(transformHeadPoint({ x: 15, y: 0 }, matrix), { x: 130, y: 80 }, "머리도 얼굴과 같은 비율로 이동");
+assert.equal(matrix[0], matrix[3], "가로·세로 비율 왜곡 금지");
+assert.equal(matrix[1], -matrix[2], "전단 변형 금지");
+assert.throws(() => alignWholeHead(Array.from({ length: 478 }, () => ({ x: 0, y: 0 })), target), /정면/);
+const bounds = { left: 20, right: 80, top: 10, bottom: 100, center: 50 };
+const category = (index: number) => Array.from({ length: 6 }, (_, i) => i === index ? 1 : 0);
+assert.equal(wholeHeadAlpha(category(1), { x: 90, y: 180 }, bounds), 1, "턱 아래 긴 머리 유지");
+assert.equal(wholeHeadAlpha(category(5), { x: 50, y: 5 }, bounds), 1, "본인 머리띠·안경 유지");
+assert.equal(wholeHeadAlpha(category(3), { x: 50, y: 50 }, bounds), 1, "본인 얼굴 전체 유지");
+assert.equal(wholeHeadAlpha(category(4), { x: 50, y: 130 }, bounds), 0, "본인 옷은 얼굴 모드에서 제거");
+assert.equal(wholeHeadAlpha(category(2), { x: 50, y: 150 }, bounds), 0, "본인 몸통 피부 제거");
+assert.equal(wholeHeadAlpha(category(0), { x: 50, y: 50 }, bounds), 0);
+assert.equal(foregroundAlpha(0.1), 0, "배경 잔상 제거");
+assert.equal(foregroundAlpha(0.95), 1);
+assert.ok(Math.abs(foregroundAlpha(0.5) - 0.5) < 1e-8);
+console.log("player-card whole-head geometry/mask tests passed");

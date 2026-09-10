@@ -18,7 +18,8 @@
     "test:schema-parity": "node --test tests/schema-parity.test.mjs",
     "test:security": "node --experimental-strip-types tests/security-hardening.test.ts",
     "test:player-card": "node --experimental-strip-types tests/player-card-frame.test.ts && node --experimental-strip-types tests/player-card-photo-fallback.test.ts && node --experimental-strip-types tests/player-card-assets.test.ts && node --experimental-strip-types tests/player-card-face-geometry.test.ts",
-    "test:photo-read": "node --test tests/player-card-photo-read.test.mjs"
+    "test:photo-read": "node --test tests/player-card-photo-read.test.mjs",
+    "test:player-card-head": "node --experimental-strip-types tests/player-card-head.test.ts && node --test tests/player-card-skin.test.mjs"
   },
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",

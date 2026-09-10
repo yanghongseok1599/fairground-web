@@ -887,6 +887,7 @@ export default function MyPage() {
                             >
                               <PlayerCardCaptureFrame
                                 player={withCardSkin(player, skin)}
+                                cardContext={skin === "hologram" ? "challenge" : "league"}
                                 teamLogo={team?.logo}
                                 boxSize={760}
                                 cardSize="export"

@@ -20,6 +20,7 @@ export function PlayerCardPhotoOptions({ onSelect, disabled }: {
           </button>
         );
       })}
+      <p className="text-xs leading-relaxed text-muted-foreground">내 얼굴 등록은 머리카락과 턱이 모두 보이는 정면 사진을 사용해주세요. 합성 결과를 확인한 뒤 저장해주세요.</p>
     </div>
   );
 }

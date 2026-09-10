@@ -14,7 +14,7 @@ import {
   PLAYER_CARD_IMAGE_SET_ID,
   resolvePlayerCardPhoto,
 } from "@/lib/player-card-pose-templates";
-import { isHologramPlayerCard } from "@/lib/player-card-skin";
+import { getPlayerCardDisplaySkin, type PlayerCardContext } from "@/lib/player-card-skin";
 import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
 
 interface PlayerCardProps {
@@ -23,6 +23,7 @@ interface PlayerCardProps {
   teamLogo?: string;
   onClick?: () => void;
   disableHoverScale?: boolean;
+  cardContext?: PlayerCardContext;
 }
 
 function countryToFlagCode(code: string): string {
@@ -127,11 +128,12 @@ export function PlayerCard({
   teamLogo,
   onClick,
   disableHoverScale = false,
+  cardContext = "league",
 }: PlayerCardProps) {
   const { width: cardW, height: cardH } = getPlayerCardFrameDimensions(size);
 
   const cardType = getCardTypeFromRating(player.cardRating);
-  const visualCardType: VisualCardType = isHologramPlayerCard(player) ? "hologram" : cardType;
+  const visualCardType: VisualCardType = getPlayerCardDisplaySkin(player, cardContext) === "hologram" ? "hologram" : cardType;
   const skin = CARD_SKIN[visualCardType] ?? STANDARD_SKIN;
   const processedTeamLogo = useTeamLogoBackgroundRemoval(teamLogo);
   const { pos: POS, fontPct: FONT_PCT, leftColCenter: LEFT_COL_CENTER } = PLAYER_CARD_FRAME;

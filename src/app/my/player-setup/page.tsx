@@ -22,7 +22,6 @@ import {
   clearPendingCardSkin,
   getCardSkinFromSearchParams,
   GROUND_CHALLENGE_PLAYER_CARD_SKIN,
-  readPendingCardSkin,
 } from "@/lib/player-card-skin";
 import type { Position, Player, PlayerCardSkin, PlayerRole } from "@/types";
 
@@ -99,7 +98,7 @@ function PlayerSetupContent() {
   })();
 
   const [cardSkin] = useState<PlayerCardSkin>(() =>
-    getCardSkinFromSearchParams(searchParams) ?? readPendingCardSkin() ?? "standard",
+    getCardSkinFromSearchParams(searchParams) ?? "standard",
   );
   const isGroundChallengeCard = cardSkin === GROUND_CHALLENGE_PLAYER_CARD_SKIN;
   const canContinuePlayerSetup =
@@ -502,6 +501,7 @@ function PlayerSetupContent() {
               >
                 <PlayerCard
                   player={previewPlayer}
+                  cardContext={isGroundChallengeCard ? "challenge" : "league"}
                   size="lg"
                   teamLogo={selectedTeam?.logo}
                   disableHoverScale

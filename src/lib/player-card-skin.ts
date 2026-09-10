@@ -3,6 +3,9 @@ import type { Player, PlayerCardSkin } from "@/types";
 export const STANDARD_PLAYER_CARD_SKIN: PlayerCardSkin = "standard";
 export const GROUND_CHALLENGE_PLAYER_CARD_SKIN: PlayerCardSkin = "hologram";
 export const GROUND_CHALLENGE_CARD_STORAGE_KEY = "fg_ground_challenge_card_skin";
+export const PENDING_CARD_SKIN_SESSION_KEY = "fg_pending_card_skin_v2";
+const PENDING_CARD_SKIN_TTL = 30 * 60 * 1000;
+export type PlayerCardContext = "league" | "challenge";
 export const GROUND_CHALLENGE_EVENT_QUERY_VALUE = "ground-challenge";
 
 type SearchParamReader = {
@@ -38,6 +41,7 @@ export function getCardSkinFromSearchParams(params?: SearchParamReader | null): 
   if (!params) return undefined;
 
   const explicitSkin = normalizeQueryValue(params.get("cardSkin") ?? params.get("card_skin"));
+  if (explicitSkin === STANDARD_PLAYER_CARD_SKIN) return STANDARD_PLAYER_CARD_SKIN;
   if (explicitSkin === GROUND_CHALLENGE_PLAYER_CARD_SKIN) return GROUND_CHALLENGE_PLAYER_CARD_SKIN;
 
   const eventValues = [
@@ -54,21 +58,31 @@ export function getCardSkinFromSearchParams(params?: SearchParamReader | null): 
 
 export function rememberPendingCardSkin(cardSkin?: PlayerCardSkin) {
   if (typeof window === "undefined") return;
-  if (cardSkin === GROUND_CHALLENGE_PLAYER_CARD_SKIN) {
-    window.localStorage.setItem(GROUND_CHALLENGE_CARD_STORAGE_KEY, cardSkin);
-  }
+  clearPendingCardSkin();
+  try {
+    if (cardSkin === GROUND_CHALLENGE_PLAYER_CARD_SKIN) {
+      window.sessionStorage.setItem(PENDING_CARD_SKIN_SESSION_KEY, JSON.stringify({ cardSkin, expiresAt: Date.now() + PENDING_CARD_SKIN_TTL }));
+    }
+  } catch { /* Storage denial must not block registration. */ }
 }
 
 export function readPendingCardSkin(): PlayerCardSkin | undefined {
   if (typeof window === "undefined") return undefined;
-  return window.localStorage.getItem(GROUND_CHALLENGE_CARD_STORAGE_KEY) === GROUND_CHALLENGE_PLAYER_CARD_SKIN
-    ? GROUND_CHALLENGE_PLAYER_CARD_SKIN
-    : undefined;
+  try {
+    // Never inherit the old, permanent event marker from another entry/account.
+    window.localStorage.removeItem(GROUND_CHALLENGE_CARD_STORAGE_KEY);
+    const value = JSON.parse(window.sessionStorage.getItem(PENDING_CARD_SKIN_SESSION_KEY) ?? "null");
+    if (value?.cardSkin === GROUND_CHALLENGE_PLAYER_CARD_SKIN && Number.isFinite(value.expiresAt)
+      && value.expiresAt > Date.now() && value.expiresAt <= Date.now() + PENDING_CARD_SKIN_TTL) return GROUND_CHALLENGE_PLAYER_CARD_SKIN;
+  } catch { /* Malformed or unavailable storage is a standard-card entry. */ }
+  clearPendingCardSkin();
+  return undefined;
 }
 
 export function clearPendingCardSkin() {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(GROUND_CHALLENGE_CARD_STORAGE_KEY);
+  try { window.localStorage.removeItem(GROUND_CHALLENGE_CARD_STORAGE_KEY); } catch { /* private mode */ }
+  try { window.sessionStorage.removeItem(PENDING_CARD_SKIN_SESSION_KEY); } catch { /* private mode */ }
 }
 
 export function getPlayerCardSkin(player?: Pick<Player, "cardSkin"> | null): PlayerCardSkin {
@@ -79,6 +93,11 @@ export function getPlayerCardSkin(player?: Pick<Player, "cardSkin"> | null): Pla
 
 export function isHologramPlayerCard(player?: Pick<Player, "cardSkin"> | null) {
   return getPlayerCardSkin(player) === GROUND_CHALLENGE_PLAYER_CARD_SKIN;
+}
+
+/** Eligibility is not display. League/edit/public cards always use their rating tier. */
+export function getPlayerCardDisplaySkin(player?: Pick<Player, "cardSkin"> | null, context: PlayerCardContext = "league"): PlayerCardSkin {
+  return context === "challenge" ? getPlayerCardSkin(player) : STANDARD_PLAYER_CARD_SKIN;
 }
 
 // ===== 카드 스킨 선택 =====
