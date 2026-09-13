@@ -1,0 +1,40 @@
+{
+  "deploymentId": "dpl_4VA9FhmQhZmhDafzCMZfDQhTsnfD",
+  "baselineDeploymentId": "dpl_7wsVYBauKB29PkjBx1SixcDnDjHD",
+  "implementationCommit": "138625e",
+  "sourceFilesVerified": 891,
+  "changedFiles": [
+    {
+      "path": "public/document/fairground-captain-guide-v1.0.pdf",
+      "sha256": "303a0caf64f204e2cb06875a560306d3a6c4b8ea3e5105ab6a1a4dd7fd03b39c"
+    },
+    {
+      "path": "public/document/fairground-match-rulebook-v2.4.pdf",
+      "sha256": "06297937c18bbcad7b4a38626c959fd610521a6e7064edbce371c3d8968ea94e"
+    },
+    {
+      "path": "public/document/fairground-referee-guide-v2.3.pdf",
+      "sha256": "46e9ebc92eac2e07f3c0331087125f977ab5fbe672f03139f2b5946be9681287"
+    },
+    {
+      "path": "public/document/files 2/페어그라운드_경기_운영규정_v2_4.md",
+      "sha256": "e65247fb4998d115326bcba000ac9b4bbb8843abf3d316b3c4e913fe10069d0c"
+    },
+    {
+      "path": "public/document/files 2/페어그라운드_심판교육가이드_v2_3.md",
+      "sha256": "59dbe929281714fa69c05d615777693bc64e37632072ed3cd9099ffad047bc54"
+    },
+    {
+      "path": "public/document/files 2/페어그라운드_주장교육가이드_v1_0.md",
+      "sha256": "b2743ee99bf82bbb5bb047020faed5e10e27e5dd9a01ac6a3d3bed0523a68732"
+    },
+    {
+      "path": "scripts/build-rulebook-pdf.mjs",
+      "sha256": "a17c0784c23e3903bbfed3a9c709f6df69fc44fa6f0316eb7fa43c78d81dfee9"
+    },
+    {
+      "path": "src/app/rulebook/rulebook-client.tsx",
+      "sha256": "64b8f932ada1d8bd627bd92a6b51dabd0a506c2bd02e4d3ac9fc30be9d167926"
+    }
+  ]
+}
