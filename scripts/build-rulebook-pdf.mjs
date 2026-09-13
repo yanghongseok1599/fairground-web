@@ -528,7 +528,7 @@ function buildHtml(doc, parsed) {
   .note {
     margin: 3mm 0; padding: 3mm 4mm;
     background: ${BRAND.ice}; border-left: 2mm solid ${BRAND.royal};
-    color: ${BRAND.deep}; font-weight: 700;
+    color: ${BRAND.deep}; font-weight: 700; break-inside: avoid;
   }
   .closing {
     margin: 6mm 0 0; padding: 3.4mm 4.5mm;
