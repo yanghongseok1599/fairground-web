@@ -1,22 +1,27 @@
 "use client";
 
-import { useEffect } from "react";
-import { effectiveScene } from "./engine";
-import { formatRecord, recordUnit } from "./scoring";
+import { useEffect, useState, type CSSProperties } from "react";
+import { formatRecord, recordUnit, GAME_LABELS } from "./scoring";
+import { audienceView, audienceRecords } from "./broadcast-model";
 import { useEventConnection, useServerNow } from "./client";
 import type { AllianceTeam, Output } from "./types";
 import styles from "./event.module.css";
+import screen from "./broadcast.module.css";
 
 const number = (value: number | null) =>
   value === null ? "—" : value.toLocaleString("ko-KR");
-function TeamName({ team, output }: { team: AllianceTeam; output: Output }) {
+
+function TeamLabel({ team }: { team: AllianceTeam }) {
   return (
-    <>
-      <div className={styles.teamName}>{team.name}</div>
-      <div className={styles.sources}>
-        {team.sourceIds.map((id) => output.sourceNames[id]).join(" + ")}
-      </div>
-    </>
+    <span className={screen.teamLabel}>
+      <i style={{ background: team.color }} />
+      <strong
+        className={team.name.length > 16 ? screen.longName : undefined}
+        title={team.name}
+      >
+        {team.name}
+      </strong>
+    </span>
   );
 }
 
@@ -29,323 +34,143 @@ export function BroadcastScreen({
   now: number;
   overlay?: boolean;
 }) {
-  const scene = effectiveScene(output, now);
-  const focus =
-    output.teams.find((t) => t.id === output.focusTeamId) ?? output.teams[0];
-  const winner = output.teams.find((t) => t.id === output.winnerId);
-  const game =
-    scene === "keepUp"
-      ? "keepUp"
-      : scene === "shooting"
-        ? "shooting"
-        : output.game;
-  const main = game === "keepUp";
-  const rows = main ? output.keepUp : output.shooting;
-  const total = scene === "overall" || scene === "winner";
+  const { tab, game } = audienceView(output, now);
+  const focus = output.teams.find((t) => t.id === output.focusTeamId)!;
+  const rows = audienceRecords(output, game);
+  const unit = recordUnit(game, output.metric);
+  const final = output.finalized.shooting && output.finalized.keepUp;
+  const liveValue = output.scene === "reveal" ? output.value : null;
+  const tabs = [
+    ["live", game === "shooting" ? "속도 · km/h" : `기록 · ${unit}`],
+    ["records", "팀별 기록순위"],
+    ["scores", "종합 스코어"],
+  ];
   return (
     <section
-      className={`${styles.screen} ${overlay ? styles.overlay : ""}`}
-      aria-label="중계 출력"
-      data-scene={scene}
+      className={`${screen.canvas} ${overlay ? screen.overlay : ""}`}
+      aria-label="관객 화면"
+      data-audience-tab={tab}
     >
-      <div className={styles.court} aria-hidden="true">
-        <i />
-        <b />
-      </div>
-      <header className={styles.screenHeader}>
-        <div className={styles.wordmark}>
-          FAIR<span>GROUND</span>
-          <small>ALLIANCE CHALLENGE</small>
+      <header className={screen.header}>
+        <div className={screen.labels} aria-label="현재 출력 항목">
+          {tabs.map(([key, label]) => (
+            <span key={key} data-active={tab === key}>
+              {label}
+            </span>
+          ))}
         </div>
-        <div className={styles.screenEvent}>
-          {output.title}
-          <span>
-            {output.demo
-              ? "REHEARSAL · 연습 이벤트"
-              : "12 TEAMS · 6 ALLIANCES · ONE CHAMPION"}
-          </span>
-        </div>
-        <div className={styles.liveBadge}>
-          <i />
-          {output.demo ? "REHEARSAL" : "LIVE"}
-        </div>
+        <span className={screen.gameLabel}>
+          {output.demo && <small>연습</small>}
+          {tab === "scores" ? "연합팀 대항전" : GAME_LABELS[game]}
+        </span>
       </header>
-      <div className={styles.screenBody}>
-        {scene === "standby" ? (
-          <div className={styles.standby}>
-            <p className={styles.eyebrow}>BETTER TOGETHER</p>
-            <h1>
-              우리의 이름으로.
-              <br />
-              <em>하나의 팀으로.</em>
-            </h1>
-            <p>슈팅왕 100점 + 공 살리기 1,000점</p>
-            <div className={styles.sixTeams}>
-              {output.teams.map((t) => (
-                <div
-                  key={t.id}
-                  style={{ "--team-color": t.color } as React.CSSProperties}
-                >
-                  <small>{t.group} ALLIANCE</small>
-                  <strong>{t.name}</strong>
-                </div>
-              ))}
-            </div>
+      {tab === "live" ? (
+        <div
+          className={screen.measurement}
+          style={{ "--team-color": focus.color } as CSSProperties}
+        >
+          <div className={screen.liveTeam}>
+            <TeamLabel team={focus} />
           </div>
-        ) : scene === "prepare" ? (
-          <div className={styles.prepare}>
-            <p className={styles.eyebrow}>
-              {main ? "MAIN EVENT / 1,000 PTS" : "BONUS GAME / 100 PTS"}
-            </p>
-            <span className={styles.prepareLabel}>NEXT UP · 도전 준비</span>
-            <div style={{ color: focus.color }}>
-              <TeamName team={focus} output={output} />
-            </div>
-            <h1>{main ? "함께 살려라!" : output.playerName}</h1>
+          {output.playerName && (
+            <p className={screen.player}>{output.playerName}</p>
+          )}
+          <div
+            className={screen.value}
+            key={`${output.publishedAt}-${liveValue}`}
+          >
+            <strong>{formatRecord(liveValue, game, output.metric)}</strong>
+            <span>{unit}</span>
+          </div>
+          {liveValue === null && <p className={screen.awaiting}>측정 대기</p>}
+        </div>
+      ) : tab === "records" ? (
+        <div className={screen.board}>
+          <div className={screen.boardHeading}>
+            <h1>{GAME_LABELS[game]} 기록순위</h1>
             <p>
-              {main
-                ? focus.keepUpPlayers.join(" · ")
-                : "슈팅왕 챌린지 · 측정 대기"}
+              {output.finalized[game] ? "최종 기록" : "진행 중 · 임시 순위"}
             </p>
           </div>
-        ) : scene === "reveal" ? (
-          <div className={styles.reveal} key={output.publishedAt}>
-            <p className={styles.eyebrow}>
-              {main ? "MAIN EVENT · 공 살리기" : "BONUS GAME · 슈팅왕"}
-            </p>
-            <div className={styles.revealTeam} style={{ color: focus.color }}>
-              {focus.name}
-              <span>{output.playerName}</span>
-            </div>
-            <div className={styles.heroNumber}>
-              {formatRecord(output.value, game, output.metric)}
-              <small>{recordUnit(game, output.metric)}</small>
-            </div>
-            <p className={styles.recordCaption}>공식 측정 기록</p>
-            <div className={styles.countdown}>
-              <i
-                style={{
-                  transform: `scaleX(${output.held ? 1 : Math.max(0, 1 - (now - output.publishedAt) / output.durationMs)})`,
-                }}
-              />
-            </div>
-          </div>
-        ) : scene === "compare" ? (
-          <div className={styles.compare}>
-            <div className={styles.compareHeading}>
-              <div>
-                <p className={styles.eyebrow}>
-                  {main ? "MAIN EVENT" : "BONUS GAME"}
-                </p>
-                <h1>
-                  {main ? "공 살리기" : "슈팅왕"} <span>팀 기록</span>
-                </h1>
-              </div>
-              <small>
-                {main
-                  ? "두 번의 도전 중 최고 기록"
-                  : "남녀 대표의 개인 최고 속도 평균"}
-              </small>
-            </div>
-            <div className={styles.pairGrid}>
-              {output.pair.map((id) => {
-                const t = output.teams.find((team) => team.id === id)!;
-                const row = rows.find((r) => r.teamId === id);
-                const comparisonValue = main
-                  ? (row?.value ?? null)
-                  : (row?.value ?? row?.male ?? row?.female ?? null);
+          <table className={screen.records}>
+            <thead>
+              <tr>
+                <th scope="col">순위</th>
+                <th scope="col">연합팀</th>
+                <th scope="col">
+                  {game === "shooting" ? "팀 평균" : "최고 기록"}{" "}
+                  <small>({unit})</small>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                const team = output.teams.find((t) => t.id === row.teamId)!;
                 return (
-                  <article
-                    key={id}
-                    className={styles.pairCard}
-                    style={{ "--team-color": t.color } as React.CSSProperties}
-                  >
-                    <div className={styles.groupTag}>{t.group} ALLIANCE</div>
-                    <TeamName team={t} output={output} />
-                    <div className={styles.pairMetricLabel}>
-                      {main
-                        ? "최고 기록"
-                        : row?.value !== null && row?.value !== undefined
-                          ? "남녀 대표 평균"
-                          : row?.male !== null && row?.male !== undefined
-                            ? "남자 대표 기록 · 평균 산정 대기"
-                            : row?.female !== null && row?.female !== undefined
-                              ? "여자 대표 기록 · 평균 산정 대기"
-                              : "첫 도전 대기"}
-                    </div>
-                    <div className={styles.pairNumber}>
-                      {formatRecord(comparisonValue, game, output.metric)}
-                      <small>{recordUnit(game, output.metric)}</small>
-                    </div>
-                    <div className={styles.pairDetails}>
-                      {main ? (
-                        <span>
-                          이전 도전{" "}
-                          <b>
-                            {formatRecord(
-                              row?.secondary ?? null,
-                              game,
-                              output.metric,
-                            )}
-                          </b>
-                        </span>
-                      ) : (
-                        <>
-                          <span>
-                            남자 대표{" "}
-                            <b>
-                              {formatRecord(
-                                row?.male ?? null,
-                                game,
-                                output.metric,
-                              )}
-                            </b>
-                          </span>
-                          <span>
-                            여자 대표{" "}
-                            <b>
-                              {formatRecord(
-                                row?.female ?? null,
-                                game,
-                                output.metric,
-                              )}
-                            </b>
-                          </span>
-                        </>
+                  <tr key={team.id} data-leading={row.displayRank === 1}>
+                    <td className={screen.rank}>
+                      {row.shared && <small>공동</small>}
+                      {number(row.displayRank)}
+                    </td>
+                    <td>
+                      <TeamLabel team={team} />
+                      {game === "shooting" && (
+                        <p className={screen.subRecord}>
+                          남 {formatRecord(row.male, game, output.metric)} · 여{" "}
+                          {formatRecord(row.female, game, output.metric)}
+                          {row.value === null &&
+                            (row.male !== null || row.female !== null) &&
+                            " · 평균 대기"}
+                        </p>
                       )}
-                    </div>
-                    <div className={styles.pairStatus}>
-                      {row?.complete
-                        ? row.tied
-                          ? "기록 동률 · 순위 결정 대기"
-                          : "정규 시도 완료"
-                        : "도전 진행 중"}
-                    </div>
-                  </article>
+                    </td>
+                    <td className={screen.record}>
+                      {formatRecord(row.value, game, output.metric)}
+                    </td>
+                  </tr>
                 );
               })}
-              <div className={styles.versus}>VS</div>
-            </div>
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className={screen.board}>
+          <div className={screen.boardHeading}>
+            <h1>{final ? "최종 스코어" : "종합 스코어"}</h1>
+            <p>{final ? "최종 결과" : "확정된 종목만 합산"}</p>
           </div>
-        ) : scene === "winner" && winner ? (
-          <div className={styles.winner}>
-            <div className={styles.winnerHalo} aria-hidden="true" />
-            <p className={styles.eyebrow}>ONE TEAM. ONE CHAMPION.</p>
-            <div className={styles.crown}>★</div>
-            <p className={styles.champion}>CHAMPIONS</p>
-            <h1>{winner.name}</h1>
-            <p>
-              {winner.sourceIds.map((id) => output.sourceNames[id]).join(" + ")}
-            </p>
-            <div className={styles.winnerScore}>
-              {number(
-                output.overall.find((r) => r.teamId === winner.id)?.total ??
-                  null,
-              )}
-              <small>POINTS</small>
-            </div>
-          </div>
-        ) : (
-          <div className={styles.leaderboard}>
-            <div className={styles.boardHeading}>
-              <div>
-                <p className={styles.eyebrow}>
-                  {total
-                    ? "ALLIANCE STANDINGS"
-                    : main
-                      ? "MAIN EVENT / 1,000 PTS"
-                      : "BONUS GAME / 100 PTS"}
-                </p>
-                <h1>
-                  {total
-                    ? "종합 순위"
-                    : main
-                      ? "공 살리기 순위"
-                      : "슈팅왕 순위"}
-                </h1>
-              </div>
-              <span className={styles.boardState}>
-                {total
-                  ? output.finalized.shooting && output.finalized.keepUp
-                    ? "FINAL RESULTS"
-                    : "진행 중 · 확정된 종목만 합산"
-                  : output.finalized[game]
-                    ? "OFFICIAL RESULTS"
-                    : "진행 중 · 임시 기록"}
-              </span>
-            </div>
-            <div className={styles.boardColumns}>
-              <span>RANK</span>
-              <span>ALLIANCE TEAM</span>
-              <span>{total ? "슈팅왕" : main ? "최고 기록" : "팀 평균"}</span>
-              <span>{total ? "공 살리기" : "상태"}</span>
-              <span>{total ? "TOTAL" : "POINTS"}</span>
-            </div>
-            {(total ? output.overall : rows).map((row, index) => {
-              const t = output.teams.find((team) => team.id === row.teamId)!;
-              const s = total
-                ? output.overall.find((r) => r.teamId === t.id)!
-                : null;
-              const r = total ? null : rows.find((r) => r.teamId === t.id)!;
-              const official = total
-                ? output.finalized.shooting && output.finalized.keepUp
-                : output.finalized[game];
-              return (
-                <div
-                  key={t.id}
-                  className={`${styles.boardRow} ${index === 0 && official ? styles.firstRow : ""}`}
-                  style={{ "--team-color": t.color } as React.CSSProperties}
-                >
-                  <span className={styles.rank}>
-                    {official ? String(row.rank ?? "—").padStart(2, "0") : "—"}
-                  </span>
-                  <div className={styles.boardTeam}>
-                    <i />
-                    <div>
-                      <strong>{t.name}</strong>
-                      <small>
-                        {t.group}조 ·{" "}
-                        {t.sourceIds
-                          .map((id) => output.sourceNames[id])
-                          .join(" + ")}
-                      </small>
-                    </div>
-                  </div>
-                  <span className={styles.boardValue}>
-                    {s
-                      ? number(s.shooting)
-                      : formatRecord(r!.value, game, output.metric)}
-                    {!s && <small>{recordUnit(game, output.metric)}</small>}
-                  </span>
-                  <span className={s ? styles.boardValue : styles.rowStatus}>
-                    {s
-                      ? number(s.keepUp)
-                      : r!.tied
-                        ? "재도전 대기"
-                        : r!.complete
-                          ? "시도 완료"
-                          : "진행 중"}
-                  </span>
-                  <strong className={styles.boardPoints}>
-                    {s ? number(s.total) : official ? number(r!.points) : "—"}
-                  </strong>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      <footer className={styles.screenFooter}>
-        <span>FAIR PLAY. REAL CONNECTION.</span>
-        <span>
-          {total
-            ? "슈팅왕 100 + 공 살리기 1,000"
-            : main
-              ? "6명이 함께 만드는 하나의 기록"
-              : "남자 1명 + 여자 1명 · 연합팀 챌린지"}
-        </span>
-        <b>FAIRGROUND</b>
-      </footer>
+          <table className={screen.scores}>
+            <thead>
+              <tr>
+                <th scope="col">순위</th>
+                <th scope="col">연합팀</th>
+                <th scope="col">슈팅왕</th>
+                <th scope="col">공 살리기</th>
+                <th scope="col">합계</th>
+              </tr>
+            </thead>
+            <tbody>
+              {output.overall.map((row) => {
+                const team = output.teams.find((t) => t.id === row.teamId)!;
+                return (
+                  <tr key={team.id} data-leading={row.rank === 1}>
+                    <td className={screen.rank}>{number(row.rank)}</td>
+                    <td>
+                      <TeamLabel team={team} />
+                      {final && row.rank === 1 && (
+                        <p className={screen.champion}>최종 우승</p>
+                      )}
+                    </td>
+                    <td className={screen.points}>{number(row.shooting)}</td>
+                    <td className={screen.points}>{number(row.keepUp)}</td>
+                    <td className={screen.total}>{number(row.total)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }
@@ -365,7 +190,7 @@ export function BroadcastPage({ id }: { id: string }) {
   const [overlay, setOverlay] = useOverlay();
   return (
     <main
-      className={styles.broadcastRoute}
+      className={`${styles.broadcastRoute} ${screen.route}`}
       data-alliance-overlay={overlay ? "true" : "false"}
     >
       {output ? (
@@ -398,7 +223,6 @@ export function BroadcastPage({ id }: { id: string }) {
   );
 }
 
-import { useState } from "react";
 function useOverlay() {
   const [overlay, setOverlay] = useState(false);
   useEffect(() => {

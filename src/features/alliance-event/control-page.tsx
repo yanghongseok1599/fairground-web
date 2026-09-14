@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { BroadcastScreen } from "./broadcast";
+import { AudienceControls } from "./audience-controls";
 import { useEventConnection, useServerNow } from "./client";
 import { SetupForm } from "./setup-form";
 import { GameControls } from "./game-controls";
@@ -205,35 +206,19 @@ export function ControlPage({ id }: { id: string }) {
                 크게 보기 ↗
               </a>
             </div>
+            <AudienceControls
+              output={output}
+              now={now}
+              busy={blocked}
+              send={send}
+            />
             <div className={styles.preview}>
               <BroadcastScreen output={output} now={now} />
             </div>
             <p className={ui.previewHelp}>
-              입력 중인 숫자는 보이지 않습니다. ‘기록 공개하기’를 누르면 이
-              화면에 표시됩니다.
+              탭을 누르면 관객 화면이 바뀝니다. 기록 공개 시 숫자가 크게 뜨고,{" "}
+              {state.setup.revealSeconds}초 뒤 기록순위로 넘어갑니다.
             </p>
-            <details className={ui.tools}>
-              <summary>중계 화면 직접 바꾸기</summary>
-              <div className={styles.monitorControls}>
-                <button
-                  disabled={blocked}
-                  onClick={() =>
-                    void send({ type: output.held ? "resume" : "hold" })
-                  }
-                >
-                  {output.held ? "자동 전환 다시 시작" : "현재 기록 화면 유지"}
-                </button>
-                <button disabled={blocked} onClick={() => void show("compare")}>
-                  양 팀 비교
-                </button>
-                <button disabled={blocked} onClick={() => void show("standby")}>
-                  대기 화면
-                </button>
-                <button disabled={blocked} onClick={() => void show("overall")}>
-                  전체 순위
-                </button>
-              </div>
-            </details>
             <details className={ui.tools}>
               <summary>OBS · 다른 기기 연결</summary>
               <div className={styles.connectionPanel}>

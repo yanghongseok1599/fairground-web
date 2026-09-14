@@ -1,4 +1,5 @@
 export type Game = "shooting" | "keepUp";
+export type AudienceTab = "live" | "records" | "scores";
 export type Slot = "male" | "female";
 export type Scene =
   | "standby"
@@ -105,6 +106,7 @@ export interface EventState {
 }
 
 export type Command =
+  | { type: "audience"; tab: AudienceTab; game: Game }
   | { type: "setup"; setup: Setup }
   | { type: "lock" }
   | {

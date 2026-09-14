@@ -279,6 +279,41 @@ export function applyCommand(
     state.finalized[game] = false;
   };
   switch (command.type) {
+    case "audience": {
+      checkGame(command.game);
+      assert(
+        ["live", "records", "scores"].includes(command.tab),
+        "관객 화면을 선택해 주세요.",
+      );
+      // Reopen the last valid measurement without inserting another attempt.
+      const attempt =
+        command.tab === "live"
+          ? state.attempts.findLast((a) => !a.voided && a.game === command.game)
+          : undefined;
+      const t = team(attempt?.teamId ?? state.output.focusTeamId);
+      const ids = state.output.pair.includes(t.id)
+        ? state.output.pair
+        : [t.id, state.output.pair.find((id) => id !== t.id)!];
+      state.output = makeOutput(
+        state,
+        command.tab === "scores"
+          ? "overall"
+          : command.tab === "records"
+            ? command.game
+            : attempt
+              ? "reveal"
+              : "prepare",
+        command.game,
+        ids,
+        t.id,
+        now,
+        attempt?.slot ? t[attempt.slot] : "",
+        attempt?.value ?? null,
+      );
+      // A manually selected tab stays selected until the operator's next action.
+      state.output.held = command.tab === "live";
+      break;
+    }
     case "setup": {
       assert(
         !state.locked,

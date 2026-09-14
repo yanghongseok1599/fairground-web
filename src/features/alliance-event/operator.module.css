@@ -404,3 +404,59 @@
     flex: 1;
   }
 }
+.audienceControls {
+  margin: 10px 0;
+}
+.audienceTabs {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  background: #e8edf3;
+  border-radius: 9px;
+}
+.audienceTabs button {
+  border: 0;
+  border-radius: 6px;
+  padding: 12px 3px;
+  background: transparent;
+  color: #536479;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.audienceTabs button[aria-pressed="true"] {
+  color: #fff;
+  background: #20364e;
+  box-shadow: 0 2px 5px #152b431a;
+}
+.audienceControls button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.audienceControls button:focus-visible {
+  outline: 2px solid #2467d6;
+  outline-offset: 2px;
+}
+.audienceGames {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.audienceGames button {
+  border: 1px solid #d2dce6;
+  border-radius: 20px;
+  padding: 7px 13px;
+  color: #5d6f83;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.audienceGames button[aria-pressed="true"] {
+  color: #20364e;
+  background: #e9eff6;
+  border-color: #9baec2;
+  font-weight: 750;
+}

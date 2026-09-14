@@ -26,6 +26,10 @@ import {
 import { eventBody } from "../src/features/alliance-event/server/http.ts";
 import { createRequestId } from "../src/features/alliance-event/request-id.ts";
 import {
+  audienceView,
+  audienceRecords,
+} from "../src/features/alliance-event/broadcast-model.ts";
+import {
   currentEventStep,
   pendingTurns,
   rosterIssue,
@@ -45,6 +49,109 @@ const apply = (state: EventState, command: Command, time = now) =>
   applyCommand(state, command, time, randomUUID);
 const seeded = () => apply(initial(), { type: "demo-records" });
 const pair = ["alliance-1", "alliance-4"];
+
+test("audience tabs restore the last valid measurement without recording or awarding points", () => {
+  let state = seeded();
+  const attempts = structuredClone(state.attempts);
+  state = apply(state, { type: "audience", tab: "live", game: "shooting" });
+  assert.equal(state.output.value, 86);
+  assert.equal(state.output.focusTeamId, "alliance-6");
+  assert.ok(state.output.pair.includes(state.output.focusTeamId));
+  assert.equal(state.output.playerName, state.setup.teams[5].female);
+  assert.equal(state.output.held, true);
+  assert.deepEqual(
+    audienceView(JSON.parse(JSON.stringify(state.output)), now + 100_000),
+    { tab: "live", game: "shooting" },
+  );
+  state = apply(state, { type: "audience", tab: "records", game: "keepUp" });
+  assert.deepEqual(audienceView(state.output, now), {
+    tab: "records",
+    game: "keepUp",
+  });
+  state = apply(state, { type: "audience", tab: "scores", game: "keepUp" });
+  assert.equal(audienceView(state.output, now).tab, "scores");
+  assert.ok(state.output.overall.every((r) => r.total === null));
+  assert.deepEqual(state.attempts, attempts);
+  const latest = state.attempts.findLast((a) => a.game === "shooting")!;
+  state = apply(state, { type: "void", attemptId: latest.id });
+  state = apply(state, { type: "audience", tab: "live", game: "shooting" });
+  assert.equal(state.output.value, 100);
+  assert.throws(() =>
+    apply(state, {
+      type: "audience",
+      tab: "invalid",
+      game: "shooting",
+    } as unknown as Command),
+  );
+});
+
+test("audience record rankings show partial progress and shared ranks without a false team average", () => {
+  let state = apply(initial(), { type: "lock" });
+  const record = (teamId: string, slot: "male" | "female", value: number) => {
+    state = apply(state, {
+      type: "record",
+      game: "shooting",
+      teamId,
+      slot,
+      value,
+      pair: [teamId, teamId === "alliance-6" ? "alliance-5" : "alliance-6"],
+    });
+  };
+  record("alliance-1", "male", 90);
+  let rows = audienceRecords(state.output, "shooting");
+  assert.equal(rows.find((r) => r.teamId === "alliance-1")!.value, null);
+  assert.equal(rows.find((r) => r.teamId === "alliance-1")!.male, 90);
+  assert.ok(rows.every((r) => r.displayRank === null));
+  record("alliance-1", "female", 70);
+  record("alliance-2", "male", 100);
+  record("alliance-2", "female", 80);
+  record("alliance-3", "male", 100);
+  record("alliance-3", "female", 80);
+  rows = audienceRecords(state.output, "shooting");
+  assert.deepEqual(
+    rows.slice(0, 3).map((r) => [r.teamId, r.value, r.displayRank, r.shared]),
+    [
+      ["alliance-2", 90, 1, true],
+      ["alliance-3", 90, 1, true],
+      ["alliance-1", 80, 3, false],
+    ],
+  );
+  assert.ok(rows.every((r) => r.points === null));
+});
+
+test("automatic reveal changes to rankings while manually selected live tabs stay visible", () => {
+  let state = apply(initial(), { type: "lock" });
+  state = apply(state, { type: "audience", tab: "live", game: "keepUp" });
+  assert.equal(state.output.value, null);
+  assert.deepEqual(audienceView(state.output, now), {
+    tab: "live",
+    game: "keepUp",
+  });
+  state = apply(state, {
+    type: "record",
+    game: "keepUp",
+    teamId: pair[0],
+    value: 23.45,
+    pair,
+  });
+  assert.equal(audienceView(state.output, now + 3_999).tab, "live");
+  assert.equal(audienceView(state.output, now + 4_000).tab, "records");
+  state = apply(
+    state,
+    { type: "audience", tab: "live", game: "keepUp" },
+    now + 5_000,
+  );
+  assert.equal(audienceView(state.output, now + 100_000).tab, "live");
+  let final = apply(seeded(), { type: "finalize", game: "shooting" });
+  final = apply(final, { type: "finalize", game: "keepUp" });
+  assert.deepEqual(
+    audienceRecords(final.output, "shooting").map((r) => r.displayRank),
+    [1, 2, 3, 4, 5, 6],
+  );
+  final = apply(final, { type: "audience", tab: "scores", game: "keepUp" });
+  assert.equal(final.output.overall[0].total, 1040);
+  assert.equal(final.output.winnerId, "alliance-4");
+});
 
 test("guided game queue alternates representatives and resumes without recording the same turn twice", () => {
   let state = apply(initial(), { type: "lock" });

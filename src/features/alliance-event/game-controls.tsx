@@ -125,7 +125,7 @@ export function GameControls({
         </h2>
         <p>
           {published
-            ? `${state.setup.revealSeconds}초 후 양 팀 비교 화면으로 바뀝니다. 준비되면 다음 차례로 진행하세요.`
+            ? `${state.setup.revealSeconds}초 후 팀별 기록순위로 바뀝니다. 준비되면 다음 차례로 진행하세요.`
             : turn
               ? "팀과 선수는 순서대로 안내합니다. 측정한 숫자만 입력하면 됩니다."
               : "기록을 확인하고 다음 단계로 넘어가세요."}
