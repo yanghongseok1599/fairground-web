@@ -77,3 +77,6 @@ __pycache__/
 
 # Generated from the pinned MediaPipe dependency by postinstall.
 /public/vendor/mediapipe/
+
+# Local event records and operator credential hashes (never deploy or commit).
+/.local/alliance-events/

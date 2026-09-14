@@ -1,10 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Oswald, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
-import { Providers } from "@/components/providers";
-import { SwRegister } from "@/components/sw-register";
+import { SiteFrame } from "@/components/site-frame";
 import { SeoJsonLd } from "@/components/seo-json-ld";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 import {
@@ -128,12 +125,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen antialiased fg-grain overflow-x-clip">
-        <Providers>
-          <SwRegister />
-          <SiteHeader />
-          <main className="pt-[60px] w-full overflow-x-clip">{children}</main>
-          <SiteFooter />
-        </Providers>
+        <SiteFrame>{children}</SiteFrame>
       </body>
     </html>
   );
