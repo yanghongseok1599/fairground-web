@@ -26,6 +26,11 @@ import {
 import { eventBody } from "../src/features/alliance-event/server/http.ts";
 import { createRequestId } from "../src/features/alliance-event/request-id.ts";
 import {
+  currentEventStep,
+  pendingTurns,
+  rosterIssue,
+} from "../src/features/alliance-event/workflow.ts";
+import {
   drawSourcePairs,
   randomizeSetup,
 } from "../src/features/alliance-event/pairing.ts";
@@ -40,6 +45,54 @@ const apply = (state: EventState, command: Command, time = now) =>
   applyCommand(state, command, time, randomUUID);
 const seeded = () => apply(initial(), { type: "demo-records" });
 const pair = ["alliance-1", "alliance-4"];
+
+test("guided game queue alternates representatives and resumes without recording the same turn twice", () => {
+  let state = apply(initial(), { type: "lock" });
+  assert.equal(pendingTurns(state, "shooting").length, 24);
+  assert.deepEqual(
+    pendingTurns(state, "shooting")
+      .slice(0, 4)
+      .map((t) => [t.teamId, t.slot]),
+    [
+      [pair[0], "male"],
+      [pair[1], "male"],
+      [pair[0], "female"],
+      [pair[1], "female"],
+    ],
+  );
+  const first = pendingTurns(state, "shooting")[0];
+  state = apply(state, {
+    type: "record",
+    game: "shooting",
+    ...first,
+    value: 95.2,
+  });
+  const restored = JSON.parse(JSON.stringify(state));
+  assert.equal(pendingTurns(restored, "shooting").length, 23);
+  assert.equal(pendingTurns(restored, "shooting")[0].teamId, pair[1]);
+  assert.equal(restored.output.scene, "reveal");
+  assert(!pendingTurns(restored, "shooting").some((t) => t.key === first.key));
+  state = apply(state, { type: "void", attemptId: state.attempts[0].id });
+  assert.equal(pendingTurns(state, "shooting")[0].key, first.key);
+  assert.equal(pendingTurns(state, "keepUp").length, 12);
+});
+
+test("guided steps advance only on confirmed results and return to the game after a correction", () => {
+  assert.equal(currentEventStep(initial()), 0);
+  let state = seeded();
+  assert.equal(currentEventStep(state), 1);
+  assert.equal(pendingTurns(state, "shooting").length, 0);
+  state = apply(state, { type: "finalize", game: "shooting" });
+  assert.equal(currentEventStep(state), 2);
+  state = apply(state, { type: "finalize", game: "keepUp" });
+  assert.equal(currentEventStep(state), 3);
+  state = apply(state, { type: "void", attemptId: state.attempts[0].id });
+  assert.equal(currentEventStep(state), 1);
+  assert.equal(pendingTurns(state, "shooting").length, 1);
+  const team = state.setup.teams[0];
+  assert.equal(rosterIssue(team), null);
+  assert.match(rosterIssue({ ...team, female: "" })!, /여자 대표/);
+});
 
 test("automatic draws use every source once and always create three alliances per group", () => {
   const setup = initial().setup;

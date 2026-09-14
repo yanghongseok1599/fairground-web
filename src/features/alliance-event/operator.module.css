@@ -1,0 +1,406 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr);
+  gap: 24px;
+  max-width: 1440px;
+  padding: 0 28px 48px;
+  margin: auto;
+  align-items: start;
+}
+.heading {
+  padding: 22px 28px;
+  max-width: 1440px;
+  margin: auto;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.heading h1 {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.8px;
+}
+.heading p {
+  font-size: 14px;
+  color: #627085;
+  margin-top: 5px;
+}
+.steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 12px;
+  border-bottom: 1px solid #e4eaf2;
+}
+.steps button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  justify-content: center;
+  padding: 13px 5px;
+  font-size: 14px;
+  font-weight: 750;
+  border: 0;
+  border-radius: 8px;
+  color: #52647a;
+  background: transparent;
+}
+.steps button span {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d2dce7;
+  border-radius: 50%;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.steps button[aria-current] {
+  background: #eaf1ff;
+  color: #064ad4;
+}
+.steps button[aria-current] span {
+  background: #064ad4;
+  border-color: #064ad4;
+  color: white;
+}
+.intro {
+  margin-bottom: 22px;
+}
+.intro > small {
+  font-size: 12px;
+  color: #3767a7;
+  font-weight: 750;
+}
+.intro h2 {
+  font-size: 25px;
+  font-weight: 800;
+  line-height: 1.35;
+  margin: 8px 0;
+  letter-spacing: -0.8px;
+  text-wrap: balance;
+}
+.intro h2:focus {
+  outline: none;
+}
+.intro p {
+  font-size: 14px;
+  color: #617085;
+  line-height: 1.65;
+  margin: 8px 0;
+}
+.section {
+  margin: 20px 0;
+}
+.section h3 {
+  font-size: 15px;
+  font-weight: 750;
+  margin: 0 0 12px;
+}
+.pairs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.pairCard {
+  border: 1px solid #dce4ed;
+  border-top: 3px solid var(--team-color);
+  border-radius: 8px;
+  padding: 15px;
+  min-width: 0;
+  background: #fff;
+}
+.pairCard > small {
+  display: block;
+  color: #63738a;
+  margin-bottom: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.pairCard label {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 650;
+}
+.pairCard strong {
+  display: block;
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+.pairCard input {
+  width: 100%;
+  font-size: 16px;
+}
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 20px;
+  margin-top: 20px;
+  border-top: 1px solid #e4eaf2;
+  flex-wrap: wrap;
+}
+.footer > button:last-child {
+  min-width: 220px;
+  min-height: 50px;
+  font-size: 15px;
+}
+.quiet {
+  background: none;
+  border: 0;
+  color: #47627f;
+  font-size: 13px;
+  padding: 9px 0;
+  text-decoration: underline;
+}
+.extras {
+  border-top: 1px solid #e4eaf2;
+  margin-top: 20px;
+  padding-top: 16px;
+}
+.extras > summary {
+  font-size: 13px;
+  font-weight: 600;
+  color: #536b87;
+  padding: 4px 0;
+}
+.extras > div {
+  margin-top: 14px;
+}
+.teamPicker {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.teamPicker button {
+  border: 1px solid #dae3ee;
+  border-radius: 7px;
+  padding: 10px 4px;
+  font-size: 13px;
+  background: #fff;
+  color: #63738a;
+}
+.teamPicker button[aria-current] {
+  border-color: #064ad4;
+  color: #064ad4;
+  background: #edf3ff;
+  font-weight: 800;
+}
+.teamTitle {
+  border-left: 4px solid var(--team-color);
+  padding-left: 14px;
+  margin: 20px 0;
+}
+.teamTitle h3 {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+.teamTitle p {
+  color: #64748a;
+  font-size: 13px;
+}
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.fieldGrid label {
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 650;
+}
+.fieldGrid input {
+  font-size: 16px;
+  width: 100%;
+}
+.status {
+  background: #ecf8f1;
+  border: 1px solid #c8e8d4;
+  padding: 13px 15px;
+  border-radius: 8px;
+  color: #17613b;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 14px 0;
+}
+.error {
+  background: #fff4ee;
+  color: #a44425;
+  font-size: 14px;
+  line-height: 1.65;
+  padding: 13px 15px;
+  border-radius: 8px;
+  margin: 14px 0;
+}
+.turn {
+  padding: 22px;
+  border: 1px solid #cedbef;
+  border-top: 4px solid var(--team-color, #064ad4);
+  background: #f8faff;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+.turnTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #5e7088;
+  margin-bottom: 10px;
+  gap: 8px;
+}
+.turn h3 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 850;
+  letter-spacing: -1px;
+  overflow-wrap: anywhere;
+}
+.turn p {
+  font-size: 17px;
+  margin: 7px 0 0;
+  color: #47607f;
+}
+.progress {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  color: #63748b;
+  margin: 14px 0;
+}
+.progress progress {
+  flex: 1;
+  height: 7px;
+  accent-color: #064ad4;
+}
+.next {
+  display: block;
+  width: 100%;
+  min-height: 56px;
+  font-size: 16px;
+  font-weight: 800;
+  border: 0;
+  border-radius: 8px;
+  padding: 14px;
+  color: white;
+  background: #064ad4;
+}
+.previewAside {
+  position: sticky;
+  top: 20px;
+  min-width: 0;
+}
+.previewCaption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 750;
+  color: #425572;
+  margin-bottom: 10px;
+}
+.previewCaption a {
+  color: #064ad4;
+  text-decoration: underline;
+}
+.previewHelp {
+  font-size: 12px;
+  color: #687b94;
+  line-height: 1.7;
+  margin: 10px 0 20px;
+}
+.tools {
+  background: #fff;
+  border: 1px solid #e0e6ef;
+  border-radius: 9px;
+  padding: 15px;
+  margin-top: 14px;
+}
+.tools > summary {
+  font-size: 13px;
+  color: #4e6380;
+}
+.tools > div {
+  margin-top: 15px;
+}
+.champion {
+  text-align: center;
+  padding: 26px 16px;
+  margin: 16px 0;
+  background: #f3f8e9;
+  border: 1px solid #dceabf;
+  border-radius: 10px;
+}
+.champion small {
+  color: #608128;
+  font-size: 13px;
+  font-weight: 750;
+}
+.champion h3 {
+  font-size: 30px;
+  margin: 8px 0;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+.champion b {
+  font-size: 24px;
+  color: #486c15;
+}
+@media (max-width: 1050px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 780px;
+  }
+  .previewAside {
+    position: static;
+  }
+}
+@media (max-width: 600px) {
+  .layout {
+    padding: 0 12px 30px;
+    gap: 18px;
+  }
+  .heading {
+    padding: 18px 16px;
+  }
+  .heading h1 {
+    font-size: 21px;
+  }
+  .steps {
+    padding: 8px 5px;
+    gap: 0;
+  }
+  .steps button {
+    flex-direction: column;
+    gap: 5px;
+    font-size: 12px;
+    padding: 9px 2px;
+  }
+  .pairs {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .intro h2 {
+    font-size: 22px;
+  }
+  .turn {
+    padding: 17px;
+  }
+  .turn h3 {
+    font-size: 25px;
+  }
+  .footer > button:last-child {
+    min-width: 0;
+    flex: 1;
+  }
+}

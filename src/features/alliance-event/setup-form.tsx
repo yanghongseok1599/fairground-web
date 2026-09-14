@@ -1,346 +1,441 @@
 "use client";
 
-import { useState } from "react";
-import type { Command, EventState, Setup } from "./types";
+import { useEffect, useRef, useState } from "react";
 import { randomizeSetup } from "./pairing";
+import { rosterIssue } from "./workflow";
+import { validateSetup } from "./engine";
+import type { AllianceTeam, Command, EventState, Setup } from "./types";
 import styles from "./event.module.css";
+import ui from "./operator.module.css";
 
 export function SetupForm({
   state,
   send,
   busy,
+  onStart,
 }: {
   state: EventState;
   send: (c: Command, v?: number) => Promise<boolean>;
   busy: boolean;
+  onStart: () => void;
 }) {
   const [draft, setDraft] = useState(() => structuredClone(state.setup));
-  const [baseVersion, setBaseVersion] = useState(state.version);
-  const [message, setMessage] = useState("");
+  const [savedSetup, setSavedSetup] = useState(() =>
+    JSON.stringify(state.setup),
+  );
+  const [phase, setPhase] = useState(0);
+  const [teamIndex, setTeamIndex] = useState(0);
   const [previousDraw, setPreviousDraw] = useState<Setup | null>(null);
-  const [drawMessage, setDrawMessage] = useState("");
-  function drawTeams() {
-    if (state.locked || busy) return;
-    const next = randomizeSetup(draft);
-    setPreviousDraw(structuredClone(draft));
-    setDraft(next);
-    setMessage("");
-    setDrawMessage(
-      "6개 연합팀을 무작위로 배치했습니다. 결과를 확인하고 편성을 저장해 주세요.",
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const formRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = formRef.current;
+    if (!root || root.closest("[hidden]")) return;
+    root.closest("section")?.scrollIntoView({ block: "start" });
+    root.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
+  }, [phase, teamIndex]);
+  const dirty = !state.locked && JSON.stringify(draft) !== savedSetup;
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+  const team = draft.teams[teamIndex];
+  const sourceNames = (t: AllianceTeam) =>
+    t.sourceIds
+      .map((id) => draft.sources.find((s) => s.id === id)?.name ?? id)
+      .join(" + ");
+  const updateTeam = (patch: Partial<AllianceTeam>) =>
+    setDraft({
+      ...draft,
+      teams: draft.teams.map((t, i) =>
+        i === teamIndex ? { ...t, ...patch } : t,
+      ),
+    });
+  const focusMissing = () =>
+    requestAnimationFrame(() =>
+      formRef.current
+        ?.querySelector<HTMLInputElement>('input[aria-invalid="true"]')
+        ?.focus(),
     );
-  }
-  async function save(lock = false) {
-    if (await send({ type: "setup", setup: draft }, baseVersion)) {
-      setBaseVersion(baseVersion + 1);
-      setMessage("편성을 저장했습니다.");
-      setPreviousDraw(null);
-      setDrawMessage(
-        "편성을 저장했습니다. 새로고침해도 같은 배치로 유지됩니다.",
+  async function save(): Promise<boolean> {
+    setError("");
+    if (state.locked) return false;
+    if (JSON.stringify(state.setup) !== savedSetup) {
+      setError(
+        "다른 운영 화면에서 편성이 바뀌었습니다. 아래의 ‘저장된 편성 불러오기’로 최신 편성을 확인해 주세요.",
       );
-      if (lock) await send({ type: "lock" });
+      return false;
+    }
+    try {
+      validateSetup(draft, false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "입력 내용을 확인해 주세요.");
+      return false;
+    }
+    if (await send({ type: "setup", setup: draft }, state.version)) {
+      setSavedSetup(JSON.stringify(draft));
+      setPreviousDraw(null);
+      setMessage("");
+      return true;
+    }
+    return false;
+  }
+  async function next() {
+    if (phase === 1) {
+      const issue = rosterIssue(team);
+      if (issue) {
+        setError(issue);
+        focusMissing();
+        return;
+      }
+    }
+    if (!(await save())) return;
+    if (phase === 0) setPhase(1);
+    else if (teamIndex < 5) setTeamIndex(teamIndex + 1);
+    else setPhase(2);
+  }
+  async function start() {
+    const missing = draft.teams.findIndex((t) => rosterIssue(t));
+    if (missing !== -1) {
+      setTeamIndex(missing);
+      setPhase(1);
+      setError(rosterIssue(draft.teams[missing])!);
+      focusMissing();
+      return;
+    }
+    if (await save()) {
+      if (await send({ type: "lock" })) onStart();
     }
   }
-  return (
-    <div className={styles.setupForm}>
-      <div className={styles.sectionHeading}>
-        <div>
-          <span>01 / TEAM SETUP</span>
-          <h2>여섯 개의 새로운 팀</h2>
-        </div>
-        <b>{state.locked ? "편성 확정" : "경기 전 준비"}</b>
-      </div>
-      <p className={styles.help}>
-        같은 조의 두 팀을 묶고 새 이름을 지어주세요. 남녀 슈팅 대표와 공 살리기
-        출전자 6명을 입력한 뒤 편성을 확정합니다.
-      </p>
-      <fieldset disabled={state.locked || busy}>
-        <section className={styles.drawPanel} aria-label="랜덤 팀 편성">
-          <div className={styles.drawHeading}>
-            <div>
-              <span>A조 6팀 + B조 6팀</span>
-              <h3>같은 조에서 둘씩, 랜덤 자동 배치</h3>
-            </div>
-            <button
-              className={styles.primaryButton}
-              type="button"
-              onClick={drawTeams}
-            >
-              ↻ 랜덤 자동 배치
-            </button>
-          </div>
-          <p className={styles.help}>
-            A조와 B조에서 각각 3개 연합팀을 만듭니다. 팀 이름은 유지하고,
-            구성팀이 바뀐 연합팀의 출전자 명단은 비웁니다.
-          </p>
-          <div className={styles.drawSummary} aria-label="연합팀 배치 결과">
-            {draft.teams.map((team, index) => (
-              <div
-                key={team.id}
-                style={{ "--team-color": team.color } as React.CSSProperties}
-              >
-                <b>
-                  {team.group}
-                  {(index % 3) + 1}
-                </b>
-                <div>
-                  <strong>{team.name}</strong>
-                  <span>
-                    {team.sourceIds
-                      .map(
-                        (id) =>
-                          draft.sources.find((s) => s.id === id)?.name ?? id,
-                      )
-                      .join(" + ")}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-          {!state.locked && (
-            <button
-              className={styles.secondaryButton}
-              type="button"
-              onClick={() => void save()}
-            >
-              배치 저장
-            </button>
-          )}
-          {!state.locked && previousDraw && (
-            <button
-              className={styles.textButton}
-              type="button"
-              onClick={() => {
-                setDraft(previousDraw);
-                setPreviousDraw(null);
-                setMessage("");
-                setDrawMessage(
-                  "추첨 전 편성과 명단으로 되돌렸습니다. 편성 저장을 눌러 적용해 주세요.",
-                );
-              }}
-            >
-              이전 편성으로 되돌리기
-            </button>
-          )}
-          {drawMessage && (
-            <p className={styles.help} role="status">
-              {drawMessage}
-            </p>
-          )}
-          <p className={styles.help}>
-            {state.locked
-              ? "편성 확정 후에는 다시 추첨할 수 없습니다."
-              : "결과 확인 → 편성 저장 → 출전자 입력 → 편성 확정"}
-          </p>
-        </section>
-        <div className={styles.formGrid}>
-          <label className={styles.wideField}>
-            이벤트명
-            <input
-              value={draft.title}
-              maxLength={60}
-              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-            />
-          </label>
-          <label>
-            공 살리기 기록 기준
-            <select
-              value={draft.metric}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  metric: e.target.value as "seconds" | "touches",
-                })
-              }
-            >
-              <option value="seconds">유지 시간 · 초</option>
-              <option value="touches">연속 터치 · 회</option>
-            </select>
-          </label>
-          <label>
-            기록 공개 시간
-            <select
-              value={draft.revealSeconds}
-              onChange={(e) =>
-                setDraft({ ...draft, revealSeconds: Number(e.target.value) })
-              }
-            >
-              {[2, 3, 4, 5, 6, 8, 10, 15].map((s) => (
-                <option key={s} value={s}>
-                  {s}초 후 양 팀 비교
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <details className={styles.details}>
-          <summary>원 참가팀 이름 · A조 6팀 / B조 6팀</summary>
-          <div className={styles.sourceGrid}>
-            {draft.sources.map((source, i) => (
-              <label key={source.id}>
-                {source.id}
+  const teamCards = (editable: boolean) => (
+    <div className={ui.pairs} aria-label="연합팀 배치 결과">
+      {[0, 3, 1, 4, 2, 5].map((i) => {
+        const t = draft.teams[i];
+        return (
+          <article
+            key={t.id}
+            className={ui.pairCard}
+            style={{ "--team-color": t.color } as React.CSSProperties}
+          >
+            <small>{sourceNames(t)}</small>
+            {editable ? (
+              <label>
+                {t.group}연합 {(i % 3) + 1} · 새 팀 이름
                 <input
+                  aria-label={`${t.group}연합 ${(i % 3) + 1} 이름`}
+                  value={t.name}
                   maxLength={60}
-                  value={source.name}
                   onChange={(e) =>
                     setDraft({
                       ...draft,
-                      sources: draft.sources.map((s, n) =>
-                        n === i ? { ...s, name: e.target.value } : s,
+                      teams: draft.teams.map((row, n) =>
+                        n === i ? { ...row, name: e.target.value } : row,
                       ),
                     })
                   }
                 />
               </label>
-            ))}
-          </div>
-        </details>
-        {draft.teams.map((team, index) => {
-          const update = (patch: Partial<typeof team>) =>
-            setDraft({
-              ...draft,
-              teams: draft.teams.map((t, i) =>
-                i === index ? { ...t, ...patch } : t,
-              ),
-            });
-          return (
-            <article
-              key={team.id}
-              className={styles.setupTeam}
-              style={{ "--team-color": team.color } as React.CSSProperties}
-            >
-              <div className={styles.setupTeamHeading}>
-                <b>
-                  {team.group}
-                  {(index % 3) + 1}
-                </b>
-                <label>
-                  연합팀 이름
-                  <input
-                    value={team.name}
-                    maxLength={60}
-                    onChange={(e) => update({ name: e.target.value })}
-                  />
-                </label>
-              </div>
-              <div className={styles.formGrid}>
-                {([0, 1] as const).map((slot) => (
-                  <label key={slot}>
-                    구성팀 {slot + 1}
-                    <select
-                      value={team.sourceIds[slot]}
-                      onChange={(e) => {
-                        const sourceIds = [...team.sourceIds] as [
-                          string,
-                          string,
-                        ];
-                        sourceIds[slot] = e.target.value;
-                        update({ sourceIds });
-                      }}
-                    >
-                      {draft.sources
-                        .filter((s) => s.group === team.group)
-                        .map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
-                ))}
-                <label>
-                  슈팅왕 · 남자 대표
-                  <input
-                    placeholder="선수 이름"
-                    maxLength={60}
-                    value={team.male}
-                    onChange={(e) => update({ male: e.target.value })}
-                  />
-                </label>
-                <label>
-                  슈팅왕 · 여자 대표
-                  <input
-                    placeholder="선수 이름"
-                    maxLength={60}
-                    value={team.female}
-                    onChange={(e) => update({ female: e.target.value })}
-                  />
-                </label>
-              </div>
-              <details className={styles.rosterDetails}>
-                <summary>
-                  공 살리기 출전자{" "}
-                  <b>{team.keepUpPlayers.filter((p) => p.trim()).length} / 6</b>
-                </summary>
-                <div className={styles.rosterGrid}>
-                  {team.keepUpPlayers.map((name, p) => (
-                    <label key={p}>
-                      선수 {p + 1}
-                      <input
-                        maxLength={60}
-                        placeholder={p < 3 ? "구성팀 1 선수" : "구성팀 2 선수"}
-                        value={name}
-                        onChange={(e) =>
-                          update({
-                            keepUpPlayers: team.keepUpPlayers.map((v, n) =>
-                              n === p ? e.target.value : v,
-                            ),
-                          })
-                        }
-                      />
-                    </label>
-                  ))}
-                </div>
-              </details>
-            </article>
-          );
-        })}
-      </fieldset>
-      {state.locked ? (
-        <p className={styles.success}>
-          팀 편성과 규칙이 확정되었습니다. 경기 진행 탭에서 기록을 공개해
-          주세요.
-        </p>
-      ) : (
-        <>
-          <div className={styles.actions}>
-            <button
-              className={styles.secondaryButton}
-              disabled={busy}
-              onClick={() => void save()}
-            >
-              편성 저장
-            </button>
-            <button
-              className={styles.primaryButton}
-              disabled={busy}
-              onClick={() => void save(true)}
-            >
-              저장하고 편성 확정 →
-            </button>
-          </div>
+            ) : (
+              <strong>{t.name}</strong>
+            )}
+            {!editable && (
+              <p className={styles.help}>
+                {rosterIssue(t) ? "선수 입력 필요" : "선수 준비 완료"}
+              </p>
+            )}
+          </article>
+        );
+      })}
+    </div>
+  );
+  if (state.locked)
+    return (
+      <div>
+        <div className={ui.intro}>
+          <small>1단계 · 팀 준비 완료</small>
+          <h2 tabIndex={-1}>6개 연합팀이 준비됐습니다</h2>
+          <p>경기 중에는 편성을 바꿀 수 없습니다.</p>
+        </div>
+        {teamCards(false)}
+        <div className={ui.footer}>
+          <span />
           <button
-            className={styles.textButton}
+            className={styles.primaryButton}
             disabled={busy}
-            onClick={() => {
-              setDraft(structuredClone(state.setup));
-              setBaseVersion(state.version);
-              setMessage("저장된 편성을 불러왔습니다.");
-              setPreviousDraw(null);
-              setDrawMessage("");
-            }}
+            onClick={onStart}
           >
-            서버에 저장된 편성 다시 불러오기
+            경기 진행으로 →
           </button>
-          <p className={styles.help}>
-            확정 후에는 팀·출전자·기록 기준이 잠깁니다. 동명이인 출전자는
-            등번호를 함께 입력해 구분해 주세요.
-          </p>
-        </>
+        </div>
+      </div>
+    );
+  return (
+    <div ref={formRef}>
+      <div className={ui.intro}>
+        <small>팀 준비 · {phase + 1} / 3</small>
+        <h2 tabIndex={-1}>
+          {phase === 0
+            ? "팀을 묶고 이름을 정해주세요"
+            : phase === 1
+              ? "한 팀씩 선수를 입력해주세요"
+              : "준비를 마치고 시작할까요?"}
+        </h2>
+        <p>
+          {phase === 0
+            ? "A조와 B조 안에서 두 팀씩 자동으로 묶었습니다. 새 연합팀 이름을 입력하세요."
+            : phase === 1
+              ? "슈팅왕 남녀 대표와 공 살리기 6명입니다. 다음 팀으로 가면 저장됩니다."
+              : "슈팅왕 100점 + 공 살리기 1,000점. 시작하면 팀 편성이 확정됩니다."}
+        </p>
+      </div>
+      {error && (
+        <p className={ui.error} role="alert">
+          {error}
+        </p>
       )}
       {message && (
-        <p className={styles.help} role="status">
+        <p className={ui.status} role="status">
           {message}
         </p>
+      )}
+      <fieldset disabled={busy}>
+        {phase === 0 && (
+          <>
+            <details className={ui.extras}>
+              <summary>원래 참가팀 이름 바꾸기 · A조 6팀 / B조 6팀</summary>
+              <div className={styles.sourceGrid}>
+                {draft.sources.map((source, i) => (
+                  <label key={source.id}>
+                    {source.id}
+                    <input
+                      maxLength={60}
+                      value={source.name}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          sources: draft.sources.map((s, n) =>
+                            n === i ? { ...s, name: e.target.value } : s,
+                          ),
+                        })
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+            </details>
+            <div className={ui.section}>{teamCards(true)}</div>
+            <button
+              className={styles.secondaryButton}
+              type="button"
+              onClick={() => {
+                setPreviousDraw(structuredClone(draft));
+                setDraft(randomizeSetup(draft));
+                setError("");
+                setMessage(
+                  "다시 추첨했습니다. 바뀐 연합팀의 선수는 다시 입력해 주세요.",
+                );
+              }}
+            >
+              다시 랜덤으로 묶기
+            </button>
+            {previousDraw && (
+              <button
+                type="button"
+                className={ui.quiet}
+                onClick={() => {
+                  setDraft(previousDraw);
+                  setPreviousDraw(null);
+                  setMessage("추첨 전 편성으로 되돌렸습니다.");
+                }}
+              >
+                추첨 되돌리기
+              </button>
+            )}
+            <details className={ui.extras}>
+              <summary>
+                경기 설정 ·{" "}
+                {draft.metric === "seconds" ? "시간으로 측정" : "횟수로 측정"} /{" "}
+                {draft.revealSeconds}초 후 비교
+              </summary>
+              <div className={ui.fieldGrid}>
+                <label>
+                  행사 이름
+                  <input
+                    value={draft.title}
+                    maxLength={60}
+                    onChange={(e) =>
+                      setDraft({ ...draft, title: e.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  공 살리기 측정 방법
+                  <select
+                    value={draft.metric}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        metric: e.target.value as "seconds" | "touches",
+                      })
+                    }
+                  >
+                    <option value="seconds">시간 · 초</option>
+                    <option value="touches">터치 횟수 · 회</option>
+                  </select>
+                </label>
+                <label>
+                  기록을 크게 보여주는 시간
+                  <select
+                    value={draft.revealSeconds}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        revealSeconds: Number(e.target.value),
+                      })
+                    }
+                  >
+                    {[2, 3, 4, 5, 6, 8, 10, 15].map((s) => (
+                      <option key={s} value={s}>
+                        {s}초
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </details>
+          </>
+        )}
+        {phase === 1 && (
+          <>
+            <nav className={ui.teamPicker} aria-label="선수 입력할 연합팀">
+              {draft.teams.map((t, i) => (
+                <button
+                  type="button"
+                  key={t.id}
+                  aria-label={`${t.name} 선수 입력`}
+                  aria-current={teamIndex === i ? "step" : undefined}
+                  onClick={async () => {
+                    if (await save()) setTeamIndex(i);
+                  }}
+                >
+                  {!rosterIssue(t) ? "✓ " : ""}
+                  {t.group}
+                  {(i % 3) + 1}
+                </button>
+              ))}
+            </nav>
+            <div
+              className={ui.teamTitle}
+              style={{ "--team-color": team.color } as React.CSSProperties}
+            >
+              <p>
+                {teamIndex + 1} / 6팀 · {sourceNames(team)}
+              </p>
+              <h3>{team.name}</h3>
+            </div>
+            <section className={ui.section}>
+              <h3>슈팅왕 · 남자 1명, 여자 1명</h3>
+              <div className={ui.fieldGrid}>
+                {(["male", "female"] as const).map((slot) => (
+                  <label key={slot}>
+                    {slot === "male" ? "남자 대표" : "여자 대표"}
+                    <input
+                      value={team[slot]}
+                      maxLength={60}
+                      placeholder="선수 이름"
+                      aria-invalid={Boolean(error) && !team[slot].trim()}
+                      aria-describedby={error ? "roster-help" : undefined}
+                      onChange={(e) => updateTeam({ [slot]: e.target.value })}
+                    />
+                  </label>
+                ))}
+              </div>
+            </section>
+            <section className={ui.section}>
+              <h3>공 살리기 · 6명</h3>
+              <div className={ui.fieldGrid}>
+                {team.keepUpPlayers.map((name, i) => (
+                  <label key={i}>
+                    선수 {i + 1}
+                    <input
+                      value={name}
+                      maxLength={60}
+                      placeholder="선수 이름"
+                      aria-invalid={Boolean(error) && !name.trim()}
+                      aria-describedby={error ? "roster-help" : undefined}
+                      onChange={(e) =>
+                        updateTeam({
+                          keepUpPlayers: team.keepUpPlayers.map((p, n) =>
+                            n === i ? e.target.value : p,
+                          ),
+                        })
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+              <p className={styles.help} id="roster-help">
+                동명이인은 이름 뒤에 등번호를 적어 구분해주세요.
+              </p>
+            </section>
+          </>
+        )}
+        {phase === 2 && teamCards(false)}
+        <div className={ui.footer}>
+          {phase > 0 ? (
+            <button
+              type="button"
+              className={ui.quiet}
+              onClick={async () => {
+                if (await save()) {
+                  if (phase === 2) setPhase(1);
+                  else if (teamIndex > 0) setTeamIndex(teamIndex - 1);
+                  else setPhase(0);
+                }
+              }}
+            >
+              ← 이전으로
+            </button>
+          ) : (
+            <span className={styles.help}>다음으로 가면 저장됩니다.</span>
+          )}
+          <button
+            className={styles.primaryButton}
+            type="button"
+            onClick={() => void (phase === 2 ? start() : next())}
+          >
+            {busy
+              ? "저장 중…"
+              : phase === 0
+                ? "이 편성으로 선수 입력 →"
+                : phase === 1
+                  ? teamIndex < 5
+                    ? "저장하고 다음 팀 →"
+                    : "저장하고 준비 확인 →"
+                  : "준비 완료 · 슈팅왕 시작 →"}
+          </button>
+        </div>
+      </fieldset>
+      {error && (
+        <button
+          className={ui.quiet}
+          disabled={busy}
+          onClick={() => {
+            setDraft(structuredClone(state.setup));
+            setSavedSetup(JSON.stringify(state.setup));
+            setPreviousDraw(null);
+            setError("");
+            setMessage("저장된 편성을 불러왔습니다.");
+          }}
+        >
+          저장된 편성 불러오기
+        </button>
       )}
     </div>
   );
