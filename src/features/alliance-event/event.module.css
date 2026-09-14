@@ -730,6 +730,63 @@
   line-height: 1.6;
   margin: 0 0 7px;
 }
+.drawPanel {
+  padding: 18px;
+  margin-bottom: 24px;
+  border: 1px solid #d3dfea;
+  border-radius: 10px;
+  background: #f5f8fc;
+}
+.drawHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.drawHeading span {
+  color: #637791;
+  font-size: 11px;
+}
+.drawHeading h3 {
+  font-size: 17px;
+  margin-top: 5px;
+}
+.drawSummary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 8px;
+  margin: 14px 0;
+}
+.drawSummary > div {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e0e6ef;
+  border-left: 3px solid var(--team-color);
+  border-radius: 5px;
+  background: white;
+  min-width: 0;
+}
+.drawSummary b {
+  font:
+    700 19px var(--font-oswald),
+    sans-serif;
+  color: #314c6f;
+}
+.drawSummary strong,
+.drawSummary span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.drawSummary strong {
+  font-size: 12px;
+}
+.drawSummary span {
+  font-size: 11px;
+  color: #637791;
+  margin-top: 4px;
+}
 .setupTeam {
   border: 1px solid var(--line);
   border-top: 3px solid var(--team-color);

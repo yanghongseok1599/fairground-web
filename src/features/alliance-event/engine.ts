@@ -13,6 +13,7 @@ import type {
   Scene,
   Setup,
 } from "./types.ts";
+import { drawSourcePairs, type DrawIndex } from "./pairing.ts";
 
 const COLORS = [
   "#78b5ff",
@@ -41,6 +42,7 @@ export function createEvent(
   id: string,
   demo: boolean,
   now: number,
+  choose?: DrawIndex,
 ): EventState {
   const sources = ["A", "B"].flatMap((group) =>
     Array.from({ length: 6 }, (_, i) => ({
@@ -49,6 +51,7 @@ export function createEvent(
       name: `${group}조 ${i + 1}팀`,
     })),
   );
+  const sourcePairs = drawSourcePairs(sources, choose);
   const teams: AllianceTeam[] = Array.from({ length: 6 }, (_, i) => {
     const group = i < 3 ? "A" : "B";
     return {
@@ -56,7 +59,7 @@ export function createEvent(
       group,
       name: demo ? NAMES[i] : `${group}연합 ${(i % 3) + 1}`,
       color: COLORS[i],
-      sourceIds: [`${group}${(i % 3) * 2 + 1}`, `${group}${(i % 3) * 2 + 2}`],
+      sourceIds: sourcePairs[i],
       male: demo ? `${NAMES[i]} 남자대표` : "",
       female: demo ? `${NAMES[i]} 여자대표` : "",
       keepUpPlayers: Array.from({ length: 6 }, (_, p) =>

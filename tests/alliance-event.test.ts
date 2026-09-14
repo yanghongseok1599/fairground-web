@@ -25,17 +25,66 @@ import {
 } from "../src/features/alliance-event/server/store.ts";
 import { eventBody } from "../src/features/alliance-event/server/http.ts";
 import { createRequestId } from "../src/features/alliance-event/request-id.ts";
+import {
+  drawSourcePairs,
+  randomizeSetup,
+} from "../src/features/alliance-event/pairing.ts";
 import type {
   Command,
   EventState,
 } from "../src/features/alliance-event/types.ts";
 
 const now = 1_800_000_000_000;
-const initial = () => createEvent(randomUUID(), true, now);
+const initial = () => createEvent(randomUUID(), true, now, (max) => max - 1);
 const apply = (state: EventState, command: Command, time = now) =>
   applyCommand(state, command, time, randomUUID);
 const seeded = () => apply(initial(), { type: "demo-records" });
 const pair = ["alliance-1", "alliance-4"];
+
+test("automatic draws use every source once and always create three alliances per group", () => {
+  const setup = initial().setup;
+  const before = structuredClone(setup);
+  for (let i = 0; i < 100; i++) {
+    const pairs = drawSourcePairs(setup.sources);
+    assert.equal(pairs.length, 6);
+    assert.deepEqual(
+      [...pairs.flat()].sort(),
+      setup.sources.map((s) => s.id).sort(),
+    );
+    pairs.forEach((ids, index) =>
+      assert(ids.every((id) => id.startsWith(index < 3 ? "A" : "B"))),
+    );
+  }
+  assert.deepEqual(setup, before);
+  const state = createEvent(randomUUID(), true, now, () => 0);
+  assert.deepEqual(state.setup.teams[0].sourceIds, ["A2", "A3"]);
+  assert.deepEqual(state.setup.teams[3].sourceIds, ["B2", "B3"]);
+  assert.deepEqual(state.output.teams, state.setup.teams);
+  validateSetup(state.setup, true);
+});
+
+test("redrawing clears changed alliances' rosters, retains names and unchanged rosters, and cannot edit a locked event", () => {
+  const state = initial();
+  const before = structuredClone(state.setup);
+  const identical = randomizeSetup(state.setup, (max) => max - 1);
+  assert.deepEqual(identical, before);
+  const next = randomizeSetup(state.setup, () => 0);
+  validateSetup(next, false);
+  assert.deepEqual(state.setup, before);
+  next.teams.forEach((team, i) => {
+    assert.equal(team.name, before.teams[i].name);
+    assert.equal(team.male, "");
+    assert.equal(team.female, "");
+    assert.deepEqual(team.keepUpPlayers, Array(6).fill(""));
+  });
+  const saved = apply(state, { type: "setup", setup: next });
+  assert.deepEqual(saved.setup.teams, saved.output.teams);
+  assert.throws(() => apply(saved, { type: "lock" }), /대표/);
+  assert.throws(
+    () => apply(apply(state, { type: "lock" }), { type: "setup", setup: next }),
+    /확정 후/,
+  );
+});
 
 test("request IDs work on LAN browsers without the secure-context randomUUID API", () => {
   const ids = Array.from({ length: 100 }, createRequestId);
