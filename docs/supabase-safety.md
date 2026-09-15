@@ -49,6 +49,14 @@ supabase migration repair
 ./scripts/check-migration-drift.sh
 ```
 
+## 2026-09-15 초상권 동의 단일 변경 반영
+
+운영의 실제 스키마를 백업하고 격리된 로컬 PostgreSQL에 소유자·권한·RLS·Auth 트리거까지 복원했다. 공개 스키마 정의 4,482개가 일치하는 상태에서 `20260915010000_portrait_consent_enforcement.sql`을 재현하고 실제 권한 회귀 테스트 8개를 통과했다.
+
+동일한 SQL 파일의 해시와 운영 변경 전후 정의를 트랜잭션 안에서 검사한 뒤 함수 2개·트리거 2개만 추가했다. 기존 마이그레이션 기록 63건은 그대로 보존했고 새 버전 1건을 기록하여 현재 원격 이력은 64건이다. 위 2026-09-03의 개수는 당시 감사 결과다.
+
+이 작업은 전체 이력을 정리한 것이 아니다. `db push`, `db reset --linked`, `migration repair`의 운영 실행 금지는 계속 유지한다. SQL 에디터나 CLI push를 사용하지 않았으며, 검증한 리포 SQL 한 건만 적용했다. 다음 변경도 새로운 백업·실제 diff·격리 재현 검증이 필요하다. 상세 증거와 웹 배포 좌표는 [운영 반영 기록](releases/2026-09-15-portrait-consent-production.md)에 있다.
+
 ## 도구 요구사항
 
 두 가지가 필요하며 둘 다 sudo 없이 설치됩니다.

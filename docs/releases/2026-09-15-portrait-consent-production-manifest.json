@@ -1,0 +1,196 @@
+{
+  "release": "2026-09-15-portrait-consent",
+  "implementationCommit": "6fb29f5",
+  "productionUrl": "https://fairground-kor.com",
+  "deployment": {
+    "id": "dpl_HkjZvRX9YGvYMpc9GbSPEavH3YdA",
+    "url": "https://fairground-128mntajo-milestones-projects-d52c4dda.vercel.app",
+    "state": "READY"
+  },
+  "previousDeployment": {
+    "id": "dpl_4VA9FhmQhZmhDafzCMZfDQhTsnfD",
+    "url": "https://fairground-opv608n4q-milestones-projects-d52c4dda.vercel.app"
+  },
+  "sourceCounts": {
+    "previous": 891,
+    "deployed": 897
+  },
+  "uploadedSourceManifestSha256": "72540abec9b5bafcb96f4beb6052e9435304c3a2e538decc125b89af454de516",
+  "changedRuntimeFiles": [
+    {
+      "path": "src/app/auth/callback/page.tsx",
+      "beforeSha1": "83ffc9014103fd864e63bb9a4bcac9928863a2be",
+      "deployedSha1": "2baff131bc42ac34aecd173355bbb6979506052e"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "beforeSha1": "d8c8e6b4e36d19084539bc2a2838dd0389902c60",
+      "deployedSha1": "8cba161c6ff1212620758dc062eb0179f30d702e"
+    },
+    {
+      "path": "src/app/mixed-futsal/apply/mixed-futsal-apply-client.tsx",
+      "beforeSha1": "744ed77c3aca2f1761a2080885799cd41a880e2f",
+      "deployedSha1": "87afed006ac6d17b1f7bb92b6b8c1b4250926ee6"
+    },
+    {
+      "path": "src/app/my/card-edit/page.tsx",
+      "beforeSha1": "800104da0354ce1c86eb46243ecffbfd3a25e625",
+      "deployedSha1": "6f7ce5c05eddd6e268553351def4e212fcdafdbe"
+    },
+    {
+      "path": "src/app/my/page.tsx",
+      "beforeSha1": "6837a2df8b06888ea0f2e56d1ec8fd1de79954ac",
+      "deployedSha1": "89f5e25c1b94dc280c0605ce27b1075c9428aea0"
+    },
+    {
+      "path": "src/app/my/player-setup/page.tsx",
+      "beforeSha1": "e3b6095992a64c943063e20c4a9fefd48718970d",
+      "deployedSha1": "28e6e65773701eb40eb19f35eef47c9e06a85cfd"
+    },
+    {
+      "path": "src/app/my/portrait-consent/page.tsx",
+      "beforeSha1": null,
+      "deployedSha1": "c7057dcd09c3a2b9532485d602533d24ec826277"
+    },
+    {
+      "path": "src/app/register/page.tsx",
+      "beforeSha1": "399ee412f17ac3cf16aeec6522ba480f623380ba",
+      "deployedSha1": "4931ebf04157674f7d2cb678a3106769801fe1ba"
+    },
+    {
+      "path": "src/components/notification-bell.tsx",
+      "beforeSha1": "fed5c052bc0d11fa128728e76ad97a3d4747fffc",
+      "deployedSha1": "5060eda5d66d6ff2beca199a8505d4ef139b4858"
+    },
+    {
+      "path": "src/components/notification-panel.tsx",
+      "beforeSha1": "e0706ac38e89ee9c803d1e423cff08352dc7c3ac",
+      "deployedSha1": "c89592482f6f6d1a652915b3ae151fb9b175ffba"
+    },
+    {
+      "path": "src/components/portrait-consent-card.tsx",
+      "beforeSha1": "712a0721e0ffa0107ed9a154178653954cc5000f",
+      "deployedSha1": "5728f9b8efe2781ec31142e190b9b26e609794fb"
+    },
+    {
+      "path": "src/features/portrait-consent/components/consent-card.tsx",
+      "beforeSha1": null,
+      "deployedSha1": "47e7cb952b7582c7ea08e3dbafcc225b54cca911"
+    },
+    {
+      "path": "src/features/portrait-consent/components/consent-field.tsx",
+      "beforeSha1": null,
+      "deployedSha1": "b5397e8f8626ada4d09b346349d9b20bb79b7c60"
+    },
+    {
+      "path": "src/features/portrait-consent/components/consent-reminder.tsx",
+      "beforeSha1": null,
+      "deployedSha1": "0c9e5a863f770691b5ee3c055108bbf7335e8a1c"
+    },
+    {
+      "path": "src/features/portrait-consent/policy.ts",
+      "beforeSha1": null,
+      "deployedSha1": "abafaed3771180d91c876c3af3c9179915b7c2e1"
+    },
+    {
+      "path": "src/lib/player-onboarding.ts",
+      "beforeSha1": "278aea37675da33062864b00aa3d07fd1067d0ee",
+      "deployedSha1": "84425ad743624cf1148fc30a9667779f452b534f"
+    },
+    {
+      "path": "src/stores/authStore.ts",
+      "beforeSha1": "03deaf9a15c130bc9d158f37e2db17f10890e6bb",
+      "deployedSha1": "9b9db903157250d4836a8d106860ba2091177d08"
+    }
+  ],
+  "database": {
+    "target": "Fairground production",
+    "migration": "20260915010000",
+    "migrationSha256": "46a537e46feff5c78c3d15c53603fdc0891e6ca61e0f2bf0e05d40d86e0b60a6",
+    "beforeSha256": "960d65b0e627f1e6218c0a6f5dd751f28b42a3ad04683862d0181ce76c45a1b6",
+    "afterSha256": "bae645e48bec32767872dce7eea803d2419e2110da37a5e4219dfd08570bea4c",
+    "backupSha256": "311205c158d0fc1416adbab053337985a12c6518483a2d14747666b5472a36d3",
+    "retainedHistoricalMigrations": 63,
+    "committedAt": "2026-09-15T10:42:21.282Z",
+    "beforeComparedObjects": 4482,
+    "afterComparedObjects": 4486,
+    "migrationCountAfter": 64,
+    "addedObjects": [
+      {
+        "kind": "function",
+        "identity": "enforce_personal_portrait_consent()",
+        "operation": "add"
+      },
+      {
+        "kind": "function",
+        "identity": "require_applicant_portrait_consent()",
+        "operation": "add"
+      },
+      {
+        "kind": "trigger",
+        "identity": "profiles.aa_enforce_personal_portrait_consent",
+        "operation": "add"
+      },
+      {
+        "kind": "trigger",
+        "identity": "teams.aa_require_applicant_portrait_consent",
+        "operation": "add"
+      }
+    ]
+  },
+  "verification": {
+    "candidateDbReferences": 150,
+    "missingDbReferences": 0,
+    "fullSchemaRegressionTests": 8,
+    "candidateConsentAndPhotoTests": 20,
+    "candidateSignupTests": 5,
+    "browser": {
+      "verifiedAt": "2026-09-15T10:45:19.818Z",
+      "realConsentSubmitted": false,
+      "consentPage": {
+        "titleVisible": true,
+        "unchecked": true,
+        "saveDisabled": true,
+        "notificationCount": true
+      },
+      "registerInitial": {
+        "checked": false,
+        "required": true,
+        "submitDisabled": true
+      },
+      "registerChecked": {
+        "checked": true,
+        "submitDisabled": false
+      },
+      "home": {
+        "reminderVisible": true,
+        "consentHref": "/my/portrait-consent?returnTo=%2F"
+      },
+      "cardEdit": {
+        "gated": true,
+        "photoInputs": 0,
+        "consentUnchecked": true
+      },
+      "notification": {
+        "consentLinkPresent": true
+      },
+      "application": {
+        "checkboxes": [
+          {
+            "checked": false,
+            "text": "[필수] 초상권·촬영물 활용에 동의합니다"
+          },
+          {
+            "checked": false,
+            "text": "대회 현장에서 촬영되는 사진·영상이 FairGround의 홍보·마케팅 목적(온라인 채널·광고·인쇄물 등 상업적 이용 포함)으로 기간과 횟수의 제한 없이 사용되는 것에 동의하며, 이에 대해 별도의 대가나 초상권을 주장하지 않습니다. 팀 대표로서 팀원 전원에게 이 내용을 고지하고 동의를 받았습니다."
+          }
+        ],
+        "personalAndTeamConsentSeparate": true
+      },
+      "myPage": {
+        "consentCardVisible": true,
+        "unchecked": true
+      }
+    }
+  }
+}
