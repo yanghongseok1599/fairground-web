@@ -66,7 +66,7 @@ export function BroadcastScreen({
       </header>
       {tab === "live" ? (
         <div
-          className={screen.measurement}
+          className={`${screen.measurement} ${game === "shooting" ? screen.speed : ""}`}
           style={{ "--team-color": focus.color } as CSSProperties}
         >
           <div className={screen.liveTeam}>

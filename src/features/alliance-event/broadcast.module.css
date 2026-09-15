@@ -120,6 +120,26 @@
   font-size: 4cqw;
   font-weight: 500;
 }
+.speed {
+  inset: 10cqw 4cqw 2cqw;
+}
+.speed .liveTeam {
+  font-size: 2.4cqw;
+}
+.speed .player {
+  font-size: 1.4cqw;
+}
+.speed .value {
+  gap: 1.5cqw;
+  margin: 0;
+  line-height: 1;
+}
+.speed .value strong {
+  font-size: 30cqw;
+}
+.speed .value span {
+  font-size: 3cqw;
+}
 .awaiting {
   font-size: 1.7cqw;
   color: #a3adb8;
