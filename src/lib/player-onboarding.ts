@@ -1,3 +1,4 @@
+import { hasPortraitConsent } from "@/features/portrait-consent/policy";
 import type { Player } from "@/types";
 
 export function hasCompletedPlayerCardSetup(player: Player | null | undefined): boolean {
@@ -7,9 +8,8 @@ export function hasCompletedPlayerCardSetup(player: Player | null | undefined): 
     Number.isFinite(player.number) &&
     player.number > 0 &&
     Boolean(player.position) &&
-    // Photos are optional. A submitted consent timestamp plus the required
-    // card fields also marks a completed setup; OAuth defaults have neither.
-    (Boolean(player.photoUrl?.trim()) || Boolean(player.portraitConsentAt))
+    // A photo alone is not evidence of personal consent.
+    hasPortraitConsent(player)
   );
 }
 

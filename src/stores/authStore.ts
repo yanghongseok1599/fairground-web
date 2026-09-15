@@ -1,5 +1,6 @@
 "use client";
 
+import { hasPortraitConsent, requirePortraitConsent } from "@/features/portrait-consent/policy";
 import { create } from "zustand";
 import { supabase, isDemoMode } from "@/config/supabase";
 import { SITE_URL } from "@/lib/site-config";
@@ -173,7 +174,7 @@ function makePlayer(
   name: string,
   phone: string,
   teamId = "",
-  extra: Partial<Pick<Player, "email" | "gender" | "birthDate" | "hasPlayerExperience" | "cardSkin">> = {},
+  extra: Partial<Pick<Player, "email" | "gender" | "birthDate" | "hasPlayerExperience" | "cardSkin" | "portraitConsentAt">> = {},
 ): Player {
   return {
     id: uid,
@@ -187,6 +188,7 @@ function makePlayer(
     photoScale: DEFAULT_CARD_PHOTO_SCALE,
     cardType: "gold",
     cardSkin: extra.cardSkin ?? "standard",
+    portraitConsentAt: extra.portraitConsentAt,
     cardRating: 70,
     stats: { goals: 0, assists: 0, games: 0, mom: 0 },
     badges: [],
@@ -255,6 +257,7 @@ let authHydrationVersion = 0;
 
 // ===== Store =====
 interface RegisterData {
+  portraitConsent: boolean;
   email: string;
   password: string;
   name: string;
@@ -361,6 +364,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
   register: async (data) => {
     setState({ loading: true, error: null });
     try {
+      if (data.portraitConsent !== true) throw new Error("초상권·촬영물 활용 동의 항목을 확인해주세요.");
       const normalizedEmail = normalizeLoginId(data.email);
       if (isDemoMode) {
         const users = getLocalUsers();
@@ -377,6 +381,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
           birthDate: data.birthDate,
           hasPlayerExperience: data.hasPlayerExperience,
           cardSkin: data.cardSkin,
+          portraitConsentAt: Date.now(),
         });
         const players = getLocalPlayers();
         players[uid] = player;
@@ -402,6 +407,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
             has_player_experience: data.hasPlayerExperience,
             team_id: data.teamId || "",
             card_skin: data.cardSkin ?? "standard",
+            portrait_consent: data.portraitConsent,
           },
         },
       });
@@ -413,15 +419,9 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
         setState({ user: null, player: null, loading: false });
         return;
       }
-      // 트리거가 생성한 행과 동일한 기본값으로 로컬 상태를 구성(즉시 UI 반영용).
-      // 실제 영속화는 트리거가 담당하며, 다음 init()의 fetchProfile이 정본을 읽어온다.
-      const player = makePlayer(uid, data.name, data.phone, data.teamId, {
-        email: normalizedEmail,
-        gender: data.gender,
-        birthDate: data.birthDate,
-        hasPlayerExperience: data.hasPlayerExperience,
-        cardSkin: data.cardSkin,
-      });
+      // Only the database record proves consent; never invent local success.
+      const player = await fetchProfile(uid);
+      if (!player) throw new Error("가입은 접수되었지만 회원 정보를 확인하지 못했습니다. 다시 로그인해주세요.");
       setState({
         user: makeUser(uid, signUp.user.email ?? normalizedEmail, data.gender),
         player,
@@ -442,6 +442,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       if (!uid) {
         throw new Error("로그인이 필요합니다");
       }
+      requirePortraitConsent(hasPortraitConsent(existingPlayer) ? existingPlayer : data);
       if (data.role === "referee" && existingPlayer && existingPlayer.role !== "referee") {
         throw new Error("기존 계정의 심판 권한은 관리자가 승인해야 합니다. 선수로 등록을 마친 뒤 심판 등록을 문의해주세요.");
       }
@@ -510,6 +511,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
           .insert(playerToInsert(player)).select("id").single();
         savedPlayer = await requireSavedProfile(saved, error, uid, fetchProfile);
       }
+      requirePortraitConsent(savedPlayer);
       if (getState().user?.uid !== uid) {
         throw new Error("로그인 계정이 변경되었습니다. 저장 결과를 해당 계정에서 확인해주세요.");
       }
@@ -603,6 +605,16 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
     const state = useAuthStore.getState();
     if (!state.user || !state.player) throw new Error("로그인 정보가 없습니다. 입력을 유지한 채 다시 로그인해주세요.");
 
+    const cardFields: (keyof Player)[] = ["number", "position", "photoUrl", "profilePhotoUrl", "photoScale"];
+    if (cardFields.some((field) => data[field] !== undefined)) {
+      requirePortraitConsent(hasPortraitConsent(state.player) ? state.player : data);
+    }
+    // Re-submission must never change the original evidence.
+    if (hasPortraitConsent(state.player) && data.portraitConsentAt !== undefined) {
+      data = { ...data, portraitConsentAt: state.player.portraitConsentAt };
+    }
+    if (data.portraitConsentAt !== undefined) requirePortraitConsent(data);
+
     if (isDemoMode) {
       const updated = { ...state.player, ...data };
       const players = getLocalPlayers();
@@ -628,6 +640,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       throw new Error(error.message);
     }
     const savedPlayer = await requireSavedProfile(saved, error, state.user.uid, fetchProfile);
+    if (data.portraitConsentAt !== undefined) requirePortraitConsent(savedPlayer);
     if (getState().user?.uid !== state.user.uid) {
       throw new Error("로그인 계정이 변경되었습니다. 저장 결과를 해당 계정에서 확인해주세요.");
     }

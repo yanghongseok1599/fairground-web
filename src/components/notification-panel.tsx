@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useDataStore } from "@/stores/dataStore";
+import { useAuth } from "@/hooks/useAuth";
+import { needsPortraitConsent, PORTRAIT_CONSENT_PATH } from "@/features/portrait-consent/policy";
 import type { NotificationItem } from "@/types";
 
 interface Props {
@@ -37,6 +39,8 @@ function relTime(ts: number): string {
 }
 
 export function NotificationPanel({ open, onClose, onAllRead }: Props) {
+  const { player } = useAuth();
+  const pendingConsent = needsPortraitConsent(player);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
   const fetchN = useDataStore((s) => s.fetchNotifications);
@@ -93,7 +97,17 @@ export function NotificationPanel({ open, onClose, onAllRead }: Props) {
         </button>
       </div>
       <ul className="max-h-[60vh] overflow-auto py-1">
-        {items.length === 0 ? (
+        {pendingConsent && (
+          <li>
+            <Link href={PORTRAIT_CONSENT_PATH} onClick={onClose}
+              className="block border-b border-border bg-muted px-4 py-4 text-foreground">
+              <p className="text-sm font-semibold">초상권 동의를 완료해주세요</p>
+              <p className="mt-1 text-xs text-muted-foreground">선수카드 생성·수정과 대회 신청 전에 필요합니다. 동의하면 이 알림이 해제됩니다.</p>
+              <span className="mt-2 inline-block text-xs font-bold text-primary">동의 내용 확인 →</span>
+            </Link>
+          </li>
+        )}
+        {items.length === 0 && !pendingConsent ? (
           <li
             className="px-4 py-8 text-center text-sm"
             style={{ color: "var(--color-fg-ink-muted)" }}

@@ -21,6 +21,8 @@ import {
   Users,
 } from "lucide-react";
 import { MixedFutsalEligibilityTable } from "@/components/mixed-futsal-eligibility-table";
+import { PortraitConsentField } from "@/features/portrait-consent/components/consent-field";
+import { hasPortraitConsent } from "@/features/portrait-consent/policy";
 import { PushEnableCard } from "@/components/push-enable-card";
 import { useFormDraft } from "@/hooks/useFormDraft";
 import { useSubmission } from "@/hooks/useSubmission";
@@ -78,6 +80,11 @@ const GUIDE_ITEMS = [
 ] as const;
 
 export function MixedFutsalApplyClient() {
+  const { user } = useAuth();
+  return <MixedFutsalApplyForm key={user?.uid ?? "guest"} />;
+}
+
+function MixedFutsalApplyForm() {
   const router = useRouter();
   const { user, player, initialized, updatePlayer } = useAuth();
   const createTeam = useDataStore((state) => state.createTeam);
@@ -86,6 +93,7 @@ export function MixedFutsalApplyClient() {
   const [captainName, setCaptainName] = useState("");
   const [captainPhone, setCaptainPhone] = useState("");
   const [mixConfirmed, setMixConfirmed] = useState(false);
+  const [personalConsent, setPersonalConsent] = useState(false);
   const [portraitConsent, setPortraitConsent] = useState(false);
   const submission = useSubmission();
   const { submitting } = submission;
@@ -99,9 +107,9 @@ export function MixedFutsalApplyClient() {
   }, [player]);
 
   const draft = useFormDraft(user && !createdTeamId ? `mixed-team:${user.uid}` : null,
-    { teamName, captainName, captainPhone, mixConfirmed, portraitConsent }, (d) => {
+    { teamName, captainName, captainPhone, mixConfirmed }, (d) => {
       setTeamName(d.teamName); setCaptainName(d.captainName); setCaptainPhone(d.captainPhone);
-      setMixConfirmed(d.mixConfirmed); setPortraitConsent(d.portraitConsent);
+      setMixConfirmed(d.mixConfirmed);
     });
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -132,6 +140,11 @@ export function MixedFutsalApplyClient() {
       return;
     }
 
+    if (!hasPortraitConsent(player) && !personalConsent) {
+      setError("신청자 본인의 초상권 동의를 먼저 확인해주세요.");
+      return;
+    }
+
     if (!portraitConsent) {
       setError("현장 촬영물의 홍보 활용 동의에 체크해야 참가 신청을 제출할 수 있습니다.");
       return;
@@ -141,7 +154,9 @@ export function MixedFutsalApplyClient() {
     try {
       // Save contact corrections first. Team creation below commits membership
       // atomically, so no fallible follow-up can mislabel a created team as failed.
-      await updatePlayer({ name: trimmedCaptainName, phone: trimmedCaptainPhone });
+      await updatePlayer({ name: trimmedCaptainName, phone: trimmedCaptainPhone,
+        ...(!hasPortraitConsent(player) ? { portraitConsentAt: Date.now() } : {}),
+      });
       const createdId = await createTeam({
         name: trimmedTeamName,
         logo: "",
@@ -449,6 +464,9 @@ export function MixedFutsalApplyClient() {
                     </label>
                   </div>
 
+                  {hasPortraitConsent(player) ? (
+                    <p className="text-sm font-bold text-primary">신청자 본인 초상권 동의 완료</p>
+                  ) : <PortraitConsentField checked={personalConsent} onChange={setPersonalConsent} disabled={submitting} />}
                   <label className="flex min-h-12 items-start gap-3 rounded-[var(--radius-md)] border border-[#D0D8E8] bg-[#F5F7FF] px-4 py-3.5">
                     <input
                       type="checkbox"
@@ -469,6 +487,7 @@ export function MixedFutsalApplyClient() {
                     </span>
                   </label>
 
+                  <p className="text-sm font-bold text-foreground">팀원 촬영 동의 확인</p>
                   <label className="flex min-h-12 items-start gap-3 rounded-[var(--radius-md)] border border-[#D0D8E8] bg-[#F5F7FF] px-4 py-3.5">
                     <input
                       type="checkbox"
@@ -511,7 +530,7 @@ export function MixedFutsalApplyClient() {
 
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || !portraitConsent || (!hasPortraitConsent(player) && !personalConsent)}
                   className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[#0047AB] px-5 text-[15px] font-black text-white transition hover:bg-[#003080] disabled:cursor-not-allowed disabled:opacity-55"
                 >
                   {submitting ? "신청 제출 중..." : "참가 신청 제출"}

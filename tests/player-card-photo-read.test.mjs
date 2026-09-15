@@ -3,6 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { moduleLoader } from "./helpers/load-ts-module.mjs";
+const { hasPortraitConsent, requirePortraitConsent } = moduleLoader()("src/features/portrait-consent/policy.ts");
 const { cardBadgePatch } = moduleLoader()("src/lib/player-card/badge-edit.ts");
 
 const file = new Blob(["test"], { type: "image/webp" });
@@ -80,8 +81,9 @@ function formFixture(page, reader) {
   visit(source);
   assert.ok(submit, "실제 페이지의 제출 함수를 검사한다");
   const state = { locked: false, error: "", writes: 0, done: false, reads: 0 };
-  const player = { photoUrl: "original-photo", profilePhotoLocked: false, teamId: "" };
+  const player = { portraitConsentAt: 1000, photoUrl: "original-photo", profilePhotoLocked: false, teamId: "" };
   const context = {
+    hasPortraitConsent, requirePortraitConsent,
     File, Error, photoError: "", bgProcessing: false, loading: false,
     name: "테스트", position: "ALA", number: "10", nationality: "KOR",
     photoScale: 0.92, photoBlob: file, portraitConsent: true,

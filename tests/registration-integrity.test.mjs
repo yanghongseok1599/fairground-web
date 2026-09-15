@@ -159,7 +159,7 @@ test('a delayed auth read cannot resurrect the user after sign-out', async () =>
 
 test('player setup uses the committed row when membership or match statistics changed during the form', async () => {
   const f=storeFixture();
-  const before={id:'player-1',name:'old',number:7,position:'ALA',role:'player',team_id:null,goals:19,created_at:'2026-01-01'};
+  const before={portrait_consent_at:'2026-01-01T00:00:00Z',id:'player-1',name:'old',number:7,position:'ALA',role:'player',team_id:null,goals:19,created_at:'2026-01-01'};
   f.responses.push({data:before,error:null},{data:{id:'player-1'},error:null},{data:{...before,name:'new',team_id:'approved-while-saving',goals:20},error:null});
   await f.auth.getState().createPlayer({name:'new',number:9,position:'PIVO'});
   assert.equal(f.auth.getState().player.teamId,'approved-while-saving');

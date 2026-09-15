@@ -18,6 +18,8 @@ import { compressImageBlob } from "@/lib/image-compression";
 import { preparePlayerCardPhoto, type PlayerCardPhotoMode } from "@/lib/player-card/photo-registration";
 import { PlayerCardPhotoOptions } from "@/components/player-card-photo-options";
 import { PlayerCardPhotoError } from "@/components/player-card-photo-error";
+import { PortraitConsentCard } from "@/components/portrait-consent-card";
+import { hasPortraitConsent, requirePortraitConsent } from "@/features/portrait-consent/policy";
 import { UpperBodyPortrait } from "@/components/upper-body-portrait";
 import { DEFAULT_CARD_PHOTO_SCALE, getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 import { FAIRGROUND_OPS_TEAM_LOGO } from "@/lib/team-logo-assets";
@@ -239,6 +241,7 @@ function CardEditForm() {
     if (!name.trim() || !position || !/^[1-9]\d?$/.test(number)) {
       setFormError("이름, 포지션, 등번호(1~99)를 확인해주세요."); return;
     }
+    if (!hasPortraitConsent(player)) { setFormError("초상권 동의를 먼저 완료해주세요."); return; }
     if (bgProcessing || !draft.ready || !submission.begin()) return;
     try {
       const updates: Partial<Player> = {
@@ -263,6 +266,7 @@ function CardEditForm() {
         }
       }
 
+      requirePortraitConsent(player);
       await updatePlayer(updates);
       draft.clear();
       setDone(true);
@@ -283,6 +287,10 @@ function CardEditForm() {
         />
       </div>
     );
+  }
+
+  if (player && !hasPortraitConsent(player)) {
+    return <div className="mx-auto max-w-xl px-5 py-10"><PortraitConsentCard /></div>;
   }
 
   if (done) {

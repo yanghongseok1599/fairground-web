@@ -4,6 +4,8 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
+import { hasPortraitConsent, PORTRAIT_CONSENT_PATH } from "@/features/portrait-consent/policy";
+
 // returnTo 는 같은 사이트 내부 경로만 허용 (오픈 리다이렉트 방지).
 function safeReturnTo(raw: string | null): string {
   // 기본 착지점은 /onboarding. 선수 등록을 마쳤으면 온보딩이 알아서 /my 로
@@ -28,13 +30,13 @@ function safeReturnTo(raw: string | null): string {
 function CallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, initialized } = useAuth();
+  const { user, player, initialized } = useAuth();
   const [timedOut, setTimedOut] = useState(false);
   const returnTo = safeReturnTo(searchParams.get("returnTo"));
 
   useEffect(() => {
     if (initialized && user) {
-      router.replace(returnTo);
+      router.replace(hasPortraitConsent(player) ? returnTo : `${PORTRAIT_CONSENT_PATH}?returnTo=${encodeURIComponent(returnTo)}`);
       return;
     }
     if (initialized && !user) {
@@ -42,7 +44,7 @@ function CallbackInner() {
       const t = setTimeout(() => setTimedOut(true), 4000);
       return () => clearTimeout(t);
     }
-  }, [initialized, user, returnTo, router]);
+  }, [initialized, user, player, returnTo, router]);
 
   if (timedOut) {
     return (

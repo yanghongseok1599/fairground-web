@@ -35,6 +35,7 @@ import { canEditTeamDetails, canManageTeam } from "@/lib/team-permissions";
 import { CardProgress } from "@/components/card-progress";
 import { PlayerProfilePhoto } from "@/components/player-profile-photo";
 import { PushEnableCard } from "@/components/push-enable-card";
+import { hasPortraitConsent } from "@/features/portrait-consent/policy";
 import { PortraitConsentCard } from "@/components/portrait-consent-card";
 import { compressImageBlob, removeBackgroundAndCompress } from "@/lib/image-compression";
 import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
@@ -307,11 +308,11 @@ export default function MyPage() {
   } = usePreparedElementPng(
     exportCardRef,
     cardExportRevision,
-    Boolean(initialized && player && player.role !== "admin"),
+    Boolean(initialized && player && player.role !== "admin" && hasPortraitConsent(player)),
   );
 
   const handleSave = async () => {
-    if (!player) return;
+    if (!player || !hasPortraitConsent(player)) return;
     if (!preparedCardBlob) {
       setShareMessage("카드 이미지를 다시 준비하고 있습니다.");
       retryCardImage();
@@ -338,6 +339,7 @@ export default function MyPage() {
   };
 
   const handleShare = async () => {
+    if (!hasPortraitConsent(player)) return;
     if (!player) return;
     if (!preparedCardBlob) {
       setShareMessage("카드 이미지를 다시 준비하고 있습니다.");
@@ -848,6 +850,8 @@ export default function MyPage() {
               </div>
             </div>
           </div>
+        ) : !hasPortraitConsent(player) ? (
+          <div className={`${MY_PAGE_SECTION_SHELL} mt-5 sm:mt-8`}><PortraitConsentCard /></div>
         ) : (
         <div className={`${MY_PAGE_SECTION_SHELL} mt-5 sm:mt-8`}>
           <div className="grid gap-7 lg:grid-cols-[minmax(0,760px)_minmax(320px,420px)] lg:items-start lg:justify-center lg:gap-10 xl:gap-14">
@@ -1824,10 +1828,8 @@ export default function MyPage() {
             모바일에는 알림을 켤 상시 진입점이 없었다. 헤더 종 토글은
             hidden xl:flex 라 데스크톱 전용이고, 하단 배너는 닫으면 그 방문
             동안 다시 뜨지 않는다. 여기에 항상 두어 언제든 켜고 끌 수 있게 한다. */}
-        {/* ── 촬영물 활용 동의 ──
-            선수카드 등록·대회 신청 화면의 동의 문항 도입 이전에 카드를 만든
-            선수들은 동의 기록이 없다. 기록이 없는 동안에만 노출된다. */}
-        {user && <PortraitConsentCard />}
+        {/* 본인 초상권 동의 상태와 최초 동의 시각 */}
+        {user && (hasPortraitConsent(player) || isAdminProfile) && <PortraitConsentCard />}
 
         {user && <PushEnableCard />}
 

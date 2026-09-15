@@ -16,6 +16,8 @@ import { compressImageBlob } from "@/lib/image-compression";
 import { preparePlayerCardPhoto, type PlayerCardPhotoMode } from "@/lib/player-card/photo-registration";
 import { PlayerCardPhotoOptions } from "@/components/player-card-photo-options";
 import { PlayerCardPhotoError } from "@/components/player-card-photo-error";
+import { PortraitConsentField } from "@/features/portrait-consent/components/consent-field";
+import { hasPortraitConsent } from "@/features/portrait-consent/policy";
 import { UpperBodyPortrait } from "@/components/upper-body-portrait";
 import { PLAYER_CARD_FRAME } from "@/lib/player-card-frame";
 import { DEFAULT_CARD_PHOTO_SCALE } from "@/lib/player-profile-photo";
@@ -66,9 +68,10 @@ const inputStyle: React.CSSProperties = {
 const PHOTO_OVERLAY = PLAYER_CARD_FRAME.pos.photo;
 
 export default function PlayerSetupPage() {
+  const { user } = useAuth();
   return (
     <Suspense fallback={<PlayerSetupFallback />}>
-      <PlayerSetupContent />
+      <PlayerSetupContent key={user?.uid ?? "guest"} />
     </Suspense>
   );
 }
@@ -169,13 +172,13 @@ function PlayerSetupContent() {
   }, [player, canContinuePlayerSetup, presetRole]);
 
   const draft = useFormDraft(user && !done ? `player-setup:${user.uid}` : null,
-    { name, number, position, nationality, photoScale, photoDraft, role, teamId, portraitConsent }, (d) => {
+    { name, number, position, nationality, photoScale, photoDraft, role, teamId }, (d) => {
       setName(d.name); setNumber(d.number); setPosition(d.position); setNationality(d.nationality);
       setPhotoScale(d.photoScale); setPhotoDraft(d.photoDraft);
       if (d.photoDraft) {
         setPhotoBlob(photoDraftToBlob(d.photoDraft)); setPhotoPreview(d.photoDraft); setCardPhotoPreview(d.photoDraft);
       }
-      setRole(d.role); setTeamId(d.teamId); setPortraitConsent(d.portraitConsent);
+      setRole(d.role); setTeamId(d.teamId);
     });
 
   // 전역 마우스 이벤트 (드래그 중 커서가 벗어나도 작동)
@@ -285,7 +288,7 @@ function PlayerSetupContent() {
     if (!name.trim() || !position || !/^[1-9]\d?$/.test(number)) {
       setFormError("이름, 포지션, 등번호(1~99)를 확인해주세요."); return;
     }
-    if (!portraitConsent) { setFormError("촬영물 활용 동의 항목을 확인해주세요."); return; }
+    if (!hasPortraitConsent(player) && !portraitConsent) { setFormError("촬영물 활용 동의 항목을 확인해주세요."); return; }
     if (bgProcessing || !draft.ready || !submission.begin()) return;
     try {
       let photoUrl = "";
@@ -309,7 +312,7 @@ function PlayerSetupContent() {
         profilePhotoLocked: false,
         photoScale,
         cardSkin,
-        portraitConsentAt: Date.now(),
+        portraitConsentAt: player?.portraitConsentAt ?? Date.now(),
       });
       // Membership is a separate, recoverable request; profile writes never move a player.
       if (teamId && teamId !== player?.teamId) {
@@ -802,29 +805,9 @@ function PlayerSetupContent() {
             </div>
           </div>
 
-          {/* 촬영물 홍보 활용 동의 — 선수 본인 동의. 팀 대표의 대리 동의와 별개로 받는다. */}
-          <label
-            className="flex items-start gap-3 rounded-2xl px-4 py-3.5"
-            style={inputStyle}
-          >
-            <input
-              type="checkbox"
-              checked={portraitConsent}
-              onChange={(e) => setPortraitConsent(e.target.checked)}
-              className="mt-0.5 h-5 w-5 shrink-0"
-              style={{ accentColor: "var(--color-fg-blue, #0047AB)" }}
-              required
-            />
-            <span
-              className="text-[13px] leading-[1.7]"
-              style={{ color: "var(--color-fg-ink-muted)" }}
-            >
-              대회·행사 현장에서 촬영되는 사진·영상에 본인이 등장할 수 있으며,
-              해당 촬영물이 FairGround의 홍보·마케팅 목적(온라인 채널·광고·인쇄물
-              등 상업적 이용 포함)으로 기간과 횟수의 제한 없이 사용되는 것에
-              동의합니다. 이에 대해 별도의 대가나 초상권을 주장하지 않습니다.
-            </span>
-          </label>
+          {hasPortraitConsent(player) ? (
+            <p className="rounded-2xl border border-border p-4 text-sm text-primary">초상권 동의 완료 · 기존 본인 동의 기록이 적용됩니다.</p>
+          ) : <PortraitConsentField checked={portraitConsent} onChange={setPortraitConsent} disabled={submission.submitting} />}
 
           {(formError || error) && (
             <p
@@ -839,7 +822,7 @@ function PlayerSetupContent() {
 
           <button
             type="submit"
-            disabled={loading || submission.submitting || bgProcessing || !!photoError || !draft.ready}
+            disabled={loading || submission.submitting || bgProcessing || !!photoError || !draft.ready || (!hasPortraitConsent(player) && !portraitConsent)}
             className="w-full py-4 rounded-2xl text-sm font-black transition-all hover:opacity-90 disabled:opacity-30"
             style={{
               background: "var(--primary)",

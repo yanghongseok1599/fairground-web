@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Providers } from "./providers";
 import { SiteHeader } from "./site-header";
 import { SiteFooter } from "./site-footer";
+import { PortraitConsentReminder } from "@/features/portrait-consent/components/consent-reminder";
 import { SwRegister } from "./sw-register";
 
 export function SiteFrame({ children }: { children: React.ReactNode }) {
@@ -18,7 +19,7 @@ export function SiteFrame({ children }: { children: React.ReactNode }) {
     <Providers>
       <SwRegister />
       <SiteHeader />
-      <main className="pt-[60px] w-full overflow-x-clip">{children}</main>
+      <main className="pt-[60px] w-full overflow-x-clip"><PortraitConsentReminder />{children}</main>
       <SiteFooter />
     </Providers>
   );

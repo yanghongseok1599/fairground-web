@@ -16,6 +16,7 @@ import {
   GROUND_CHALLENGE_PLAYER_CARD_SKIN,
   rememberPendingCardSkin,
 } from "@/lib/player-card-skin";
+import { PortraitConsentField } from "@/features/portrait-consent/components/consent-field";
 import type { Gender } from "@/types";
 
 /* ===========================================================
@@ -54,6 +55,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [formError, setFormError] = useState("");
+  const [portraitConsent, setPortraitConsent] = useState(false);
   const [success, setSuccess] = useState(false);
   const [entryParams] = useState(() => {
     if (typeof window === "undefined") return new URLSearchParams();
@@ -114,6 +116,7 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!portraitConsent) { setFormError("초상권·촬영물 활용 동의 항목을 확인해주세요."); return; }
     if (!draft.ready || !submission.begin()) return;
     try {
       await register({
@@ -128,6 +131,7 @@ export default function RegisterPage() {
         hasPlayerExperience,
         teamId: invitedTeamId,
         cardSkin: eventCardSkin,
+        portraitConsent,
       });
 
       // MBTI/성향/추구하는 가치관/자기소개(FA) 후속 저장 로직 제거 — 이 필드들은
@@ -259,6 +263,7 @@ export default function RegisterPage() {
           onGoogle={handleGoogleRegister}
           onKakao={handleKakaoRegister}
         />
+        <p className="text-xs leading-relaxed text-muted-foreground">Google·카카오 가입은 로그인 후 초상권 동의를 확인합니다.</p>
 
         {/* Divider */}
         <div className="relative">
@@ -480,6 +485,8 @@ export default function RegisterPage() {
             />
           </div>
 
+          <PortraitConsentField checked={portraitConsent} onChange={setPortraitConsent} disabled={loading || submission.submitting} />
+
           {(formError || error) && (
             <p
               className="text-xs px-1"
@@ -493,7 +500,7 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            disabled={loading || submission.submitting || !draft.ready}
+            disabled={loading || submission.submitting || !draft.ready || !portraitConsent}
             className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-40 mt-2"
             style={{
               background: "var(--primary)",

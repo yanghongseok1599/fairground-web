@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { needsPortraitConsent } from "@/features/portrait-consent/policy";
 import { Bell } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
@@ -35,18 +36,19 @@ export function NotificationBell() {
     };
   }, [player?.id, fetchCount, open]);
 
+  const totalUnread = unread + (needsPortraitConsent(player) ? 1 : 0);
   if (!player?.id) return null;
   return (
     <div className="relative">
       <button
         type="button"
-        aria-label={`알림 ${unread}개`}
+        aria-label={`알림 ${totalUnread}개`}
         onClick={() => setOpen((v) => !v)}
         className="relative flex h-10 w-10 items-center justify-center rounded-md hover:bg-[color:var(--color-fg-paper-3,#EEF3FF)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
         style={{ outlineColor: "var(--color-ring)" }}
       >
         <Bell width={20} height={20} style={{ color: "var(--color-fg-ink)" }} />
-        {unread > 0 && (
+        {totalUnread > 0 && (
           <span
             className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold"
             style={{
@@ -54,11 +56,12 @@ export function NotificationBell() {
               color: "var(--primary-foreground, #fff)",
             }}
           >
-            {unread > 99 ? "99+" : unread}
+            {totalUnread > 99 ? "99+" : totalUnread}
           </span>
         )}
       </button>
       <NotificationPanel
+        key={player.id}
         open={open}
         onClose={() => setOpen(false)}
         onAllRead={() => {
