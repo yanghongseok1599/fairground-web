@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { BellRing, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -30,9 +31,11 @@ const SESSION_DISMISS_KEY = "fairground:push-prompt:dismissed-session";
 const SHOW_DELAY_MS = 1500;
 
 export function PushOptInPrompt() {
+  const pathname = usePathname();
   const { player } = useAuth();
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!PUSH_SUPPORTED || !player?.id) return;
@@ -75,15 +78,16 @@ export function PushOptInPrompt() {
   const handleEnable = async () => {
     if (busy) return;
     setBusy(true);
+    setError("");
     // requestPermission 은 클릭(사용자 제스처) 안에서 호출되어야 한다.
-    await subscribeAndSave();
+    const saved = await subscribeAndSave();
     setBusy(false);
-    // 성공(구독됨)이면 다음부터 표시 조건에서 걸러지고, 실패해도 이번 세션은
-    // 닫고 다음 접속에 다시 안내한다.
-    dismiss();
+    if (saved) dismiss();
+    else setError("알림 설정을 완료하지 못했습니다. 마이페이지에서 권한과 연결 상태를 확인해주세요.");
   };
 
-  if (!show) return null;
+  // These pages already contain a persistent, actionable readiness checklist.
+  if (!show || pathname === "/my" || pathname.startsWith("/my/")) return null;
 
   return (
     <div
@@ -108,6 +112,7 @@ export function PushOptInPrompt() {
           <p style={{ color: "var(--color-fg-ink-muted)" }}>
             알림을 켜면 경기 일정과 중요 공지를 푸시로 바로 받을 수 있어요.
           </p>
+          {error && <p role="alert" className="mt-1 text-destructive">{error}</p>}
         </div>
         <button
           type="button"

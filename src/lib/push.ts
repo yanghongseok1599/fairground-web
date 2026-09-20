@@ -21,6 +21,12 @@
 
 import { supabase } from "@/config/supabase";
 
+export const PUSH_SUBSCRIPTION_CHANGED = "fairground:push-subscription-changed";
+
+function notifyPushChange() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(PUSH_SUBSCRIPTION_CHANGED));
+}
+
 /** 브라우저 능력 검사 — Safari iOS PWA 미설치 등에서 false. SSR 안전. */
 export const PUSH_SUPPORTED: boolean =
   typeof window !== "undefined" &&
@@ -79,15 +85,38 @@ function arrayBufferToBase64Url(buf: ArrayBuffer): string {
 }
 
 export async function isCurrentlySubscribed(): Promise<boolean> {
-  if (!PUSH_SUPPORTED) return false;
   try {
-    const reg = await navigator.serviceWorker.getRegistration("/");
-    if (!reg) return false;
-    const sub = await reg.pushManager.getSubscription();
-    return sub !== null;
+    return await hasSavedPushSubscription();
   } catch {
     return false;
   }
+}
+
+/** A browser subscription alone cannot receive this account's tournament alerts. */
+export async function hasSavedPushSubscription(expectedUserId?: string): Promise<boolean> {
+  if (!PUSH_SUPPORTED || Notification.permission !== "granted") return false;
+  const reg = await navigator.serviceWorker.getRegistration("/");
+  const sub = await reg?.pushManager.getSubscription();
+  if (!sub) return false;
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  if (!data.user || (expectedUserId && data.user.id !== expectedUserId)) return false;
+  const userId = data.user.id;
+  const { data: saved, error: readError } = await (
+    supabase as unknown as {
+      from: (table: string) => {
+        select: (columns: string) => {
+          eq: (column: string, value: string) => {
+            eq: (column: string, value: string) => {
+              maybeSingle: () => Promise<{ data: { endpoint: string } | null; error: { message: string } | null }>;
+            };
+          };
+        };
+      };
+    }
+  ).from("push_subscriptions").select("endpoint").eq("user_id", userId).eq("endpoint", sub.endpoint).maybeSingle();
+  if (readError) throw readError;
+  return Boolean(saved && Notification.permission === "granted");
 }
 
 /**
@@ -96,14 +125,22 @@ export async function isCurrentlySubscribed(): Promise<boolean> {
  */
 export async function subscribeAndSave(): Promise<boolean> {
   if (!PUSH_SUPPORTED) return false;
-
-  const perm = await requestPushPermission();
-  if (perm !== "granted") return false;
-
   try {
+    const perm = await requestPushPermission();
+    if (perm !== "granted") return false;
     const reg = await registerPushSw();
     // SW 가 active 가 될 때까지 대기 — 갓 register 한 경우 pushManager.subscribe 가 실패할 수 있다.
-    await navigator.serviceWorker.ready;
+    let readyTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) => {
+          readyTimer = setTimeout(() => reject(new Error("PUSH_WORKER_TIMEOUT")), 15_000);
+        }),
+      ]);
+    } finally {
+      clearTimeout(readyTimer);
+    }
 
     // VAPID public key (서버 RPC) — 환경변수에 두지 않음 (스펙).
     const { data: vapidKey, error: vapidErr } = await supabase.rpc(
@@ -170,6 +207,8 @@ export async function subscribeAndSave(): Promise<boolean> {
     return true;
   } catch {
     return false;
+  } finally {
+    notifyPushChange();
   }
 }
 
@@ -207,5 +246,7 @@ export async function unsubscribeAndDelete(): Promise<void> {
       .eq("endpoint", endpoint);
   } catch {
     /* noop — UI 가 다음 mount 에서 상태 재확인 */
+  } finally {
+    notifyPushChange();
   }
 }

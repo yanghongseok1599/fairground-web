@@ -79,7 +79,7 @@ test('new player insert verifies only id then loads the own-profile RPC', async 
   f.auth.setState({ player: null });
   f.responses.push({ data: null, error: null }, { data: { id: 'player-1' }, error: null },
     { data: { ...playerToInsert(f.player), name: 'server new', created_at: '2026-01-01' }, error: null });
-  await f.auth.getState().createPlayer({ name: 'client', number: 7, position: 'ALA' });
+  await f.auth.getState().createPlayer({ name: 'client', number: 7, position: 'ALA', portraitConsentAt: 1000 });
   assert.equal(f.auth.getState().player.name, 'server new');
   assert.deepEqual(f.requests[1].steps.find(([method]) => method === 'select'), ['select', 'id']);
   assert.equal(f.requests[2].rpc, 'get_my_profile');

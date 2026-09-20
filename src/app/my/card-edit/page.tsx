@@ -10,6 +10,9 @@ import { cardBadgePatch, filterEarnedBadgeIds } from "@/lib/player-card/badge-ed
 import { useSubmission } from "@/hooks/useSubmission";
 import { photoDraftToBlob, readPhotoFile, registrationError } from "@/lib/registration/reliability";
 import { useAuth } from "@/hooks/useAuth";
+import { ParticipantReadiness } from "@/features/tournament-readiness/components/participant-readiness";
+import { useTournamentPush } from "@/features/tournament-readiness/hooks/use-tournament-push";
+import { TOURNAMENT_ALERTS_REQUIRED } from "@/features/tournament-readiness/policy";
 import { useDataStore } from "@/stores/dataStore";
 import { COUNTRIES } from "@/constants/countries";
 import { BADGES } from "@/constants/badges";
@@ -73,6 +76,7 @@ function CardEditForm() {
   const [position, setPosition] = useState<Position | "">("");
   const [teamId, setTeamId] = useState("");
   const [formError, setFormError] = useState("");
+  const push = useTournamentPush();
   const [leaving, setLeaving] = useState(false);
   const [nationality, setNationality] = useState("KOR");
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
@@ -244,6 +248,11 @@ function CardEditForm() {
     if (!hasPortraitConsent(player)) { setFormError("초상권 동의를 먼저 완료해주세요."); return; }
     if (bgProcessing || !draft.ready || !submission.begin()) return;
     try {
+      if (!await push.verifyForSave()) {
+        setFormError(TOURNAMENT_ALERTS_REQUIRED);
+        document.getElementById("participant-readiness")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
       const updates: Partial<Player> = {
         name: name.trim(),
         number: parseInt(number, 10),
@@ -290,7 +299,7 @@ function CardEditForm() {
   }
 
   if (player && !hasPortraitConsent(player)) {
-    return <div className="mx-auto max-w-xl px-5 py-10"><PortraitConsentCard /></div>;
+    return <div className="mx-auto max-w-xl px-5 py-10"><ParticipantReadiness push={push} required consentComplete={false} consent={<PortraitConsentCard />} /></div>;
   }
 
   if (done) {
@@ -408,6 +417,8 @@ function CardEditForm() {
           </p>
         </div>
       </div>
+
+      <div className="mx-auto max-w-2xl px-5 pt-6"><ParticipantReadiness push={push} required consentComplete={hasPortraitConsent(player)} consent={<PortraitConsentCard />} /></div>
 
       <form onSubmit={handleSubmit} className={`${PUBLIC_PAGE_GUTTER_CLASS} py-8`}>
         {draft.message && <p role="status" className="text-sm md:col-span-2">{draft.message}</p>}
@@ -751,6 +762,8 @@ function CardEditForm() {
           </div>
         </div>
 
+        {!push.canSave && <p className="text-sm font-medium text-primary">상단의 대회 알림 ON 설정을 완료하면 수정 내용을 저장할 수 있습니다.</p>}
+
         {(formError || error) && (
           <p
             className="text-sm px-1"
@@ -764,7 +777,7 @@ function CardEditForm() {
 
         <button
           type="submit"
-          disabled={loading || submission.submitting || bgProcessing || !!photoError || !draft.ready}
+          disabled={loading || submission.submitting || bgProcessing || !!photoError || !draft.ready || !push.canSave}
           className="w-full py-4 rounded-2xl text-sm font-black transition-all hover:opacity-90 disabled:opacity-30"
           style={{
             background: "var(--primary)",

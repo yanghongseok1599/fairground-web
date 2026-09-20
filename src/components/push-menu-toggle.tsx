@@ -60,7 +60,7 @@ export function PushMenuToggle({ onNavigate }: { onNavigate: () => void }) {
     const on = state === "on";
     return (
       <Link
-        href="/my"
+        href="/my#participant-readiness"
         onClick={onNavigate}
         className={rowClass}
         style={{ ...rowStyle, color: on ? "var(--primary)" : "var(--color-fg-blue)" }}

@@ -34,9 +34,8 @@ import { getAdminEntryLabel, isAdminLikeRole } from "@/lib/admin-access";
 import { canEditTeamDetails, canManageTeam } from "@/lib/team-permissions";
 import { CardProgress } from "@/components/card-progress";
 import { PlayerProfilePhoto } from "@/components/player-profile-photo";
-import { PushEnableCard } from "@/components/push-enable-card";
+import { MyParticipantReadiness } from "@/features/tournament-readiness/components/participant-readiness";
 import { hasPortraitConsent } from "@/features/portrait-consent/policy";
-import { PortraitConsentCard } from "@/components/portrait-consent-card";
 import { compressImageBlob, removeBackgroundAndCompress } from "@/lib/image-compression";
 import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 import { getPlayerCardShareUrls } from "@/lib/player-card-share-links";
@@ -783,6 +782,8 @@ export default function MyPage() {
         </div>
       </div>
 
+      {user && <div className={`${MY_PAGE_SECTION_SHELL} mt-5 sm:mt-8`}><MyParticipantReadiness key={user.uid} /></div>}
+
       {/* ── Card + Stats Row ── */}
       {player ? (
         isAdminProfile ? (
@@ -850,9 +851,7 @@ export default function MyPage() {
               </div>
             </div>
           </div>
-        ) : !hasPortraitConsent(player) ? (
-          <div className={`${MY_PAGE_SECTION_SHELL} mt-5 sm:mt-8`}><PortraitConsentCard /></div>
-        ) : (
+        ) : !hasPortraitConsent(player) ? null : (
         <div className={`${MY_PAGE_SECTION_SHELL} mt-5 sm:mt-8`}>
           <div className="grid gap-7 lg:grid-cols-[minmax(0,760px)_minmax(320px,420px)] lg:items-start lg:justify-center lg:gap-10 xl:gap-14">
 
@@ -1823,15 +1822,6 @@ export default function MyPage() {
             {getAdminEntryLabel(player?.role)} 페이지로 이동
           </Link>
         )}
-
-        {/* ── 알림 설정 ──
-            모바일에는 알림을 켤 상시 진입점이 없었다. 헤더 종 토글은
-            hidden xl:flex 라 데스크톱 전용이고, 하단 배너는 닫으면 그 방문
-            동안 다시 뜨지 않는다. 여기에 항상 두어 언제든 켜고 끌 수 있게 한다. */}
-        {/* 본인 초상권 동의 상태와 최초 동의 시각 */}
-        {user && (hasPortraitConsent(player) || isAdminProfile) && <PortraitConsentCard />}
-
-        {user && <PushEnableCard />}
 
         {/* ── 비밀번호 변경 ──
             구글 전용 계정은 비밀번호가 없다. 그래도 updateUser 로 설정이
