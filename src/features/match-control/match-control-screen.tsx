@@ -10,6 +10,8 @@ import { MatchDialogContent } from "./match-dialog-content";
 import { LandscapeMomChoices } from "./landscape-mom-choices";
 import { getSubstitutionChoices } from "./substitution-choices";
 import { RosterEventBoard } from "./roster-event-board";
+import { RefereeRecordingFullscreen } from "./referee-recording-fullscreen";
+import { useRecordingFullscreen } from "./use-recording-fullscreen";
 import { MatchBroadcastView } from "./match-broadcast-view";
 import type { RosterEventType } from "./roster-stats";
 import { AdminHeader } from "@/components/admin-header";
@@ -83,6 +85,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
   spectator?: boolean;
 }) {
   const router = useRouter();
+  const recordingFullscreen = useRecordingFullscreen();
 
   const mc = useMatchControl({ tournamentId, matchId, readOnly: spectator });
   const store = useMatchControlStore();
@@ -873,7 +876,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
           <Button
             key={b.id}
             onClick={() => runHalf(b.action)}
-            disabled={mc.pendingAction !== null}
+            disabled={mc.pendingAction !== null || !mc.isOnline}
             className="min-h-[44px] px-5"
             variant={
               b.variant === "danger"
@@ -1031,6 +1034,173 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
     </div>
   );
 
+  const renderEndDialog = () => (
+        <Dialog
+          open={endDialogOpen}
+          onOpenChange={(open) => {
+            if (endPending) return;
+            setEndDialogOpen(open);
+          }}
+        >
+          <MatchDialogContent
+            landscapeFallback={isFullscreen && forceLandscapeStage}
+            onEscapeKeyDown={(e) => {
+              if (endPending) e.preventDefault();
+            }}
+            onInteractOutside={(e) => {
+              if (endPending) e.preventDefault();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>경기를 종료하시겠습니까?</DialogTitle>
+              <DialogDescription>경기 기록과 MOM을 확인한 뒤 ‘확인 후 종료’를 눌러주세요. 취소하면 경기 화면으로 돌아갑니다.</DialogDescription>
+            </DialogHeader>
+            <p className="text-xs text-muted-foreground">{practice ? "연습 결과만 확정하며 실제 선수 기록에는 반영되지 않습니다." : "경기 종료 시 선수 기록과 순위에 반영됩니다."}</p>
+            <div className="space-y-4 pt-2">
+              <div className="rounded-lg border p-4 text-center">
+                <div className="mb-2 text-sm" style={{ color: "var(--muted-foreground)" }}>
+                  최종 스코어
+                </div>
+                <div className="flex items-center justify-center gap-3">
+                  <div>
+                    <div className="text-sm font-medium">{matchData.homeTeamName}</div>
+                    <div className="text-3xl font-black">{homeScore}</div>
+                  </div>
+                  <span className="text-xl" style={{ color: "var(--muted-foreground)" }}>
+                    :
+                  </span>
+                  <div>
+                    <div className="text-sm font-medium">{matchData.awayTeamName}</div>
+                    <div className="text-3xl font-black">{awayScore}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-lg border p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-bold">심판 MOM 선정</p>
+                    <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                      경기 종료 전에 최종 MOM을 선택하세요.
+                    </p>
+                  </div>
+                  {selectedEndMom && (
+                    <Badge variant="secondary">현재 선택: {selectedEndMom.name}</Badge>
+                  )}
+                </div>
+                {isFullscreen && forceLandscapeStage ? (
+                  <LandscapeMomChoices
+                    value={endMomValue}
+                    onValueChange={setEndMomChoice}
+                    disabled={mc.pendingAction !== null}
+                    options={[
+                      ...(!matchData.momPlayerId ? [{ value: NO_MOM_VALUE, label: "MOM 없음" }] : []),
+                      ...allPlayers.map((p) => ({
+                        value: p.id,
+                        label: `#${p.number} ${p.name} (${p.position}) - ${p.teamId === matchData.homeTeamId ? matchData.homeTeamName : matchData.awayTeamName}`,
+                      })),
+                    ]}
+                  />
+                ) : <Select
+                  value={endMomValue}
+                  onValueChange={setEndMomChoice}
+                  disabled={mc.pendingAction !== null}
+                >
+                  <SelectTrigger className="min-h-[44px] w-full">
+                    <SelectValue placeholder="MOM 선수 또는 MOM 없음 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {!matchData.momPlayerId && (
+                      <SelectItem value={NO_MOM_VALUE}>MOM 없음</SelectItem>
+                    )}
+                    {allPlayers.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        #{p.number} {p.name} ({p.position}) -{" "}
+                        {p.teamId === matchData.homeTeamId
+                          ? matchData.homeTeamName
+                          : matchData.awayTeamName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>}
+              </div>
+              {!endMomReady && (
+                <div
+                  role="status"
+                  className="flex items-start gap-2 rounded-lg border p-3 text-sm"
+                  style={{
+                    borderColor: "rgba(245,158,11,0.38)",
+                    background: "rgba(245,158,11,0.10)",
+                    color: "rgb(146,64,14)",
+                  }}
+                >
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>MOM 선수 또는 MOM 없음 중 하나를 선택해야 경기를 종료할 수 있습니다.</span>
+                </div>
+              )}
+              {missingAssistCount > 0 && (
+                <div
+                  role="status"
+                  className="flex items-start gap-2 rounded-lg border p-3 text-sm"
+                  style={{
+                    borderColor: "rgba(245,158,11,0.38)",
+                    background: "rgba(245,158,11,0.10)",
+                    color: "rgb(146,64,14)",
+                  }}
+                >
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    골 {goalEventCount}개, 어시스트 {assistEventCount}개입니다. 어시스트 누락이 있으면 종료 전에 관리자 기록을 확인하세요.
+                  </span>
+                </div>
+              )}
+              {mc.actionError && mc.actionError.scope === "end" && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm"
+                >
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                  <span className="text-red-700">
+                    {mc.actionError.message} 다시 시도해주세요.
+                  </span>
+                </div>
+              )}
+              <Separator />
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="min-h-[44px] flex-1"
+                  onClick={() => setEndDialogOpen(false)}
+                  disabled={endPending}
+                >
+                  취소
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="min-h-[44px] flex-1"
+                  onClick={handleEndMatch}
+                  disabled={mc.pendingAction !== null || !endMomReady}
+                  aria-busy={endPending}
+                >
+                  {mc.pendingAction === "mom" ? (
+                    <>
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      MOM 저장중…
+                    </>
+                  ) : endPending ? (
+                    <>
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                      종료 처리중…
+                    </>
+                  ) : (
+                    "확인 후 종료"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </MatchDialogContent>
+        </Dialog>
+  );
+
   if (spectator) return <MatchBroadcastView
     fullscreen={fullscreenOpen} landscapeFallback={forceLandscapeStage}
     onOpen={openFullscreenMode} onClose={closeFullscreenMode}
@@ -1040,6 +1210,27 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
     court={renderCourt({ forceLandscape: fullscreenOpen, homeOnGrass: true, balancedFormation: true, showBench: false, overlay: false })}
     practice={practice} online={mc.isOnline} mom={allPlayers.find(p => p.id === matchData.momPlayerId)?.name}
   />;
+
+  if (recordingFullscreen.open) return <>
+    <RefereeRecordingFullscreen
+      home={{ name: homeSide.name, score: homeScore }} away={{ name: awaySide.name, score: awayScore }}
+      elapsed={mc.elapsedSeconds} status={isScheduled ? "시작 대기" : isFinished ? "경기 종료" : isRegulationComplete ? "종료 대기" : mc.isRunning ? "진행 중" : "일시정지"}
+      practice={practice} online={mc.isOnline} controls={renderProgressButtons()} onClose={recordingFullscreen.close}
+      roster={<>
+        {lineupLoading ? <p role="status" className="p-4 text-sm">선수 명단을 불러오고 있습니다…</p> : <RosterEventBoard compact
+          teams={[{ id: homeSide.id, name: homeSide.name, players: mc.homePlayers }, { id: awaySide.id, name: awaySide.name, players: mc.awayPlayers }]}
+          events={mc.events} disabled={!isLive || mc.pendingAction !== null || !mc.isOnline} onRecord={recordRosterEvent} />}
+        {!isLive && <p className="p-3 text-sm text-muted-foreground">{isScheduled ? "경기 시작을 누르면 기록할 수 있습니다." : "종료된 경기의 최종 기록입니다."}</p>}
+      </>}
+      history={<EventTimeline events={mc.events} onCancel={mc.cancelEvent} onAddAssist={openAssistPicker} uncheckedGoalIds={uncheckedAssistGoalIds} canEdit={isLive && mc.pendingAction === null && mc.isOnline} />}
+      feedback={<>
+        {lastActionNotice && !mc.actionError && <p role="status" className="pointer-events-none absolute inset-x-3 bottom-3 mx-auto max-w-md rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center text-sm font-bold text-emerald-900 shadow-lg">{lastActionNotice}</p>}
+        {mc.actionError && <div role="alert" className="absolute inset-x-3 bottom-3 mx-auto max-h-32 max-w-lg overflow-y-auto rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800"><p>{mc.actionError.message}</p><div className="mt-2 flex gap-2">{mc.actionError.scope === "event" && <Button variant="outline" disabled={mc.pendingAction !== null || !mc.isOnline} onClick={retryLastEvent}>다시 시도</Button>}<Button variant="outline" onClick={mc.clearError}>알림 닫기</Button></div></div>}
+      </>}
+    />
+    {renderAssistDialog()}
+    {renderEndDialog()}
+  </>;
 
   // ── 심판 전체화면 경기장 모드 (7b) ───────────────────────────────
   // 상단 조작·전광판·대기석과 코트 영역을 분리한다. 닫기는 우측 상단 한 곳에만 둔다.
@@ -1303,170 +1494,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
 
         {renderAssistDialog()}
 
-        {/* 경기 종료 확인 — 전체화면에서도 동일 다이얼로그 사용 */}
-        <Dialog
-          open={endDialogOpen}
-          onOpenChange={(open) => {
-            if (endPending) return;
-            setEndDialogOpen(open);
-          }}
-        >
-          <MatchDialogContent
-            landscapeFallback={forceLandscapeStage}
-            onEscapeKeyDown={(e) => {
-              if (endPending) e.preventDefault();
-            }}
-            onInteractOutside={(e) => {
-              if (endPending) e.preventDefault();
-            }}
-          >
-            <DialogHeader>
-              <DialogTitle>경기를 종료하시겠습니까?</DialogTitle>
-              <DialogDescription>경기 기록과 MOM을 확인한 뒤 ‘확인 후 종료’를 눌러주세요. 취소하면 경기 화면으로 돌아갑니다.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 pt-2">
-              <div className="rounded-lg border p-4 text-center">
-                <div className="mb-2 text-sm" style={{ color: "var(--muted-foreground)" }}>
-                  최종 스코어
-                </div>
-                <div className="flex items-center justify-center gap-3">
-                  <div>
-                    <div className="text-sm font-medium">{matchData.homeTeamName}</div>
-                    <div className="text-3xl font-black">{homeScore}</div>
-                  </div>
-                  <span className="text-xl" style={{ color: "var(--muted-foreground)" }}>
-                    :
-                  </span>
-                  <div>
-                    <div className="text-sm font-medium">{matchData.awayTeamName}</div>
-                    <div className="text-3xl font-black">{awayScore}</div>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-lg border p-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-bold">심판 MOM 선정</p>
-                    <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                      경기 종료 전에 최종 MOM을 선택하세요.
-                    </p>
-                  </div>
-                  {selectedEndMom && (
-                    <Badge variant="secondary">현재 선택: {selectedEndMom.name}</Badge>
-                  )}
-                </div>
-                {forceLandscapeStage ? (
-                  <LandscapeMomChoices
-                    value={endMomValue}
-                    onValueChange={setEndMomChoice}
-                    disabled={mc.pendingAction !== null}
-                    options={[
-                      ...(!matchData.momPlayerId ? [{ value: NO_MOM_VALUE, label: "MOM 없음" }] : []),
-                      ...allPlayers.map((p) => ({
-                        value: p.id,
-                        label: `#${p.number} ${p.name} (${p.position}) - ${p.teamId === matchData.homeTeamId ? matchData.homeTeamName : matchData.awayTeamName}`,
-                      })),
-                    ]}
-                  />
-                ) : <Select
-                  value={endMomValue}
-                  onValueChange={setEndMomChoice}
-                  disabled={mc.pendingAction !== null}
-                >
-                  <SelectTrigger className="min-h-[44px] w-full">
-                    <SelectValue placeholder="MOM 선수 또는 MOM 없음 선택" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {!matchData.momPlayerId && (
-                      <SelectItem value={NO_MOM_VALUE}>MOM 없음</SelectItem>
-                    )}
-                    {allPlayers.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        #{p.number} {p.name} ({p.position}) -{" "}
-                        {p.teamId === matchData.homeTeamId
-                          ? matchData.homeTeamName
-                          : matchData.awayTeamName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>}
-              </div>
-              {!endMomReady && (
-                <div
-                  role="status"
-                  className="flex items-start gap-2 rounded-lg border p-3 text-sm"
-                  style={{
-                    borderColor: "rgba(245,158,11,0.38)",
-                    background: "rgba(245,158,11,0.10)",
-                    color: "rgb(146,64,14)",
-                  }}
-                >
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>MOM 선수 또는 MOM 없음 중 하나를 선택해야 경기를 종료할 수 있습니다.</span>
-                </div>
-              )}
-              {missingAssistCount > 0 && (
-                <div
-                  role="status"
-                  className="flex items-start gap-2 rounded-lg border p-3 text-sm"
-                  style={{
-                    borderColor: "rgba(245,158,11,0.38)",
-                    background: "rgba(245,158,11,0.10)",
-                    color: "rgb(146,64,14)",
-                  }}
-                >
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>
-                    골 {goalEventCount}개, 어시스트 {assistEventCount}개입니다. 어시스트 누락이 있으면 종료 전에 관리자 기록을 확인하세요.
-                  </span>
-                </div>
-              )}
-              {mc.actionError && mc.actionError.scope === "end" && (
-                <div
-                  role="alert"
-                  className="flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm"
-                >
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-                  <span className="text-red-700">
-                    {mc.actionError.message} 다시 시도해주세요.
-                  </span>
-                </div>
-              )}
-              <Separator />
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="min-h-[44px] flex-1"
-                  onClick={() => setEndDialogOpen(false)}
-                  disabled={endPending}
-                >
-                  취소
-                </Button>
-                <Button
-                  variant="destructive"
-                  className="min-h-[44px] flex-1"
-                  onClick={handleEndMatch}
-                  disabled={mc.pendingAction !== null || !endMomReady}
-                  aria-busy={endPending}
-                >
-                  {mc.pendingAction === "mom" ? (
-                    <>
-                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                      MOM 저장중…
-                    </>
-                  ) : endPending ? (
-                    <>
-                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                      종료 처리중…
-                    </>
-                  ) : (
-                    "확인 후 종료"
-                  )}
-                </Button>
-              </div>
-            </div>
-          </MatchDialogContent>
-        </Dialog>
+        {renderEndDialog()}
         </div>
       </div>
     );
@@ -1496,6 +1524,10 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
           <CardContent className="py-3">
             {/* 타이머 중심 전광판 (7a) — 시간이 가운데, 양옆에 팀 이름+점수 */}
             {renderScoreboardRow(false)}
+
+            <Button className="mt-3 min-h-12 w-full text-base font-bold" data-slot="recording-fullscreen-entry" onClick={recordingFullscreen.enter}>
+              <Maximize2 className="mr-2 h-5 w-5" />전체화면 기록
+            </Button>
 
             {/* 전체화면 경기장 모드 진입 — 관리자·심판 공용(진행중 경기). */}
             {isLive && (
@@ -1817,178 +1849,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
 
         {renderAssistDialog()}
 
-        {/* 경기 종료 확인 — 포커스 트랩 모달(Radix, ESC 취소 내장).
-            종료 처리 중에는 외부클릭/ESC 로 닫히지 않도록 가드(더블집계 방지). */}
-        <Dialog
-          open={endDialogOpen}
-          onOpenChange={(open) => {
-            if (endPending) return; // 처리 중 닫기 차단
-            setEndDialogOpen(open);
-          }}
-        >
-          <DialogContent
-            className="max-h-[90dvh] overflow-y-auto"
-            onEscapeKeyDown={(e) => {
-              if (endPending) e.preventDefault();
-            }}
-            onInteractOutside={(e) => {
-              if (endPending) e.preventDefault();
-            }}
-          >
-            <DialogHeader>
-              <DialogTitle>경기를 종료하시겠습니까?</DialogTitle>
-              <DialogDescription>경기 기록과 MOM을 확인한 뒤 ‘확인 후 종료’를 눌러주세요. 취소하면 경기 화면으로 돌아갑니다.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 pt-2">
-              <div className="rounded-lg border p-4 text-center">
-                <div
-                  className="mb-2 text-sm"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  최종 스코어
-                </div>
-                <div className="flex items-center justify-center gap-3">
-                  <div>
-                    <div className="text-sm font-medium">
-                      {matchData.homeTeamName}
-                    </div>
-                    <div className="text-3xl font-black">{homeScore}</div>
-                  </div>
-                  <span
-                    className="text-xl"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
-                    :
-                  </span>
-                  <div>
-                    <div className="text-sm font-medium">
-                      {matchData.awayTeamName}
-                    </div>
-                    <div className="text-3xl font-black">{awayScore}</div>
-                  </div>
-                </div>
-              </div>
-              <p
-                className="text-center text-xs"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                {practice
-                  ? "가상 선수의 연습 결과만 확정합니다. 실제 선수 기록과 순위에는 반영되지 않습니다."
-                  : "경기 종료 시 모든 선수의 스탯(경기수, 골, 어시스트, MOM, 경고)이 자동으로 업데이트됩니다. 플래티넘 카드 선수의 레이팅이 재계산됩니다."}
-              </p>
-              <div className="rounded-lg border p-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-bold">심판 MOM 선정</p>
-                    <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                      경기 종료 전에 최종 MOM을 선택하세요.
-                    </p>
-                  </div>
-                  {selectedEndMom && (
-                    <Badge variant="secondary">현재 선택: {selectedEndMom.name}</Badge>
-                  )}
-                </div>
-                <Select
-                  value={endMomValue}
-                  onValueChange={setEndMomChoice}
-                  disabled={mc.pendingAction !== null}
-                >
-                  <SelectTrigger className="min-h-[44px] w-full">
-                    <SelectValue placeholder="MOM 선수 또는 MOM 없음 선택" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {!matchData.momPlayerId && (
-                      <SelectItem value={NO_MOM_VALUE}>MOM 없음</SelectItem>
-                    )}
-                    {allPlayers.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        #{p.number} {p.name} ({p.position}) -{" "}
-                        {p.teamId === matchData.homeTeamId
-                          ? matchData.homeTeamName
-                          : matchData.awayTeamName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {!endMomReady && (
-                <div
-                  role="status"
-                  className="flex items-start gap-2 rounded-lg border p-3 text-sm"
-                  style={{
-                    borderColor: "rgba(245,158,11,0.38)",
-                    background: "rgba(245,158,11,0.10)",
-                    color: "rgb(146,64,14)",
-                  }}
-                >
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>MOM 선수 또는 MOM 없음 중 하나를 선택해야 경기를 종료할 수 있습니다.</span>
-                </div>
-              )}
-              {missingAssistCount > 0 && (
-                <div
-                  role="status"
-                  className="flex items-start gap-2 rounded-lg border p-3 text-sm"
-                  style={{
-                    borderColor: "rgba(245,158,11,0.38)",
-                    background: "rgba(245,158,11,0.10)",
-                    color: "rgb(146,64,14)",
-                  }}
-                >
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>
-                    골 {goalEventCount}개, 어시스트 {assistEventCount}개입니다. 어시스트 누락이 있으면 종료 전에 관리자 기록을 확인하세요.
-                  </span>
-                </div>
-              )}
-              {/* 종료 실패 시 다이얼로그 내 위치별 에러 — 닫히지 않고 재시도 */}
-              {mc.actionError && mc.actionError.scope === "end" && (
-                <div
-                  role="alert"
-                  className="flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm"
-                >
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-                  <span className="text-red-700">
-                    {mc.actionError.message} 다시 시도해주세요.
-                  </span>
-                </div>
-              )}
-
-              <Separator />
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="min-h-[44px] flex-1"
-                  onClick={() => setEndDialogOpen(false)}
-                  disabled={endPending}
-                >
-                  취소
-                </Button>
-                <Button
-                  variant="destructive"
-                  className="min-h-[44px] flex-1"
-                  onClick={handleEndMatch}
-                  disabled={mc.pendingAction !== null || !endMomReady}
-                  aria-busy={endPending}
-                >
-                  {mc.pendingAction === "mom" ? (
-                    <>
-                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                      MOM 저장중…
-                    </>
-                  ) : endPending ? (
-                    <>
-                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                      종료 처리중…
-                    </>
-                  ) : (
-                    "확인 후 종료"
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {renderEndDialog()}
 
         {/* 몰수패 처리 다이얼로그(관리자) — 지목 팀 0, 상대 3. 규정 제13조/대회규정 제9조. */}
         <Dialog open={forfeitOpen} onOpenChange={(open) => { if (!forfeiting) setForfeitOpen(open); }}>

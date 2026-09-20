@@ -4,17 +4,18 @@ import { useMemo, useState } from "react";
 import type { MatchEvent, Player } from "@/types";
 import { ROSTER_EVENTS, rosterPlayers, rosterStats, type RosterEventType } from "./roster-stats";
 
-export function RosterEventBoard({ teams, events, disabled, onRecord }: {
+export function RosterEventBoard({ teams, events, disabled, onRecord, compact = false }: {
   teams: { id: string; name: string; players: Player[] }[];
   events: MatchEvent[];
   disabled: boolean;
   onRecord: (type: RosterEventType, player: Player, teamId: string) => void | Promise<void>;
+  compact?: boolean;
 }) {
   const stats = useMemo(() => rosterStats(events), [events]);
   const [selectedTeam, setSelectedTeam] = useState(teams[0]?.id);
   return <section className="space-y-3" aria-label="팀별 전체 선수 기록">
-    <div><h2 className="text-lg font-black">선수별 빠른 기록</h2><p className="mt-1 text-sm text-muted-foreground">선수의 버튼을 누르면 바로 기록됩니다. 버튼의 숫자는 이번 경기 누적 기록입니다.</p></div>
-    <div className="sticky top-16 z-10 grid grid-cols-2 gap-2 bg-background py-2 md:hidden" aria-label="기록할 팀 선택">{teams.map((team, side) => <button key={team.id} type="button" aria-pressed={selectedTeam === team.id} onClick={() => setSelectedTeam(team.id)} className={`min-h-11 truncate rounded-lg border px-3 text-sm font-bold ${selectedTeam === team.id ? side ? "border-red-700 bg-red-700 text-white" : "border-blue-700 bg-blue-700 text-white" : "bg-card"}`}>{team.name}</button>)}</div>
+    {!compact && <div><h2 className="text-lg font-black">선수별 빠른 기록</h2><p className="mt-1 text-sm text-muted-foreground">선수의 버튼을 누르면 바로 기록됩니다. 버튼의 숫자는 이번 경기 누적 기록입니다.</p></div>}
+    <div className={`sticky ${compact ? "top-0" : "top-16"} z-10 grid grid-cols-2 gap-2 bg-background py-2 md:hidden`} aria-label="기록할 팀 선택">{teams.map((team, side) => <button key={team.id} type="button" aria-pressed={selectedTeam === team.id} onClick={() => setSelectedTeam(team.id)} className={`min-h-11 truncate rounded-lg border px-3 text-sm font-bold ${selectedTeam === team.id ? side ? "border-red-700 bg-red-700 text-white" : "border-blue-700 bg-blue-700 text-white" : "bg-card"}`}>{team.name}</button>)}</div>
     <div className="grid gap-4 md:grid-cols-2">{teams.map((team, side) => {
       const players = rosterPlayers(team.players, team.id);
       return <section key={team.id} className={`min-w-0 overflow-hidden rounded-xl border bg-card ${selectedTeam === team.id ? "" : "hidden md:block"}`} aria-label={`${team.name} 전체 선수`}>

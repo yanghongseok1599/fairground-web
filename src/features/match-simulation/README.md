@@ -32,6 +32,8 @@ Supabase Realtime의 별도 `practice-directory-v1` Presence 채널로 활성 �
 
 공식 경기와 연습 경기의 운영 화면은 팀별 전체 명단을 표시한다. 선발·벤치 구분을 따라가며 기록할 필요 없이 선수 행의 버튼으로 바로 입력한다. 취소된 기록은 누적 횟수에서 제외하며, 경고 2회 자동 퇴장은 저장소 결과를 표시한다. 모바일 세로는 팀 버튼으로 전환하고 넓은 화면은 양 팀을 나란히 보여준다. 경기 종료는 기존 확인과 MOM 선택 절차를 거친다.
 
+심판 화면의 **전체화면 기록**은 경기 전부터 열 수 있다. 점수·시간·진행 버튼은 상단에 고정되고 명단만 스크롤된다. **기록 내역**으로 전환해 취소하거나 어시스트를 보강할 수 있다. 종료 확인과 MOM 선택도 전체화면에서 진행한다. 모바일 세로·가로 방향을 그대로 사용하며 iPhone에서 native Fullscreen API가 없어도 `100dvh`와 safe-area로 화면을 채운다. 전체화면을 닫아도 경기는 유지된다.
+
 공식 참가자 중계는 `/matches/[id]/watch`이며 라이브 목록과 경기 상세에서 이동한다. 기존 경기장 렌더링을 재사용한다. `useMatchControl`의 `readOnly` 모드는 모든 명령을 막고 타이머를 화면에서만 보간한다. 라이브 목록에서 경기가 빠지면 최종 기록을 다시 조회한다. 기존 운영 `AdminGuard`와 서버 권한은 유지한다.
 
 ## 모듈
@@ -52,6 +54,7 @@ Supabase Realtime의 별도 `practice-directory-v1` Presence 채널로 활성 �
 - `shared/spectator-view.tsx`: 참가자 중계에 읽기 전용 경기 화면 주입
 - `../match-control/roster-event-board.tsx`, `roster-stats.ts`: 전체 명단·모바일 팀 선택·빠른 입력·집계
 - `../match-control/match-broadcast-view.tsx`: 기존 경기장의 참가자 중계 레이아웃
+- `../match-control/referee-recording-fullscreen.tsx`, `use-recording-fullscreen.ts`: 모바일 심판의 고정 점수판·스크롤 명단과 브라우저 전체화면 수명 관리
 - `../match-control/`: 공식 경기와 연습 경기가 함께 사용하는 운영 화면·저장소 계약
 
 공식 `/admin/match/[matchId]`는 기존 `AdminGuard`와 운영 저장소를 사용한다. 연습 화면의 Provider 내부만 별도 저장소를 사용하며 전역 `isDemoMode`, 인증 상태, 운영 데이터는 변경하지 않는다. 연습 저장소의 모든 명령은 직접 구현돼 있고 운영 저장소로 돌아가는 경로가 없다. 알림 발송은 0건을 반환한다.
@@ -69,3 +72,5 @@ Supabase Realtime의 별도 `practice-directory-v1` Presence 채널로 활성 �
 UI 참고: [Lazyweb 경기 스코어보드](https://www.lazyweb.com/agentic-search/2625b691-df25-4e18-8043-864f9669dc46).
 
 `tests/match-roster-recording.test.mjs`는 전체 명단·벤치 선수 기록·취소 집계·서버 기준 팀과 시간 검증을 확인한다. `tests/match-spectator-readonly.test.mjs`는 실제 훅을 실행해 참가자 액션과 12분 타이머가 저장소에 쓰지 않고 종료 결과를 다시 읽는지 확인한다. 공유 방 테스트는 관리자 입력의 중복 제거·참가자 전파·오래된 요청 거부도 포함한다.
+
+`tests/match-recording-fullscreen.test.mjs`는 native API 부재·거부 시 대체 화면, 브라우저 전체화면 해제, 늦은 요청 완료, 팝업 Escape와 배경 스크롤 복구를 검증한다.
