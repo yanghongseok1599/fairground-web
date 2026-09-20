@@ -95,7 +95,7 @@ const MBTI_TYPES = [
 const POSITION_LABELS: Record<string, string> = {
   GK: "GK · 골레이루",
   FIXO: "FIXO · 픽소",
-  ALA: "ALA · 알라",
+  ALA: "ALA · 아라",
   PIVO: "PIVO · 피보",
 };
 

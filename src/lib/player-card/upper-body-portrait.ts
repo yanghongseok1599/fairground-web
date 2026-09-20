@@ -17,9 +17,11 @@ export function getUpperBodyPortraitStyles(scale = 1, offsetX = 0, shadow = fals
     // A top origin leaves a gap below the torso at the default 92% scale.
     crop: { position: "absolute", inset: 0, overflow: "hidden", transform: `scale(${safeScale})`, transformOrigin: "center bottom" },
     image: {
-      position: "absolute", top: 0, left: "50%", display: "block", width: "auto",
-      height: `${100 / UPPER_BODY_VISIBLE_FRACTION}%`, maxWidth: "none",
-      transform: `translateX(calc(-50% + ${safeOffset}%))`,
+      // Fit both dimensions before zoom so wide shoulders stay inside the slot.
+      // Move the hidden lower body below the divider, even when width limits size.
+      position: "absolute", bottom: 0, left: "50%", display: "block", width: "auto",
+      height: "auto", maxWidth: "100%", maxHeight: `${100 / UPPER_BODY_VISIBLE_FRACTION}%`,
+      transform: `translate(calc(-50% + ${safeOffset}%), ${100 - UPPER_BODY_VISIBLE_FRACTION * 100}%)`,
       filter: shadow ? "drop-shadow(0 8px 10px rgba(0,0,0,0.28))" : undefined,
     },
   };

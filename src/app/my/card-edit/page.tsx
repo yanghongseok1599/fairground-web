@@ -34,7 +34,7 @@ import type { Position, Player } from "@/types";
 const POSITIONS: { value: Position; label: string; desc: string }[] = [
   { value: "GK",   label: "GK",   desc: "골레이루 · 골키퍼" },
   { value: "FIXO", label: "FIXO", desc: "픽소 · 수비형 미드필더" },
-  { value: "ALA",  label: "ALA",  desc: "알라 · 윙어" },
+  { value: "ALA",  label: "ALA",  desc: "아라 · 윙어" },
   { value: "PIVO", label: "PIVO", desc: "피보 · 공격수" },
 ];
 

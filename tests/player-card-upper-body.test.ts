@@ -7,10 +7,12 @@ for (const scale of [0.5, 0.92, 1, 1.5, 2.5]) {
   assert.equal(styles.crop.overflow, "hidden", "하반신은 확대/축소 전에 잘라낸다");
   assert.equal(styles.crop.transformOrigin, "center bottom", "상반신 하단을 카드 구분선에 고정");
   assert.equal(styles.crop.transform, `scale(${scale})`);
-  assert.equal(styles.image.height, `${100 / UPPER_BODY_VISIBLE_FRACTION}%`);
+  assert.equal(styles.image.maxHeight, `${100 / UPPER_BODY_VISIBLE_FRACTION}%`);
+  assert.equal(styles.image.maxWidth, "100%", "넓은 어깨도 사진 영역 안에 맞춘다");
+  assert.equal(styles.image.height, "auto", "가로 폭에 맞춰 높이도 비례해서 줄인다");
   assert.equal(styles.image.width, "auto", "인물 비율은 유지");
-  assert.equal(styles.image.top, 0);
-  assert.equal(styles.image.transform, "translateX(calc(-50% + 12%))");
+  assert.equal(styles.image.bottom, 0);
+  assert.equal(styles.image.transform, "translate(calc(-50% + 12%), 28%)");
 
   // CSS scale around the bottom must leave the crop's lower edge unchanged,
   // including the default 92% and the smallest supported card photo scale.
