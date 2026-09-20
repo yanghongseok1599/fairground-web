@@ -9,7 +9,7 @@ import type { createRoomSession } from "./session";
 type Session = ReturnType<typeof createRoomSession>;
 const labels: Record<string, string> = { goal: "득점", assist: "어시스트", foul: "반칙", yellow_card: "경고", red_card: "퇴장", substitution: "교체", mom: "MOM" };
 
-export function PracticeAdminView({ session, active }: { session: Session; active: boolean }) {
+export function PracticeAdminView({ session, active, observing = false }: { session: Session; active: boolean; observing?: boolean }) {
   const { snapshot: s } = useStore(session.store);
   const [resetOpen, setResetOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -24,9 +24,9 @@ export function PracticeAdminView({ session, active }: { session: Session; activ
   return <section className="mx-auto max-w-3xl space-y-5 px-4 py-6" aria-label="관리자 경기 모니터">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-xl font-bold">관리자 실시간 모니터</h2>
-      <Button variant="outline" disabled={!active} onClick={() => setResetOpen(true)}>새 테스트 경기</Button>
+      <Button variant="outline" disabled={!active} onClick={() => setResetOpen(true)}>{observing ? "초기화는 운영 관리자만 가능" : "현재 경기 초기화"}</Button>
     </div>
-    <p className="text-sm text-muted-foreground">심판이 입력한 기록과 교체를 함께 확인합니다. 새 경기를 개설하면 두 화면이 모두 초기화됩니다.</p>
+    <p className="text-sm text-muted-foreground">심판이 입력한 기록과 교체를 함께 확인합니다. {observing ? "관전 중에는 경기 기록을 변경하지 않습니다." : "현재 경기를 초기화하면 연결된 모든 화면이 0:0부터 다시 시작합니다."}</p>
     <div className="rounded-xl border bg-card p-5 text-center" aria-label="실시간 스코어">
       <div className="grid grid-cols-3 items-center gap-2">
         <div><p className="text-sm font-bold">테스트 블루</p><p className="text-5xl font-black tabular-nums">{s.match.homeScore}</p></div>
@@ -46,7 +46,7 @@ export function PracticeAdminView({ session, active }: { session: Session; activ
     <Dialog open={resetOpen} onOpenChange={open => { if (!busy) setResetOpen(open); }}>
       <DialogContent><DialogHeader><DialogTitle>함께 새 경기를 시작할까요?</DialogTitle><DialogDescription>심판과 관리자의 현재 연습 기록을 지우고 0:0부터 다시 시작합니다.</DialogDescription></DialogHeader>
         {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-        <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setResetOpen(false)} disabled={busy}>돌아가기</Button><Button onClick={reset} disabled={busy || !active}>{busy ? "동기화 중…" : "두 화면 초기화"}</Button></div>
+        <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setResetOpen(false)} disabled={busy}>돌아가기</Button><Button onClick={reset} disabled={busy || !active}>{busy ? "동기화 중…" : "모든 화면 초기화"}</Button></div>
       </DialogContent>
     </Dialog>
   </section>;

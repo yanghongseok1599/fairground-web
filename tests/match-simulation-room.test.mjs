@@ -152,3 +152,20 @@ test("재접속 동기화 응답이 늦어도 새 경기를 먼저 열지 않고
   assert.equal(next.store.getState().snapshot.match.homeScore, 1);
   assert.equal(next.store.getState().snapshot.running, false);
 });
+
+test("여러 관리자가 같은 기록을 보고 초기화는 운영 관리자만 하며 퇴장하면 인계된다", async t => {
+  const n = network(); t.after(n.close);
+  const ref = n.create("ref", "referee"), first = n.create("admin-1", "admin"); await settle();
+  ref.store.getState().startAutomatic(); ref.pulse(); await settle();
+  const viewer = n.create("admin-2", "admin"); await settle();
+  assert.equal(viewer.status.getState().ready, true);
+  assert.equal(viewer.store.getState().snapshot.match.id, first.store.getState().snapshot.match.id);
+  assert.equal(viewer.store.getState().snapshot.match.homeScore, 1);
+  await assert.rejects(viewer.reset());
+  await assert.rejects(score(viewer));
+  first.stop(); await settle();
+  assert.equal(viewer.status.getState().admin, "admin-2");
+  await viewer.reset(); await settle();
+  assert.equal(ref.store.getState().snapshot.match.homeScore, 0);
+  assert.equal(viewer.store.getState().snapshot.match.id, ref.store.getState().snapshot.match.id);
+});

@@ -9,9 +9,11 @@ import { PracticeAdminView } from "./admin-view";
 import { readRoomFrame, roomLink, roomStorageKey, type RoomRole } from "./protocol";
 import { createRoomSession } from "./session";
 import { realtimeRoomTransport } from "./transport";
+import { connectRoomDirectory, type DirectoryState } from "./directory-transport";
 
 export function SharedRoomPage({ room, role }: { room: string; role?: RoomRole }) {
   if (!role) return <section className="mx-auto max-w-2xl space-y-5 px-4 py-10">
+    <a href="/match-simulation" className="text-sm underline">공유 경기 목록으로</a>
     <h1 className="text-2xl font-black">함께 테스트 경기</h1>
     <p>각자 역할을 선택하면 같은 경기로 연결됩니다.</p>
     <div className="flex flex-wrap gap-3"><Button onClick={() => location.assign(roomLink(location.origin, room, "referee"))}>심판으로 입장</Button><Button variant="outline" onClick={() => location.assign(roomLink(location.origin, room, "admin"))}>관리자로 입장</Button></div>
@@ -31,7 +33,9 @@ function ConnectedRoom({ room, role }: { room: string; role: RoomRole }) {
     });
   });
   const state = useStore(session.status);
+  const [directory, setDirectory] = useState<DirectoryState>({ connected: false, rooms: [], error: "" });
   const [copied, setCopied] = useState("");
+  useEffect(() => connectRoomDirectory(setDirectory, { ...identity, room }), [identity, room]);
   useEffect(() => {
     session.start();
     const timer = window.setInterval(() => session.pulse(), 1000);
@@ -39,7 +43,9 @@ function ConnectedRoom({ room, role }: { room: string; role: RoomRole }) {
   }, [session]);
   const activeSeat = role === "referee" ? state.referee : state.admin;
   const duplicate = activeSeat !== null && activeSeat !== identity.id;
+  const observing = role === "admin" && duplicate;
   const active = state.connected && state.ready && !duplicate;
+  const synced = state.connected && state.ready;
   const copy = async (target: RoomRole) => {
     try { await navigator.clipboard.writeText(roomLink(location.origin, room, target)); setCopied(`${target === "referee" ? "심판" : "관리자"} 링크를 복사했습니다.`); }
     catch { setCopied("아래 링크를 길게 누르거나 주소를 복사해 전달해주세요."); }
@@ -47,19 +53,22 @@ function ConnectedRoom({ room, role }: { room: string; role: RoomRole }) {
   return <>
     <section className="border-b border-blue-200 bg-blue-50 px-4 py-5 text-slate-900">
       <div className="mx-auto max-w-3xl space-y-3">
+        <a href="/match-simulation" className="text-sm underline">공유 경기 목록으로</a>
         <div className="flex items-center gap-2 font-bold text-blue-700"><Users className="h-4 w-4" />함께 테스트 · {role === "referee" ? "심판" : "관리자"}</div>
-        <h1 className="text-2xl font-black">같은 경기, 두 개의 화면</h1>
+        <h1 className="text-2xl font-black">공유 테스트 경기 · {room.slice(0, 8)}</h1>
         <p className="text-sm">심판이 경기를 운영하고 관리자는 점수·교체·MOM을 실시간으로 확인합니다.</p>
-        <div className="flex flex-wrap gap-2 text-sm"><span className="rounded-full bg-white px-3 py-1">심판 {state.referee ? "접속" : "대기"}</span><span className="rounded-full bg-white px-3 py-1">관리자 {state.admin ? "접속" : "대기"}</span><span role="status" className={`rounded-full px-3 py-1 font-bold ${active ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}>{duplicate ? "같은 역할이 이미 접속 중" : !state.connected ? "연결 중 · 조작 잠김" : !state.referee ? "심판 입장 대기" : !state.ready ? "경기 동기화 중 · 조작 잠김" : "실시간 연결됨"}</span></div>
+        <div className="flex flex-wrap gap-2 text-sm"><span className="rounded-full bg-white px-3 py-1">심판 {state.referee ? "접속" : "대기"}</span><span className="rounded-full bg-white px-3 py-1">관리자 {state.members.filter((member) => member.role === "admin").length}명 접속</span><span role="status" className={`rounded-full px-3 py-1 font-bold ${synced ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}>{!state.connected ? "연결 중 · 조작 잠김" : duplicate && !observing ? "다른 심판이 운영 중" : !state.referee ? "심판 입장 대기" : !state.ready ? "경기 동기화 중" : observing ? "실시간 관전 중" : "실시간 연결됨"}</span></div>
+        <p className="text-xs text-slate-600">{directory.connected ? "공유 경기 목록에 표시 중 · 다른 화면에서도 찾아 참여할 수 있습니다." : directory.error || "공유 경기 목록에 등록하고 있습니다…"}</p>
         <div className="flex flex-wrap gap-2">{(["referee", "admin"] as const).map(target => <Button key={target} variant="outline" onClick={() => copy(target)}><Copy className="mr-2 h-4 w-4" />{target === "referee" ? "심판" : "관리자"} 링크 복사</Button>)}</div>
         <div className="flex gap-4 text-sm underline"><a href={roomLink(location.origin, room, "referee")}>심판 입장 링크</a><a href={roomLink(location.origin, room, "admin")}>관리자 입장 링크</a></div>
         {copied && <p role="status" className="text-sm">{copied}</p>}
-        <p className="text-xs leading-relaxed text-slate-600">두 화면을 열어두고 사용하세요. 심판이 나가면 진행이 멈추고, 재접속하면 일시정지 상태로 이어집니다. 링크가 있는 사람은 연습 역할로 참여할 수 있으며 실제 계정 권한·기록에는 영향이 없습니다.</p>
-        {(state.error || duplicate) && <p role="alert" className="text-sm font-semibold text-amber-900">{duplicate ? "심판 1명·관리자 1명만 조작할 수 있습니다. 먼저 열린 같은 역할의 화면을 닫아주세요." : state.error}</p>}
-        {!active && <Button variant="outline" size="sm" onClick={() => location.reload()}>다시 연결</Button>}
+        <p className="text-xs leading-relaxed text-slate-600">누군가 방을 열어두는 동안 목록에 표시됩니다. 심판이 나가면 진행이 멈춥니다. 공유 목록이나 링크로 연습 역할에 참여할 수 있으며 실제 계정 권한·기록에는 영향이 없습니다.</p>
+        {observing && <p role="status" className="text-sm text-blue-800">다른 관리자와 같은 경기를 보고 있습니다. 초기화는 먼저 접속한 관리자가 진행합니다.</p>}
+        {(state.error || (duplicate && !observing)) && <p role="alert" className="text-sm font-semibold text-amber-900">{duplicate && !observing ? "기존 심판이 경기를 운영하고 있습니다. 심판은 한 명만 조작할 수 있습니다." : state.error}</p>}
+        {(!synced || directory.error) && <Button variant="outline" size="sm" onClick={() => location.reload()}>다시 연결</Button>}
       </div>
     </section>
-    {role === "admin" ? <PracticeAdminView session={session} active={active} /> :
+    {role === "admin" ? <PracticeAdminView session={session} active={active} observing={observing} /> :
       active ? <SimulationWorkspace key={session.store.getState().snapshot.match.id} store={session.store} shared /> :
         <p className="mx-auto max-w-3xl p-6 text-sm" role="status">{duplicate ? "현재 심판이 운영 중입니다." : "심판 연결을 확인하고 경기 기록을 맞추고 있습니다."}</p>}
   </>;
