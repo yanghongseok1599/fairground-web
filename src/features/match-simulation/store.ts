@@ -27,6 +27,7 @@ const SCENARIO: { second: number; side: string; number: number; type: MatchEvent
 
 export interface PracticeStore extends MatchControlOperations {
   snapshot: PracticeSnapshot;
+  replaceSnapshot: (snapshot: PracticeSnapshot) => void;
   tick: () => void;
   setSpeed: (speed: number) => void;
   startAutomatic: () => void;
@@ -68,7 +69,7 @@ function addIncident(snapshot: PracticeSnapshot, input: Parameters<MatchControlO
 
 // This module has no Supabase, auth or production-store dependency. Every
 // operation is implemented locally; an unknown match can never fall through.
-export function createPracticeStore(saved?: PracticeSnapshot) {
+export function createPracticeStore(saved?: PracticeSnapshot, options?: { beforeMutation?: () => void }) {
   const initial = saved ? { ...structuredClone(saved), running: false, automatic: false } : freshSnapshot();
   return createStore<PracticeStore>()((set, get) => {
     const liveMatches = (s: PracticeSnapshot) => s.match.status === "live" ? [{
@@ -76,6 +77,7 @@ export function createPracticeStore(saved?: PracticeSnapshot) {
       elapsedSeconds: s.elapsedSeconds, isRunning: s.running,
     }] : [];
     const update = (fn: (snapshot: PracticeSnapshot) => void) => {
+      options?.beforeMutation?.();
       const snapshot = structuredClone(get().snapshot);
       fn(snapshot);
       set({ snapshot, liveMatches: liveMatches(snapshot) });
@@ -89,6 +91,10 @@ export function createPracticeStore(saved?: PracticeSnapshot) {
     };
     return {
       snapshot: initial, liveMatches: liveMatches(initial), managesClock: true,
+      replaceSnapshot: snapshot => {
+        const next = structuredClone(snapshot);
+        set({ snapshot: next, liveMatches: liveMatches(next) });
+      },
       fetchMatch: async (tournament, id) => { assertMatch(id, tournament); return structuredClone(get().snapshot.match); },
       fetchTeamPlayers: async teamId => structuredClone(get().snapshot.players.filter(p => p.teamId === teamId)),
       fetchMatchLineup: async id => { assertMatch(id); return structuredClone(get().snapshot.lineup); },
@@ -175,7 +181,7 @@ export function createPracticeStore(saved?: PracticeSnapshot) {
         update(s => { s.match.status = "live"; s.running = true; s.automatic = true; s.speed = 60; });
       },
       stopAutomatic: () => update(s => { s.automatic = false; s.running = false; }),
-      reset: () => { const snapshot = freshSnapshot(); set({ snapshot, liveMatches: [] }); },
+      reset: () => { options?.beforeMutation?.(); const snapshot = freshSnapshot(); set({ snapshot, liveMatches: [] }); },
     };
   });
 }
