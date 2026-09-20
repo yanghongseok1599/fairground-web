@@ -1,0 +1,33 @@
+{
+  "baselineDeployment": "dpl_ErfQzobdNzhHvhUPiTZFEgwn2iSa",
+  "implementationCommit": "b3ef31b",
+  "baselineFiles": 916,
+  "uploadedSourceCount": 918,
+  "uploadedManifestSha256": "f482d38de9d87040cbd765d781fffe6cde957a38891d3fdc37209acafac4cb82",
+  "changes": [
+    {
+      "path": "src/features/match-control/match-control-screen.tsx",
+      "beforeSha1": "8f580d4904592517fe73dc959c1cb90b681ca850",
+      "sha1": "55d2a57652e99bf5c2f0cb88306068ddc2063b79"
+    },
+    {
+      "path": "src/features/match-control/substitution-choices.ts",
+      "beforeSha1": null,
+      "sha1": "aa90a44abf45bb827c8db3bd28097ac910ed0e7b"
+    },
+    {
+      "path": "tests/match-substitution-choices.test.mjs",
+      "beforeSha1": null,
+      "sha1": "cbd92874f4d7cc27a86a7d2f9c825e7fe9312715"
+    },
+    {
+      "path": "tsconfig.tsbuildinfo",
+      "beforeSha1": "e7142d077afcce64ea8d6c90cf90f77e7e6027b5",
+      "sha1": "71e1210dffba78a8c123e6c10e9e8c3fcd9b09d1"
+    }
+  ],
+  "deployment": {
+    "id": "dpl_5HfdrRmdbStY5ofa15N4wdsxwfg6",
+    "url": "https://fairground-jurb620nv-milestones-projects-d52c4dda.vercel.app"
+  }
+}
