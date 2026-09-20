@@ -1,0 +1,28 @@
+--- production/end_match.sql
++++ candidate/end_match.sql
+@@ -49,9 +49,9 @@
+       from public.match_lineups ml
+       left join (
+         select e.player_id,
+-               count(*) filter (where e.type = 'goal')        as g,
+-               count(*) filter (where e.type = 'assist')      as a,
+-               count(*) filter (where e.type = 'yellow_card') as y
++               (count(*) filter (where e.type = 'goal'))::integer        as g,
++               (count(*) filter (where e.type = 'assist'))::integer      as a,
++               (count(*) filter (where e.type = 'yellow_card'))::integer as y
+         from public.match_events e
+         where e.match_id = p_match_id and not e.is_cancelled and e.player_id is not null
+         group by e.player_id
+@@ -114,9 +114,9 @@
+   else
+     for r in
+       select e.player_id,
+-             count(*) filter (where e.type = 'goal')        as g,
+-             count(*) filter (where e.type = 'assist')      as a,
+-             count(*) filter (where e.type = 'yellow_card') as y,
++             (count(*) filter (where e.type = 'goal'))::integer        as g,
++             (count(*) filter (where e.type = 'assist'))::integer      as a,
++             (count(*) filter (where e.type = 'yellow_card'))::integer as y,
+              bool_or(e.player_id = m.mom_player_id) as got_mom
+       from public.match_events e
+       where e.match_id = p_match_id and not e.is_cancelled and e.player_id is not null
