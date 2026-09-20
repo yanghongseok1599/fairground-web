@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useDataStore } from "@/stores/dataStore";
+import { useMatchControlStore } from "@/features/match-control/store-context";
 import {
   MATCH_DURATION_SECONDS,
   clampMatchElapsedSeconds,
@@ -79,7 +79,7 @@ export function useMatchControl({
   tournamentId,
   matchId,
 }: UseMatchControlOptions): MatchControlState & MatchControlActions {
-  const store = useDataStore();
+  const store = useMatchControlStore();
 
   const [match, setMatch] = useState<Match | null>(null);
   const [homePlayers, setHomePlayers] = useState<Player[]>([]);
@@ -188,7 +188,7 @@ export function useMatchControl({
       timerRef.current = null;
     }
 
-    if (!localRunning) return;
+    if (!localRunning || store.managesClock) return;
 
     timerRef.current = setInterval(() => {
       let reachedRegulationTime = false;
@@ -250,7 +250,7 @@ export function useMatchControl({
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localRunning, matchId, localHalf]);
+  }, [localRunning, matchId, localHalf, store.managesClock]);
 
   // Q5/A10 — 액션 실행 가드: 진행 중이면 재진입 차단(더블탭→더블집계 방지),
   // 시작 시 pendingAction 설정(버튼 disabled+aria-busy 근거), 실패 시 위치별 에러.

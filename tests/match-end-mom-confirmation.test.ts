@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 
 const root = process.cwd();
 const adminMatchPage = readFileSync(
-  join(root, "src/app/admin/match/[matchId]/page.tsx"),
+  join(root, "src/features/match-control/match-control-screen.tsx"),
   "utf8",
 );
 

@@ -400,6 +400,9 @@ function AdminMatches() {
       <div className="space-y-6">
         {/* Filter */}
         <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" className="min-h-[44px]" onClick={() => router.push("/match-simulation")}>
+            테스트 경기 시뮬레이션
+          </Button>
           {(["all", "scheduled", "live", "finished"] as MatchFilter[]).map(
             (f) => (
               <Button
