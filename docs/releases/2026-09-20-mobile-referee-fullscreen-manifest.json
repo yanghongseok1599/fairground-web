@@ -1,0 +1,48 @@
+{
+  "baselineDeployment": "dpl_F7D1YTg3TqLphs9pDRNbyEi6ddBt",
+  "implementationCommit": "46c1358",
+  "baselineFiles": 930,
+  "uploadedSourceCount": 933,
+  "uploadedManifestSha256": "c52143191ef4af1468d8dade93b89fedab89c94875c30f7782a4f6eb94dc5989",
+  "changes": [
+    {
+      "path": "src/features/match-control/match-control-screen.tsx",
+      "beforeSha1": "a82e1f3dec351d18cfbcd26f5eff47e3f0967181",
+      "sha1": "1aaa34ebd0b714342a8356856a8b4cadc11f8c21"
+    },
+    {
+      "path": "src/features/match-control/referee-recording-fullscreen.tsx",
+      "beforeSha1": null,
+      "sha1": "c0514e6ca43a2941662b73f8eb6b5a16bc4770e0"
+    },
+    {
+      "path": "src/features/match-control/roster-event-board.tsx",
+      "beforeSha1": "4370e76aca870e00bbdb5890217b2699c97e7421",
+      "sha1": "b3b7c24895c3dd4e5d9d561f977a99f81eda4e6a"
+    },
+    {
+      "path": "src/features/match-control/use-recording-fullscreen.ts",
+      "beforeSha1": null,
+      "sha1": "b74c9206eb7837b050c6b02b232f83c333e453e9"
+    },
+    {
+      "path": "src/features/match-simulation/README.md",
+      "beforeSha1": "0dd73ae328500675e94f6d4a6d9a53818a1434ff",
+      "sha1": "d25a299acf9299fcc0d48d46413f7c6696a28964"
+    },
+    {
+      "path": "tests/match-recording-fullscreen.test.mjs",
+      "beforeSha1": null,
+      "sha1": "6e88ad56b099a42d42751bf86c7de80e3e6ac81c"
+    },
+    {
+      "path": "tsconfig.tsbuildinfo",
+      "beforeSha1": "3872ce77da7f08664615a897e054b5c6da4ab899",
+      "sha1": "de54b014a91d14f7b70888d0b1f4daeb0b0bc1aa"
+    }
+  ],
+  "deployment": {
+    "id": "dpl_G5VCwUz3vYBjsqXErJmryFrdunMU",
+    "url": "https://fairground-i441r9wck-milestones-projects-d52c4dda.vercel.app"
+  }
+}
