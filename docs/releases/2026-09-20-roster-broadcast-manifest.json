@@ -1,0 +1,128 @@
+{
+  "baselineDeployment": "dpl_55osdbGrhGNV5KbJ9yuopbqGepFq",
+  "implementationCommit": "874cc7d",
+  "baselineFiles": 922,
+  "uploadedSourceCount": 930,
+  "uploadedManifestSha256": "f45929e7f758699a92069c12aded066a8405d0b842ce03bc3a709b3f7a033d61",
+  "changes": [
+    {
+      "path": "src/app/live/page.tsx",
+      "beforeSha1": "4216ebf746b70855499270ff43c2551dbe61e377",
+      "sha1": "3b452ea0893f1caaabea851abfa84c39c52c3d80"
+    },
+    {
+      "path": "src/app/matches/[id]/page.tsx",
+      "beforeSha1": "c9dbbf241458b48abe5c9d7ab62fb6610cfd4284",
+      "sha1": "f225b49e0a753f3d4c9e7ee7609929c24dfcf854"
+    },
+    {
+      "path": "src/app/matches/[id]/watch/page.tsx",
+      "beforeSha1": null,
+      "sha1": "f3497542ccae7f97b9ebac7df3eb2c0f32b7fbb2"
+    },
+    {
+      "path": "src/features/match-control/match-broadcast-view.tsx",
+      "beforeSha1": null,
+      "sha1": "71b0ce60943157038cd56c267a995329a8482944"
+    },
+    {
+      "path": "src/features/match-control/match-control-screen.tsx",
+      "beforeSha1": "55d2a57652e99bf5c2f0cb88306068ddc2063b79",
+      "sha1": "a82e1f3dec351d18cfbcd26f5eff47e3f0967181"
+    },
+    {
+      "path": "src/features/match-control/roster-event-board.tsx",
+      "beforeSha1": null,
+      "sha1": "4370e76aca870e00bbdb5890217b2699c97e7421"
+    },
+    {
+      "path": "src/features/match-control/roster-stats.ts",
+      "beforeSha1": null,
+      "sha1": "cb81cc12ab7d04d0c85a01f4f20f377face93291"
+    },
+    {
+      "path": "src/features/match-simulation/README.md",
+      "beforeSha1": "c78cb64d77ab3f9910c5c17389c7aa2457e843f3",
+      "sha1": "0dd73ae328500675e94f6d4a6d9a53818a1434ff"
+    },
+    {
+      "path": "src/features/match-simulation/shared/admin-view.tsx",
+      "beforeSha1": "baf595d81a339d7db6ef8ea0ea3814f667bcd7ed",
+      "sha1": "3bbbe4c31d61de8c46b59da185c3a54425d24d00"
+    },
+    {
+      "path": "src/features/match-simulation/shared/directory.ts",
+      "beforeSha1": "bcab14d79a1dac8c31fb84c9d12d2a47df7ae171",
+      "sha1": "7bf37a7ff7d1c0634a581b1cd8cccf2b4ba96151"
+    },
+    {
+      "path": "src/features/match-simulation/shared/lobby.tsx",
+      "beforeSha1": "f520a314914a93997072bf3582ae79ed51848658",
+      "sha1": "f512d26a8007e4f7da7272475aac16358874dabb"
+    },
+    {
+      "path": "src/features/match-simulation/shared/protocol.ts",
+      "beforeSha1": "71851b2d386fec65257de1a7aa1a33c32c85de5f",
+      "sha1": "0e1c0e67e86d0f17395b36145c3f641ac7c44f2b"
+    },
+    {
+      "path": "src/features/match-simulation/shared/recording-commands.ts",
+      "beforeSha1": null,
+      "sha1": "2273c83747a0d5084214c510a0e511780b295759"
+    },
+    {
+      "path": "src/features/match-simulation/shared/room-page.tsx",
+      "beforeSha1": "aa53e803f3f3c2685d20258d36e0df20a4cd4c41",
+      "sha1": "9a57d317e8cf67551c6957a5636c0263527d42ea"
+    },
+    {
+      "path": "src/features/match-simulation/shared/session.ts",
+      "beforeSha1": "931cb314efb810002670f0fae23611f66cd3c374",
+      "sha1": "81ef61e728889a164b93d227a3fe87819b04f016"
+    },
+    {
+      "path": "src/features/match-simulation/shared/spectator-view.tsx",
+      "beforeSha1": null,
+      "sha1": "9ebc1e2f2484b0692de9c94282df3002205ef0ad"
+    },
+    {
+      "path": "src/features/match-simulation/simulation-page.tsx",
+      "beforeSha1": "acded4c2d6f40fde490706c10055679f8e0ada3e",
+      "sha1": "91206360fe1243086bbbc44ab6cb894306e9fcfb"
+    },
+    {
+      "path": "src/hooks/useMatchControl.ts",
+      "beforeSha1": "a17b5fbb22eb7d6829fa3c1848fe32296a0ba329",
+      "sha1": "57fefb541614f58ec8a76a102e621c84bc8b1a58"
+    },
+    {
+      "path": "tests/match-roster-recording.test.mjs",
+      "beforeSha1": null,
+      "sha1": "a3dfe6f233a1c92cfcb99c06d9eba8c9c96e53a8"
+    },
+    {
+      "path": "tests/match-simulation-directory.test.mjs",
+      "beforeSha1": "565b0312e2e468d8994cb16e418de04ed2d14e6f",
+      "sha1": "056eadb5a512455a333b77e4cc921a51c0957526"
+    },
+    {
+      "path": "tests/match-simulation-room.test.mjs",
+      "beforeSha1": "9e6a317062bce74215c9edc160da0f9c6cfb2c68",
+      "sha1": "cf26bd74e7eca7f9bddf05e0c83713aced2725f6"
+    },
+    {
+      "path": "tests/match-spectator-readonly.test.mjs",
+      "beforeSha1": null,
+      "sha1": "a23ecdc0f9ebea604b79a2f7969f7613f07d5b91"
+    },
+    {
+      "path": "tsconfig.tsbuildinfo",
+      "beforeSha1": "0f74b5451f10c304e2a592a08a4c99e46581b038",
+      "sha1": "3872ce77da7f08664615a897e054b5c6da4ab899"
+    }
+  ],
+  "deployment": {
+    "id": "dpl_F7D1YTg3TqLphs9pDRNbyEi6ddBt",
+    "url": "https://fairground-3hrb704o0-milestones-projects-d52c4dda.vercel.app"
+  }
+}
