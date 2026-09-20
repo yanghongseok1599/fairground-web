@@ -1,0 +1,77 @@
+{
+  "release": "2026-09-20-player-card-shoulders",
+  "implementationCommit": "5fe0b37",
+  "productionUrl": "https://fairground-kor.com",
+  "deployment": {
+    "id": "dpl_FrSzMcd8bW8MaKaEyFmHjWqFR3En",
+    "url": "https://fairground-nwxvn7lt2-milestones-projects-d52c4dda.vercel.app",
+    "state": "READY"
+  },
+  "previousDeployment": {
+    "id": "dpl_HkjZvRX9YGvYMpc9GbSPEavH3YdA",
+    "url": "https://fairground-128mntajo-milestones-projects-d52c4dda.vercel.app"
+  },
+  "sourceCounts": {
+    "previous": 897,
+    "deployed": 897
+  },
+  "uploadedManifestSha256": "f8d62242d9e99526c7d3e4316533736ff53c39f03c630b29ae14689e26bb0c71",
+  "changedFiles": [
+    {
+      "path": "src/app/my/card-edit/page.tsx",
+      "sha1": "6f7ce5c05eddd6e268553351def4e212fcdafdbe",
+      "afterSha1": "94a2e2e87d538704d1027b3af525389e6375b67e"
+    },
+    {
+      "path": "src/app/my/page.tsx",
+      "sha1": "89f5e25c1b94dc280c0605ce27b1075c9428aea0",
+      "afterSha1": "2e4a9a95b698c09b793a2f3acd95932a7f81256c"
+    },
+    {
+      "path": "src/app/my/player-setup/page.tsx",
+      "sha1": "28e6e65773701eb40eb19f35eef47c9e06a85cfd",
+      "afterSha1": "647f7689bb8316985af2bc5a14ad613057f0e12f"
+    },
+    {
+      "path": "src/lib/player-card/upper-body-portrait.ts",
+      "sha1": "f5dc296c6ad9c4815e1f3317b593dbf66dc0117c",
+      "afterSha1": "cef217942ebed270fd1e940de8a6c398ee3cfc48"
+    },
+    {
+      "path": "tests/player-card-upper-body.test.ts",
+      "sha1": "14ac1deb9088116171cf6efbcc6f362160990e18",
+      "afterSha1": "9d3d0bf2f1b1b380d877ab8c1bae35b20a4ac89a"
+    }
+  ],
+  "additionalGeneratedFile": "tsconfig.tsbuildinfo",
+  "database": {
+    "mutated": false,
+    "newReferences": false,
+    "catalogSource": "2026-09-15 prior production read-only catalog",
+    "references": 150,
+    "missing": 0,
+    "freshCatalogQueried": false,
+    "buildOnlyParitySkip": true
+  },
+  "verification": {
+    "lintErrors": 0,
+    "existingLintWarnings": 18,
+    "typescript": "passed",
+    "supabaseSafetyTests": 4,
+    "playerCardTests": "passed",
+    "productionBuild": "passed",
+    "productionPortraits": 4,
+    "leftClippedPixels": 0,
+    "rightClippedPixels": 0,
+    "maximumBottomErrorPixels": 0.000029296874799911166,
+    "labelRoutes": [
+      "/my/player-setup",
+      "/my/card-edit",
+      "/my"
+    ],
+    "labelRouteStatus": 200,
+    "newLabel": "아라",
+    "oldLabelFound": false,
+    "realMemberDataWritten": false
+  }
+}
