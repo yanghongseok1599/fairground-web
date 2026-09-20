@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useMatchControl } from "@/hooks/useMatchControl";
 import { useMatchControlStore } from "@/features/match-control/store-context";
 import { FullscreenMatchHeader } from "./fullscreen-match-header";
+import { MatchDialogContent } from "./match-dialog-content";
+import { LandscapeMomChoices } from "./landscape-mom-choices";
 import { AdminHeader } from "@/components/admin-header";
 import { AdminLoading } from "@/components/admin-loading";
 import { CourtBackdrop } from "@/components/court-backdrop";
@@ -610,7 +612,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
         if (!open) setAssistGoal(null);
       }}
     >
-      <DialogContent>
+      <MatchDialogContent landscapeFallback={isFullscreen && forceLandscapeStage}>
         <DialogHeader>
           <DialogTitle>
             어시스트 체크
@@ -672,7 +674,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
             나중에 체크
           </Button>
         </div>
-      </DialogContent>
+      </MatchDialogContent>
     </Dialog>
   );
 
@@ -1208,7 +1210,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
             if (!open) closeActionMenu();
           }}
         >
-          <DialogContent>
+          <MatchDialogContent landscapeFallback={forceLandscapeStage}>
             <DialogHeader>
               <DialogTitle>
                 {subPicking
@@ -1221,7 +1223,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
 
             {!subPicking ? (
               <div className="space-y-3 pt-2">
-                <div className="grid grid-cols-2 gap-2">
+                <div className={`grid gap-2 ${forceLandscapeStage ? "grid-cols-3" : "grid-cols-2"}`}>
                   {EVENT_TYPES.map((et) => (
                     <Button
                       key={et.value}
@@ -1236,7 +1238,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
                   ))}
                   <Button
                     variant="secondary"
-                    className="col-span-2 min-h-[52px] justify-center text-base"
+                    className={`${forceLandscapeStage ? "" : "col-span-2"} min-h-[52px] justify-center text-base`}
                     onClick={() => {
                       setSubError(null);
                       setSubPicking(true);
@@ -1300,7 +1302,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
                 </Button>
               </div>
             )}
-          </DialogContent>
+          </MatchDialogContent>
         </Dialog>
 
         {renderAssistDialog()}
@@ -1313,8 +1315,8 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
             setEndDialogOpen(open);
           }}
         >
-          <DialogContent
-            className="max-h-[90dvh] overflow-y-auto"
+          <MatchDialogContent
+            landscapeFallback={forceLandscapeStage}
             onEscapeKeyDown={(e) => {
               if (endPending) e.preventDefault();
             }}
@@ -1357,7 +1359,20 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
                     <Badge variant="secondary">현재 선택: {selectedEndMom.name}</Badge>
                   )}
                 </div>
-                <Select
+                {forceLandscapeStage ? (
+                  <LandscapeMomChoices
+                    value={endMomValue}
+                    onValueChange={setEndMomChoice}
+                    disabled={mc.pendingAction !== null}
+                    options={[
+                      ...(!matchData.momPlayerId ? [{ value: NO_MOM_VALUE, label: "MOM 없음" }] : []),
+                      ...allPlayers.map((p) => ({
+                        value: p.id,
+                        label: `#${p.number} ${p.name} (${p.position}) - ${p.teamId === matchData.homeTeamId ? matchData.homeTeamName : matchData.awayTeamName}`,
+                      })),
+                    ]}
+                  />
+                ) : <Select
                   value={endMomValue}
                   onValueChange={setEndMomChoice}
                   disabled={mc.pendingAction !== null}
@@ -1378,7 +1393,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </Select>}
               </div>
               {!endMomReady && (
                 <div
@@ -1454,7 +1469,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
                 </Button>
               </div>
             </div>
-          </DialogContent>
+          </MatchDialogContent>
         </Dialog>
         </div>
       </div>
