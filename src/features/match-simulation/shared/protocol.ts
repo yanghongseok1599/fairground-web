@@ -1,7 +1,9 @@
 import type { PracticeSnapshot } from "../store";
 import { PRACTICE_STORAGE_KEY, readPracticeSnapshot } from "../persistence";
+import type { RecordingCommand } from "./recording-commands";
 
-export type RoomRole = "referee" | "admin";
+export type RoomRole = "referee" | "admin" | "spectator";
+export const roleLabel = (role: RoomRole) => role === "referee" ? "심판" : role === "admin" ? "관리자" : "참가자 중계";
 export interface RoomMember { id: string; role: RoomRole; joinedAt: number }
 export interface RoomFrame { room: string; owner: string; revision: number; snapshot: PracticeSnapshot }
 export type RoomMessage =
@@ -9,6 +11,7 @@ export type RoomMessage =
   | { type: "request"; from: string }
   | { type: "offer"; from: string; to: string; frame: RoomFrame | null }
   | { type: "reset"; from: string; id: string; matchId: string }
+  | { type: "recording"; from: string; id: string; matchId: string; command: RecordingCommand }
   | { type: "ack"; from: string; to: string; id: string; error?: string };
 
 export const isRoomId = (id: unknown): id is string => typeof id === "string" && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(id);
@@ -28,7 +31,7 @@ export function seat(members: RoomMember[], role: RoomRole) {
 export function validMember(value: unknown): value is RoomMember {
   if (!value || typeof value !== "object") return false;
   const m = value as RoomMember;
-  return typeof m.id === "string" && m.id.length <= 80 && ["referee", "admin"].includes(m.role) && Number.isFinite(m.joinedAt);
+  return typeof m.id === "string" && m.id.length <= 80 && ["referee", "admin", "spectator"].includes(m.role) && Number.isFinite(m.joinedAt);
 }
 
 // Treat broadcasts and tab storage as untrusted. Rebuild virtual identities and

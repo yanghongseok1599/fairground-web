@@ -225,6 +225,7 @@ export default function LivePage() {
                         </p>
                       </div>
                     </div>
+                    <Link href={`/matches/${m.id}/watch`} className="mx-6 mb-4 flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground"><Radio className="h-4 w-4" />경기장 중계 보기</Link>
                     {/* 라인업 토글 — lazy 로드. 양 팀 명단 readonly 표시. */}
                     <div
                       className="border-t"

@@ -1,5 +1,6 @@
 import { createStore } from "zustand/vanilla";
 import { createPracticeStore } from "../store";
+import { applyRecordingCommand, type RecordingCommand } from "./recording-commands";
 import { readRoomFrame, seat, validMember, type RoomFrame, type RoomMember, type RoomMessage, type RoomRole } from "./protocol";
 
 export interface RoomTransport {
@@ -18,7 +19,7 @@ interface SessionStatus {
 }
 
 // One referee owns the clock and every state change. The administrator only
-// requests resets; these are acknowledged and deduplicated by the referee.
+// requests recording/cancellation and resets; the referee acknowledges and deduplicates them.
 // No leader failover runs a second clock when the referee loses connection.
 export function createRoomSession(options: {
   room: string; role: RoomRole; id: string; saved?: RoomFrame;
@@ -38,6 +39,7 @@ export function createRoomSession(options: {
   let recovery = false;
   let adminAnswered = false;
   const completed = new Map<string, string | undefined>();
+  const recordings = new Map<string, Promise<string | undefined>>();
   const pending = new Map<string, { resolve: () => void; reject: (e: Error) => void; timer: ReturnType<typeof setTimeout> }>();
   const controls = () => {
     const s = status.getState();
@@ -164,6 +166,19 @@ export function createRoomSession(options: {
       }
       publish();
       sendQuietly({ type: "ack", from: options.id, to: message.from, id: message.id, error: completed.get(message.id) });
+    } else if (message.type === "recording") {
+      if (!controls() || message.from !== s.admin || typeof message.id !== "string" || !message.id || message.id.length > 80) return;
+      const key = `${message.from}:${message.id}`;
+      if (!recordings.has(key)) {
+        recordings.set(key, applyRecordingCommand(store.getState(), message.matchId, message.command)
+          .then(() => undefined, e => e instanceof Error ? e.message : "기록하지 못했습니다."));
+        if (recordings.size > 1000) recordings.delete(recordings.keys().next().value!);
+      }
+      void recordings.get(key)!.then(error => {
+        if (!controls()) return;
+        publish();
+        sendQuietly({ type: "ack", from: options.id, to: message.from, id: message.id, error });
+      });
     } else if (message.type === "ack" && message.to === options.id && message.from === s.referee) {
       const request = pending.get(message.id);
       if (!request) return;
@@ -173,6 +188,21 @@ export function createRoomSession(options: {
   };
   return {
     store, status, controls,
+    async record(command: RecordingCommand) {
+      const s = status.getState();
+      if (controls()) return applyRecordingCommand(store.getState(), store.getState().snapshot.match.id, command);
+      if (options.role !== "admin" || !s.connected || !s.ready || s.admin !== options.id || !s.referee) throw new Error("심판과 운영 관리자의 연결을 확인해주세요.");
+      const id = crypto.randomUUID();
+      const result = new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => { pending.delete(id); reject(new Error("기록 응답을 받지 못했습니다. 현재 기록을 확인한 뒤 다시 시도해주세요.")); }, 6000);
+        pending.set(id, { resolve, reject, timer });
+      });
+      void send({ type: "recording", from: options.id, id, matchId: store.getState().snapshot.match.id, command }).catch(() => {
+        const p = pending.get(id);
+        if (p) { clearTimeout(p.timer); pending.delete(id); p.reject(new Error("기록 요청을 전송하지 못했습니다.")); }
+      });
+      return result;
+    },
     start() {
       stopped = false;
       transport = options.transport();

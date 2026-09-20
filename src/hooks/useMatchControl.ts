@@ -34,6 +34,7 @@ export interface MatchActionError {
 interface UseMatchControlOptions {
   tournamentId: string;
   matchId: string;
+  readOnly?: boolean;
 }
 
 interface MatchControlState {
@@ -78,6 +79,7 @@ interface MatchControlActions {
 export function useMatchControl({
   tournamentId,
   matchId,
+  readOnly = false,
 }: UseMatchControlOptions): MatchControlState & MatchControlActions {
   const store = useMatchControlStore();
 
@@ -100,6 +102,21 @@ export function useMatchControl({
 
   // Find matching live match from store subscription
   const liveMatch = store.liveMatches.find((m) => m.id === matchId) || null;
+  const hasLiveMatch = liveMatch !== null;
+  const sawLiveMatch = useRef(false);
+  const fetchFinalMatch = store.fetchMatch;
+
+  // A finished match leaves the live collection. Fetch its final score/MOM once
+  // so a spectator does not remain on the last live frame.
+  useEffect(() => {
+    if (hasLiveMatch) { sawLiveMatch.current = true; return; }
+    if (!readOnly || !sawLiveMatch.current) return;
+    let alive = true;
+    void fetchFinalMatch(tournamentId, matchId).then(final => {
+      if (alive && final) { setMatch(final); setLocalRunning(false); }
+    }).catch(() => { if (alive) setActionError({ scope: "load", message: "최종 경기 기록을 불러오지 못했습니다. 새로고침해주세요." }); });
+    return () => { alive = false; };
+  }, [hasLiveMatch, readOnly, tournamentId, matchId, fetchFinalMatch]);
 
   // Extract events from live match
   const events: MatchEvent[] = liveMatch
@@ -191,6 +208,10 @@ export function useMatchControl({
     if (!localRunning || store.managesClock) return;
 
     timerRef.current = setInterval(() => {
+      if (readOnly) {
+        setLocalElapsed(prev => clampMatchElapsedSeconds(prev + 1));
+        return;
+      }
       let reachedRegulationTime = false;
       let nextElapsedForSync = 0;
       let shouldNotifyNextMatchReady = false;
@@ -250,7 +271,7 @@ export function useMatchControl({
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localRunning, matchId, localHalf, store.managesClock]);
+  }, [localRunning, matchId, localHalf, store.managesClock, readOnly]);
 
   // Q5/A10 — 액션 실행 가드: 진행 중이면 재진입 차단(더블탭→더블집계 방지),
   // 시작 시 pendingAction 설정(버튼 disabled+aria-busy 근거), 실패 시 위치별 에러.
@@ -262,7 +283,7 @@ export function useMatchControl({
       fn: () => Promise<void>
     ): Promise<boolean> => {
       // 재진입 방지: 어떤 액션이든 진행 중이면 무시 (더블집계 차단)
-      if (pendingRef.current) return false;
+      if (readOnly || pendingRef.current) return false;
       pendingRef.current = scope;
       setPendingAction(scope);
       setActionError(null);
@@ -277,7 +298,7 @@ export function useMatchControl({
         setPendingAction(null);
       }
     },
-    []
+    [readOnly]
   );
 
   const clearError = useCallback(() => setActionError(null), []);

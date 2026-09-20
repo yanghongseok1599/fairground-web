@@ -9,6 +9,9 @@ import { FullscreenMatchHeader } from "./fullscreen-match-header";
 import { MatchDialogContent } from "./match-dialog-content";
 import { LandscapeMomChoices } from "./landscape-mom-choices";
 import { getSubstitutionChoices } from "./substitution-choices";
+import { RosterEventBoard } from "./roster-event-board";
+import { MatchBroadcastView } from "./match-broadcast-view";
+import type { RosterEventType } from "./roster-stats";
 import { AdminHeader } from "@/components/admin-header";
 import { AdminLoading } from "@/components/admin-loading";
 import { CourtBackdrop } from "@/components/court-backdrop";
@@ -42,15 +45,11 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { EventTimeline } from "@/components/match/event-timeline";
 import {
-  Plus,
   Trophy,
   Circle,
   Loader2,
   WifiOff,
   AlertTriangle,
-  Star,
-  Users,
-  RotateCw,
   Maximize2,
 } from "lucide-react";
 import type { MatchEvent, MatchEventType, MatchLineupEntry, Player } from "@/types";
@@ -77,14 +76,15 @@ type ScreenOrientationWithLock = ScreenOrientation & {
   unlock?: () => void;
 };
 
-export function MatchControlScreen({ matchId, tournamentId, practice = false }: {
+export function MatchControlScreen({ matchId, tournamentId, practice = false, spectator = false }: {
   matchId: string;
   tournamentId: string;
   practice?: boolean;
+  spectator?: boolean;
 }) {
   const router = useRouter();
 
-  const mc = useMatchControl({ tournamentId, matchId });
+  const mc = useMatchControl({ tournamentId, matchId, readOnly: spectator });
   const store = useMatchControlStore();
   const fetchMatchLineup = store.fetchMatchLineup;
   const { player } = useAuth();
@@ -188,6 +188,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
   // Lineup state (readonly view + 이벤트 선수 드롭다운 필터링)
   const [lineup, setLineup] = useState<MatchLineupEntry[]>([]);
   const [lineupLoading, setLineupLoading] = useState(true);
+  const substitutionRevision = mc.events.filter(e => e.type === "substitution").map(e => `${e.id}:${!!e.isCancelled}`).join(",");
 
   useEffect(() => {
     if (!matchId) return;
@@ -203,10 +204,10 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
     return () => {
       alive = false;
     };
-  }, [matchId, fetchMatchLineup]);
+  }, [matchId, fetchMatchLineup, substitutionRevision]);
 
   // Event input state
-  const [eventType, setEventType] = useState<MatchEventType | "">("");
+  const eventType: MatchEventType | "" = "";
   // 가로 분할 tap-to-record 의 마지막 시도 — 실패 시 재시도 재실행용.
   const lastEventAttempt = useRef<{ type: MatchEventType; playerId: string; playerName: string; teamId: string } | null>(null);
 
@@ -257,6 +258,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
   }
 
   if (mc.loading) {
+    if (spectator) return <p role="status" className="p-6 text-center text-sm">경기 중계를 준비하고 있습니다…</p>;
     return (
       <div
         className="min-h-screen"
@@ -269,6 +271,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
   }
 
   if (mc.actionError && !mc.match) {
+    if (spectator) return <div role="alert" className="space-y-3 p-6 text-center"><p>{mc.actionError.message}</p><Button onClick={() => mc.reload()}>다시 연결</Button></div>;
     return (
       <div
         className="min-h-screen"
@@ -534,6 +537,13 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
         setAssistGoal(createAssistTarget(player, teamId, "goal-record"));
       }
     }
+  };
+
+  const recordRosterEvent = async (type: RosterEventType, player: Player, teamId: string) => {
+    if (!isLive || mc.pendingAction !== null || !mc.isOnline) return;
+    const payload = { type, playerId: player.id, playerName: player.name, teamId };
+    lastEventAttempt.current = payload;
+    if (await mc.addEvent(payload)) setLastActionNotice(`${player.name} ${eventLabel(type)} 기록 완료`);
   };
 
   // 이벤트 기록 실패 시 재시도 — 마지막 시도 payload 재실행.
@@ -819,7 +829,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
                   : "bg-blue-100 text-blue-700"
             }`}
           >
-            {isScheduled ? "예정" : isLive ? (isRegulationComplete ? "종료 대기" : "진행중") : "종료"}
+            {isScheduled ? "예정" : isLive ? (isRegulationComplete ? "종료 대기" : mc.isRunning ? "진행중" : "일시정지") : "종료"}
           </Badge>
         </div>
         {/* AWAY 점수 + 이름 (오른쪽) */}
@@ -882,40 +892,6 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
       </div>
     );
   };
-
-  // 이벤트 유형 5종 그리드 — 일반·전체화면 공용. dark=어두운 배경용.
-  const renderEventTypeGrid = (dark: boolean) => (
-    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-5">
-      {EVENT_TYPES.map((et) => (
-        <button
-          key={et.value}
-          className={`min-h-[44px] rounded-lg border py-2 text-center text-xs transition-all ${
-            dark ? "border-white/25 text-white" : ""
-          }`}
-          style={
-            eventType === et.value
-              ? dark
-                ? {
-                    borderColor: "var(--accent-gold)",
-                    background: "rgba(212,160,23,0.25)",
-                    fontWeight: 600,
-                  }
-                : {
-                    borderColor: "var(--accent-gold)",
-                    background: "var(--secondary)",
-                    fontWeight: 600,
-                  }
-              : undefined
-          }
-          onClick={() => setEventType(eventType === et.value ? "" : et.value)}
-          aria-pressed={eventType === et.value}
-        >
-          <div className="text-base">{et.emoji}</div>
-          <div className="mt-0.5">{et.label}</div>
-        </button>
-      ))}
-    </div>
-  );
 
   const renderGrassBenchTeam = (
     team: TeamSide,
@@ -1054,6 +1030,16 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
       </div>
     </div>
   );
+
+  if (spectator) return <MatchBroadcastView
+    fullscreen={fullscreenOpen} landscapeFallback={forceLandscapeStage}
+    onOpen={openFullscreenMode} onClose={closeFullscreenMode}
+    scoreboard={renderScoreboardRow(true)}
+    homeBench={renderGrassBenchTeam(homeSide, "left", undefined, true)}
+    awayBench={renderGrassBenchTeam(awaySide, "right", undefined, true)}
+    court={renderCourt({ forceLandscape: fullscreenOpen, homeOnGrass: true, balancedFormation: true, showBench: false, overlay: false })}
+    practice={practice} online={mc.isOnline} mom={allPlayers.find(p => p.id === matchData.momPlayerId)?.name}
+  />;
 
   // ── 심판 전체화면 경기장 모드 (7b) ───────────────────────────────
   // 상단 조작·전광판·대기석과 코트 영역을 분리한다. 닫기는 우측 상단 한 곳에만 둔다.
@@ -1501,16 +1487,9 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
         </div>
       )}
 
-      {/* 가로 모드 권장 안내 — 모바일 세로(portrait)에서만 노출. 가로로 돌리면
-          타이머·점수·이벤트 기록이 한 화면에 넓게 들어와 경기 운영이 편하다. */}
-      <div className="portrait:flex landscape:hidden md:hidden items-center justify-center gap-2 bg-[color:var(--primary)] px-4 py-2 text-sm font-semibold text-white">
-        <RotateCw className="h-4 w-4" />
-        가로로 돌리면 더 편하게 경기를 운영할 수 있어요
-      </div>
-
       {/* 경기 운영 컨테이너 — 세로는 max-w-md, 가로(landscape)·데스크탑은
           더 넓게 펼쳐 타이머/스코어/이벤트 영역을 여유 있게 배치. */}
-      <div className="mx-auto max-w-md landscape:max-w-5xl md:max-w-3xl space-y-4 p-4">
+      <div className="mx-auto max-w-6xl space-y-4 p-4">
         {/* 스코어보드 — 점수·경기시간·팀별 골/어시/반칙/경고/퇴장을 한눈에.
             아래 컨트롤 행으로 시작/일시정지/재개/종료까지 한 카드에서 운영. */}
         <Card style={{ borderColor: "var(--accent-gold)" }}>
@@ -1527,7 +1506,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
                   onClick={openFullscreenMode}
                 >
                   <Maximize2 className="mr-1.5 h-4 w-4" />
-                  전체화면 경기장 모드
+                  경기장 화면
                 </Button>
               </div>
             )}
@@ -1661,122 +1640,12 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
           </div>
         )}
 
-        {/* 출전 명단 (readonly) — 경기 전(예정)에만. 진행 중엔 아래 코트 대시보드에서 번호 확인 */}
-        {isScheduled && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Users className="h-4 w-4" />
-                출전 명단
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {lineupLoading ? (
-                <div
-                  className="flex items-center justify-center py-4 text-xs"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                  명단 로드 중…
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  <LineupReadonlyCard
-                    teamName={matchData.homeTeamName}
-                    entries={homeLineup}
-                  />
-                  <LineupReadonlyCard
-                    teamName={matchData.awayTeamName}
-                    entries={awayLineup}
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Event Input - only during live */}
-        {isLive && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Plus className="h-4 w-4" />
-                이벤트 입력
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {/* 이벤트 유형 선택 (공유) — 선택 후 아래 양팀 선수 칩을 탭하면 즉시
-                  기록. 유형은 유지돼 연속 기록(여러 반칙 등)이 빠르다. */}
-              <div className="space-y-1">
-                <label
-                  className="text-xs font-medium"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  ① 이벤트 유형 선택
-                </label>
-                {renderEventTypeGrid(false)}
-              </div>
-
-              <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                ② {eventType ? "선수를 탭하면 즉시 기록됩니다" : "먼저 이벤트 유형을 선택하세요"}
-              </p>
-              {(eventType || lastActionNotice) && (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {eventType && (
-                    <div
-                      className="rounded-lg border px-3 py-2 text-sm font-bold"
-                      style={{
-                        borderColor: "rgba(0,71,171,0.18)",
-                        background: "rgba(0,71,171,0.06)",
-                        color: "var(--primary)",
-                      }}
-                    >
-                      선택됨: {eventLabel(eventType)}
-                    </div>
-                  )}
-                  {lastActionNotice && (
-                    <div
-                      role="status"
-                      className="rounded-lg border px-3 py-2 text-sm font-bold"
-                      style={{
-                        borderColor: "rgba(34,197,94,0.22)",
-                        background: "rgba(34,197,94,0.08)",
-                        color: "#166534",
-                      }}
-                    >
-                      최근: {lastActionNotice}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 실제 구장 비율(2:1) 녹색 코트 위 양팀 출전/대기 번호 대시보드.
-                  유형 선택 후 선수 칩을 탭하면 즉시 기록. 칩에는 골/어시/경고/퇴장 배지 표시. */}
-              <div className="relative mx-auto aspect-[3/4] max-h-[62vh] w-full rounded-xl landscape:aspect-[2/1] md:aspect-[2/1]">
-                {renderCourt({ homeOnGrass: true })}
-                {/* 코트 코너 전체화면 진입 — 선수 칩 탭과 겹치지 않게 우상단 버튼만. */}
-                {isLive && (
-                  <button
-                    type="button"
-                    onClick={openFullscreenMode}
-                    aria-label="전체화면으로 보기"
-                    className="absolute right-2 top-2 z-30 flex min-h-[40px] items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-white shadow-lg"
-                    style={{ background: "rgba(8,20,12,0.7)", border: "1px solid rgba(255,255,255,0.3)" }}
-                  >
-                    <Maximize2 className="h-4 w-4" />
-                    전체화면
-                  </button>
-                )}
-              </div>
-
-              {mc.pendingAction === "event" && (
-                <p className="flex items-center justify-center gap-1.5 text-xs" style={{ color: "var(--muted-foreground)" }}>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> 기록 처리중…
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        {lastActionNotice && <p role="status" className="pointer-events-none fixed inset-x-4 bottom-4 z-40 mx-auto max-w-md rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-900 shadow-lg">{lastActionNotice}</p>}
+        {lineupLoading ? <p role="status" className="p-4 text-sm">선수 명단을 불러오고 있습니다…</p> : <RosterEventBoard
+          teams={[{ id: homeSide.id, name: homeSide.name, players: mc.homePlayers }, { id: awaySide.id, name: awaySide.name, players: mc.awayPlayers }]}
+          events={mc.events} disabled={!isLive || mc.pendingAction !== null || !mc.isOnline} onRecord={recordRosterEvent}
+        />}
+        {!isLive && <p className="text-sm text-muted-foreground">{isScheduled ? "경기를 시작하면 선수별 기록 버튼이 활성화됩니다." : "종료된 경기의 선수별 최종 기록입니다."}</p>}
 
         {isLive && uncheckedAssistGoals.length > 0 && (
           <Card
@@ -2231,6 +2100,7 @@ function PlayerToken({
       tabIndex={visualOnly ? -1 : undefined}
       className="flex min-w-0 flex-col items-center gap-0.5 transition disabled:cursor-default"
       title={tappable ? `#${player.number} ${player.name}` : `#${player.number} ${player.name}`}
+      aria-label={`${player.name}, 골 ${g}, 어시스트 ${a}, 경고 ${y}, 퇴장 ${r}`}
     >
       <span
         className={`relative flex items-center justify-center rounded-full border-2 font-black tabular-nums shadow-md ${
@@ -2483,111 +2353,6 @@ function PitchFormation({
           balanced={balanced}
         />
       ) : null}
-    </div>
-  );
-}
-
-/** 심판 콘솔용 출전 명단 readonly 카드. 선발/교체 분리 표시. */
-function LineupReadonlyCard({
-  teamName,
-  entries,
-}: {
-  teamName: string;
-  entries: MatchLineupEntry[];
-}) {
-  const starters = entries.filter((e) => e.isStarter);
-  const subs = entries.filter((e) => !e.isStarter);
-
-  return (
-    <div
-      className="rounded-lg border p-2.5"
-      style={{
-        borderColor: "var(--color-fg-line-soft, var(--muted))",
-        background: "var(--background)",
-      }}
-    >
-      <div className="mb-1.5 flex items-center justify-between">
-        <div className="truncate text-xs font-semibold">{teamName}</div>
-        <span
-          className="text-[10px] tabular-nums"
-          style={{ color: "var(--muted-foreground)" }}
-        >
-          {entries.length}
-        </span>
-      </div>
-      {entries.length === 0 ? (
-        <div
-          className="rounded border border-dashed py-3 text-center text-[10px]"
-          style={{
-            borderColor: "var(--muted)",
-            color: "var(--muted-foreground)",
-          }}
-        >
-          (라인업 미제출)
-        </div>
-      ) : (
-        <div className="space-y-1.5">
-          {starters.length > 0 && (
-            <ul className="space-y-1">
-              {starters.map((e) => (
-                <li
-                  key={e.playerId}
-                  className="flex items-center gap-1.5 rounded px-1.5 py-1 text-[11px]"
-                  style={{
-                    background:
-                      "color-mix(in srgb, var(--accent-gold, #d4a017) 8%, transparent)",
-                  }}
-                >
-                  <Star
-                    className="h-3 w-3 shrink-0"
-                    style={{
-                      color: "var(--accent-gold, var(--primary))",
-                      fill: "currentColor",
-                    }}
-                    aria-hidden
-                  />
-                  {e.jerseyNumber != null && (
-                    <span className="font-bold tabular-nums">
-                      #{e.jerseyNumber}
-                    </span>
-                  )}
-                  <span className="flex-1 truncate">
-                    {e.playerName ?? e.playerId.slice(0, 8)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {subs.length > 0 && (
-            <>
-              <div
-                className="border-t pt-1 text-[9px] uppercase tracking-wide"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                교체
-              </div>
-              <ul className="space-y-1">
-                {subs.map((e) => (
-                  <li
-                    key={e.playerId}
-                    className="flex items-center gap-1.5 px-1.5 py-0.5 text-[11px]"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
-                    {e.jerseyNumber != null && (
-                      <span className="font-bold tabular-nums">
-                        #{e.jerseyNumber}
-                      </span>
-                    )}
-                    <span className="flex-1 truncate">
-                      {e.playerName ?? e.playerId.slice(0, 8)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-      )}
     </div>
   );
 }

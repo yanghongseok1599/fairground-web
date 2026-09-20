@@ -33,6 +33,7 @@ export function SharedRoomLobby() {
           </div>
           <p className="text-sm text-muted-foreground">테스트 블루 vs 테스트 레드 · 관리자 {room.adminCount}명 접속</p>
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" className="min-h-11" onClick={() => location.assign(roomLink(location.origin, room.room, "spectator"))}>참가자 중계 보기</Button>
             <Button className="min-h-11" onClick={() => location.assign(roomLink(location.origin, room.room, "admin"))}>관리자로 보기</Button>
             <Button variant="outline" className="min-h-11" disabled={room.refereeCount > 0} onClick={() => location.assign(roomLink(location.origin, room.room, "referee"))}>{room.refereeCount ? "심판 운영 중" : "심판으로 입장"}</Button>
           </div>

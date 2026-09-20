@@ -219,6 +219,7 @@ export default function MatchDetailPage() {
 
       {/* CTA 버튼 영역 */}
       <div className="flex flex-wrap gap-3">
+        <Link href={`/matches/${matchId}/watch`}><Button className="min-h-11">경기장 중계 보기</Button></Link>
         {/* 감독 교체 관리 버튼 (라이브 + coach 트랙만) */}
         {isCoach && (
           <Link href={`/matches/${matchId}/coach`}>

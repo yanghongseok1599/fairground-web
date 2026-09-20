@@ -21,7 +21,7 @@ function SimulationEntry() {
   const [route] = useState(() => {
     const params = new URLSearchParams(location.search);
     const role = params.get("role");
-    return { room: params.get("room"), solo: params.get("mode") === "solo", role: role === "referee" || role === "admin" ? role as RoomRole : undefined };
+    return { room: params.get("room"), solo: params.get("mode") === "solo", role: role === "referee" || role === "admin" || role === "spectator" ? role as RoomRole : undefined };
   });
   if (route.room) return isRoomId(route.room)
     ? <SharedRoomPage room={route.room} role={route.role} />

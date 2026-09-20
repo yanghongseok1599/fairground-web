@@ -169,3 +169,47 @@ test("여러 관리자가 같은 기록을 보고 초기화는 운영 관리자�
   assert.equal(ref.store.getState().snapshot.match.homeScore, 0);
   assert.equal(viewer.store.getState().snapshot.match.id, ref.store.getState().snapshot.match.id);
 });
+
+test("관리자의 전체 명단 기록은 심판과 참가자 중계에 전파되며 재전송은 중복 집계하지 않는다", async t => {
+  const n = network(); t.after(n.close);
+  const ref = n.create("ref", "referee"), admin = n.create("admin", "admin"), viewer = n.create("viewer", "spectator"); await settle();
+  const m = ref.store.getState().snapshot.match;
+  await ref.store.getState().startMatch(m.tournamentId, m.id); await settle();
+  await admin.record({ action: "record", event: "goal", playerId: "practice-blue-7" }); await settle();
+  const message = n.messages.find(x => x.message.type === "recording").message;
+  n.emit("admin", message); n.emit("admin", message); await settle();
+  for (const s of [ref, admin, viewer]) assert.equal(s.store.getState().snapshot.match.homeScore, 1);
+  assert.equal(ref.store.getState().snapshot.match.events.length, 1);
+  await admin.record({ action: "cancel", eventId: ref.store.getState().snapshot.match.events[0].id }); await settle();
+  assert.equal(viewer.store.getState().snapshot.match.homeScore, 0);
+  assert.equal(viewer.store.getState().snapshot.match.events[0].isCancelled, true);
+});
+
+test("참가자와 관전 관리자는 기록·초기화·시계를 조작할 수 없다", async t => {
+  const n = network(); t.after(n.close);
+  const ref = n.create("ref", "referee"); n.create("admin", "admin");
+  const viewer = n.create("viewer", "spectator"), observer = n.create("admin2", "admin"); await settle();
+  const m = ref.store.getState().snapshot.match;
+  await ref.store.getState().startMatch(m.tournamentId, m.id); await settle();
+  for (const s of [viewer, observer]) {
+    await assert.rejects(s.record({ action: "record", event: "goal", playerId: "practice-blue-1" }));
+    await assert.rejects(s.reset()); await assert.rejects(score(s)); s.pulse();
+  }
+  n.emit("viewer", { type: "recording", from: "viewer", id: "denied", matchId: m.id, command: { action: "record", event: "goal", playerId: "practice-blue-1" } });
+  await settle(); assert.equal(ref.store.getState().snapshot.match.homeScore, 0); assert.equal(ref.store.getState().snapshot.elapsedSeconds, 0);
+  await ref.store.getState().endMatch(m.tournamentId, m.id); await settle();
+  assert.equal(viewer.store.getState().snapshot.match.status, "finished");
+});
+
+test("새 경기 이후의 오래된 요청과 손상된 관리자 요청은 기록하지 않고 실패 응답한다", async t => {
+  const n = network(); t.after(n.close);
+  const ref = n.create("ref", "referee"), admin = n.create("admin", "admin"); await settle();
+  const m = ref.store.getState().snapshot.match;
+  await ref.store.getState().startMatch(m.tournamentId, m.id); await settle();
+  await assert.rejects(admin.record({ action: "record", event: "goal", playerId: "outside" }));
+  await admin.reset(); await settle();
+  n.emit("admin", { type: "recording", from: "admin", id: "stale", matchId: m.id, command: { action: "record", event: "goal", playerId: "practice-blue-1" } });
+  await settle();
+  assert.equal(ref.store.getState().snapshot.match.events.length, 0);
+  assert.ok(n.messages.some(x => x.message.type === "ack" && x.message.id === "stale" && x.message.error));
+});

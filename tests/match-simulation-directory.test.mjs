@@ -13,7 +13,7 @@ test("접속자를 방별로 묶어 관리자 여러 명과 심판을 표시하�
   const entries = [admin, { ...admin, presence_ref: "duplicate" }, member("admin-2", "admin"), member("ref", "referee"), member("other", "admin", OTHER, 20)];
   const rooms = listActiveRooms(entries);
   assert.deepEqual(rooms.map((r) => r.room), [OTHER, ROOM]);
-  assert.deepEqual(rooms[1], { room: ROOM, adminCount: 2, refereeCount: 1, firstJoinedAt: 10 });
+  assert.deepEqual(rooms[1], { room: ROOM, adminCount: 2, refereeCount: 1, spectatorCount: 0, firstJoinedAt: 10 });
 });
 
 test("한 명이 남으면 방이 유지되고 마지막 참가자가 떠나면 목록에서 사라진다", () => {
@@ -21,10 +21,15 @@ test("한 명이 남으면 방이 유지되고 마지막 참가자가 떠나면 
   assert.deepEqual(listActiveRooms([]), []);
 });
 
+test("참가자는 관리자 인원에 포함하지 않으며 중계만 보는 참가자가 남아도 방은 유지한다", () => {
+  const rooms = listActiveRooms([member("viewer", "spectator")]);
+  assert.equal(rooms[0].adminCount, 0); assert.equal(rooms[0].refereeCount, 0); assert.equal(rooms[0].spectatorCount, 1);
+});
+
 test("임의 URL·권한·손상된 광고는 무시하고 회원 정보는 목록에 남기지 않는다", () => {
   const valid = { ...member("admin", "admin"), email: "private@example.test", name: "개인 이름" };
   assert.deepEqual(listActiveRooms([null, {}, member("x", "owner"), member("x", "admin", "javascript:alert(1)"), member("", "admin"), member("x", "admin", ROOM, -1), valid]), [
-    { room: ROOM, adminCount: 1, refereeCount: 0, firstJoinedAt: 10 },
+    { room: ROOM, adminCount: 1, refereeCount: 0, spectatorCount: 0, firstJoinedAt: 10 },
   ]);
 });
 
