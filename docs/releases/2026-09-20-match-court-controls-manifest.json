@@ -1,0 +1,28 @@
+{
+  "baselineDeployment": "dpl_CubjrxZUMfsHEiYsGoW3EABvhnCN",
+  "implementationCommit": "e948fe6",
+  "baselineFiles": 913,
+  "uploadedSourceCount": 914,
+  "uploadedManifestSha256": "c1b5730c57f7bda8d0b4354bb0967f6c27bc810d36038a3423bcb4f7f15e329d",
+  "changes": [
+    {
+      "path": "src/features/match-control/fullscreen-match-header.tsx",
+      "beforeSha1": null,
+      "sha1": "831862fb42a4546b6e55e623c97b3ce2cacaabc5"
+    },
+    {
+      "path": "src/features/match-control/match-control-screen.tsx",
+      "beforeSha1": "2a1c7ca740383e1bd37f34c92f67fc9aa161f2d6",
+      "sha1": "f4aa32a596ff91866bcabd916464735224e138a9"
+    },
+    {
+      "path": "tsconfig.tsbuildinfo",
+      "beforeSha1": "f1a4b717e991e87b2d953a4f86c38ec68fe13edb",
+      "sha1": "96ebf1c4d9902a5920560f240d89bc641551b24f"
+    }
+  ],
+  "deployment": {
+    "id": "dpl_6tbB32Af1GVkvhw4kguazRz9qnuN",
+    "url": "https://fairground-4xld98en3-milestones-projects-d52c4dda.vercel.app"
+  }
+}
