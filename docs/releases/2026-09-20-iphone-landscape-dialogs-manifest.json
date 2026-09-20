@@ -1,0 +1,33 @@
+{
+  "baselineDeployment": "dpl_6tbB32Af1GVkvhw4kguazRz9qnuN",
+  "implementationCommit": "1b5bb0b",
+  "baselineFiles": 914,
+  "uploadedSourceCount": 916,
+  "uploadedManifestSha256": "9984976e5bc82974e2c1efca9734b5c5dfb2e55ccc5595b7240c25462a2c3f32",
+  "changes": [
+    {
+      "path": "src/features/match-control/landscape-mom-choices.tsx",
+      "beforeSha1": null,
+      "sha1": "3aea78605bf72b308e8de53af16c6b6266bbd309"
+    },
+    {
+      "path": "src/features/match-control/match-control-screen.tsx",
+      "beforeSha1": "f4aa32a596ff91866bcabd916464735224e138a9",
+      "sha1": "8f580d4904592517fe73dc959c1cb90b681ca850"
+    },
+    {
+      "path": "src/features/match-control/match-dialog-content.tsx",
+      "beforeSha1": null,
+      "sha1": "0e09d054ead37f8d968ca8eb82547d797d9801fc"
+    },
+    {
+      "path": "tsconfig.tsbuildinfo",
+      "beforeSha1": "96ebf1c4d9902a5920560f240d89bc641551b24f",
+      "sha1": "e7142d077afcce64ea8d6c90cf90f77e7e6027b5"
+    }
+  ],
+  "deployment": {
+    "id": "dpl_ErfQzobdNzhHvhUPiTZFEgwn2iSa",
+    "url": "https://fairground-a7zp9kxpn-milestones-projects-d52c4dda.vercel.app"
+  }
+}
