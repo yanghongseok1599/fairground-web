@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useMatchControl } from "@/hooks/useMatchControl";
 import { useMatchControlStore } from "@/features/match-control/store-context";
+import { FullscreenMatchHeader } from "./fullscreen-match-header";
 import { AdminHeader } from "@/components/admin-header";
 import { AdminLoading } from "@/components/admin-loading";
 import { CourtBackdrop } from "@/components/court-backdrop";
@@ -21,6 +22,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -47,8 +49,6 @@ import {
   Users,
   RotateCw,
   Maximize2,
-  Minimize2,
-  X,
 } from "lucide-react";
 import type { MatchEvent, MatchEventType, MatchLineupEntry, Player } from "@/types";
 
@@ -678,7 +678,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
 
   const handleEndMatch = async () => {
     const momChoice = endMomChoice || matchData.momPlayerId || "";
-    if (!momChoice || mc.pendingAction !== null) return;
+    if (!endDialogOpen || !momChoice || mc.pendingAction !== null) return;
 
     if (
       momChoice !== NO_MOM_VALUE &&
@@ -918,6 +918,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
     team: TeamSide,
     align: "left" | "right",
     onBenchTap?: (player: Player, teamId: string) => void | Promise<void>,
+    compact = false,
   ) => {
     const accent = teamAccent(team.side);
     const justify = align === "left" ? "justify-start" : "justify-end";
@@ -933,7 +934,9 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
           {team.name} · {team.bench.length > 0 ? `대기 ${team.bench.length}` : "대기 없음"}
         </div>
         {team.bench.length > 0 && (
-          <div className={`pointer-events-auto flex flex-wrap gap-1.5 ${justify}`}>
+          <div className={compact
+            ? `pointer-events-auto flex w-max max-w-full gap-2 overflow-x-auto pb-1 [&>button]:shrink-0 ${align === "right" ? "ml-auto" : ""}`
+            : `pointer-events-auto flex flex-wrap gap-1.5 ${justify}`}>
             {team.bench.map((p) => (
               <PlayerToken
                 key={p.id}
@@ -976,7 +979,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
     homeOnGrass?: boolean;
     forceLandscape?: boolean;
     balancedFormation?: boolean;
-    benchTopClass?: string;
+    showBench?: boolean;
     onPlayerTap?: (player: Player, teamId: string) => void;
   }) => (
     <div className="relative h-full w-full overflow-hidden rounded-xl">
@@ -999,7 +1002,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
           </div>
         </div>
       )}
-      {renderGrassBenchOverlay(opts?.benchTopClass ?? "top-12 sm:top-14", opts?.onPlayerTap)}
+      {opts?.showBench !== false && renderGrassBenchOverlay("top-12 sm:top-14", opts?.onPlayerTap)}
       <div
         className={`absolute inset-0 z-10 grid ${
           opts?.forceLandscape
@@ -1050,8 +1053,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
   );
 
   // ── 심판 전체화면 경기장 모드 (7b) ───────────────────────────────
-  // 진행중 경기를 한 화면에서: 상단 전광판 오버레이가 떠 있는 코트(flex-1) +
-  // 하단 컨트롤바(이벤트 유형 5종 · 4단계 진행버튼) + 벤치. 좌상단 닫기 버튼.
+  // 상단 조작·전광판·대기석과 코트 영역을 분리한다. 닫기는 우측 상단 한 곳에만 둔다.
   if (isFullscreen) {
     const benchForTarget = actionTarget
       ? (actionTarget.teamId === homeSide.id ? homeSide : awaySide).bench
@@ -1130,53 +1132,26 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
         )}
 
         {practice && <div className="bg-blue-700 px-3 py-1 text-center text-xs font-bold text-white">테스트 경기 · 실제 기록에 반영되지 않습니다</div>}
-        {/* 상단 슬림 바 — 진행버튼(시작·일시정지·재개·종료) + 원래 화면 복귀 */}
-        <div className="flex shrink-0 items-center gap-2 border-b border-white/15 bg-neutral-950/95 px-2 py-1.5">
-          <div className="min-w-0 flex-1 overflow-x-auto">
-            {renderProgressButtons()}
-          </div>
-          <button
-            type="button"
-            onClick={closeFullscreenMode}
-            className="flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 text-sm font-black text-white"
-            aria-label="상단 원래 화면으로 돌아가기"
-          >
-            <X className="h-4 w-4" />
-            원래 화면
-          </button>
-        </div>
+        <FullscreenMatchHeader
+          controls={renderProgressButtons()}
+          scoreboard={renderScoreboardRow(true)}
+          homeBench={renderGrassBenchTeam(homeSide, "left", openActionMenu, true)}
+          awayBench={renderGrassBenchTeam(awaySide, "right", openActionMenu, true)}
+          onClose={closeFullscreenMode}
+        />
 
-        {/* 코트 영역 — 남는 공간 전부. 전광판과 예비선수단 모두 잔디 위 오버레이로 표시.
+        {/* 코트 영역 — 남는 공간 전부. 전광판과 대기석은 상단의 별도 영역에 표시.
             홈·어웨이 모두 잔디 위(homeOnGrass), 골 중심 대칭 배치(balancedFormation).
             선수 탭 → 액션 팝업(이벤트/교체). */}
-        <div className="relative min-h-0 flex-1">
+        <div className="relative min-h-0 flex-1" data-slot="fullscreen-match-pitch">
           {renderCourt({
             forceLandscape: true,
             homeOnGrass: true,
             balancedFormation: true,
-            benchTopClass: "top-20 sm:top-20",
+            showBench: false,
             onPlayerTap: openActionMenu,
-            overlay: (
-              <div
-                className="pointer-events-none absolute left-1/2 top-2 z-30 -translate-x-1/2 rounded-2xl px-3 py-2 shadow-lg"
-                style={{
-                  background: "rgba(8,20,12,0.82)",
-                  border: "1px solid rgba(255,255,255,0.22)",
-                }}
-              >
-                {renderScoreboardRow(true)}
-              </div>
-            ),
+            overlay: false,
           })}
-          <button
-            type="button"
-            onClick={closeFullscreenMode}
-            className="absolute right-3 top-3 z-40 flex min-h-[42px] items-center gap-1.5 rounded-full bg-white px-3 text-sm font-black text-neutral-950 shadow-lg"
-            aria-label="코트 원래 화면으로 돌아가기"
-          >
-            <Minimize2 className="h-4 w-4" />
-            원래 화면
-          </button>
 
           {lastActionNotice && !mc.actionError && (
             <div
@@ -1339,6 +1314,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
           }}
         >
           <DialogContent
+            className="max-h-[90dvh] overflow-y-auto"
             onEscapeKeyDown={(e) => {
               if (endPending) e.preventDefault();
             }}
@@ -1348,6 +1324,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
           >
             <DialogHeader>
               <DialogTitle>경기를 종료하시겠습니까?</DialogTitle>
+              <DialogDescription>경기 기록과 MOM을 확인한 뒤 ‘확인 후 종료’를 눌러주세요. 취소하면 경기 화면으로 돌아갑니다.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="rounded-lg border p-4 text-center">
@@ -1472,7 +1449,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
                       종료 처리중…
                     </>
                   ) : (
-                    "경기 종료"
+                    "확인 후 종료"
                   )}
                 </Button>
               </div>
@@ -1956,6 +1933,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
           }}
         >
           <DialogContent
+            className="max-h-[90dvh] overflow-y-auto"
             onEscapeKeyDown={(e) => {
               if (endPending) e.preventDefault();
             }}
@@ -1965,6 +1943,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
           >
             <DialogHeader>
               <DialogTitle>경기를 종료하시겠습니까?</DialogTitle>
+              <DialogDescription>경기 기록과 MOM을 확인한 뒤 ‘확인 후 종료’를 눌러주세요. 취소하면 경기 화면으로 돌아갑니다.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="rounded-lg border p-4 text-center">
@@ -2109,7 +2088,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
                       종료 처리중…
                     </>
                   ) : (
-                    "경기 종료"
+                    "확인 후 종료"
                   )}
                 </Button>
               </div>
