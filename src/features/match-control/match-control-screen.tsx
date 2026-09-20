@@ -8,6 +8,7 @@ import { useMatchControlStore } from "@/features/match-control/store-context";
 import { FullscreenMatchHeader } from "./fullscreen-match-header";
 import { MatchDialogContent } from "./match-dialog-content";
 import { LandscapeMomChoices } from "./landscape-mom-choices";
+import { getSubstitutionChoices } from "./substitution-choices";
 import { AdminHeader } from "@/components/admin-header";
 import { AdminLoading } from "@/components/admin-loading";
 import { CourtBackdrop } from "@/components/court-backdrop";
@@ -1057,9 +1058,13 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
   // ── 심판 전체화면 경기장 모드 (7b) ───────────────────────────────
   // 상단 조작·전광판·대기석과 코트 영역을 분리한다. 닫기는 우측 상단 한 곳에만 둔다.
   if (isFullscreen) {
-    const benchForTarget = actionTarget
-      ? (actionTarget.teamId === homeSide.id ? homeSide : awaySide).bench
-      : [];
+    const targetTeam = actionTarget
+      ? [homeSide, awaySide].find((team) => team.id === actionTarget.teamId)
+      : undefined;
+    const substitution = actionTarget && targetTeam
+      ? getSubstitutionChoices(targetTeam, actionTarget.player.id)
+      : null;
+    const substitutionChoices = substitution?.choices ?? [];
     const handleEventAction = async (type: MatchEventType) => {
       if (!actionTarget || mc.pendingAction !== null) return;
       const ok = await mc.addEvent({
@@ -1078,22 +1083,25 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
         closeActionMenu();
       }
     };
-    const handleSubstitute = async (inPlayer: Player) => {
-      if (!actionTarget || subBusy) return;
+    const handleSubstitute = async (counterpartId: string) => {
+      if (!actionTarget || subBusy || mc.pendingAction !== null) return;
+      const choice = substitutionChoices.find((item) => item.counterpart.id === counterpartId);
+      if (!choice) return;
+      const { outPlayer, inPlayer } = choice;
       setSubBusy(true);
       setSubError(null);
       try {
         await store.substitutePlayer(
           matchId,
           actionTarget.teamId,
-          actionTarget.player.id,
+          outPlayer.id,
           inPlayer.id,
           inPlayer.name,
           matchMinuteFromElapsed(mc.elapsedSeconds),
           mc.currentHalf,
         );
         setLineup(await store.fetchMatchLineup(matchId));
-        setLastActionNotice(`${actionTarget.player.name} ↔ ${inPlayer.name} 교체`);
+        setLastActionNotice(`${outPlayer.name} OUT → ${inPlayer.name} IN 교체`);
         closeActionMenu();
       } catch (e) {
         setSubError(e instanceof Error ? e.message : "교체에 실패했습니다. 다시 시도해주세요.");
@@ -1214,7 +1222,9 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
             <DialogHeader>
               <DialogTitle>
                 {subPicking
-                  ? `교체 — ${actionTarget?.player.name} 대신 들어올 선수`
+                  ? substitution?.fromBench
+                    ? `교체 — ${actionTarget?.player.name} 투입: 나갈 필드 선수`
+                    : `교체 — ${actionTarget?.player.name} 대신 들어올 벤치 선수`
                   : actionTarget
                     ? `#${actionTarget.player.number} ${actionTarget.player.name}`
                     : ""}
@@ -1243,9 +1253,9 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
                       setSubError(null);
                       setSubPicking(true);
                     }}
-                    disabled={mc.pendingAction !== null || benchForTarget.length === 0}
+                    disabled={mc.pendingAction !== null || substitutionChoices.length === 0}
                   >
-                    🔄 {benchForTarget.length === 0 ? "교체 후보 없음" : "교체"}
+                    🔄 {substitutionChoices.length === 0 ? "교체 후보 없음" : "교체"}
                   </Button>
                 </div>
                 {mc.pendingAction === "event" && (
@@ -1256,7 +1266,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
               </div>
             ) : (
               <div className="space-y-3 pt-2">
-                {benchForTarget.length === 0 ? (
+                {substitutionChoices.length === 0 ? (
                   <p
                     className="py-4 text-center text-sm"
                     style={{ color: "var(--muted-foreground)" }}
@@ -1265,13 +1275,13 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
                   </p>
                 ) : (
                   <div className="grid max-h-[50vh] grid-cols-2 gap-2 overflow-y-auto">
-                    {benchForTarget.map((p) => (
+                    {substitutionChoices.map(({ counterpart: p }) => (
                       <Button
                         key={p.id}
                         variant="outline"
                         className="min-h-[44px] justify-start"
-                        onClick={() => handleSubstitute(p)}
-                        disabled={subBusy}
+                        onClick={() => handleSubstitute(p.id)}
+                        disabled={subBusy || mc.pendingAction !== null}
                       >
                         <span className="font-bold tabular-nums">#{p.number}</span>
                         <span className="ml-1.5 truncate">{p.name}</span>
