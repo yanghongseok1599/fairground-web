@@ -1099,7 +1099,9 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false }: 
     };
 
     return (
-      <div className="fixed inset-0 z-[100] overflow-hidden bg-black text-white">
+      // Keep the stage at the dialog layer: portals mounted later in body must
+      // remain above it for player actions, substitutions and MOM selection.
+      <div className="fixed inset-0 z-50 overflow-hidden bg-black text-white">
         <div
           className="match-landscape-shell flex h-full w-full flex-col bg-black"
           style={
