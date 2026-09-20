@@ -1,0 +1,120 @@
+{
+  "baselineDeployment": "dpl_7XiJtrWbybXYTHxL2F7Q74JsEGEJ",
+  "implementationCommit": "82e16ee",
+  "baselineFiles": 906,
+  "uploadedSourceCount": 913,
+  "uploadedManifestSha256": "5ecb09496e01a1bb3f0f077da9de31230aede769a803119cd6f56030555f48eb",
+  "changes": [
+    {
+      "path": "src/features/match-simulation/README.md",
+      "beforeSha1": "07d58a14d1a8a309b55f3666ef79063578627f59",
+      "sha1": "8979088ac99c2730192b7bfde6878979315b2504"
+    },
+    {
+      "path": "src/features/match-simulation/shared/admin-view.tsx",
+      "beforeSha1": null,
+      "sha1": "c73a18abb53db712aa8ecfca4a9aeb3d571fdf92"
+    },
+    {
+      "path": "src/features/match-simulation/shared/protocol.ts",
+      "beforeSha1": null,
+      "sha1": "71851b2d386fec65257de1a7aa1a33c32c85de5f"
+    },
+    {
+      "path": "src/features/match-simulation/shared/room-page.tsx",
+      "beforeSha1": null,
+      "sha1": "ef06f68246a865fb8f924306d87e6a04fb170235"
+    },
+    {
+      "path": "src/features/match-simulation/shared/session.ts",
+      "beforeSha1": null,
+      "sha1": "931cb314efb810002670f0fae23611f66cd3c374"
+    },
+    {
+      "path": "src/features/match-simulation/shared/transport.ts",
+      "beforeSha1": null,
+      "sha1": "98e9350801b4a4858ec90c234bbfb61341bc7fe6"
+    },
+    {
+      "path": "src/features/match-simulation/simulation-page.tsx",
+      "beforeSha1": "d5b197032fd44c9ecafba921277396a3233f4cf8",
+      "sha1": "209d023bd791b436757e93fcfa4bafdd8f321831"
+    },
+    {
+      "path": "src/features/match-simulation/simulation-workspace.tsx",
+      "beforeSha1": null,
+      "sha1": "608b4fd54ef376754a8ed82f08f2524819190d8a"
+    },
+    {
+      "path": "src/features/match-simulation/store.ts",
+      "beforeSha1": "cb6925727e5201800690ba58f2af0eb9022bc488",
+      "sha1": "231d1f3073c974d0b7b902ef8d508117ca3bab47"
+    },
+    {
+      "path": "tests/match-simulation-room.test.mjs",
+      "beforeSha1": null,
+      "sha1": "9a511a7396ee150583b7f0965090c324b3fff8bf"
+    },
+    {
+      "path": "tsconfig.tsbuildinfo",
+      "beforeSha1": "c5c47444b5d328ad172a26c1beafa95be4585039",
+      "sha1": "f1a4b717e991e87b2d953a4f86c38ec68fe13edb"
+    }
+  ],
+  "deployment": {
+    "id": "dpl_CubjrxZUMfsHEiYsGoW3EABvhnCN",
+    "url": "https://fairground-bcb4kr9gj-milestones-projects-d52c4dda.vercel.app"
+  },
+  "dbReferences": 150,
+  "dbCatalogSource": "2026-09-15 prior production catalog",
+  "missingDbReferences": 0,
+  "databaseWrites": false,
+  "schemaChanges": false,
+  "productionRealtimeUsed": true,
+  "oneBuildOnlyEnvironmentOverride": {
+    "FAIRGROUND_SKIP_DB_PARITY": "1"
+  },
+  "productionReady": true,
+  "verification": {
+    "behaviorTests": 20,
+    "safetyTests": 4,
+    "isolatedBehaviorTests": 17,
+    "lintErrors": 0,
+    "existingLintWarnings": 18,
+    "typecheck": "passed",
+    "productionBuild": "passed",
+    "productionSourceFilesVerified": 913,
+    "candidateHttpStatus": 200,
+    "productionSharedRun": {
+      "sameMatchAndRevision": true,
+      "revision": 14,
+      "homeScore": 2,
+      "awayScore": 1,
+      "events": 10,
+      "elapsedSeconds": 720,
+      "observedRestWriteRequests": 0
+    },
+    "developmentReconnectWithoutRefereeCache": {
+      "homeScore": 1,
+      "events": 1,
+      "running": false
+    },
+    "mobileAdminViewportWidth": 390,
+    "mobileAdminDocumentWidth": 390,
+    "newScreenshotVerification": "capture tool timed out",
+    "productionCompletion": {
+      "status": "finished",
+      "momPlayerId": "practice-blue-3",
+      "administratorReceivedResult": true
+    },
+    "productionReset": {
+      "bothStatuses": "scheduled",
+      "score": [
+        0,
+        0
+      ],
+      "events": 0,
+      "observedRestWriteRequests": 0
+    }
+  }
+}
