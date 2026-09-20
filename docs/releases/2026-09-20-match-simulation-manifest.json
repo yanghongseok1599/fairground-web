@@ -1,0 +1,141 @@
+{
+  "baselineDeployment": "dpl_FrSzMcd8bW8MaKaEyFmHjWqFR3En",
+  "implementationCommit": "d680ec8",
+  "baselineFiles": 897,
+  "changes": [
+    {
+      "path": "next-sitemap.config.js",
+      "beforeSha1": "93c457a1363f48ec8d61504dec5e699fc1a762ee",
+      "sha1": "de1855f7212be8b2e0722b3f274fce2ed95fb5ed"
+    },
+    {
+      "path": "src/app/admin/match/[matchId]/page.tsx",
+      "beforeSha1": "c76bb8321e6a7ff238d50c10f0ae092b2d3acca6",
+      "sha1": "a2d1b2ca4137d75c479ed94bbbb2e18b200394bf"
+    },
+    {
+      "path": "src/app/admin/matches/page.tsx",
+      "beforeSha1": "8e1edbea42407312e84e7436f6028c659d237ccf",
+      "sha1": "645db2d64ae04aca9b3dae7145838cca8aa63132"
+    },
+    {
+      "path": "src/app/match-simulation/page.tsx",
+      "beforeSha1": null,
+      "sha1": "097bd1f1fec8193dab95457e253159438637b6c9"
+    },
+    {
+      "path": "src/features/match-control/match-control-screen.tsx",
+      "beforeSha1": null,
+      "sha1": "2a1c7ca740383e1bd37f34c92f67fc9aa161f2d6"
+    },
+    {
+      "path": "src/features/match-control/store-context.tsx",
+      "beforeSha1": null,
+      "sha1": "128c64ad45c953cab6f267c1ed66e2d5f45c2cf3"
+    },
+    {
+      "path": "src/features/match-simulation/README.md",
+      "beforeSha1": null,
+      "sha1": "07d58a14d1a8a309b55f3666ef79063578627f59"
+    },
+    {
+      "path": "src/features/match-simulation/fixtures.ts",
+      "beforeSha1": null,
+      "sha1": "96b5d984220aa55c792965ae27d8a41f5365c8c0"
+    },
+    {
+      "path": "src/features/match-simulation/persistence.ts",
+      "beforeSha1": null,
+      "sha1": "62c2b8664abdd98a3e668ae80a58742bafecf7e0"
+    },
+    {
+      "path": "src/features/match-simulation/simulation-page.tsx",
+      "beforeSha1": null,
+      "sha1": "d5b197032fd44c9ecafba921277396a3233f4cf8"
+    },
+    {
+      "path": "src/features/match-simulation/store.ts",
+      "beforeSha1": null,
+      "sha1": "cb6925727e5201800690ba58f2af0eb9022bc488"
+    },
+    {
+      "path": "src/hooks/useMatchControl.ts",
+      "beforeSha1": "51c9fd6fa3da41fe3e0cbe018cc1fb9dc2bedaa1",
+      "sha1": "a17b5fbb22eb7d6829fa3c1848fe32296a0ba329"
+    },
+    {
+      "path": "tests/match-end-mom-confirmation.test.ts",
+      "beforeSha1": "9e232daf433d508cb539f0465eb0922c587a1301",
+      "sha1": "3c5cf151bfaaa5a67a342ced83e9572ddb88672c"
+    },
+    {
+      "path": "tests/match-simulation.test.mjs",
+      "beforeSha1": null,
+      "sha1": "a4f0caa45bd2a0cccdb8f52d9c55aaf381961a09"
+    },
+    {
+      "path": "tsconfig.tsbuildinfo",
+      "beforeSha1": "b4031bdc7bbdb6e9448cef38a22567f8c2c1d2fc",
+      "sha1": "c5c47444b5d328ad172a26c1beafa95be4585039"
+    }
+  ],
+  "dbReferences": 150,
+  "dbCatalogSource": "2026-09-15 prior production catalog",
+  "missingDbReferences": 0,
+  "deployment": {
+    "id": "dpl_7XiJtrWbybXYTHxL2F7Q74JsEGEJ",
+    "url": "https://fairground-hjviorbhz-milestones-projects-d52c4dda.vercel.app"
+  },
+  "uploadedSourceCount": 906,
+  "uploadedManifestSha256": "6803a861e7744368d7a6eb8b98a6e034ec027c99a0c2efd976ae40eb5b8a8daa",
+  "productionUrl": "https://fairground-kor.com/match-simulation",
+  "productionReady": true,
+  "verification": {
+    "newBehavioralTests": 9,
+    "existingMatchTests": "passed",
+    "typecheck": "passed",
+    "lintErrors": 0,
+    "existingLintWarnings": 18,
+    "isolatedReleaseChecks": "typecheck, targeted lint, 9 behavioral tests, remote production build passed",
+    "candidateHttpStatus": 200,
+    "productionAutomaticSimulation": {
+      "elapsedSeconds": 720,
+      "homeScore": 2,
+      "awayScore": 1,
+      "events": 10,
+      "running": false,
+      "automatic": false,
+      "observedFetchRequests": 0
+    },
+    "databaseWrites": false,
+    "freshDatabaseCatalogQuery": false,
+    "oneBuildOnlyEnvironmentOverride": {
+      "FAIRGROUND_SKIP_DB_PARITY": "1"
+    },
+    "productionMobileCompletion": {
+      "viewport": [
+        390,
+        844
+      ],
+      "status": "finished",
+      "momPlayerId": "practice-blue-3",
+      "homeScore": 2,
+      "awayScore": 1,
+      "observedWriteRequests": 0,
+      "backgroundReadRequests": true,
+      "resetStatus": "scheduled",
+      "resetScore": [
+        0,
+        0
+      ]
+    }
+  },
+  "implementationCommits": [
+    "3288af8",
+    "d680ec8"
+  ],
+  "intermediateDeployment": {
+    "id": "dpl_UcJPBDE6kNetenzTNy1C8YcGcskq",
+    "url": "https://fairground-bxuujt280-milestones-projects-d52c4dda.vercel.app"
+  }
+}
