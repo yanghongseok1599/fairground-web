@@ -39,6 +39,19 @@
 
 따라서 배포 직후 목록 렌더링 성공과 이후의 별도 연결 지연을 구분한다. 데이터베이스 재시작·설정 변경·운영 쓰기는 수행하지 않았다.
 
+### 09:36–09:38 KST 재확인
+
+사용자의 재확인 요청으로 운영 브라우저와 Supabase Dashboard를 읽기 전용으로 점검했다.
+
+- Vercel 운영 도메인은 위 수정 배포를 유지하며 `READY`였다.
+- `/admin`의 `get_my_profile` 요청이 각각 약 20.18초와 20.28초 후 실패했다. 관리자 메뉴가 열리지 않았고 최종적으로 접근 권한 안내가 표시됐다. 선수 목록에 진입하기 전 프로필 초기화 단계의 실패이므로 이 재검증에서 목록 정상화를 확인했다고 판단하지 않는다.
+- `supabase:safety`는 개발·운영 분리를 확인했다. 읽기 전용 `supabase:migrations`는 login role 생성 단계에서 DB 연결 시간 초과로 실패했다.
+- Supabase Dashboard의 Fairground 운영 프로젝트 상태는 **Unhealthy**였다. 세부 상태는 Database·PostgREST·Auth·Storage가 Unhealthy, Realtime·Edge Functions가 Healthy였다. 앞서 관리 API가 반환한 `ACTIVE_HEALTHY`는 실제 서비스별 건강 상태와 달랐다.
+- DB 로그에는 09:17–09:18의 statement timeout, 연결 종료, broken pipe가 있었다. 화면에서 확인한 최신 DB 로그는 09:21:14의 checkpoint 완료였다. 재시작·메모리 부족 등 장애의 구체 원인은 이 로그만으로 확정하지 않았다.
+- 관측 화면에는 09:25까지의 메모리 사용량 906.26MB, memory commitment 2.54GB, CPU 1.53%가 표시됐다. 연결 수·디스크·네트워크 등 여러 지표는 로드 실패였으므로 오래된 요약값만으로 현재 자원 부족 여부를 판정하지 않았다.
+
+결론: 프런트엔드 수정 배포는 유지되지만 운영 DB와 의존 서비스의 장애가 계속되고 있다. 이번 재확인에서는 코드·운영 데이터·스키마·환경설정 변경이나 DB 재시작을 수행하지 않았다. [프로젝트 상태](https://supabase.com/dashboard/project/ovtnmslyjzvghirdvife)와 [공식 Unhealthy 진단 가이드](https://supabase.com/docs/guides/troubleshooting/project-status-reports-unhealthy-services)를 후속 복구의 참고 경로로 남긴다.
+
 ## 정리
 
 검증용 개발 서버를 종료하고, 복원한 운영 소스의 임시 폴더·진단 파일·이번 Next.js 빌드 캐시를 제거했다. 프로젝트 용량은 2.4GB이며 기존 의존성(751MB), 공개 자산(853MB), Git 이력(607MB)이 대부분을 차지한다. 기존 사용자 작업과 의존성은 보존했다.
