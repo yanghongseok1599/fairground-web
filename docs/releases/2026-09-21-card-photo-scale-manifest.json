@@ -1,0 +1,27 @@
+{
+  "baselineDeployment": "dpl_GeZYrBRTqP6RuN2dDMHN1NGunkVt",
+  "implementationCommit": "9941da8",
+  "baselineFiles": 937,
+  "uploadedFiles": 938,
+  "changes": [
+    {
+      "path": "src/app/my/card-edit/page.tsx",
+      "beforeSha1": "94a2e2e87d538704d1027b3af525389e6375b67e",
+      "sha1": "409aa42fa9799dc9fe4c7ef386cacb9e158cbe0f"
+    },
+    {
+      "path": "src/app/my/player-setup/page.tsx",
+      "beforeSha1": "647f7689bb8316985af2bc5a14ad613057f0e12f",
+      "sha1": "0176b3821fb10c222456b5ae52ee9c1d1b9bb59b"
+    },
+    {
+      "path": "src/features/player-card/components/photo-scale-control.tsx",
+      "beforeSha1": null,
+      "sha1": "558f365501a4ff5e059faddfac13256407da8c8e"
+    }
+  ],
+  "deployment": {
+    "id": "dpl_2T6oV8MoQAUq66unvaYHSrtMnCCr",
+    "url": "https://fairground-55xv2bdce-milestones-projects-d52c4dda.vercel.app"
+  }
+}
