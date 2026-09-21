@@ -1,0 +1,42 @@
+{
+  "baselineDeployment": "dpl_G5VCwUz3vYBjsqXErJmryFrdunMU",
+  "implementationCommit": "6b4b3ea",
+  "baselineFiles": 933,
+  "uploadedFiles": 937,
+  "changes": [
+    {
+      "path": "src/app/admin/players/page.tsx",
+      "beforeSha1": "5d397a69189b22cfaa161bf4b3f716dcfdea63c2",
+      "sha1": "a2ea15b1c3e20c002236af0b5178344e0d27cba6"
+    },
+    {
+      "path": "src/features/admin-players/api.ts",
+      "beforeSha1": null,
+      "sha1": "15a139da388a5d54d93fde966d4f6454c50fe719"
+    },
+    {
+      "path": "src/features/admin-players/approval-player-photo.tsx",
+      "beforeSha1": null,
+      "sha1": "0d66d71c3b6f99a463a438f519206e9ca41dac06"
+    },
+    {
+      "path": "src/features/admin-players/use-approval-players.ts",
+      "beforeSha1": null,
+      "sha1": "2c60660ab50303660b83791633015066f1a3df18"
+    },
+    {
+      "path": "tests/admin-player-loading.test.mjs",
+      "beforeSha1": null,
+      "sha1": "35c3511f96c585c02cc07c7b9a742660740fae87"
+    },
+    {
+      "path": "tsconfig.tsbuildinfo",
+      "beforeSha1": "de54b014a91d14f7b70888d0b1f4daeb0b0bc1aa",
+      "sha1": "a8e6107cbb12501e170074c059c8aa2397bd707c"
+    }
+  ],
+  "deployment": {
+    "id": "dpl_GeZYrBRTqP6RuN2dDMHN1NGunkVt",
+    "url": "https://fairground-4gh9cvhwo-milestones-projects-d52c4dda.vercel.app"
+  }
+}
