@@ -52,6 +52,8 @@
 
 결론: 프런트엔드 수정 배포는 유지되지만 운영 DB와 의존 서비스의 장애가 계속되고 있다. 이번 재확인에서는 코드·운영 데이터·스키마·환경설정 변경이나 DB 재시작을 수행하지 않았다. [프로젝트 상태](https://supabase.com/dashboard/project/ovtnmslyjzvghirdvife)와 [공식 Unhealthy 진단 가이드](https://supabase.com/docs/guides/troubleshooting/project-status-reports-unhealthy-services)를 후속 복구의 참고 경로로 남긴다.
 
+**후속 복구:** 사용자의 복구 요청 후 운영 프로젝트를 재시작하여 09:52 KST Healthy로 돌아왔다. 관리자 메뉴에서 선수 승인으로 이동해 86명 목록 표시와 HTTP 200을 확인했다. 위 장애 상태는 복구 전 점검 기록이다. [재시작 실행 및 복구 검증 기록](2026-09-21-production-db-recovery.md)을 참고한다.
+
 ## 정리
 
 검증용 개발 서버를 종료하고, 복원한 운영 소스의 임시 폴더·진단 파일·이번 Next.js 빌드 캐시를 제거했다. 프로젝트 용량은 2.4GB이며 기존 의존성(751MB), 공개 자산(853MB), Git 이력(607MB)이 대부분을 차지한다. 기존 사용자 작업과 의존성은 보존했다.
