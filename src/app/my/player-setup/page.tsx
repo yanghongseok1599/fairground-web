@@ -19,6 +19,7 @@ import { compressImageBlob } from "@/lib/image-compression";
 import { preparePlayerCardPhoto, type PlayerCardPhotoMode } from "@/lib/player-card/photo-registration";
 import { PlayerCardPhotoOptions } from "@/components/player-card-photo-options";
 import { PlayerCardPhotoError } from "@/components/player-card-photo-error";
+import { PhotoScaleControl } from "@/features/player-card/components/photo-scale-control";
 import { PortraitConsentField } from "@/features/portrait-consent/components/consent-field";
 import { hasPortraitConsent } from "@/features/portrait-consent/policy";
 import { UpperBodyPortrait } from "@/components/upper-body-portrait";
@@ -564,6 +565,8 @@ function PlayerSetupContent() {
             />
           )}
 
+          <PhotoScaleControl value={photoScale} onChange={setPhotoScale} disabled={submission.submitting || bgProcessing || !draft.ready} />
+
           {/* 하단: 사진 업로드 버튼 */}
           <div className="flex flex-col items-center gap-3">
             <p
@@ -618,29 +621,6 @@ function PlayerSetupContent() {
             </div>
             <PlayerCardPhotoOptions onSelect={choosePhoto} disabled={bgProcessing || submission.submitting} />
             <PlayerCardPhotoError message={photoError} onDismiss={() => setPhotoError("")} />
-            {photoPreview ? (
-              <div className="flex flex-col items-center gap-2 w-full">
-                <p className="text-[10px] text-center leading-relaxed" style={{ color: "var(--color-fg-ink-muted)" }}>
-                  카드 사진 드래그로 크기조절
-                </p>
-                {/* 크기 표시 */}
-                <div
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
-                  style={{
-                    background: "var(--color-fg-paper-2)",
-                    border: "1px solid var(--color-fg-line-soft)",
-                  }}
-                >
-                  <span style={{ color: "var(--color-fg-ink-muted)", fontSize: 11, fontFamily: "monospace" }}>↕</span>
-                  <span
-                    className="font-black tabular-nums"
-                    style={{ color: "var(--color-fg-ink)", fontSize: 13, fontFamily: "var(--font-pretendard)" }}
-                  >
-                    {Math.round(photoScale * 100)}%
-                  </span>
-                </div>
-              </div>
-            ) : null}
           </div>
         </div>
 
