@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CheckCircle2, Loader2, Shield, XCircle } from "lucide-react";
 import { AdminGuard } from "@/components/admin-guard";
 import { AdminPanel, AdminShell, AdminStatusPill } from "@/components/admin-shell";
-import { PlayerProfilePhoto } from "@/components/player-profile-photo";
-import { useDataStore } from "@/stores/dataStore";
-import type { Player, PlayerRole } from "@/types";
+import { ApprovalPlayerPhoto } from "@/features/admin-players/approval-player-photo";
+import { useApprovalPlayers } from "@/features/admin-players/use-approval-players";
+import type { ApprovalPlayer } from "@/features/admin-players/api";
+import type { PlayerRole } from "@/types";
 import { setPlayerApproval, setPlayerEligibility, setPlayerRole } from "@/lib/admin-actions";
-import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 import { needsKoreanNameCheck } from "@/lib/registration-profile";
 
 const roleLabels: Record<PlayerRole, string> = {
@@ -32,26 +32,12 @@ export default function AdminPlayersPage() {
 }
 
 function AdminPlayers() {
-  const store = useDataStore();
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { players, setPlayers, loading, error: loadError, reload } = useApprovalPlayers();
   const [savingId, setSavingId] = useState("");
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
   const consentedCount = players.filter((item) => item.portraitConsentAt).length;
 
-  const reload = async () => {
-    setLoading(true);
-    const list = await store.fetchPlayers();
-    setPlayers([...list].sort((a, b) => Number(a.isApproved) - Number(b.isApproved) || b.createdAt - a.createdAt));
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    queueMicrotask(() => { void reload(); });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const updateApproval = async (player: Player, approved: boolean) => {
+  const updateApproval = async (player: ApprovalPlayer, approved: boolean) => {
     if (savingId) return;
     setSavingId(player.id);
     setMessage(null);
@@ -68,7 +54,7 @@ function AdminPlayers() {
 
   // 규정 제22조 — JOIN KFA 확인 결과를 반영해 선출로 지정하면, 해당 선수는
   // 출전 명단 등재와 경기 이벤트 기록이 DB 레벨에서 거부된다.
-  const updateEligibility = async (player: Player, isRegisteredPlayer: boolean) => {
+  const updateEligibility = async (player: ApprovalPlayer, isRegisteredPlayer: boolean) => {
     if (savingId) return;
     setSavingId(player.id);
     setMessage(null);
@@ -87,7 +73,7 @@ function AdminPlayers() {
     }
   };
 
-  const updateRole = async (player: Player, role: PlayerRole) => {
+  const updateRole = async (player: ApprovalPlayer, role: PlayerRole) => {
     if (savingId || player.role === role) return;
     setSavingId(player.id);
     setMessage(null);
@@ -110,13 +96,13 @@ function AdminPlayers() {
     >
       <AdminPanel>
         <div className="border-b px-5 py-4" style={{ borderColor: "rgba(0,71,171,0.14)" }}>
-          <div className="fg-label" style={{ color: "var(--primary)" }}>PLAYERS · {players.length}</div>
+          <div className="fg-label" style={{ color: "var(--primary)" }}>PLAYERS · {loading ? "불러오는 중" : loadError ? "확인 필요" : players.length}</div>
           {/* 촬영물을 실제로 홍보에 쓸 때 "몇 명에게 동의를 받았는가"를 한눈에.
               미동의자는 마이페이지 동의 카드로 회수된다. */}
-          <div className="mt-1 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>
+          {!loading && !loadError && <div className="mt-1 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>
             촬영물 활용 동의 {consentedCount} / {players.length}
             {players.length > consentedCount && ` · 미동의 ${players.length - consentedCount}명`}
-          </div>
+          </div>}
           {message && (
             <div
               role="status"
@@ -128,17 +114,20 @@ function AdminPlayers() {
           )}
         </div>
         {loading ? (
-          <div className="p-12 text-center" style={{ color: "var(--color-fg-ink-muted)" }}>로딩 중...</div>
+          <div role="status" className="p-12 text-center" style={{ color: "var(--color-fg-ink-muted)" }}>선수 목록을 불러오는 중...</div>
+        ) : loadError ? (
+          <div role="alert" className="space-y-3 p-8 text-center">
+            <p className="font-bold text-foreground">선수 목록을 불러오지 못했습니다</p>
+            <p className="text-sm text-muted-foreground">{loadError}</p>
+            <button type="button" onClick={() => void reload()} className="min-h-11 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground">다시 불러오기</button>
+          </div>
         ) : (
           <div className="divide-y" style={{ borderColor: "rgba(0,71,171,0.10)" }}>
             {players.map((player) => (
               <article key={player.id} className="p-5 transition-colors hover:bg-[#F5F7FF]">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div className="flex items-center gap-4">
-                    <PlayerProfilePhoto
-                      src={getPlayerProfilePhotoUrl(player)}
-                      alt={player.name}
-                    />
+                    <ApprovalPlayerPhoto key={player.id} id={player.id} name={player.name} />
                     <div>
                       <div className="fg-display text-xl font-black" style={{ color: "var(--color-fg-ink)" }}>{player.name}</div>
                       <div className="mt-1 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>{player.position} · #{player.number || "-"} · {roleLabels[player.role]}</div>
