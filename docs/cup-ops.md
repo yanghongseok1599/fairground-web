@@ -6,12 +6,12 @@
 
 ## 수정 위치
 
-- `public/cup-ops/data.js`: 시간표, 대진, 담당자, 준비 일정, 승급 기준
-- `public/cup-ops/app.js`: 안내 섹션, 목차, 링크 공유
+- `public/cup-ops/data.js`: 시간표, 대진, 담당자, 제품별 릴스 촬영 컷리스트·즉석 이벤트 배정량, 준비 일정, 승급 기준
+- `public/cup-ops/app.js`: 안내 섹션 렌더링, 목차, 링크 공유
 - `public/cup-ops/index.html`: 행사 개요와 공유 메타데이터
 - `public/cup-ops/styles.css`: 공통 화면과 모바일 배치
 - `public/cup-ops/tiers.css`: 선수카드 프레임과 선수 이미지 위치
-- `public/cup-ops/assets/`: 로고, 글꼴, 카드와 선수 이미지
+- `public/cup-ops/assets/`: 로고, 글꼴, 카드·선수·협찬사 이미지
 - `next.config.ts`: `/cup-ops`를 정적 HTML로 연결
 - `next-sitemap.config.js`: 검색 제외 경로
 
