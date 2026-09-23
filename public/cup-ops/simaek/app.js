@@ -2,10 +2,10 @@ import { prizePlans, schedule } from "./data.js";
 
 const scheduleList = document.querySelector("#schedule-list");
 scheduleList.innerHTML = schedule.map((item) => `
-  <article class="schedule-card ${item.kind}">
+  <article class="schedule-card ${item.kind}${item.highlight ? ` simaek-${item.highlight}` : ""}">
     <div class="schedule-time"><time>${item.time}</time><span>${item.place}</span></div>
     <div class="schedule-body">
-      <div class="schedule-title"><h3>${item.title}</h3><span class="tag">${item.tag}</span></div>
+      <div class="schedule-title"><h3>${item.title}</h3><span class="tag">${item.tag}</span>${item.highlightLabel ? `<span class="responsibility-tag ${item.highlight}">${item.highlightLabel}</span>` : ""}</div>
       <p>${item.description}</p>
       ${item.link ? `<a class="inline-link" href="${item.link}">대기팀 이벤트 진행 기준 보기 <span aria-hidden="true">↓</span></a>` : ""}
     </div>
