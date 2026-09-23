@@ -1,0 +1,108 @@
+{
+  "baseDeployment": "dpl_2T6oV8MoQAUq66unvaYHSrtMnCCr",
+  "deployment": "dpl_Dgwsh7dNvefj2Yrj9xFJf1gps8Sc",
+  "sourceCommit": "25ea349",
+  "url": "https://fairground-kor.com/cup-ops",
+  "files": [
+    {
+      "path": "next.config.ts",
+      "sha256": "0037a8c3be9008d87af63e413d60f53f3b48a0b425c5af5bdfe6ccb3ff971383"
+    },
+    {
+      "path": "next-sitemap.config.js",
+      "sha256": "53b0a8300d58f1808017a2a463b29885ccbe59fc5c5ef969f2435260df220a13"
+    },
+    {
+      "path": "docs/cup-ops.md",
+      "sha256": "c18b66930bf7e82ed3da74dc5d6f813d881e74ba0151821995e856ce88dac5f8"
+    },
+    {
+      "path": "public/cup-ops/app.js",
+      "sha256": "9df1e3c5ac4346391ef53b6aac11fb367965419285eb136ddfc7165e020030e4"
+    },
+    {
+      "path": "public/cup-ops/assets/Pretendard-Bold.otf",
+      "sha256": "2e91915fab54df71cc9598ebf608b2bdb54c6fe3c066ac61dff0bc44fca71cc7"
+    },
+    {
+      "path": "public/cup-ops/assets/Pretendard-Regular.otf",
+      "sha256": "3ffbacde6ab8411f1d2db54bb9b1f0b3ee2a738932033722cf0388c06aed1c93"
+    },
+    {
+      "path": "public/cup-ops/assets/tiers/gold-player-frame.webp",
+      "sha256": "661c66866ec874fd6f7fd61588c296d321bfa83ddd375e384a10ecbeb5589aa7"
+    },
+    {
+      "path": "public/cup-ops/assets/tiers/platinum-player-frame.webp",
+      "sha256": "babe2bc246fb28618180cab44762c6a02cc0e6c09f3df49159027933f3f3e6a8"
+    },
+    {
+      "path": "public/cup-ops/assets/tiers/player-female.png",
+      "sha256": "8a2f2befaa4e70090fcb50b4c2f71266edb0fabd117cc8e4684805943411a8d6"
+    },
+    {
+      "path": "public/cup-ops/assets/tiers/player-male.png",
+      "sha256": "ae86be117e7d762c8afcea00a78193a07645f48ad8403dbfb8253118614f83f3"
+    },
+    {
+      "path": "public/cup-ops/assets/tiers/silver-player-frame.webp",
+      "sha256": "111ed39703c2769da7a9b9d1eb2ceb5ab67da1be0d9e9c6e67b26680955dfe30"
+    },
+    {
+      "path": "public/cup-ops/assets/wordmark.png",
+      "sha256": "61447d7d4f4111c421a7cb3749bdd12035b41157a30cf72da536dbdca53b7b39"
+    },
+    {
+      "path": "public/cup-ops/data.js",
+      "sha256": "9cfdbdd60bd15aa5c77e3c5cff6f008cbc226a28b1162e7eaa3f5dbf1953ec22"
+    },
+    {
+      "path": "public/cup-ops/index.html",
+      "sha256": "1f20da70e16adf8c3ee7e8ef4d58609e57c16632cadd5f78adda3618f39db983"
+    },
+    {
+      "path": "public/cup-ops/styles.css",
+      "sha256": "a29ec51225b113123fe6026e9b75211dc9f19b4f3e3038e58731c3ece59ed0ed"
+    },
+    {
+      "path": "public/cup-ops/tiers.css",
+      "sha256": "c276d6c4e226765d4aaef7b5ec7197fac9baf1a1bfb96a72b26b370aaff13a8d"
+    }
+  ],
+  "uploadedSourceVerification": {
+    "uploaded": 953,
+    "changed": [
+      "next-sitemap.config.js",
+      "next.config.ts"
+    ],
+    "added": [
+      "docs/cup-ops.md",
+      "public/cup-ops/app.js",
+      "public/cup-ops/assets/Pretendard-Bold.otf",
+      "public/cup-ops/assets/Pretendard-Regular.otf",
+      "public/cup-ops/assets/tiers/gold-player-frame.webp",
+      "public/cup-ops/assets/tiers/platinum-player-frame.webp",
+      "public/cup-ops/assets/tiers/player-female.png",
+      "public/cup-ops/assets/tiers/player-male.png",
+      "public/cup-ops/assets/tiers/silver-player-frame.webp",
+      "public/cup-ops/assets/wordmark.png",
+      "public/cup-ops/data.js",
+      "public/cup-ops/index.html",
+      "public/cup-ops/styles.css",
+      "public/cup-ops/tiers.css",
+      "supabase/.temp/cli-latest"
+    ],
+    "missing": [],
+    "mismatches": []
+  },
+  "catalogCheck": {
+    "functions": 35,
+    "relations": 27,
+    "buckets": 1,
+    "missing": {
+      "missing_buckets": [],
+      "missing_functions": [],
+      "missing_relations": []
+    }
+  }
+}
