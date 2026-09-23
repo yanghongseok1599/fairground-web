@@ -1,4 +1,4 @@
-import {timeline,groupMatches,rankingMatches,roles,contentPromises,sponsorReelGuides,countdown,promotionTiers,cupAwards} from './data.js?v=20260923-integrated-guide-v1';
+import {timeline,groupMatches,rankingMatches,roles,contentPromises,sponsorReelGuides,countdown,promotionTiers,cupAwards} from './data.js?v=20260923-sponsor-products-v2';
 const esc = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const heading = (number,en,title,description) => `<div class="section-heading"><div><p class="eyebrow">${number} / ${en}</p><h2>${title}</h2></div><p>${description}</p></div>`;
 document.querySelector('#timeline-content').innerHTML=timeline.map(group=>`<article class="timeline-group"><header><h3>${group.label}</h3><span>${group.period}</span></header>${group.rows.map(([time,title,description,type=''])=>`<div class="schedule-row ${type}"><time>${time}</time><h4>${title}</h4><p>${description}</p></div>`).join('')}</article>`).join('');
