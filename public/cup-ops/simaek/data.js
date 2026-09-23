@@ -1,0 +1,128 @@
+export const schedule = [
+  {
+    time: "09:00–09:20",
+    title: "팀 소개",
+    tag: "MC 진행",
+    place: "B구장",
+    description: "8팀 소개와 운영 안내. 팀당 약 2분 진행 후 다음 팀을 안내합니다.",
+    kind: "mc",
+  },
+  {
+    time: "09:20–09:50",
+    title: "단체 몸풀기",
+    tag: "MC 진행",
+    place: "B구장",
+    description: "외부 강사 진행에 맞춰 참가자와 호흡하고, 안전 안내를 돕습니다.",
+    kind: "mc",
+  },
+  {
+    time: "09:50–10:00",
+    title: "경기 시작 준비",
+    tag: "전환",
+    place: "A·B구장",
+    description: "구장과 장비를 정리하고 첫 경기 시작을 안내합니다.",
+    kind: "reset",
+  },
+  {
+    time: "10:00–12:00",
+    title: "조별리그",
+    tag: "경기 공백에 미니 이벤트 제안",
+    place: "A·B구장",
+    description: "경기 중인 팀을 호출하지 말고, 다음 경기까지 여유가 있는 대기팀만 3~5분씩 진행합니다.",
+    kind: "match",
+    link: "#between",
+  },
+  {
+    time: "12:00–12:30",
+    title: "점심시간",
+    tag: "휴식",
+    place: "식사·휴식",
+    description: "30분은 점심과 휴식 시간으로 둡니다. 12:25 교차 대진 공지를 돕고 12:30 이벤트를 준비합니다.",
+    kind: "rest",
+  },
+  {
+    time: "12:30–13:00",
+    title: "① 원팀챌린지",
+    tag: "공식 챌린지 · 전 팀 참여",
+    place: "B구장",
+    description: "시맥 MC 진행. 홍석 장비 담당, 성표 참가 순서 관리. 30분 안에 마무리합니다.",
+    kind: "official",
+  },
+  {
+    time: "13:00–14:20",
+    title: "순위결정전",
+    tag: "경기 공백에 미니 이벤트 제안",
+    place: "A·B구장",
+    description: "다음 경기팀을 먼저 확인합니다. 참가 가능한 대기팀이 있을 때만 미니 이벤트를 진행합니다.",
+    kind: "match",
+    link: "#between",
+  },
+  {
+    time: "14:20–14:30",
+    title: "이벤트 구장 전환",
+    tag: "이동·세팅",
+    place: "B구장",
+    description: "A구장 정리 후 B구장으로 이동해 등바구니 공받기 장비와 참가 순서를 확인합니다.",
+    kind: "reset",
+  },
+  {
+    time: "14:30–15:00",
+    title: "② 등바구니 공받기",
+    tag: "공식 챌린지",
+    place: "B구장",
+    description: "시맥 MC 진행. 홍석 장비 운영, 성표 참가 순서 관리. 세부 규칙은 운영 큐시트에 따릅니다.",
+    kind: "official",
+  },
+  {
+    time: "15:00–15:30",
+    title: "③ 슈팅왕 속도대결",
+    tag: "공식 챌린지",
+    place: "B구장",
+    description: "시맥 MC 진행. 홍석 측정 장비, 성표 기록 집계. 참가자 이동과 결과 발표를 안내합니다.",
+    kind: "official",
+  },
+  {
+    time: "15:30–16:10",
+    title: "시상·승급 발표·마무리",
+    tag: "행사 종료",
+    place: "B구장",
+    description: "15:30 시상 준비, 15:40 시상 및 팀 승급 발표, 16:05 클로징·단체사진 순서입니다.",
+    kind: "close",
+  },
+];
+
+export const prizePlans = [
+  {
+    title: "① 원팀챌린지",
+    award: "우승팀에 전달하는 안",
+    note: "아미노코치 5박스 + 테이블코치 5박스",
+    products: [
+      { name: "아미노코치", quantity: "5박스", image: "amino-coach.webp", alt: "아미노코치 스포츠 음료 제품" },
+      { name: "테이블코치", quantity: "5박스", image: "tablecoach.webp", alt: "테이블코치 제품" },
+    ],
+  },
+  {
+    title: "② 등바구니 공받기",
+    award: "상위 5명 시상 제안",
+    note: "던윅 종아리슬리브 5개 · 사이즈 확인",
+    products: [
+      { name: "던윅 종아리슬리브", quantity: "5개", image: "dunwick-calf-sleeve.webp", alt: "던윅 종아리슬리브 제품" },
+    ],
+  },
+  {
+    title: "③ 슈팅왕 속도대결",
+    award: "1·2위 시상 제안",
+    note: "캐터피 매직레이스 2개",
+    products: [
+      { name: "캐터피 매직레이스", quantity: "2개", image: "catapty-magic-lace.webp", alt: "캐터피 매직레이스 제품" },
+    ],
+  },
+  {
+    title: "대기팀 미니 이벤트",
+    award: "참여 우수 5명 시상 제안",
+    note: "니즈 아이싱패치 2개씩 · 총 10개",
+    products: [
+      { name: "니즈 아이싱패치", quantity: "10개", image: "niz-icing-patch.webp", alt: "니즈 아이싱패치 제품" },
+    ],
+  },
+];

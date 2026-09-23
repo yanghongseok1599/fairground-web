@@ -23,7 +23,10 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
-    return [{ source: "/cup-ops", destination: "/cup-ops/index.html" }];
+    return [
+      { source: "/cup-ops/simaek", destination: "/cup-ops/simaek/index.html" },
+      { source: "/cup-ops", destination: "/cup-ops/index.html" },
+    ];
   },
   async redirects() {
     return LEGACY_HOSTS.map((host) => ({
