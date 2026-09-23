@@ -1,0 +1,16 @@
+/* MC 큐시트에서 공식 시상 상품을 바로 확인하는 접이식 모듈 */
+.official-award-reference{margin-top:14px;border:1px solid #d8e1ef;background:#fff}
+.official-award-reference>summary{padding:12px 14px;color:var(--blue);font-size:.82rem;font-weight:800;cursor:pointer;list-style:none}
+.official-award-reference>summary::-webkit-details-marker{display:none}
+.official-award-reference>summary::after{content:"+";float:right;font-size:1.1rem;line-height:1}
+.official-award-reference[open]>summary::after{content:"−"}
+.official-award-content{padding:0 14px 15px}
+.official-award-content>p{margin:0 0 12px;color:var(--muted);font-size:.75rem;line-height:1.6}
+.official-award-groups{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.official-award-groups section{padding:12px;background:#f5f7fb}
+.official-award-groups h4{margin:0 0 8px;color:var(--navy);font-size:.78rem}
+.official-award-groups article{padding:9px 0;border-top:1px solid #e0e6ef}
+.official-award-groups article strong{font-size:.75rem;color:var(--blue)}
+.official-award-groups ul{margin:5px 0 0;padding-left:1em;color:#59657a;font-size:.72rem;line-height:1.55}
+.official-award-groups li+li{margin-top:3px}
+@media(max-width:620px){.official-award-groups{grid-template-columns:1fr;gap:8px}.official-award-reference>summary{font-size:.78rem}}

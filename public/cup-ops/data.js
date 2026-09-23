@@ -94,10 +94,10 @@ export const sponsorReelGuides = [
     eventAllocation: '10개 (5명 × 2개)', status: '릴스 컷 가이드', note: '효능 단정 없이 개인 사용감만 담기'
   },
   {
-    sponsor: '썸머홀릭', product: '선크림', image: '', imageAlt: '',
-    concept: '대회 준비 선케어 — 출전 준비 과정에서 제품을 바르는 자연스러운 루틴', timing: '도착 직후·경기 전 준비',
-    shots: ['제품명과 용기가 보이는 정면 컷', '손등에 덜어 제형을 보여주는 근접 컷', '팔 등에 펴 바르는 장면', '준비를 마치고 코트로 이동하는 선수', '향·발림 등 개인 소감을 짧게 묻는 인터뷰'],
-    eventAllocation: '', status: '제품 사진 확인 필요', note: '사용법과 표현은 제품 표기 범위에서 확인'
+    sponsor: '썸머홀릭', product: '울트라 스포츠 선크림 50ml', image: '/cup-ops/assets/sponsors/summerholic-ultra-sport-sun-cream-v1.webp', imageAlt: '썸머홀릭 울트라 스포츠 선크림 50ml 제품',
+    concept: '킥오프 전 준비 루틴 — 제품을 확인하고 사용 안내에 맞춰 바른 뒤 코트로 향하는 장면', timing: '도착 직후·경기 전 준비',
+    shots: ['풋살 장비 옆에 제품을 놓고 용기 전체를 보여주는 컷', '제품명과 패키지가 읽히는 정면 클로즈업', '손등에 덜어 제형을 보여주는 장면', '제품 사용 안내에 맞춰 바르는 모습', '준비를 마친 참가자의 짧은 개인 소감과 코트 이동 장면'],
+    eventAllocation: '', status: '제품 이미지 반영', note: '사용 장면은 제품 안내에 따르고, 효능을 단정하는 표현은 사용하지 않습니다.'
   },
   {
     sponsor: '준타스', product: '수상팀 유니폼 · 경기별 M.O.M 논슬립 하프삭스', image: '/cup-ops/assets/sponsors/juntas-team-equipment-v1.png', imageAlt: '준타스 유니폼과 논슬립 하프삭스 제품 구성',
@@ -126,4 +126,19 @@ export const promotionTiers = [
  {id:'platinum',label:'플래티넘 팀',english:'PLATINUM',rank:'1위',count:1,image:'/cup-ops/assets/tiers/platinum-player-frame.webp',portrait:'/cup-ops/assets/tiers/player-male.png'},
  {id:'gold',label:'골드팀',english:'GOLD',rank:'2~5위',count:4,image:'/cup-ops/assets/tiers/gold-player-frame.webp',portrait:'/cup-ops/assets/tiers/player-female.png'},
  {id:'silver',label:'실버팀',english:'SILVER',rank:'6~8위',count:3,image:'/cup-ops/assets/tiers/silver-player-frame.webp',portrait:'/cup-ops/assets/tiers/player-male.png'}
+];
+
+// 2026 · 1st 대회 팀 순위와 개인상별 확정 상품
+export const cupAwards = [
+ {id:'team-awards',title:'팀 순위 시상',awards:[
+  {title:'1위',items:['스튜디오 레르 팀 프로필 촬영권','준타스 커스텀 유니폼 제작권 30만원']},
+  {title:'2위',items:['준타스 커스텀 유니폼 제작권 20만원']},
+  {title:'3위',items:['준타스 커스텀 유니폼 제작권 30만원']}
+ ]},
+ {id:'individual-awards',title:'개인상',awards:[
+  {title:"MEN'S MOM",items:['트로피','니즈 10EA 1박스','썸머홀릭 선크림 1개','던윅 종아리 슬리브 1개']},
+  {title:"WOMEN'S MOM",items:['트로피','니즈 10EA 1박스','썸머홀릭 선크림 1개','던윅 종아리 슬리브 1개']},
+  {title:'GOLDEN GLOVE',items:['트로피','니즈 10EA 1박스','썸머홀릭 선크림 1개','던윅 종아리 슬리브 1개']},
+  {title:'GOLDEN BOOT',items:['트로피','니즈 10EA 1박스','썸머홀릭 선크림 1개','던윅 종아리 슬리브 1개']}
+ ]}
 ];

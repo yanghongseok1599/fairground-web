@@ -1,0 +1,19 @@
+/* 대회 순위 시상과 개인상 상품을 관리하는 카드 모듈 */
+.award-guide{margin-top:56px;padding-top:36px;border-top:1px solid rgba(197,210,231,.28)}
+.award-guide-heading{display:flex;justify-content:space-between;align-items:end;gap:24px;margin-bottom:24px}
+.award-guide-heading .eyebrow{margin-bottom:8px}
+.award-guide-heading h3{font-size:clamp(1.4rem,2.3vw,1.9rem)}
+.award-guide-heading>p{max-width:360px;color:#c5d2e7;font-size:.875rem;line-height:1.7}
+.award-group+.award-group{margin-top:28px}
+.award-group>h4{margin-bottom:13px;color:#c5d2e7;font-size:.9375rem}
+.award-grid{display:grid;gap:12px}
+.award-grid.team-awards{grid-template-columns:repeat(3,minmax(0,1fr))}
+.award-grid.individual-awards{grid-template-columns:repeat(4,minmax(0,1fr))}
+.award-card{min-width:0;padding:17px 18px;background:#fff;color:var(--ink);border:1px solid rgba(255,255,255,.55)}
+.award-card h5{margin:0 0 10px;color:var(--blue);font-size:.9375rem;font-weight:800;line-height:1.4;overflow-wrap:anywhere}
+.award-card ul{padding-left:1em;font-size:.8125rem;line-height:1.6}
+.award-card li+li{margin-top:5px}
+@media(max-width:900px){.award-grid.individual-awards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.award-guide{margin-top:40px;padding-top:28px}.award-guide-heading{align-items:start;flex-direction:column;gap:8px}.award-guide-heading>p{font-size:.8125rem}.award-group+.award-group{margin-top:23px}.award-group>h4{font-size:.875rem}.award-grid.team-awards{grid-template-columns:1fr;gap:9px}.award-grid.individual-awards{gap:9px}.award-card{padding:14px}.award-card h5{font-size:.8125rem}.award-card ul{font-size:.75rem}}
+@media(max-width:360px){.award-grid.individual-awards{grid-template-columns:1fr}}
+@media print{.award-guide{break-inside:avoid}.award-guide-heading>p,.award-group>h4{color:#222}.award-card{border-color:#bbb;break-inside:avoid}}

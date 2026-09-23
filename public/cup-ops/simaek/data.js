@@ -106,7 +106,9 @@ export const schedule = [
     highlight: "duty",
     highlightLabel: "이시맥 대표 MC",
     place: "B구장",
-    description: "15:30 시상 준비, 15:40 시상 및 팀 승급 발표, 16:05 클로징·단체사진 순서입니다.",
+    description: "15:30 시상 준비, 15:40 1~3위 팀 시상·팀 승급·개인상 발표, 16:05 클로징·단체사진 순서입니다. 아래에서 공식 시상 상품을 확인하세요.",
+    link: "/cup-ops#promotion",
+    linkLabel: "전체 운영가이드 승급·시상 기준 보기",
     kind: "close",
   },
 ];
