@@ -1,4 +1,4 @@
-import { prizePlans, schedule } from "./data.js";
+import { prizePlans, schedule } from "./data.js?v=20260923-sponsor-cut-guide-v2";
 
 const scheduleList = document.querySelector("#schedule-list");
 scheduleList.innerHTML = schedule.map((item) => `
@@ -15,15 +15,19 @@ scheduleList.innerHTML = schedule.map((item) => `
 const prizePlansRoot = document.querySelector("#prize-plans");
 prizePlansRoot.innerHTML = prizePlans.map((plan) => `
   <article class="prize-card">
-    <div class="prize-heading"><div><span>${plan.award}</span><h3>${plan.title}</h3></div><span class="proposal-label">배분 제안</span></div>
+    <div class="prize-heading"><div><span>${plan.award}</span><h3>${plan.title}</h3></div><span class="proposal-label">${plan.badge}</span></div>
     <p class="prize-note">${plan.note}</p>
-    <div class="products ${plan.products.length > 1 ? "paired" : ""}">
+    <div class="products ${plan.products.length === 2 ? "paired" : ""}">
       ${plan.products.map((product) => `
         <figure class="product">
           <div class="product-image"><img src="/cup-ops/simaek/assets/products/${product.image}" alt="${product.alt}" loading="lazy"></div>
           <figcaption><strong>${product.name}</strong><span>${product.quantity}</span></figcaption>
         </figure>
       `).join("")}
+    </div>
+    <div class="product-guidance">
+      <section><h4>촬영할 컷</h4><ol>${plan.shots.map((shot) => `<li>${shot}</li>`).join("")}</ol></section>
+      <section><h4>배분 가이드</h4><p>${plan.distribution}</p></section>
     </div>
   </article>
 `).join("");
