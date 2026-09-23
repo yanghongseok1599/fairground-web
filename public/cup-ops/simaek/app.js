@@ -1,4 +1,4 @@
-import { prizePlans, schedule } from "./data.js?v=20260923-sponsor-cut-guide-v2";
+import { prizePlans, schedule } from "./data.js?v=20260923-challenge-roles-v3";
 
 const scheduleList = document.querySelector("#schedule-list");
 scheduleList.innerHTML = schedule.map((item) => `

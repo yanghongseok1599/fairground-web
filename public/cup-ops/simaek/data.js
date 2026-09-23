@@ -55,7 +55,7 @@ export const schedule = [
     highlight: "duty",
     highlightLabel: "이시맥 대표 MC",
     place: "B구장",
-    description: "시맥 MC 진행. 홍석 장비 담당, 성표 참가 순서 관리. 30분 안에 마무리합니다.",
+    description: "시맥 MC 진행 · 재민 측정 · 성표 보조 · 홍석 서버 기록 등록. 30분 안에 마무리합니다.",
     kind: "official",
   },
   {
@@ -76,7 +76,7 @@ export const schedule = [
     highlight: "prep",
     highlightLabel: "14:30 MC 시작 준비",
     place: "B구장",
-    description: "B구장으로 이동해 14:30 MC 시작 큐를 확인합니다. 장비는 홍석, 참가 순서는 성표 담당입니다.",
+    description: "B구장으로 이동해 14:30 MC 시작 큐를 확인합니다. 재민은 측정 준비, 성표는 보조 위치, 홍석은 서버 기록 등록을 준비합니다.",
     kind: "reset",
   },
   {
@@ -86,7 +86,7 @@ export const schedule = [
     highlight: "duty",
     highlightLabel: "이시맥 대표 MC",
     place: "B구장",
-    description: "시맥 MC 진행. 홍석 장비 운영, 성표 참가 순서 관리. 세부 규칙은 운영 큐시트에 따릅니다.",
+    description: "시맥 MC 진행 · 재민 측정 · 성표 보조 · 홍석 서버 기록 등록. 세부 규칙은 운영 큐시트에 따릅니다.",
     kind: "official",
   },
   {
@@ -96,7 +96,7 @@ export const schedule = [
     highlight: "duty",
     highlightLabel: "이시맥 대표 MC",
     place: "B구장",
-    description: "시맥 MC 진행. 홍석 측정 장비, 성표 기록 집계. 참가자 이동과 결과 발표를 안내합니다.",
+    description: "시맥 MC 진행 · 재민 측정 · 성표 보조 · 홍석 서버 기록 등록. 참가자 이동과 결과 발표를 안내합니다.",
     kind: "official",
   },
   {
