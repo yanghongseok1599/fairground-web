@@ -103,6 +103,8 @@ export const schedule = [
     time: "15:30–16:10",
     title: "시상·승급 발표·마무리",
     tag: "행사 종료",
+    highlight: "duty",
+    highlightLabel: "이시맥 대표 MC",
     place: "B구장",
     description: "15:30 시상 준비, 15:40 시상 및 팀 승급 발표, 16:05 클로징·단체사진 순서입니다.",
     kind: "close",
