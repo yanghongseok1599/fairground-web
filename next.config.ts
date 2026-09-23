@@ -22,6 +22,9 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "flagcdn.com", pathname: "/**" },
     ],
   },
+  async rewrites() {
+    return [{ source: "/cup-ops", destination: "/cup-ops/index.html" }];
+  },
   async redirects() {
     return LEGACY_HOSTS.map((host) => ({
       source: "/:path*",

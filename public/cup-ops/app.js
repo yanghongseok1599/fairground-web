@@ -1,0 +1,61 @@
+import {timeline,groupMatches,rankingMatches,roles,contentPromises,countdown,promotionTiers} from './data.js';
+const esc = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const heading = (number,en,title,description) => `<div class="section-heading"><div><p class="eyebrow">${number} / ${en}</p><h2>${title}</h2></div><p>${description}</p></div>`;
+document.querySelector('#timeline-content').innerHTML=timeline.map(group=>`<article class="timeline-group"><header><h3>${group.label}</h3><span>${group.period}</span></header>${group.rows.map(([time,title,description,type=''])=>`<div class="schedule-row ${type}"><time>${time}</time><h4>${title}</h4><p>${description}</p></div>`).join('')}</article>`).join('');
+// Section rendering is kept separate from the editable schedule and role data.
+document.querySelector('#guide-sections').innerHTML=`
+<section class="section" id="matches" aria-label="경기 방식과 대진"><div class="wrap">
+${heading('02','MATCH FORMAT','모든 팀이 5경기.<br>끝까지 의미 있는 승부.','조별리그 3경기 뒤, 성적에 따라 순위결정전 2경기를 치릅니다. 조별 12경기 + 순위전 8경기, 총 20경기입니다.')}
+<div class="two-columns">
+ <article class="route-card"><span class="tag">조별 1·2위 진출</span><h3>챔피언십</h3><p>최종 1~4위를 결정합니다.</p><div class="route-steps"><div><span>01 · 교차 준결승</span><strong>A조 1위 vs B조 2위<br>A조 2위 vs B조 1위</strong></div><div><span>02 · 최종 순위전</span><strong>승자 → 결승 / 패자 → 3·4위전</strong><small>결승 승리 팀은 플래티넘으로 승급</small></div></div></article>
+ <article class="route-card"><span class="tag">조별 3·4위 진출</span><h3>챌린지</h3><p>최종 5~8위를 결정합니다.</p><div class="route-steps"><div><span>01 · 교차 준결승</span><strong>A조 3위 vs B조 4위<br>A조 4위 vs B조 3위</strong></div><div><span>02 · 최종 순위전</span><strong>승자 → 5·6위전 / 패자 → 7·8위전</strong><small>5·6위전 승리 팀은 골드로 승급</small></div></div></article>
+</div>
+<div class="section-subheading"><h3>조별리그 대진표</h3><p>10:00–12:00 · 조별 구장 고정</p></div>
+<div class="table-wrap"><table class="group-table"><caption>조별리그 경기 시간과 A·B구장 대진</caption><thead><tr><th scope="col">경기 시간</th><th scope="col">A구장 · A조</th><th scope="col">B구장 · B조</th></tr></thead><tbody>${groupMatches.map(([time,round,a,b])=>`<tr><td>${time}<span class="round">${round}</span></td><td>${a}</td><td>${b}</td></tr>`).join('')}</tbody></table></div>
+<p class="footnote">A1~A4 / B1~B4는 추첨 번호입니다. 조별 순위와는 다릅니다. 매 경기 후 전환 8분이 포함됩니다.</p>
+<div class="section-subheading"><h3>순위결정전 대진표</h3><p>12:25 대진 공지 · 13:00 경기 시작</p></div>
+<div class="ranking-list">${rankingMatches.map(r=>`<article class="ranking-row"><div><time>${r.time}</time><h4>${r.stage}</h4></div><p><span class="court-label">A구장</span>${r.a}</p><p><span class="court-label">B구장</span>${r.b}</p></article>`).join('')}</div>
+<div class="rest-note"><div><strong>조별리그 휴식 · 8~48분</strong><p>추첨 번호에 따라 휴식 간격이 다릅니다. 각 팀은 같은 조의 나머지 3팀과 한 번씩 만납니다.</p></div><div><strong>준결승 후 휴식 · 28분</strong><p>정규 경기 종료 기준입니다. 승부차기가 진행되면 휴식이 줄거나 다음 일정이 늦어질 수 있습니다.</p></div></div>
+<p class="match-notice">최종 순위전에서 같은 조 팀과 다시 만날 수 있으며, 모든 팀과 한 번씩 만나는 방식은 아닙니다. 조별 동률·순위전 동점 처리 기준은 대진 공개 전에 확정합니다.</p>
+</div></section>
+<section class="section promotion-section" id="promotion" aria-label="대회 종료 후 팀 등급 승급"><div class="wrap">
+${heading('03','TEAM PROMOTION','마지막 순위가,<br>새로운 팀 등급으로.','대회 종료 후 최종 1~8위에 따라 팀 등급이 승급됩니다. 시상식에서 순위와 승급 등급을 함께 발표합니다.')}
+<div class="tier-grid">${promotionTiers.map(tier=>`<article class="tier ${tier.id}"><div class="tier-card-visual" role="img" aria-label="선수 이미지가 포함된 ${tier.label} 카드 예시"><img class="tier-card-frame" src="${tier.image}" alt="" width="720" height="827" loading="lazy"><div class="tier-player-window"><img class="tier-player-photo" src="${tier.portrait}" alt="" loading="lazy"></div><div class="card-side-copy" aria-hidden="true"><strong>${tier.rank}</strong><span>CUP 1ST</span><span>FAIR<br>GROUND</span></div><div class="tier-card-copy" aria-hidden="true"><strong>${tier.english}</strong><span class="card-team">PLAYER CARD</span><span class="card-ranking">${tier.label}</span></div></div><div class="tier-caption"><p>최종 ${tier.rank}</p><h3>${tier.label}</h3><span class="tier-en">${tier.english}</span><strong>${tier.count}팀</strong></div></article>`).join('')}</div>
+<p class="tier-example-note">티어별 선수카드 예시 · 팀 승급은 이번 대회 최종 순위에 따라 적용됩니다.</p>
+<div class="promotion-note"><strong>5·6위전은 골드와 실버를 결정하는 경기입니다.</strong><p>13:40 A구장 · 챌린지 준결승 승자끼리 대결</p></div>
+</div></section>
+<section class="section tint" id="roles" aria-label="운영진 역할 분담"><div class="wrap">
+${heading('04','OUR TEAM','누가, 어디에서,<br>무엇을 맡는지.','담당 구역과 집중해야 할 시간을 함께 확인합니다. 세부 역할과 촬영 완료 기준은 운영 회의에서 최종 확정합니다.')}
+<div class="role-grid">${roles.map(r=>`<article class="role-card"><div class="role-title"><h3>${esc(r.name)}</h3><span>${r.place}</span></div><p class="role">${r.role}</p><ul>${r.tasks.map(t=>`<li>${t}</li>`).join('')}</ul><p class="role-time">${r.time}</p></article>`).join('')}</div>
+</div></section>
+<section class="section" id="content" aria-label="촬영 및 협찬 운영"><div class="wrap">
+${heading('05','PHOTO, VIDEO & PARTNERS','경기의 장면보다,<br>그날의 표정.','골을 넣고 웃는 얼굴, 벤치의 하이파이브, 함께 응원하는 순간. 참가자의 경험과 파트너의 제품이 자연스럽게 연결되도록 기록합니다.')}
+<div class="principle"><p>촬영팀 공통 원칙</p><strong>웃고 즐기는 순간이 보이면 담습니다.</strong></div>
+<div class="shooting-grid"><article><h4>사진 · 민준</h4><p>득점 순간에는 공보다 얼굴.<br>골 세리머니·벤치 리액션·8팀 단체샷을 확보합니다.</p></article><article><h4>영상 · 영상 담당</h4><p>팀별 3~5분 로테이션.<br>경기 직후 데뷔골·멀티골·MOM 소감을 담습니다.</p></article><article><h4>드론 · 홍석</h4><p>우승 세리머니·시상식·단체 점프샷.<br>예정된 순간에 촬영하고 장비 운영과 순서를 조정합니다.</p></article><article><h4>현장 스케치 · 운영진</h4><p>세로 10~15초로 담습니다.<br>촬영 시작할 때 “몇 번 팀”인지 육성으로 남깁니다.</p></article></div>
+<details class="detail-panel" open><summary>협찬 콘텐츠 · 촬영 항목과 완료 기준</summary><div class="details-body"><div class="deliverable-grid">${contentPromises.map(([title,owner,time,goal])=>`<article class="deliverable"><header><h4>${title}</h4><span>${owner}</span></header><p>${time}</p><p>${goal}</p></article>`).join('')}</div><p class="footnote">위 담당·수량·완료 기준은 운영 회의 확정 전 기준안입니다.</p></div></details>
+<details class="detail-panel"><summary>협찬 등급별 노출 · OFFICIAL / MAIN</summary><div class="details-body"><div class="two-columns"><article class="sponsor-level"><h4>OFFICIAL · 300만원</h4><ul><li>경기장 배너·포토존 설치 확인</li><li>공식 SNS 게시와 인증샷·UGC 수급</li><li>담당: 협찬사 부스 관리</li></ul></article><article class="sponsor-level"><h4>MAIN · 500만원</h4><ul><li>OFFICIAL 전체 혜택 + 외벽 메인 현수막</li><li>세로 1분 브랜드 영상 촬영</li><li>SNS 콘텐츠 5건 게시용 소재 확보</li><li>부스·영상 담당 / 홍석 게시 취합</li></ul></article></div><p class="sponsor-list">현재 협찬사: 니즈 · 던윅 종아리슬리브 · 바른걸음연구소 · 썸머홀릭 · 아미노코치 · 준타스<br>협찬사 구성은 변동될 수 있습니다.</p></div></details>
+<details class="detail-panel"><summary>촬영팀 체크포인트 · 사전 준비부터 납품까지</summary><div class="details-body"><div class="two-columns"><article class="sponsor-level"><h4>대회 전</h4><ul><li>해인·춘매: 협찬 제품 수령, 배너·현수막 규격과 부스 배치 확인</li><li>민준·지민: 카메라·짐벌·배터리·저장공간과 백업 장비 점검</li><li>촬영 동선·포토존·팀 소개 순서 및 인터뷰 질문 준비</li></ul></article><article class="sponsor-level"><h4>당일과 대회 후</h4><ul><li>07:50–08:40 세팅·리허설 촬영</li><li>12:00–12:30 오전 촬영본 백업·누락 점검</li><li>12:30·14:30·15:00 이벤트 리액션·기록 순간 확보</li><li>15:40–16:10 시상·승급 발표·단체사진</li><li>종료 후 이중 백업, 팀·협찬사·시간대별 정리</li><li>팀 릴스, 협찬 제품샷 원본·편집본, MAIN 영상·SNS 5건 준비</li></ul></article></div></div></details>
+</div></section>
+<section class="section tint" id="checklist" aria-label="대회 전 준비 사항"><div class="wrap">
+${heading('06','COUNTDOWN CHECKLIST','대회 전까지,<br>함께 확인할 것.','현재 운영안을 공유하고, 남은 조건을 확정합니다. 참가팀 수가 달라지면 경기 방식과 시간표도 다시 조정합니다.')}
+<div class="countdown-list">${countdown.map(([when,title,body])=>`<article class="countdown-item"><span>${when}</span><h3>${title}</h3><p>${body}</p></article>`).join('')}</div>
+<aside class="confirmation-panel"><h3>운영 회의에서 최종 확인</h3><div class="confirmation-grid"><article><h4>참가팀·경기 규정</h4><p>최종 팀 수, 조 추첨·대진, 조별 동률 기준과 순위전 동점 처리, 심판 배정.</p></article><article><h4>입장·현장 준비</h4><p>10/2 설치와 당일 09:00 이전 입장, 접수 위치, 부스 배치, 장비·촬영 동선.</p></article><article><h4>촬영·협찬 이행</h4><p>영상 담당자, 촬영 완료 기준, 인증 해시태그와 게시 일정.</p></article></div><p class="booking-note">대관 시간: A구장 09:00–16:00 / B구장 09:00–19:00<br>경기는 14:12 종료 예정이며, 14:20부터 A구장 정리 후 B구장에서 이벤트·시상을 이어갑니다.</p></aside>
+</div></section>`;
+
+let toastTimer;
+function toast(message){const el=document.querySelector('#share-status');el.textContent=message;el.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('visible'),3200);}
+document.querySelector('[data-share]').addEventListener('click',async()=>{
+ const url=location.href;
+ if(navigator.share){try{await navigator.share({title:document.title,url});return;}catch(error){if(error.name==='AbortError')return;}}
+ try{await navigator.clipboard.writeText(url);toast('링크를 복사했습니다. 팀원들에게 보내주세요.');}
+ catch{const dialog=document.querySelector('#share-dialog');document.querySelector('#share-url').value=url;dialog.showModal();document.querySelector('#share-url').select();}
+});
+const navLinks=[...document.querySelectorAll('nav a')];
+const sections=navLinks.map(a=>document.querySelector(a.getAttribute('href')));
+function updateNavigation(){let active='';for(const section of sections){if(section.getBoundingClientRect().top<=180)active=section.id;}
+ navLinks.forEach(a=>{if(a.hash===`#${active}`)a.setAttribute('aria-current','location');else a.removeAttribute('aria-current');});}
+let ticking=false;addEventListener('scroll',()=>{if(!ticking){requestAnimationFrame(()=>{updateNavigation();ticking=false;});ticking=true;}},{passive:true});updateNavigation();
+// Resolve shared section links after data-driven sections have rendered.
+if(location.hash){const initialHash=location.hash;let target;try{target=document.getElementById(decodeURIComponent(initialHash.slice(1)));}catch{}if(target)document.fonts.ready.then(()=>{if(location.hash===initialHash)requestAnimationFrame(()=>{target.scrollIntoView({behavior:'instant'});updateNavigation();});});}
+// Read-only WebMCP access uses the same data shown in the page.
+if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_event_briefing',title:'운영 안내 확인',description:'Read the visible FairGround Cup schedule, fixtures, promotion rules, roles or preparation checklist.',inputSchema:{type:'object',properties:{section:{type:'string',enum:['timeline','matches','promotion','roles','checklist']}},required:['section'],additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:false},execute(input){const data={timeline,matches:{groupMatches,rankingMatches},promotion:promotionTiers.map(({rank,label,count})=>({rank,tier:label,count})),roles,checklist:countdown};if(!input||typeof input.section!=='string'||!Object.hasOwn(data,input.section))throw new Error('지원하지 않는 안내 항목입니다.');return {section:input.section,data:data[input.section]};}})).catch(()=>{});}catch{}}

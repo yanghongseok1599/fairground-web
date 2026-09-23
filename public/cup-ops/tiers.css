@@ -1,0 +1,35 @@
+/* 승급 티어의 선수카드 프레임·인물·순위 설명을 함께 관리합니다. */
+.tier-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-block:1px solid #52647f}
+.tier{display:flex;flex-direction:column;min-width:0;padding:28px 28px 32px;border-right:1px solid #52647f}
+.tier:first-child{padding-left:28px}.tier:last-child{border-right:0}
+.tier-card-visual{position:relative;width:min(100%,320px);aspect-ratio:1080/1240;margin:0 auto 22px;isolation:isolate;container-type:inline-size;color:#143774}
+.tier-card-frame{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.tier-player-window{position:absolute;left:43.5%;top:11%;width:36%;height:42.5%;overflow:hidden;z-index:1}
+.tier-player-photo{position:absolute;max-width:none;width:175%;height:auto;left:-37.5%;top:3%;}
+.card-side-copy{position:absolute;left:18.5%;top:19%;width:28%;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;line-height:1.1}
+.tier .card-side-copy strong{grid-area:auto;font-size:10cqw;margin:0;letter-spacing:-.05em;line-height:1.1;font-weight:800}
+.card-side-copy>span:nth-child(2){font-size:3.6cqw;font-weight:700;letter-spacing:.07em}
+.card-side-copy>span:last-child{font-size:4.2cqw;font-weight:900;line-height:1.05;letter-spacing:-.025em;margin-top:14px}
+.tier-card-copy{position:absolute;inset:58% 17% 15%;display:flex;align-items:center;flex-direction:column;text-align:center;pointer-events:none}
+.tier .tier-card-copy strong{grid-area:auto;margin:0;font-size:7.5cqw;line-height:1.25;letter-spacing:.025em}
+.card-team{font-size:3.5cqw;letter-spacing:.13em;margin-top:6px;font-weight:700}
+.card-ranking{font-size:5cqw;font-weight:700;margin-top:auto}
+.tier.silver .tier-card-visual{color:#263447}.tier.gold .tier-card-visual{color:#573e0a}
+.tier-caption{display:grid;grid-template-columns:1fr auto;gap:6px 16px}
+.tier-caption p{grid-column:1/-1;color:#c5d2e7;font-size:.875rem}
+.tier .tier-caption h3{grid-area:2/1;margin:0;font-size:clamp(1.4rem,2.3vw,1.9rem)}
+.tier .tier-caption strong{grid-area:2/2;margin:0;align-self:center;font-size:1rem}
+.tier .tier-caption .tier-en{grid-area:3/1;font-size:.7rem;letter-spacing:.13em;color:#b6c5dc}
+.tier-example-note{color:#b6c5dc;font-size:.875rem;margin-top:20px;line-height:1.8}
+@media(max-width:800px){.tier,.tier:first-child{padding:24px 18px}.tier .tier-caption h3{font-size:1.25rem}.tier .tier-caption strong{font-size:.875rem}.card-side-copy{gap:5px}.card-side-copy>span:last-child{margin-top:8px}.card-team{margin-top:4px}}
+@media(max-width:560px){
+ .tier-grid{grid-template-columns:1fr}
+ .tier,.tier:first-child{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:10px 18px;align-items:center;padding:27px 0;border-right:0;border-bottom:1px solid #52647f}
+ .tier:last-child{border-bottom:0}.tier-card-visual{margin:0;width:100%}
+ .tier-caption{display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+ .tier-caption p{font-size:.875rem}.tier .tier-caption h3{font-size:1.4rem;line-height:1.4}
+ .tier .tier-caption strong{font-size:1rem;margin-top:12px;align-self:flex-start}.tier .tier-caption .tier-en{font-size:.65rem}
+ .card-side-copy{gap:5px}.card-side-copy>span:last-child{margin-top:7px}.card-team{margin-top:3px}.tier-example-note{font-size:.8125rem}
+}
+@media(max-width:360px){.tier,.tier:first-child{gap:12px}.tier .tier-caption h3{font-size:1.2rem}.card-side-copy{gap:3px}.card-side-copy>span:last-child{margin-top:5px}}
+@media print{.tier-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.tier,.tier:first-child{display:flex;padding:15px}.tier-card-visual{max-width:180px}.tier .tier-caption p,.tier .tier-caption h3,.tier .tier-caption .tier-en,.tier-example-note{color:#222}}
