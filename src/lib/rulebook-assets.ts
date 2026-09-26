@@ -1,9 +1,9 @@
-export const MATCH_RULEBOOK_PDF_PATH = "/document/fairground-match-rulebook-v2.4.pdf";
+export const MATCH_RULEBOOK_PDF_PATH = "/document/fairground-match-rulebook-v2.5.pdf";
 export const TOURNAMENT_RULEBOOK_PDF_PATH =
   "/document/fairground-tournament-rulebook-v1.2.pdf";
 
-export const REFEREE_GUIDE_PDF_PATH = "/document/fairground-referee-guide-v2.3.pdf";
-export const CAPTAIN_GUIDE_PDF_PATH = "/document/fairground-captain-guide-v1.0.pdf";
+export const REFEREE_GUIDE_PDF_PATH = "/document/fairground-referee-guide-v2.4.pdf";
+export const CAPTAIN_GUIDE_PDF_PATH = "/document/fairground-captain-guide-v1.2.pdf";
 
 /**
  * 룰북 탭(doc.id) → 배포용 PDF 경로.

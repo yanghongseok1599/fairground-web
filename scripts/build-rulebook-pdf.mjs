@@ -19,7 +19,7 @@
  * 이며, MD 는 그 내용을 그대로 옮긴 배포본이다. 내용을 여기서 창작하지 말 것.
  *
  * 검증
- *   pdftotext public/document/fairground-match-rulebook-v2.4.pdf - | less
+ *   pdftotext public/document/fairground-match-rulebook-v2.5.pdf - | less
  *
  * 요구 사항
  *   - Google Chrome (macOS 기본 경로. CHROME_PATH 환경변수로 덮어쓸 수 있음)
@@ -39,16 +39,22 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 /* ---------------------------------------------------------------- 문서 등록부 */
 /** 새 규정 PDF를 추가하려면 여기에 항목 하나만 더 넣으면 된다. */
+/*
+ * 주의 (2026-09-26): 배포 중인 PDF 3종(match v2.5 / referee v2.4 / captain v1.2)은
+ * 운영진이 확정본 PDF를 직접 제공하여 public/document 에 그대로 배치한 것이다.
+ * 아래 src 마크다운 원본은 아직 그 개정을 반영하지 않았다. 원본을 먼저 갱신하지 않고
+ * 이 스크립트를 실행하면 배포본이 구버전 내용으로 덮인다. 원본이 없으면 즉시 실패한다.
+ */
 const DOCS = [
   {
     key: "match",
-    src: "public/document/files 2/페어그라운드_경기_운영규정_v2_4.md",
-    out: "public/document/fairground-match-rulebook-v2.4.pdf",
+    src: "public/document/files 2/페어그라운드_경기_운영규정_v2_5.md",
+    out: "public/document/fairground-match-rulebook-v2.5.pdf",
     // 표지/머리말 표기. src/app/rulebook/rulebook-client.tsx 의 doc.title 과 맞춘다.
     title: "경기 · 운영 규정",
     subtitle: "Fair Ground 혼성 풋살 페스티벌 공식 규정",
-    version: "v2.4",
-    footerLabel: "Fair Ground · 경기 · 운영 규정 v2.4",
+    version: "v2.5",
+    footerLabel: "Fair Ground · 경기 · 운영 규정 v2.5",
   },
   {
     key: "tournament",
@@ -61,21 +67,21 @@ const DOCS = [
   },
   {
     key: "referee",
-    src: "public/document/files 2/페어그라운드_심판교육가이드_v2_3.md",
-    out: "public/document/fairground-referee-guide-v2.3.pdf",
+    src: "public/document/files 2/페어그라운드_심판교육가이드_v2_4.md",
+    out: "public/document/fairground-referee-guide-v2.4.pdf",
     title: "심판 교육 가이드",
     subtitle: "Fair Ground 혼성 풋살 페스티벌 심판 집행 매뉴얼",
-    version: "v2.3",
-    footerLabel: "Fair Ground · 심판 교육 가이드 v2.3",
+    version: "v2.4",
+    footerLabel: "Fair Ground · 심판 교육 가이드 v2.4",
   },
   {
     key: "captain",
-    src: "public/document/files 2/페어그라운드_주장교육가이드_v1_0.md",
-    out: "public/document/fairground-captain-guide-v1.0.pdf",
+    src: "public/document/files 2/페어그라운드_주장교육가이드_v1_2.md",
+    out: "public/document/fairground-captain-guide-v1.2.pdf",
     title: "주장 교육 가이드",
     subtitle: "Fair Ground 혼성 풋살 페스티벌 — 팀 주장을 위한 안내",
-    version: "v1.0",
-    footerLabel: "Fair Ground · 주장 교육 가이드 v1.0",
+    version: "v1.2",
+    footerLabel: "Fair Ground · 주장 교육 가이드 v1.2",
   },
 ];
 
