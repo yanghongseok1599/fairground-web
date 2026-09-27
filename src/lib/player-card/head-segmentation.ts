@@ -1,6 +1,6 @@
 import type { ImageSegmenter } from "@mediapipe/tasks-vision";
 import { loadVisionModel } from "./vision-model";
-import { foregroundAlpha, headBounds, wholeHeadAlpha, type HeadPoint } from "./head-geometry";
+import { foregroundAlpha, headBounds, wholeHeadAlpha, uniformNeckOutline, type HeadPoint } from "./head-geometry";
 
 let segmenterPromise: Promise<ImageSegmenter> | undefined;
 
@@ -22,7 +22,7 @@ async function getHeadSegmenter() {
 }
 
 /** Generated templates can contain a painted backdrop: never trust their alpha channel. */
-export async function createUniformBodyCutout(image: HTMLImageElement) {
+export async function createUniformBodyCutout(image: HTMLImageElement, facePoints: HeadPoint[]) {
   const segmenter = await getHeadSegmenter();
   const result = segmenter.segment(image);
   try {
@@ -42,6 +42,14 @@ export async function createUniformBodyCutout(image: HTMLImageElement) {
     context.drawImage(image, 0, 0);
     context.globalCompositeOperation = "destination-in";
     context.drawImage(mask, 0, 0, canvas.width, canvas.height);
+    // Retain neck skin beneath the entire jaw curve. A straight clearRect at the
+    // chin removes the sides of the neck and leaves the new head floating.
+    const outline = uniformNeckOutline(facePoints, canvas.width, canvas.height);
+    context.beginPath();
+    context.moveTo(outline[0].x, outline[0].y);
+    for (const point of outline.slice(1)) context.lineTo(point.x, point.y);
+    context.closePath();
+    context.fill();
     return canvas;
   } finally { result.close(); }
 }
@@ -83,6 +91,14 @@ export async function createWholeHeadCutout(image: HTMLImageElement, points: Hea
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = "high";
     context.drawImage(maskCanvas, 0, 0, width, height);
-    return { canvas, left, top };
+    const alpha = context.getImageData(0, 0, width, height).data;
+    let minX = width, minY = height, maxX = -1, maxY = -1;
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      if (alpha[(y * width + x) * 4 + 3] < 24) continue;
+      minX = Math.min(minX, x); minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+    }
+    if (maxX < minX) throw new Error("머리 영역을 찾지 못했습니다. 밝은 정면 사진으로 다시 시도해주세요.");
+    return { canvas, left, top, visibleBounds: { left: left + minX, top: top + minY, right: left + maxX + 1, bottom: top + maxY + 1 } };
   } finally { result.close(); }
 }

@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
-import { alignWholeHead, foregroundAlpha, transformHeadPoint, wholeHeadAlpha } from "../src/lib/player-card/head-geometry.ts";
+import { adjustHeadTransform, alignWholeHead, DEFAULT_HEAD_ADJUSTMENT, foregroundAlpha, LOWER_JAW, transformHeadPoint, uniformNeckOutline, wholeHeadAlpha } from "../src/lib/player-card/head-geometry.ts";
+import { faceMaskAlpha } from "../src/lib/player-card/face-geometry.ts";
 
 const source = Array.from({ length: 478 }, () => ({ x: 50, y: 50 }));
+LOWER_JAW.forEach((index, i) => {
+  const angle = Math.PI - i * Math.PI / (LOWER_JAW.length - 1);
+  source[index] = { x: 50 + 40 * Math.cos(angle), y: 50 + 50 * Math.sin(angle) };
+});
+source[10] = { x: 50, y: 10 };
 source[33] = { x: 20, y: 30 }; source[263] = { x: 80, y: 30 }; source[152] = { x: 50, y: 100 };
 const target = source.map((p) => ({ x: 2 * p.x + 100, y: 2 * p.y + 80 }));
 const matrix = alignWholeHead(source, target);
@@ -10,6 +16,22 @@ assert.deepEqual(transformHeadPoint({ x: 15, y: 0 }, matrix), { x: 130, y: 80 },
 assert.equal(matrix[0], matrix[3], "가로·세로 비율 왜곡 금지");
 assert.equal(matrix[1], -matrix[2], "전단 변형 금지");
 assert.throws(() => alignWholeHead(Array.from({ length: 478 }, () => ({ x: 0, y: 0 })), target), /정면/);
+const wideEyes = source.map(p => ({ ...p }));
+wideEyes[33].x -= 12; wideEyes[263].x += 12;
+assert.deepEqual(alignWholeHead(wideEyes, target), matrix, "눈 간격이 넓다고 머리를 작게 만들지 않는다");
+const tilted = source.map(p => ({ x: p.x * Math.cos(0.3) - p.y * Math.sin(0.3), y: p.x * Math.sin(0.3) + p.y * Math.cos(0.3) }));
+const straightened = alignWholeHead(tilted, target);
+const restored = transformHeadPoint(tilted[10], straightened);
+assert.ok(Math.hypot(restored.x - target[10].x, restored.y - target[10].y) < 1e-8, "기울어진 사진도 원본 비율로 정렬");
+assert.deepEqual(adjustHeadTransform(matrix, target, DEFAULT_HEAD_ADJUSTMENT), matrix);
+const enlarged = adjustHeadTransform(matrix, target, { scale: 1.2, offsetX: 0, offsetY: 0 });
+assert.deepEqual(transformHeadPoint(source[152], enlarged), target[152], "얼굴만 확대해도 턱의 연결 위치는 유지");
+assert.ok(adjustHeadTransform(matrix, target, { scale: Infinity, offsetX: NaN, offsetY: -Infinity }).every(Number.isFinite));
+const outline = uniformNeckOutline(source, 100, 180);
+assert.ok(faceMaskAlpha({ x: 33, y: 99 }, outline, 1) > 0, "턱 옆 목 피부를 수평으로 자르지 않는다");
+assert.equal(faceMaskAlpha({ x: 11, y: 70 }, outline, 1), 0, "원래 모델의 옆 턱과 귀는 남기지 않는다");
+assert.equal(faceMaskAlpha({ x: 50, y: 70 }, outline, 1), 0, "원래 모델 얼굴은 지운다");
+assert.equal(faceMaskAlpha({ x: 50, y: 150 }, outline, 1), 1, "유니폼은 그대로 보존");
 const bounds = { left: 20, right: 80, top: 10, bottom: 100, center: 50 };
 const category = (index: number) => Array.from({ length: 6 }, (_, i) => i === index ? 1 : 0);
 assert.equal(wholeHeadAlpha(category(1), { x: 90, y: 180 }, bounds), 1, "턱 아래 긴 머리 유지");

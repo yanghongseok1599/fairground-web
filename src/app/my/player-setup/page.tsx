@@ -16,7 +16,9 @@ import { COUNTRIES } from "@/constants/countries";
 import { PlayerCard } from "@/components/player-card";
 import { PlayerCardTierPreviewGrid } from "@/components/player-card-tier-preview-grid";
 import { compressImageBlob } from "@/lib/image-compression";
-import { preparePlayerCardPhoto, type PlayerCardPhotoMode } from "@/lib/player-card/photo-registration";
+import { getJuntasCardPose, preparePlayerCardPhoto, type PlayerCardPhotoMode } from "@/lib/player-card/photo-registration";
+import type { PreparedPlayerPortrait } from "@/lib/player-card-photo-composer";
+import { PortraitFitDialog } from "@/features/player-card/components/portrait-fit-dialog";
 import { PlayerCardPhotoOptions } from "@/components/player-card-photo-options";
 import { PlayerCardPhotoError } from "@/components/player-card-photo-error";
 import { PhotoScaleControl } from "@/features/player-card/components/photo-scale-control";
@@ -125,6 +127,7 @@ function PlayerSetupContent() {
   const [cardPhotoPreview, setCardPhotoPreview] = useState<string | null>(null); // 카드: 배경제거
   const [bgProcessing, setBgProcessing] = useState(false);
   const [photoError, setPhotoError] = useState("");
+  const [portraitToFit, setPortraitToFit] = useState<PreparedPlayerPortrait | null>(null);
   const [photoScale, setPhotoScale] = useState(DEFAULT_CARD_PHOTO_SCALE);
   const [formError, setFormError] = useState("");
   const push = useTournamentPush();
@@ -240,6 +243,13 @@ function PlayerSetupContent() {
     setFormError("");
     try {
       const compressed = await compressImageBlob(file, { maxPx: 1400, mimeType: "image/webp", quality: 0.9 });
+      if (photoModeRef.current === "face") {
+        const { prepareTeamlessPoseCardPhoto } = await import("@/lib/player-card-photo-composer");
+        const gender = user?.gender;
+        const portrait = await prepareTeamlessPoseCardPhoto({ sourcePhoto: compressed, gender, templateSrc: getJuntasCardPose(gender) });
+        if (requestId === photoRequestRef.current) setPortraitToFit(portrait);
+        return;
+      }
       const finalPhoto = await preparePlayerCardPhoto(compressed, photoModeRef.current, user?.gender);
       if (requestId !== photoRequestRef.current) return;
       setProcessedPhoto(finalPhoto);
@@ -419,6 +429,10 @@ function PlayerSetupContent() {
 
   return (
     <div className="min-h-screen pt-[60px]" style={{ background: "var(--color-fg-paper)" }}>
+      {portraitToFit && <PortraitFitDialog portrait={portraitToFit} onCancel={() => setPortraitToFit(null)} onConfirm={photo => {
+        setProcessedPhoto(photo);
+        setPortraitToFit(null);
+      }} />}
 
       {/* 배경제거 토스트 */}
       {bgProcessing && (
