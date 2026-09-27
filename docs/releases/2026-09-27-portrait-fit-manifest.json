@@ -1,0 +1,113 @@
+{
+  "date": "2026-09-27",
+  "implementationCommit": "adcdd18",
+  "baselineDeployment": "dpl_4X1VG1PALwTGqrcNkgJyaSQtqs7a",
+  "productionDeployment": "dpl_Cwu8UC2Nn6JLxEs1kUP9a7BXP8qu",
+  "productionUrl": "https://fairground-kor.com",
+  "deploymentUrl": "https://fairground-gvhwb4wxh-milestones-projects-d52c4dda.vercel.app",
+  "status": "READY, promoted",
+  "baselineSourceFiles": 940,
+  "uploadVerification": {
+    "expected": 945,
+    "uploaded": 945,
+    "differences": [],
+    "additionalBuildOutputs": [
+      "next-env.d.ts",
+      "public/robots.txt",
+      "public/sitemap-0.xml",
+      "public/sitemap.xml"
+    ]
+  },
+  "changes": [
+    {
+      "path": "src/app/my/card-edit/page.tsx",
+      "beforeSha1": "5fe5df975fb8bdf53e1c9a523c9d195a4322b577",
+      "sha1": "5274c0cbf49a7e7c5d603cb03d4c542bf0a003cd"
+    },
+    {
+      "path": "src/app/my/player-setup/page.tsx",
+      "beforeSha1": "f7722b4703fefca5ba01ab0e867ef4483f630745",
+      "sha1": "047f9bb1525c34d580a744a43d6ff043af909a8a"
+    },
+    {
+      "path": "src/components/player-card-photo-options.tsx",
+      "beforeSha1": "dcc30307f52f5829e5eca6e7368c50517dbcb7d9",
+      "sha1": "3adf11d1ee21c748762f5ad230ae1a702cfc7610"
+    },
+    {
+      "path": "src/lib/player-card-photo-composer.ts",
+      "beforeSha1": "2bbd357391c538fa5ed11455f531c1f89517082c",
+      "sha1": "8ddcaacc2c5905c54a74398164bf067ae968dea2"
+    },
+    {
+      "path": "src/lib/player-card/head-geometry.ts",
+      "beforeSha1": "34187717618e5937834ad7f41f7cc2fce77c8825",
+      "sha1": "47aebccb96593d7d16af4e7c40d652f30981720b"
+    },
+    {
+      "path": "src/lib/player-card/head-segmentation.ts",
+      "beforeSha1": "cd2b418641758eed08772f58e10f6f293a9bf201",
+      "sha1": "51ce1a22d5b918d057303935d5101a8a98389ecc"
+    },
+    {
+      "path": "tests/player-card-head.test.ts",
+      "beforeSha1": "0ff9b170be4a6db32655115774d8594a7f706e1f",
+      "sha1": "9af924097141e6c47b98afd415a638c3d1e0df19"
+    },
+    {
+      "path": "src/features/player-card/components/portrait-fit-dialog.tsx",
+      "beforeSha1": null,
+      "sha1": "5de4204eba93a4f05cef6288a2c42defb5c65f09"
+    },
+    {
+      "path": "tests/player-card-photo-read.test.mjs",
+      "beforeSha1": "712994ec765682f100f13fcb880f2071e0c5edf9",
+      "sha1": "de1a8b4df9954516285a81badeab602c402b17eb"
+    }
+  ],
+  "productionRouteChecks": [
+    {
+      "route": "/my/card-edit",
+      "status": 200,
+      "finalUrl": "https://fairground-kor.com/my/card-edit",
+      "dialog": true,
+      "confirm": true
+    },
+    {
+      "route": "/my/player-setup",
+      "status": 200,
+      "finalUrl": "https://fairground-kor.com/my/player-setup",
+      "dialog": true,
+      "confirm": true
+    }
+  ],
+  "changedDatabaseReferences": 0,
+  "databaseWrites": false,
+  "realMemberPhotoWrites": false,
+  "checks": {
+    "lintErrors": 0,
+    "existingLintWarnings": 18,
+    "typescript": "passed",
+    "photoReadAndRecoveryTests": {
+      "passed": 21,
+      "failed": 0
+    },
+    "supabaseSafetyTests": {
+      "passed": 4,
+      "failed": 0
+    },
+    "syntheticPortraits": 6,
+    "mobileViewport": [
+      390,
+      844
+    ],
+    "landscapeViewport": [
+      844,
+      390
+    ],
+    "confirmAndCancel": "passed",
+    "localBuild": "passed",
+    "vercelBuild": "passed"
+  },
+  "research": "https://www.lazyweb.com/agentic-search/d822700c-eafb-471c-9e16-2589686afbb8"
+}
