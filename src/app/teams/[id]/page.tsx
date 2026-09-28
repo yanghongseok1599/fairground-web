@@ -12,7 +12,7 @@ import type { Team, Player, Notice, BoardPost, TeamPhoto } from "@/types";
 import { buildRosterInsights } from "@/lib/team-finance";
 import { canManageTeam as canManageTeamHelper } from "@/lib/team-permissions";
 import { normalizeTeamRole, TEAM_ROLE_LABELS } from "@/lib/team-role-policy";
-import { buildTeamRecordLine, getRosterFilterCount, isFieldChampionTeam, leagueTierCardIndex, LEAGUE_TIER_LABEL, nextLeagueTier, type RosterFilter } from "@/lib/team-home";
+import { buildTeamRecordLine, getRosterFilterCount, leagueTierCardIndex, LEAGUE_TIER_LABEL, nextLeagueTier, type RosterFilter } from "@/lib/team-home";
 import {
   ArrowLeft,
   ArrowRight,
@@ -60,7 +60,6 @@ function StatBlock({ index, label, value }: { index: string; label: string; valu
 function TeamEmblem({ team }: { team: Team }) {
   // 카드 프레임 = 리그 등급(브론즈/실버/골드/플래티넘). 등급이 곧 카드 비주얼.
   const cardIndex = leagueTierCardIndex(team.leagueTier);
-  const isFieldChampion = isFieldChampionTeam(team);
   const [src, setSrc] = useState<string | null>(null);
 
   // 랜딩 캐러셀과 동일한 createTeamCardCanvas 함수로 카드 텍스처를 만들어
@@ -87,7 +86,6 @@ function TeamEmblem({ team }: { team: Team }) {
       logo: resolvedLogo,
       frame: TEAM_CARD_VARIANTS[cardIndex],
       colorIndex: cardIndex,
-      isFieldChampion,
     })
       .then((canvas) => {
         if (cancelled) return;
@@ -99,7 +97,7 @@ function TeamEmblem({ team }: { team: Team }) {
     return () => {
       cancelled = true;
     };
-  }, [team.name, team.logo, cardIndex, isFieldChampion]);
+  }, [team.name, team.logo, cardIndex]);
 
   return (
     <div
@@ -112,7 +110,7 @@ function TeamEmblem({ team }: { team: Team }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
-          alt={`${team.name} 카드${isFieldChampion ? " - 필드 우승팀" : ""}`}
+          alt={`${team.name} 카드`}
           className="absolute inset-0 h-full w-full select-none object-contain"
           draggable={false}
         />

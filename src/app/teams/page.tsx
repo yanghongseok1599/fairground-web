@@ -8,7 +8,7 @@ import { TeamCardLink } from "@/components/team-card-link";
 import { useReducedMotion } from "framer-motion";
 import { TeamMarquee } from "@/components/team-marquee";
 import type { Team } from "@/types";
-import { isFieldChampionTeam, leagueTierCardIndex } from "@/lib/team-home";
+import { leagueTierCardIndex } from "@/lib/team-home";
 
 const TEAM_CARD_VARIANTS = [
   {
@@ -73,7 +73,6 @@ export default function TeamsPage() {
           logo: team.logo || getClubLogoPreset(team.name, index).asset,
           frame: TEAM_CARD_VARIANTS[cardIndex].image,
           colorIndex: cardIndex,
-          isFieldChampion: isFieldChampionTeam(team),
         };
       }),
     [teams],

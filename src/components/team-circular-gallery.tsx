@@ -2,17 +2,12 @@
 
 import { Camera, Mesh, Plane, Program, Renderer, Texture, Transform } from "ogl";
 import { useEffect, useRef } from "react";
-import { createTeamCardCanvas } from "@/lib/team-card-canvas";
+import { createTeamCardCanvas, type TeamCardItem } from "@/lib/team-card-canvas";
 
 const cn = (...classes: Array<string | undefined | null | false>) => classes.filter(Boolean).join(" ");
 
-export interface TeamGalleryItem {
+export interface TeamGalleryItem extends TeamCardItem {
   id: string;
-  name: string;
-  logo?: string;
-  frame: string;
-  colorIndex: number;
-  isFieldChampion?: boolean;
 }
 
 interface TeamCircularGalleryProps extends React.HTMLAttributes<HTMLDivElement> {

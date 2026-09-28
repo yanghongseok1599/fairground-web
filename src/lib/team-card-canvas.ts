@@ -9,7 +9,6 @@ export interface TeamCardItem {
   logo?: string;
   frame: string;
   colorIndex: number;
-  isFieldChampion?: boolean;
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -94,116 +93,7 @@ function drawContain(
   );
 }
 
-// 프레임 외곽 경로 — 골드/에메랄드 광채 효과가 따라가는 카드 윤곽.
-function tracePremiumFramePath(ctx: CanvasRenderingContext2D, inset = 0) {
-  const left = 235 + inset;
-  const right = 845 - inset;
-  const top = 95 + inset;
-  const bottom = 1160 - inset;
-  const center = 540;
-
-  ctx.beginPath();
-  ctx.moveTo(center, top);
-  ctx.bezierCurveTo(590, 172, 676, 184, right, 166);
-  ctx.bezierCurveTo(842, 222, 874, 270, 872, 344);
-  ctx.bezierCurveTo(836, 380, 825, 455, 832, 558);
-  ctx.bezierCurveTo(842, 707, 828, 862, 802, 989);
-  ctx.bezierCurveTo(710, 996, 626, 1056, center, bottom);
-  ctx.bezierCurveTo(454, 1056, 370, 996, 278, 989);
-  ctx.bezierCurveTo(252, 862, 238, 707, 248, 558);
-  ctx.bezierCurveTo(255, 455, 244, 380, 208, 344);
-  ctx.bezierCurveTo(206, 270, 238, 222, left, 166);
-  ctx.bezierCurveTo(404, 184, 490, 172, center, top);
-}
-
-function drawGoldFrameLight(ctx: CanvasRenderingContext2D) {
-  ctx.save();
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.globalCompositeOperation = "screen";
-
-  ctx.shadowColor = "rgba(255,210,74,0.42)";
-  ctx.shadowBlur = 16;
-  ctx.globalAlpha = 0.42;
-  ctx.strokeStyle = "rgba(255,198,58,0.52)";
-  ctx.lineWidth = 10;
-  tracePremiumFramePath(ctx, 10);
-  ctx.stroke();
-
-  ctx.shadowBlur = 8;
-  ctx.globalAlpha = 0.58;
-  ctx.strokeStyle = "rgba(255,239,170,0.68)";
-  ctx.lineWidth = 4;
-  tracePremiumFramePath(ctx, 18);
-  ctx.stroke();
-
-  ctx.restore();
-}
-
-function drawChampionSpark(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number) {
-  ctx.beginPath();
-  ctx.moveTo(x, y - radius);
-  ctx.lineTo(x + radius * 0.28, y - radius * 0.28);
-  ctx.lineTo(x + radius, y);
-  ctx.lineTo(x + radius * 0.28, y + radius * 0.28);
-  ctx.lineTo(x, y + radius);
-  ctx.lineTo(x - radius * 0.28, y + radius * 0.28);
-  ctx.lineTo(x - radius, y);
-  ctx.lineTo(x - radius * 0.28, y - radius * 0.28);
-  ctx.closePath();
-  ctx.fill();
-}
-
-function drawFieldChampionFrameEffect(ctx: CanvasRenderingContext2D) {
-  ctx.save();
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.globalCompositeOperation = "screen";
-
-  ctx.shadowColor = "rgba(0, 190, 255, 0.55)";
-  ctx.shadowBlur = 30;
-  ctx.globalAlpha = 0.62;
-  ctx.strokeStyle = "rgba(0, 168, 255, 0.58)";
-  ctx.lineWidth = 18;
-  tracePremiumFramePath(ctx, -7);
-  ctx.stroke();
-
-  ctx.shadowColor = "rgba(255, 225, 110, 0.62)";
-  ctx.shadowBlur = 18;
-  ctx.globalAlpha = 0.86;
-  ctx.strokeStyle = "rgba(255, 238, 150, 0.78)";
-  ctx.lineWidth = 5;
-  tracePremiumFramePath(ctx, 4);
-  ctx.stroke();
-
-  ctx.setLineDash([24, 18]);
-  ctx.lineDashOffset = -10;
-  ctx.shadowColor = "rgba(255, 255, 255, 0.55)";
-  ctx.shadowBlur = 10;
-  ctx.globalAlpha = 0.48;
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.72)";
-  ctx.lineWidth = 2.5;
-  tracePremiumFramePath(ctx, 27);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  const sparks = [
-    [540, 72, 16],
-    [220, 210, 12],
-    [862, 292, 11],
-    [842, 932, 13],
-    [540, 1186, 15],
-    [244, 892, 10],
-  ] as const;
-  ctx.fillStyle = "rgba(255, 244, 175, 0.92)";
-  ctx.shadowColor = "rgba(255, 219, 85, 0.9)";
-  ctx.shadowBlur = 16;
-  ctx.globalAlpha = 0.9;
-  sparks.forEach(([x, y, radius]) => drawChampionSpark(ctx, x, y, radius));
-
-  ctx.restore();
-}
-
+// 원본 프레임만 사용한다. 순위·우승 여부로 윤곽선/광채를 덧그리지 않는다.
 function fitFont(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -254,9 +144,6 @@ export async function createTeamCardCanvas(
     const dw = 1080 * (1 + over);
     const dh = 1240 * (1 + over);
     ctx.drawImage(frame, dx, dy, dw, dh);
-  } else if (item.colorIndex % 4 === 2) {
-    ctx.drawImage(frame, 0, 0, 1080, 1240);
-    drawGoldFrameLight(ctx);
   } else {
     ctx.drawImage(frame, 0, 0, 1080, 1240);
   }
@@ -295,10 +182,6 @@ export async function createTeamCardCanvas(
       : 850;
   ctx.fillText(item.name, 540, nameY);
   ctx.restore();
-
-  if (item.isFieldChampion) {
-    drawFieldChampionFrameEffect(ctx);
-  }
 
   return canvas;
 }

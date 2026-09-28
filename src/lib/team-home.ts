@@ -25,13 +25,6 @@ export function leagueTierCardIndex(tier: LeagueTier): number {
   return i >= 0 ? i : 0;
 }
 
-export function isFieldChampionTeam(team: {
-  isApproved?: boolean;
-  seasonStats?: { rank?: number };
-}) {
-  return Boolean(team.isApproved && team.seasonStats?.rank === 1);
-}
-
 export function buildTeamRecordLine(record: { wins: number; draws: number; losses: number }): string {
   return `${record.wins}W ${record.draws}D ${record.losses}L`;
 }

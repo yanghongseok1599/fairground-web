@@ -13,7 +13,7 @@ import { ScrollVideoHero, type HeroReveal } from "@/components/scroll-video-hero
 import type { TeamGalleryItem } from "@/components/team-circular-gallery";
 import { getClubLogoPreset } from "@/components/club-emblem";
 import { TeamCardLink } from "@/components/team-card-link";
-import { isFieldChampionTeam, leagueTierCardIndex } from "@/lib/team-home";
+import { leagueTierCardIndex } from "@/lib/team-home";
 import { FICTIONAL_PLAYER_CARD_POSE_SOURCES } from "@/lib/player-card-pose-templates";
 import type { Team, Player } from "@/types";
 import { ArrowRight, MapPin, Ticket, Trophy, Users } from "lucide-react";
@@ -312,7 +312,6 @@ export default function HomePage() {
           logo: team.logo || getClubLogoPreset(team.name, index).asset,
           frame: TEAM_CARD_VARIANTS[cardIndex],
           colorIndex: cardIndex,
-          isFieldChampion: isFieldChampionTeam(team),
         };
       }),
     [teams],
