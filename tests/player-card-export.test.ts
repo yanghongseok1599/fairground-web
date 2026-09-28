@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import { buildCardExportJobs, safeCardPathPart } from "../src/features/player-card-export/model.ts";
+import type { Player } from "../src/types/index.ts";
+
+assert.equal(safeCardPathPart("김철수", "선수"), "김철수");
+assert.equal(safeCardPathPart("../팀/이름\\\u0000", "선수"), "_팀_이름__");
+assert.equal(safeCardPathPart(" ... ", "선수"), "선수");
+assert.equal(safeCardPathPart("Alex", "선수"), "Alex");
+const player = (id: string, teamId: string) => ({ id, teamId, name: "김철수", number: 7, photoUrl: "", cardRating: 104, cardSkin: "hologram" } as Player);
+const players = [player("p1", "a"), player("p2", "a"), player("p3", "b"), player("p4", "")];
+const before = JSON.stringify(players);
+const jobs = buildCardExportJobs(players, [{ id: "a", name: "루트/FC", logo: "" }, { id: "b", name: "루트\\FC", logo: "" }]);
+assert.equal(new Set(jobs.map((j) => j.relativePath)).size, 4);
+assert.ok(jobs.some((j) => j.relativePath === "루트_FC/07_김철수.png"));
+assert.ok(jobs.some((j) => j.relativePath === "루트_FC/07_김철수_2.png"));
+assert.ok(jobs.some((j) => j.relativePath.startsWith("루트_FC_2/")));
+assert.ok(jobs.some((j) => j.relativePath.startsWith("미소속/")));
+assert.equal(JSON.stringify(players), before, "Bronze export must not change ratings, skin eligibility or records");
+assert.throws(() => buildCardExportJobs([player("p", "missing")], []));
+assert.throws(() => buildCardExportJobs([player("p", ""), player("p", "")], []));
+console.log("player-card export paths and data preservation tests passed");

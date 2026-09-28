@@ -104,9 +104,10 @@ function removeConnectedBackground(image: HTMLImageElement) {
 }
 
 export function useTeamLogoBackgroundRemoval(src?: string) {
-  const [processed, setProcessed] = useState<{ source?: string; value?: string }>({
+  const [processed, setProcessed] = useState<{ source?: string; value?: string; ready: boolean }>({
     source: src,
     value: src,
+    ready: !src,
   });
 
   useEffect(() => {
@@ -121,13 +122,13 @@ export function useTeamLogoBackgroundRemoval(src?: string) {
     image.onload = () => {
       try {
         const result = removeConnectedBackground(image);
-        if (!cancelled) setProcessed({ source: src, value: result ?? src });
+        if (!cancelled) setProcessed({ source: src, value: result ?? src, ready: true });
       } catch {
-        if (!cancelled) setProcessed({ source: src, value: src });
+        if (!cancelled) setProcessed({ source: src, value: src, ready: true });
       }
     };
     image.onerror = () => {
-      if (!cancelled) setProcessed({ source: src, value: src });
+      if (!cancelled) setProcessed({ source: src, value: src, ready: true });
     };
     image.src = src;
 
@@ -136,5 +137,8 @@ export function useTeamLogoBackgroundRemoval(src?: string) {
     };
   }, [src]);
 
-  return processed.source === src ? processed.value : src;
+  return {
+    src: processed.source === src ? processed.value : src,
+    ready: !src || (processed.source === src && processed.ready),
+  };
 }

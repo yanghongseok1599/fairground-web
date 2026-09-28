@@ -13,6 +13,7 @@ export const PLAYER_CARD_FRAME_ID = "fairground-player-card-v2";
 export const PLAYER_CARD_PRESET_ID = "fairground-player-card-complete-v2";
 
 export type PlayerCardSize = "sm" | "md" | "lg" | "xl" | "export";
+export type PlayerCardAppearance = "rating" | "bronze";
 
 const PLAYER_CARD_POS = Object.freeze({
   rating: Object.freeze({ y: 15 }),

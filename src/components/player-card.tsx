@@ -8,6 +8,7 @@ import {
   PLAYER_CARD_FRAME_ID,
   PLAYER_CARD_PRESET_ID,
   getPlayerCardFrameDimensions,
+  type PlayerCardAppearance,
   type PlayerCardSize,
 } from "@/lib/player-card-frame";
 import {
@@ -26,6 +27,7 @@ interface PlayerCardProps {
   onClick?: () => void;
   disableHoverScale?: boolean;
   cardContext?: PlayerCardContext;
+  appearance?: PlayerCardAppearance;
 }
 
 function countryToFlagCode(code: string): string {
@@ -131,11 +133,14 @@ export function PlayerCard({
   onClick,
   disableHoverScale = false,
   cardContext = "league",
+  appearance = "rating",
 }: PlayerCardProps) {
-  const { width: cardW, height: cardH } = getPlayerCardFrameDimensions(size);
+  const display = getPlayerCardFrameDimensions(size);
+  // Every surface scales the same fixed original; font metrics and slots never reflow.
+  const { width: cardW, height: cardH } = getPlayerCardFrameDimensions("export");
 
-  const cardType = getCardTypeFromRating(player.cardRating);
-  const visualCardType: VisualCardType = getPlayerCardDisplaySkin(player, cardContext) === "hologram" ? "hologram" : cardType;
+  const cardType = appearance === "bronze" ? "bronze" : getCardTypeFromRating(player.cardRating);
+  const visualCardType: VisualCardType = appearance !== "bronze" && getPlayerCardDisplaySkin(player, cardContext) === "hologram" ? "hologram" : cardType;
   const skin = CARD_SKIN[visualCardType] ?? STANDARD_SKIN;
   const processedTeamLogo = useTeamLogoBackgroundRemoval(teamLogo);
   const { pos: POS, fontPct: FONT_PCT, leftColCenter: LEFT_COL_CENTER } = PLAYER_CARD_FRAME;
@@ -245,7 +250,7 @@ export function PlayerCard({
       </div>
 
       {/* Team Logo — 정사각형 */}
-      {processedTeamLogo ? (
+      {processedTeamLogo.src ? (
         <div
           className="absolute flex items-center justify-center"
           style={{
@@ -259,7 +264,7 @@ export function PlayerCard({
           }}
         >
           <img
-            src={processedTeamLogo}
+            src={processedTeamLogo.src}
             alt=""
             aria-hidden="true"
             className="block"
@@ -418,6 +423,21 @@ export function PlayerCard({
     </>
   );
 
+  const fixedCanvas = (
+    <div
+      data-player-card-canvas
+      data-player-card-assets-ready={processedTeamLogo.ready}
+      style={{
+        position: "absolute", left: 0, top: 0,
+        width: cardW, height: cardH,
+        transform: `scale(${display.width / cardW})`,
+        transformOrigin: "top left",
+      }}
+    >
+      {cardInner}
+    </div>
+  );
+
   // A4 (§6): onClick 이 있으면 키보드 접근 가능한 <button>. 없으면
   // 비대화형 컨테이너(부모 Link/캐러셀 안 중첩 인터랙티브 방지).
   if (onClick) {
@@ -433,9 +453,9 @@ export function PlayerCard({
         className={`relative block cursor-pointer select-none appearance-none border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)] ${
           disableHoverScale ? "" : "transition-transform hover:scale-105"
         }`}
-        style={{ width: cardW, height: cardH, fontFamily: "var(--font-pretendard)" }}
+        style={{ width: display.width, height: display.height, fontFamily: "var(--font-pretendard)" }}
       >
-        {cardInner}
+        {fixedCanvas}
       </button>
     );
   }
@@ -449,9 +469,9 @@ export function PlayerCard({
       data-player-card-preset={PLAYER_CARD_PRESET_ID}
       data-player-card-size={size}
       className={`relative select-none ${disableHoverScale ? "" : "transition-transform hover:scale-105"}`}
-      style={{ width: cardW, height: cardH, fontFamily: "var(--font-pretendard)" }}
+      style={{ width: display.width, height: display.height, fontFamily: "var(--font-pretendard)" }}
     >
-      {cardInner}
+      {fixedCanvas}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   PLAYER_CARD_COMPOSITION,
   PLAYER_CARD_PRESET_ID,
   PLAYER_CARD_WIDTH_PX,
+  type PlayerCardAppearance,
 } from "@/lib/player-card-frame";
 import type { Player } from "@/types";
 import type { PlayerCardContext } from "@/lib/player-card-skin";
@@ -16,6 +17,7 @@ interface PlayerCardCaptureFrameProps {
   displayWidth?: number | string;
   className?: string;
   cardContext?: PlayerCardContext;
+  appearance?: PlayerCardAppearance;
 }
 
 /** 화면과 PNG 모두 이 캔버스를 사용한다. 배경은 항상 투명하다. */
@@ -25,6 +27,7 @@ export function PlayerCardCaptureFrame({
   displayWidth = "100%",
   className = "",
   cardContext = "league",
+  appearance = "rating",
 }: PlayerCardCaptureFrameProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   const [renderedWidth, setRenderedWidth] = useState(0);
@@ -71,7 +74,7 @@ export function PlayerCardCaptureFrame({
             transformOrigin: "top left",
           }}
         >
-          <PlayerCard player={player} cardContext={cardContext} size="export" teamLogo={teamLogo} disableHoverScale />
+          <PlayerCard player={player} cardContext={cardContext} appearance={appearance} size="export" teamLogo={teamLogo} disableHoverScale />
         </div>
         <img
           src={composition.wordmark.src}
