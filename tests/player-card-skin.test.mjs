@@ -45,3 +45,11 @@ test("일반 진입은 기본 카드, standard 명시는 챌린지 캠페인보�
   const setup = readFileSync("src/app/my/player-setup/page.tsx", "utf8");
   assert.ok(!setup.includes("readPendingCardSkin"), "일반 선수 등록이 이전 브라우저 이벤트를 읽지 않음");
 });
+
+
+test("Safari 저장소 접근 자체가 차단돼도 마이페이지 카드 선택은 동작한다", () => {
+  const f = fixture();
+  Object.defineProperty(f.window, "localStorage", { get() { throw new Error("SecurityError"); } });
+  assert.equal(f.readCardSkinPreference(["standard", "hologram"]), "standard");
+  assert.doesNotThrow(() => f.writeCardSkinPreference("hologram"));
+});

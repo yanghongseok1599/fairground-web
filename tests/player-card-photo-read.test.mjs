@@ -90,7 +90,7 @@ function formFixture(page, reader) {
     badges: [], badgesEdited: false, cardBadgePatch, earnedBadgeIds: new Set(), player, user: { gender: "male" },
     role: "player", teamId: "", cardSkin: "standard",
     draft: { ready: true, clear() {} }, clearError() {},
-    push: { verifyForSave: async () => true },
+    push: { get verifyForSave() { throw new Error("Registration must not wait for push permission"); } },
     clearPendingCardSkin() {}, filterEarnedBadgeIds: () => [],
     registrationError: (error) => error.message,
     setFormError: (message) => { state.error = message; },
@@ -127,7 +127,7 @@ for (const page of ["card-edit", "player-setup"]) {
       assert.match(form.state.error, /사진.*다시 선택/);
       assert.equal(form.player.photoUrl, "original-photo");
       const retry = form.submit();
-      await Promise.resolve(); // The readiness check precedes the photo upload.
+      await Promise.resolve();
       reader.last().emit("load");
       await retry;
       assert.equal(form.state.writes, 1);

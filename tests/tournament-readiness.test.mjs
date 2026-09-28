@@ -2,28 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { moduleLoader } from './helpers/load-ts-module.mjs';
 
-const { canSaveWithTournamentAlerts, canUseManualTournamentAlerts } = moduleLoader()('src/features/tournament-readiness/policy.ts');
-
-test('unavailable notifications require explicit manual-check acknowledgement without pretending ON', () => {
-  for (const state of ['loading', 'off']) {
-    assert.equal(canSaveWithTournamentAlerts(state, false), false, state);
-    assert.equal(canSaveWithTournamentAlerts(state, true), false, `${state} cannot bypass`);
-  }
-  assert.equal(canSaveWithTournamentAlerts('on', false), true);
-  for (const state of ['install', 'unsupported', 'denied', 'error']) {
-    assert.equal(canUseManualTournamentAlerts(state), true);
-    assert.equal(canSaveWithTournamentAlerts(state, false), false);
-    assert.equal(canSaveWithTournamentAlerts(state, true), true);
-  }
-  assert.equal(canUseManualTournamentAlerts('on'), false);
-});
-
-test('an unsuccessful setup can fall back after acknowledgement, but loading never permits saving', () => {
-  assert.equal(canSaveWithTournamentAlerts('off', true, true), true);
-  assert.equal(canSaveWithTournamentAlerts('off', false, true), false);
-  assert.equal(canSaveWithTournamentAlerts('loading', true, true), false);
-});
-
 function fixture(t, { permission = 'granted', saved = true, readError = null, writeError = null, permissionError = false } = {}) {
   const events = [];
   const filters = [];
@@ -111,4 +89,15 @@ test('a throwing browser permission prompt fails without an unhandled rejection'
   const f = fixture(t, { permission: 'default', permissionError: true });
   assert.equal(await f.push.subscribeAndSave(), false);
   assert.equal(f.writes, 0);
+});
+
+test('a stalled worker lookup exits after ten seconds without changing subscriptions', async (t) => {
+  const f = fixture(t);
+  navigator.serviceWorker.getRegistration = () => new Promise(() => {});
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const result = assert.rejects(f.push.hasSavedPushSubscription('current-account'), /PUSH_STATUS_TIMEOUT/);
+  t.mock.timers.tick(10_000);
+  await result;
+  assert.equal(f.writes, 0);
+  assert.equal(f.subscribed, true);
 });

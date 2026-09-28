@@ -72,13 +72,17 @@ function isStandalone(): boolean {
 
 function readDismissedAt(): number {
   if (typeof window === "undefined") return 0;
-  const raw = window.localStorage.getItem(DISMISS_KEY);
-  return raw ? Number(raw) : 0;
+  try {
+    const raw = window.localStorage.getItem(DISMISS_KEY);
+    return raw ? Number(raw) : 0;
+  } catch {
+    return 0; // Storage restrictions must not prevent Safari from opening the site.
+  }
 }
 
 function markDismissed(): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(DISMISS_KEY, String(Date.now()));
+  try { window.localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch { /* Closing still works without persistence. */ }
 }
 
 export function PwaInstallPrompt() {
@@ -214,7 +218,7 @@ export function PwaInstallPrompt() {
           <p className="mt-1" style={{ color: "var(--color-fg-ink-muted)" }}>
             하단 <Share width={12} height={12} className="inline-block align-text-bottom" />{" "}
             공유 버튼 → <span className="font-semibold">&apos;홈 화면에 추가&apos;</span>를
-            눌러주세요. 푸시 알림은 홈 추가 후 활성화됩니다.
+            눌러주세요. iOS 16.4 이상에서 추가한 아이콘으로 실행한 뒤, 마이페이지에서 대회 알림을 켜고 ‘허용’을 선택해주세요.
           </p>
         </div>
         <button

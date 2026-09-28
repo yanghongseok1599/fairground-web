@@ -10,7 +10,6 @@ import { photoDraftToBlob, readPhotoFile, registrationError } from "@/lib/regist
 import { useAuth } from "@/hooks/useAuth";
 import { ParticipantReadiness } from "@/features/tournament-readiness/components/participant-readiness";
 import { useTournamentPush } from "@/features/tournament-readiness/hooks/use-tournament-push";
-import { TOURNAMENT_ALERTS_REQUIRED } from "@/features/tournament-readiness/policy";
 import { useDataStore } from "@/stores/dataStore";
 import { COUNTRIES } from "@/constants/countries";
 import { PlayerCard } from "@/components/player-card";
@@ -306,11 +305,6 @@ function PlayerSetupContent() {
     if (!hasPortraitConsent(player) && !portraitConsent) { setFormError("촬영물 활용 동의 항목을 확인해주세요."); return; }
     if (bgProcessing || !draft.ready || !submission.begin()) return;
     try {
-      if (!await push.verifyForSave()) {
-        setFormError(TOURNAMENT_ALERTS_REQUIRED);
-        document.getElementById("participant-readiness")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        return;
-      }
       let photoUrl = "";
       if (photoBlob) {
         const photoFile = new File([photoBlob], "photo.webp", {
@@ -808,7 +802,7 @@ function PlayerSetupContent() {
             </div>
           </div>
 
-          <ParticipantReadiness push={push} required consentComplete={hasPortraitConsent(player)} consent={
+          <ParticipantReadiness push={push} consentComplete={hasPortraitConsent(player) || portraitConsent} consent={
             hasPortraitConsent(player) ? (
               <p className="rounded-2xl border border-border bg-background p-5 text-sm text-primary">초상권 동의 완료 · 기존 본인 동의 기록이 적용됩니다.</p>
             ) : <div className="rounded-2xl border border-border bg-background p-5">
@@ -817,7 +811,6 @@ function PlayerSetupContent() {
               {portraitConsent && <p className="mt-2 text-xs text-muted-foreground">선수카드 생성 시 동의가 함께 저장됩니다.</p>}
             </div>
           } />
-          {!push.canSave && <p className="text-sm font-medium text-primary">대회 알림을 켜거나, 설정이 어려우면 위의 직접 확인 항목에 동의해주세요.</p>}
 
           {(formError || error) && (
             <p
@@ -832,7 +825,7 @@ function PlayerSetupContent() {
 
           <button
             type="submit"
-            disabled={loading || submission.submitting || bgProcessing || !!photoError || !draft.ready || !push.canSave || (!hasPortraitConsent(player) && !portraitConsent)}
+            disabled={loading || submission.submitting || bgProcessing || !!photoError || !draft.ready || (!hasPortraitConsent(player) && !portraitConsent)}
             className="w-full py-4 rounded-2xl text-sm font-black transition-all hover:opacity-90 disabled:opacity-30"
             style={{
               background: "var(--primary)",

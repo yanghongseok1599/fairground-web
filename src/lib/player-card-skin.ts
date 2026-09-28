@@ -131,15 +131,19 @@ export function readCardSkinPreference(
   unlocked: PlayerCardSkin[],
 ): PlayerCardSkin {
   if (typeof window === "undefined") return STANDARD_PLAYER_CARD_SKIN;
-  const saved = window.localStorage.getItem(PLAYER_CARD_SKIN_PREFERENCE_KEY);
-  return saved && unlocked.includes(saved as PlayerCardSkin)
-    ? (saved as PlayerCardSkin)
-    : STANDARD_PLAYER_CARD_SKIN;
+  try {
+    const saved = window.localStorage.getItem(PLAYER_CARD_SKIN_PREFERENCE_KEY);
+    return saved && unlocked.includes(saved as PlayerCardSkin)
+      ? (saved as PlayerCardSkin)
+      : STANDARD_PLAYER_CARD_SKIN;
+  } catch {
+    return STANDARD_PLAYER_CARD_SKIN;
+  }
 }
 
 export function writeCardSkinPreference(skin: PlayerCardSkin) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(PLAYER_CARD_SKIN_PREFERENCE_KEY, skin);
+  try { window.localStorage.setItem(PLAYER_CARD_SKIN_PREFERENCE_KEY, skin); } catch { /* Keep the current in-memory selection. */ }
 }
 
 /** 선택한 스킨으로 카드를 그리기 위한 얕은 복제본. 저장·공유 캡처도 이 값을 따른다. */

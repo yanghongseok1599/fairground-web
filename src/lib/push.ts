@@ -94,6 +94,22 @@ export async function isCurrentlySubscribed(): Promise<boolean> {
 
 /** A browser subscription alone cannot receive this account's tournament alerts. */
 export async function hasSavedPushSubscription(expectedUserId?: string): Promise<boolean> {
+  // Safari's worker lookup or an account lock can stall without rejecting.
+  // This is a read-only check: timing out must never modify a subscription.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      readSavedPushSubscription(expectedUserId),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("PUSH_STATUS_TIMEOUT")), 10_000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function readSavedPushSubscription(expectedUserId?: string): Promise<boolean> {
   if (!PUSH_SUPPORTED || Notification.permission !== "granted") return false;
   const reg = await navigator.serviceWorker.getRegistration("/");
   const sub = await reg?.pushManager.getSubscription();

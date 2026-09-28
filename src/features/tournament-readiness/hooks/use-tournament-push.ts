@@ -6,7 +6,7 @@ import {
   PUSH_SUPPORTED, PUSH_SUBSCRIPTION_CHANGED, hasSavedPushSubscription,
   subscribeAndSave, unsubscribeAndDelete,
 } from "@/lib/push";
-import { canSaveWithTournamentAlerts, type TournamentPushState } from "../policy";
+import type { TournamentPushState } from "../policy";
 
 function deviceContext() {
   const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
@@ -23,7 +23,6 @@ export function useTournamentPush() {
   const [ios, setIos] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [fallbackAcknowledged, setFallbackAcknowledged] = useState(false);
   const revision = useRef(0);
   const inFlight = useRef(false);
   const state = snapshot.userId === userId ? snapshot.state : "loading";
@@ -49,7 +48,6 @@ export function useTournamentPush() {
 
   useEffect(() => {
     const invalidate = () => { revision.current++; };
-    setFallbackAcknowledged(false);
     setError("");
     void refresh();
     const sync = () => { if (!inFlight.current && document.visibilityState === "visible") void refresh(); };
@@ -88,15 +86,9 @@ export function useTournamentPush() {
     }
   };
 
-  const verifyForSave = async () => {
-    if (inFlight.current) return false;
-    return canSaveWithTournamentAlerts(await refresh(), fallbackAcknowledged, Boolean(error));
-  };
-
   return {
-    state, ios, busy, error, fallbackAcknowledged, setFallbackAcknowledged,
-    canSave: !busy && canSaveWithTournamentAlerts(state, fallbackAcknowledged, Boolean(error)),
-    refresh, enable: () => change(true), disable: () => change(false), verifyForSave,
+    state, ios, busy, error,
+    refresh, enable: () => change(true), disable: () => change(false),
   };
 }
 

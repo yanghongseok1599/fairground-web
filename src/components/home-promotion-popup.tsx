@@ -46,6 +46,10 @@ const SHELL_MAX_H = "max-h-[min(820px,calc(100svh-2rem))]";
 const POSTER_FRAME =
   "aspect-[4/5] h-[min(36svh,280px)] w-auto max-w-full sm:h-[min(636px,calc(100svh-8rem),calc(min(1120px,100vw-2rem)*0.55))]";
 
+function browserStorage(kind: "localStorage" | "sessionStorage"): Storage | undefined {
+  try { return window[kind]; } catch { return undefined; }
+}
+
 function readStorage(storage: Storage | undefined, key: string): boolean {
   if (!storage) return false;
   try {
@@ -112,9 +116,9 @@ export function HomePromotionPopup() {
       const storageKey = popupDismissStorageKey(nextPopup);
       const sessionKey = popupSessionStorageKey(nextPopup);
       const dailyKey = popupDailyStorageKey(nextPopup);
-      if (!forcePreview && readStorage(window.localStorage, storageKey)) return;
-      if (!forcePreview && readDailyDismissed(window.localStorage, dailyKey)) return;
-      if (!forcePreview && readStorage(window.sessionStorage, sessionKey)) return;
+      if (!forcePreview && readStorage(browserStorage("localStorage"), storageKey)) return;
+      if (!forcePreview && readDailyDismissed(browserStorage("localStorage"), dailyKey)) return;
+      if (!forcePreview && readStorage(browserStorage("sessionStorage"), sessionKey)) return;
 
       timer = window.setTimeout(() => {
         if (cancelled) return;
@@ -134,9 +138,9 @@ export function HomePromotionPopup() {
     if (typeof window !== "undefined" && popup) {
       if (dismissToday) {
         // "오늘 다시 안보기": keep hidden until local midnight across reloads.
-        writeDailyDismissed(window.localStorage, popupDailyStorageKey(popup));
+        writeDailyDismissed(browserStorage("localStorage"), popupDailyStorageKey(popup));
       } else {
-        writeStorage(window.sessionStorage, popupSessionStorageKey(popup));
+        writeStorage(browserStorage("sessionStorage"), popupSessionStorageKey(popup));
       }
     }
     setOpen(false);
@@ -144,7 +148,7 @@ export function HomePromotionPopup() {
 
   const dismissLongTerm = () => {
     if (typeof window !== "undefined" && popup) {
-      writeStorage(window.localStorage, popupDismissStorageKey(popup));
+      writeStorage(browserStorage("localStorage"), popupDismissStorageKey(popup));
     }
     setOpen(false);
   };

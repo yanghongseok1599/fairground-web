@@ -3,12 +3,10 @@
 import Link from "next/link";
 import { BellRing, Check, Loader2 } from "lucide-react";
 import type { TournamentPush } from "../hooks/use-tournament-push";
-import { canUseManualTournamentAlerts } from "../policy";
 import { BrowserLinkHelp } from "@/features/browser-handoff/components/browser-link-help";
 
-export function TournamentPushCard({ push, required = false, compact = false }: {
+export function TournamentPushCard({ push, compact = false }: {
   push: TournamentPush;
-  required?: boolean;
   compact?: boolean;
 }) {
   const { state, ios, busy, error } = push;
@@ -19,7 +17,7 @@ export function TournamentPushCard({ push, required = false, compact = false }: 
       <div className="flex items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 text-base font-bold">
           {on ? <Check className="h-5 w-5 shrink-0 text-primary" /> : <BellRing className="h-5 w-5 shrink-0 text-primary" />}
-          대회 진행 알림 {required && <span className="text-xs text-primary">참가 준비</span>}
+          대회 진행 알림
         </h3>
         <span role="status" className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
           {state === "loading" ? "확인 중" : on ? "ON" : state === "error" ? "확인 필요" : "OFF"}
@@ -51,20 +49,16 @@ export function TournamentPushCard({ push, required = false, compact = false }: 
       </div>}
       {state === "error" && <p role="alert" className="mt-3 text-sm text-destructive">알림 상태를 확인하지 못했습니다. 인터넷 연결을 확인하고 다시 시도해주세요.</p>}
       {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
-      {required && canUseManualTournamentAlerts(state, Boolean(error)) && <div className="mt-3 rounded-xl border border-border p-4 text-sm leading-relaxed">
-        <p className="font-bold">알림 설정이 어려우면 선수등록부터 완료하세요</p>
-        <p className="mt-2">이 기기에 알림이 오지 않을 수 있습니다. 운영진에게 알리고 <Link className="font-bold text-primary underline" href="/tournaments">경기 일정</Link>과 <Link className="font-bold text-primary underline" href="/notices">공지사항</Link>을 직접 확인해주세요. 알림은 나중에 마이페이지에서 설정할 수 있습니다.</p>
-        <label className="mt-3 flex min-h-11 cursor-pointer items-start gap-3 font-bold">
-          <input type="checkbox" checked={push.fallbackAcknowledged} onChange={(event) => push.setFallbackAcknowledged(event.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--primary)]" />
-          알림을 받을 수 없는 동안 운영진에게 알리고 경기 진행을 직접 확인하겠습니다.
-        </label>
+      {!on && <div className="mt-3 rounded-xl border border-border p-4 text-sm leading-relaxed">
+        <p className="font-bold">알림은 나중에도 설정할 수 있습니다</p>
+        <p className="mt-2">알림 설정 없이도 선수등록·카드 저장·팀 가입신청을 진행할 수 있습니다. 설정 전에는 <Link className="font-bold text-primary underline" href="/tournaments">경기 일정</Link>과 <Link className="font-bold text-primary underline" href="/notices">공지사항</Link>을 직접 확인해주세요.</p>
       </div>}
       {state === "off" && <button type="button" onClick={() => void push.enable()} disabled={busy} className={buttonClass}>
         {busy && <Loader2 className="h-4 w-4 animate-spin" />}{busy ? "알림 설정 중..." : "대회 알림 ON으로 설정"}
       </button>}
       {["denied", "unsupported", "install", "error"].includes(state) && <button type="button" disabled={busy} onClick={() => void push.refresh()} className={buttonClass}>알림 상태 다시 확인</button>}
       {state === "loading" && <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />이 기기의 알림 설정을 확인하고 있습니다.</p>}
-      {on && !required && <details className="mt-3 text-sm text-muted-foreground">
+      {on && <details className="mt-3 text-sm text-muted-foreground">
         <summary className="cursor-pointer py-2">알림 설정 관리</summary>
         <p>알림을 끄면 경기 호출과 일정 변경을 놓칠 수 있습니다.</p>
         <button type="button" disabled={busy} onClick={() => void push.disable()} className="mt-2 min-h-11 rounded-xl border border-border px-4 disabled:opacity-50">{busy ? "변경 중..." : "이 기기의 알림 끄기"}</button>
