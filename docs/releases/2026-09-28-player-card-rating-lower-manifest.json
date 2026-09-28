@@ -1,0 +1,51 @@
+{
+  "baseline": "dpl_FoTtzYALsZByBV7NrfRnUVQEgCwV",
+  "ratingY": 15,
+  "fileCount": 946,
+  "changed": [
+    {
+      "path": "src/lib/player-card-frame.ts",
+      "before": "ed22722a52f404a9968ff2211479b51e1074d818",
+      "after": "0c667afde7ca24e8f67e338729d129ae9bfa247e"
+    },
+    {
+      "path": "tests/player-card-frame.test.ts",
+      "before": "9f3b87521cd49a6e90fe52bfacd99d21988e4ccf",
+      "after": "fcc2d5ddac25e1b1ddd9bca1910db767d6d9339e"
+    }
+  ],
+  "commit": "107a0cc",
+  "deployment": {
+    "id": "dpl_8227pzsvGF4LNgfZLfPD5kUbaztm",
+    "url": "https://fairground-3w9jg1r26-milestones-projects-d52c4dda.vercel.app",
+    "hashesMatch": true,
+    "promoted": true
+  },
+  "png": {
+    "version": "v4",
+    "size": [
+      2160,
+      2700
+    ],
+    "previousRatingBounds": [
+      608,
+      481,
+      884,
+      640
+    ],
+    "ratingBounds": [
+      608,
+      526,
+      884,
+      686
+    ],
+    "method": "Existing registered-player PNG; re-rendered rating region using shared coordinates, original card background and font. Live profile API timed out."
+  },
+  "validation": {
+    "lintErrors": 0,
+    "existingWarnings": 17,
+    "typescript": true,
+    "playerCardTests": true,
+    "vercelProductionBuild": true
+  }
+}
