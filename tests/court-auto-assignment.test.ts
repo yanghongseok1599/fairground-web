@@ -12,12 +12,12 @@ const src = readFileSync(
   "utf8",
 );
 
-test("등번호 0(미지정)은 맨 뒤로 정렬된다", () => {
+test("등번호 0과 00도 유효한 번호로 정렬한다", () => {
   assert.match(src, /const jerseyOrder = \(p: Player\) =>/);
-  assert.match(src, /p\.number > 0 \? p\.number : Number\.MAX_SAFE_INTEGER/);
+  assert.match(src, /const jerseyOrder = \(p: Player\) => jerseySortOrder\(p\)/);
   assert.ok(
     !/typeof a\.number === "number" \? a\.number : Number\.MAX_SAFE_INTEGER/.test(src),
-    "0 을 유효 등번호로 취급하던 옛 정렬이 남아 있으면 안 된다",
+    "명시적으로 등록한 0번과 미등록 기본값 0을 구분하지 않던 정렬이 남아 있으면 안 된다",
   );
 });
 

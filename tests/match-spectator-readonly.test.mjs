@@ -22,7 +22,7 @@ function fixture(t) {
     useCallback(fn) { return fn; },
     useEffect(fn, deps) { const i = cursor++; const old = cells[i]; if (!old || !deps || deps.some((d, j) => !Object.is(d, old.deps[j]))) effects.push(() => { old?.cleanup?.(); cells[i] = { deps, cleanup: fn() }; }); },
   };
-  const { useMatchControl: runHook } = moduleLoader({ react, "@/features/match-control/store-context": { useMatchControlStore: () => store } })("src/hooks/useMatchControl.ts");
+  const { useMatchControl: runHook } = moduleLoader({ react, "@/hooks/useAuth": {useAuth: () => ({player:null})}, "@/features/match-control/store-context": { useMatchControlStore: () => store } })("src/hooks/useMatchControl.ts");
   let result;
   const render = () => { cursor = 0; result = runHook({ tournamentId: m.tournamentId, matchId: m.id, readOnly: true }); while (effects.length) effects.shift()(); return result; };
   const flush = async () => { for (let i = 0; i < 6; i++) { await Promise.resolve(); render(); } return result; };

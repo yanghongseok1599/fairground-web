@@ -9,11 +9,11 @@ const adminMatchPage = readFileSync(
   "utf8",
 );
 
-test("경기 종료 모달은 심판 MOM 선택 또는 MOM 없음 명시 후 종료할 수 있다", () => {
+test("관리자 확정 모달은 MOM 선택과 기록 대조 완료를 요구한다", () => {
   assert.match(adminMatchPage, /const NO_MOM_VALUE = "__no_mom__"/);
   assert.match(adminMatchPage, /const \[endMomChoice, setEndMomChoice\] = useState\(""\)/);
   assert.match(adminMatchPage, /MOM 선수 또는 MOM 없음 중 하나를 선택해야 경기를 종료할 수 있습니다\./);
-  assert.match(adminMatchPage, /disabled=\{mc\.pendingAction !== null \|\| !endMomReady\}/);
+  assert.match(adminMatchPage, /disabled=\{mc\.pendingAction !== null \|\| !endMomReady \|\|/);
 });
 
 test("선택한 MOM은 경기 종료 전에 먼저 저장한다", () => {

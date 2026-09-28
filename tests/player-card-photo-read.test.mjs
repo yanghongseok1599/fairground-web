@@ -85,6 +85,7 @@ function formFixture(page, reader) {
   const context = {
     hasPortraitConsent, requirePortraitConsent,
     File, Error, photoError: "", bgProcessing: false, loading: false,
+    parseJerseyNumber: value => /^(00|0|[1-9]\d?)$/.test(value) ? value === "00" ? "00" : Number(value) : null,
     name: "테스트", position: "ALA", number: "10", nationality: "KOR",
     photoScale: 0.92, photoBlob: file, portraitConsent: true,
     badges: [], badgesEdited: false, cardBadgePatch, earnedBadgeIds: new Set(), player, user: { gender: "male" },

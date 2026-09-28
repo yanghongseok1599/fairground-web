@@ -402,10 +402,10 @@ export default function CoachSubstitutionPage() {
   );
 }
 
-function JerseyNumber({ n }: { n?: number }) {
+function JerseyNumber({ n }: { n?: number | "00" }) {
   return (
     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white">
-      {typeof n === "number" ? n : "–"}
+      {n ?? "–"}
     </span>
   );
 }

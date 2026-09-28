@@ -50,7 +50,7 @@ export function RefereeRecordingFullscreen({ home, away, elapsed, status, practi
         {controls}
         <button type="button" onClick={toggleHistory} aria-pressed={showHistory} className="min-h-11 rounded-lg border border-white/30 text-sm font-bold">{showHistory ? "선수 기록" : "기록 내역"}</button>
       </div>
-      {!online && <p role="status" className="mt-2 text-center text-xs font-bold text-amber-300">연결 끊김 · 기록 입력이 잠겼습니다</p>}
+      {!online && <p role="status" className="mt-2 text-center text-xs font-bold text-amber-300">연결 끊김 · 입력 후 보관 상태를 확인하고 연결 복구 시 재전송해주세요</p>}
     </header>
     <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-20" data-slot="recording-scroll-area">
       <div hidden={showHistory}>{roster}</div>

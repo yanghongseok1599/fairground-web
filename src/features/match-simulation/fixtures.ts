@@ -25,7 +25,7 @@ export function createPracticeFixture(id: string, now: number) {
   };
   const lineup: MatchLineupEntry[] = players.map(p => ({
     matchId: id, teamId: p.teamId, playerId: p.id, playerName: p.name,
-    isStarter: p.number <= 5, jerseyNumber: p.number, createdAt: now,
+    isStarter: Number(p.number) <= 5, jerseyNumber: p.number, createdAt: now,
   }));
   return { match, players, lineup };
 }

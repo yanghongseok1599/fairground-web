@@ -4,12 +4,13 @@ import { useMemo, useState } from "react";
 import type { MatchEvent, Player } from "@/types";
 import { ROSTER_EVENTS, rosterPlayers, rosterStats, type RosterEventType } from "./roster-stats";
 
-export function RosterEventBoard({ teams, events, disabled, onRecord, compact = false }: {
+export function RosterEventBoard({ teams, events, disabled, onRecord, compact = false, allowedEvents }: {
   teams: { id: string; name: string; players: Player[] }[];
   events: MatchEvent[];
   disabled: boolean;
   onRecord: (type: RosterEventType, player: Player, teamId: string) => void | Promise<void>;
   compact?: boolean;
+  allowedEvents?: readonly RosterEventType[];
 }) {
   const stats = useMemo(() => rosterStats(events), [events]);
   const [selectedTeam, setSelectedTeam] = useState(teams[0]?.id);
@@ -23,8 +24,8 @@ export function RosterEventBoard({ teams, events, disabled, onRecord, compact = 
         <ul className="divide-y">{players.map(player => {
           const counts = stats.get(player.id) ?? {};
           return <li key={player.id} className="space-y-2 p-3" data-roster-player={player.id}>
-            <div className="flex min-w-0 items-center gap-2"><span className={`flex h-8 min-w-8 items-center justify-center rounded-full px-1 text-sm font-black text-white ${side ? "bg-red-700" : "bg-blue-700"}`}>{player.number || "—"}</span><strong className="truncate text-sm">{player.name}</strong>{(counts.red_card ?? 0) > 0 && <span className="ml-auto rounded bg-red-100 px-2 py-1 text-xs font-bold text-red-800">퇴장</span>}</div>
-            <div className="grid grid-cols-5 gap-1.5">{ROSTER_EVENTS.map(event => <button key={event.type} type="button" disabled={disabled}
+            <div className="flex min-w-0 items-center gap-2"><span className={`flex h-8 min-w-8 items-center justify-center rounded-full px-1 text-sm font-black text-white ${side ? "bg-red-700" : "bg-blue-700"}`}>{player.number ?? "—"}</span><strong className="truncate text-sm">{player.name}</strong>{(counts.red_card ?? 0) > 0 && <span className="ml-auto rounded bg-red-100 px-2 py-1 text-xs font-bold text-red-800">퇴장</span>}</div>
+            <div className="grid grid-cols-5 gap-1.5">{ROSTER_EVENTS.map(event => <button key={event.type} type="button" disabled={disabled || !!allowedEvents && !allowedEvents.includes(event.type)}
               aria-label={`${player.name} ${event.label} 기록`}
               onClick={() => void onRecord(event.type, player, team.id)}
               className={`flex min-h-12 scroll-mt-36 flex-col items-center justify-center rounded-lg border px-1 py-1.5 text-xs font-semibold transition active:scale-95 disabled:cursor-default disabled:opacity-50 ${event.type === "yellow_card" ? "border-amber-200 bg-amber-50 text-amber-950" : event.type === "red_card" ? "border-red-200 bg-red-50 text-red-900" : "bg-background hover:bg-secondary"}`}>

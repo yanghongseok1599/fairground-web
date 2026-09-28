@@ -314,7 +314,7 @@ export default function TeamMembersPage() {
                               className="text-xs mt-0.5"
                               style={{ color: "var(--color-fg-ink-muted)" }}
                             >
-                              {m.position} · #{m.number || "-"} ·{" "}
+                              {m.position} · #{m.number ?? "-"} ·{" "}
                               {TEAM_ROLE_LABELS[currentTeamRole]} · {TEAM_ROLE_DESCRIPTIONS[currentTeamRole]}
                             </div>
                           </div>

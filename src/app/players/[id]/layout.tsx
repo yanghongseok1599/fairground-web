@@ -1,3 +1,4 @@
+import { jerseyNumberFromRow } from "@/lib/jersey-number";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { supabaseServer, isDemoMode } from "@/lib/supabase-server";
@@ -15,12 +16,12 @@ export async function generateMetadata(
   const { id } = await params;
   const { data } = await supabaseServer
     .from("public_player_profiles")
-    .select("name, number, position, bio, photo_url, profile_photo_url, profile_photo_locked, is_approved, is_banned")
+    .select("name, number, number_label, position, bio, photo_url, profile_photo_url, profile_photo_locked, is_approved, is_banned")
     .eq("id", id)
     .maybeSingle();
   if (!data || !data.is_approved || data.is_banned) return FALLBACK;
 
-  const numText = typeof data.number === "number" ? `#${data.number}` : "";
+  const numText = typeof data.number === "number" ? `#${jerseyNumberFromRow(data)}` : "";
   const titleBase = [numText, data.name].filter(Boolean).join(" ");
   const positionText = typeof data.position === "string" ? data.position : "";
   const bioClean = (data.bio ?? "").replace(/\s+/g, " ").trim();

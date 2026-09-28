@@ -9,6 +9,8 @@ interface EventTimelineProps {
   onCancel: (eventId: string) => void;
   onAddAssist: (goal: MatchEvent) => void;
   canEdit?: boolean;
+  canCancel?: boolean;
+  canAddAssist?: boolean;
   uncheckedGoalIds?: Set<string>;
 }
 
@@ -27,6 +29,8 @@ export function EventTimeline({
   onCancel,
   onAddAssist,
   canEdit = true,
+  canCancel = canEdit,
+  canAddAssist = canEdit,
   uncheckedGoalIds,
 }: EventTimelineProps) {
   if (events.length === 0) {
@@ -72,6 +76,7 @@ export function EventTimeline({
                 </span>
                 <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                   <span>{periodLabel}</span>
+                  {event.recordedByName && <span>입력 · {event.recordedByName}</span>}
                   {assistUnchecked && (
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-700">
                       어시 미확인
@@ -83,7 +88,7 @@ export function EventTimeline({
               {/* Action buttons — hidden for cancelled events */}
               {!cancelled && canEdit && (
                 <span className="mt-2 flex items-center gap-1.5 sm:mt-0 sm:shrink-0">
-                  {event.type === "goal" && (
+                  {event.type === "goal" && canAddAssist && !event.assistChecked && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -98,14 +103,14 @@ export function EventTimeline({
                       </span>
                     </Button>
                   )}
-                  <Button
+                  {canCancel && <Button
                     variant="destructive"
                     size="sm"
                     className="min-h-[36px] px-2 text-xs sm:min-h-[44px]"
                     onClick={() => onCancel(event.id)}
                   >
                     취소
-                  </Button>
+                  </Button>}
                 </span>
               )}
             </div>
