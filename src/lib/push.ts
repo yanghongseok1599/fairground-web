@@ -20,6 +20,8 @@
  */
 
 import { supabase } from "@/config/supabase";
+import { isSubscriptionSaved, savePushSubscription } from "@/lib/notifications/push-subscription-store";
+import type { PushConnectionFailure, PushConnectionResult } from "@/lib/notifications/push-connection-result";
 import { getPushEnvironment } from "@/features/tournament-readiness/push-environment";
 
 export const PUSH_SUBSCRIPTION_CHANGED = "fairground:push-subscription-changed";
@@ -58,7 +60,8 @@ export async function getPushPermission(): Promise<NotificationPermission | "una
 export async function requestPushPermission(): Promise<NotificationPermission> {
   if (!PUSH_SUPPORTED) return "denied";
   if (Notification.permission === "granted") return "granted";
-  if (Notification.permission === "denied") return "denied";
+  // A user-initiated retry asks the native API again; it still enforces actual denial.
+  if (Notification.permission === "denied" && !getPushEnvironment().ios) return "denied";
   return Notification.requestPermission();
 }
 
@@ -73,14 +76,6 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const out = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
   return out;
-}
-
-/** ArrayBuffer → base64url (DB 저장용 — p256dh / auth 키). */
-function arrayBufferToBase64Url(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
-  let s = "";
-  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 export async function isCurrentlySubscribed(): Promise<boolean> {
@@ -117,32 +112,25 @@ async function readSavedPushSubscription(expectedUserId?: string): Promise<boole
   if (error) throw error;
   if (!data.user || (expectedUserId && data.user.id !== expectedUserId)) return false;
   const userId = data.user.id;
-  const { data: saved, error: readError } = await (
-    supabase as unknown as {
-      from: (table: string) => {
-        select: (columns: string) => {
-          eq: (column: string, value: string) => {
-            eq: (column: string, value: string) => {
-              maybeSingle: () => Promise<{ data: { endpoint: string } | null; error: { message: string } | null }>;
-            };
-          };
-        };
-      };
-    }
-  ).from("push_subscriptions").select("endpoint").eq("user_id", userId).eq("endpoint", sub.endpoint).maybeSingle();
-  if (readError) throw readError;
-  return Boolean(saved && Notification.permission === "granted");
+  const saved = await isSubscriptionSaved(userId, sub);
+  return saved && Notification.permission === "granted";
 }
 
 /**
  * 권한 요청 → 구독 → DB 저장. 성공 true / 거부·실패 false.
- * upsert(onConflict: 'endpoint') 로 멱등: 같은 기기 재구독 시 row 중복 방지.
+ * 기존 호출자의 boolean 계약을 유지한다. 화면에서는 상세 결과를 사용한다.
  */
 export async function subscribeAndSave(): Promise<boolean> {
-  if (!PUSH_SUPPORTED) return false;
+  return (await connectPush()).ok;
+}
+
+export async function connectPush(): Promise<PushConnectionResult> {
+  if (!getPushEnvironment().supported) return { ok: false, reason: "unsupported" };
+  let stage: PushConnectionFailure = "permission";
   try {
     const perm = await requestPushPermission();
-    if (perm !== "granted") return false;
+    if (perm !== "granted") return { ok: false, reason: "permission" };
+    stage = "worker";
     const reg = await registerPushSw();
     // SW 가 active 가 될 때까지 대기 — 갓 register 한 경우 pushManager.subscribe 가 실패할 수 있다.
     let readyTimer: ReturnType<typeof setTimeout> | undefined;
@@ -157,13 +145,14 @@ export async function subscribeAndSave(): Promise<boolean> {
       clearTimeout(readyTimer);
     }
 
+    stage = "key";
     // VAPID public key (서버 RPC) — 환경변수에 두지 않음 (스펙).
     const { data: vapidKey, error: vapidErr } = await supabase.rpc(
       // RPC 시그니처는 자동 생성 타입에 없을 수 있어 캐스팅.
       "get_vapid_public_key" as never
     );
     if (vapidErr || typeof vapidKey !== "string" || !vapidKey) {
-      return false;
+      return { ok: false, reason: "key" };
     }
     // PushManager.subscribe 는 ArrayBuffer/BufferSource 를 요구.
     // Uint8Array<ArrayBufferLike> 타입 호환을 위해 신선한 ArrayBuffer 로 복사.
@@ -171,7 +160,8 @@ export async function subscribeAndSave(): Promise<boolean> {
     const applicationServerKey = new ArrayBuffer(keyBytes.byteLength);
     new Uint8Array(applicationServerKey).set(keyBytes);
 
-    // 기존 구독이 있고 keys 가 동일하면 재사용, 아니면 새로 구독.
+    stage = "subscription";
+    // A persistence retry must reuse the browser subscription without revoking it.
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
       sub = await reg.pushManager.subscribe({
@@ -180,48 +170,22 @@ export async function subscribeAndSave(): Promise<boolean> {
       });
     }
 
-    const p256dhBuf = sub.getKey("p256dh");
-    const authBuf = sub.getKey("auth");
-    if (!p256dhBuf || !authBuf) return false;
-
-    const { data: userRes } = await supabase.auth.getUser();
+    stage = "login";
+    const { data: userRes, error: authError } = await supabase.auth.getUser();
     const userId = userRes.user?.id;
-    if (!userId) return false;
+    if (authError || !userId) return { ok: false, reason: "login" };
 
-    const row = {
-      user_id: userId,
-      endpoint: sub.endpoint,
-      p256dh: arrayBufferToBase64Url(p256dhBuf),
-      auth: arrayBufferToBase64Url(authBuf),
-      user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
-    };
-
-    // typed client 는 push_subscriptions 를 모르므로 from 을 캐스팅.
-    const { error: upsertErr } = await (
-      supabase as unknown as {
-        from: (t: string) => {
-          upsert: (
-            v: Record<string, unknown>,
-            opts: { onConflict: string }
-          ) => Promise<{ error: { message: string } | null }>;
-        };
-      }
-    )
-      .from("push_subscriptions")
-      .upsert(row, { onConflict: "endpoint" });
-
-    if (upsertErr) {
-      // DB 저장 실패 시 푸시 구독은 살아있어 서버는 아무것도 못 보냄 → 정리.
-      try {
-        await sub.unsubscribe();
-      } catch {
-        /* noop */
-      }
-      return false;
-    }
-    return true;
+    stage = "save";
+    if (!await savePushSubscription(userId, sub)) return { ok: false, reason: "account" };
+    // Never report ON after the user switched accounts or revoked permission mid-flight.
+    stage = "login";
+    const { data: current, error: currentError } = await supabase.auth.getUser();
+    if (currentError || current.user?.id !== userId) return { ok: false, reason: "login" };
+    if (Notification.permission !== "granted") return { ok: false, reason: "permission" };
+    return { ok: true };
   } catch {
-    return false;
+    // A network/RLS failure is retryable. Do not revoke the existing device subscription here.
+    return { ok: false, reason: stage };
   } finally {
     notifyPushChange();
   }

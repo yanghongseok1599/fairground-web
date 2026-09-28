@@ -4,8 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   PUSH_SUBSCRIPTION_CHANGED,
-  subscribeAndSave, unsubscribeAndDelete,
+  connectPush, unsubscribeAndDelete,
 } from "@/lib/push";
+import { PUSH_CONNECTION_MESSAGE } from "@/lib/notifications/push-connection-result";
 import type { TournamentPushState } from "../policy";
 import { getPushEnvironment } from "../push-environment";
 import { readTournamentPushStatus, type PushPermission } from "../push-status";
@@ -57,12 +58,11 @@ export function useTournamentPush() {
     revision.current++;
     try {
       // Keep the native permission request in the click's user-activation chain.
-      const saved = enable ? await subscribeAndSave() : (await unsubscribeAndDelete(), true);
+      const result = enable ? await connectPush() : (await unsubscribeAndDelete(), { ok: true as const });
       const next = await refresh();
-      if (enable && (!saved || next !== "on") && next !== "denied") {
-        setError(next === "unlinked"
-          ? "알림 권한은 허용되어 있지만 수신 연결을 저장하지 못했습니다. 인터넷 연결과 로그인 상태를 확인한 뒤 다시 연결해주세요."
-          : "알림 설정을 완료하지 못했습니다. 권한 요청에서 ‘허용’을 선택하고 다시 시도해주세요.");
+      if (enable && (!result.ok || next !== "on")) {
+        setError(!result.ok ? PUSH_CONNECTION_MESSAGE[result.reason]
+          : "수신 연결을 확인하지 못했습니다. 알림 상태를 다시 확인해주세요.");
       } else if (!enable && next === "on") {
         setError("알림을 끄지 못했습니다. 다시 시도해주세요.");
       }

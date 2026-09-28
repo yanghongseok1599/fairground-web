@@ -5,6 +5,7 @@ export function IosPushInstallGuide({ environment }: { environment: PushEnvironm
   return <div className="space-y-2 text-sm leading-relaxed">
     <p className="font-bold">홈 화면의 FairGround에서 알림을 확인해주세요</p>
     <p>이미 추가했다면 홈 화면의 FairGround 아이콘으로 열어주세요. 이 브라우저 탭에서는 홈 화면 앱의 알림 권한을 확인하거나 변경할 수 없습니다.</p>
+    <p>아이콘을 눌러도 Safari로 열린다면 웹 앱으로 설치되지 않은 바로가기일 수 있습니다. Safari 공유 → 홈 화면에 추가에서 ‘웹 앱으로 열기’가 보이면 켜고 추가한 뒤, 새 아이콘에서 로그인해주세요. 수신 연결이 끝나기 전에는 기존 앱을 지우지 마세요.</p>
     <details>
       <summary className="cursor-pointer py-2 font-bold">아직 홈 화면에 없다면 추가하는 방법</summary>
       <ol className="list-decimal space-y-1 pl-5">

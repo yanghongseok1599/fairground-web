@@ -30,7 +30,7 @@ test("카드는 상태별로 다음 행동을 안내한다", () => {
   assert.match(src, /알림이 차단되어 있습니다/);
   // 켜기/끄기 양방향
   assert.match(hook, /unsubscribeAndDelete\(\)/);
-  assert.match(hook, /subscribeAndSave\(\)/);
+  assert.match(hook, /connectPush\(\)/);
   // 닫기 버튼이 없어야 한다 — 상시 진입점이 목적
   assert.ok(!/dismiss|sessionStorage/.test(src), "상시 카드는 닫기·세션 숨김이 없어야 한다");
 });

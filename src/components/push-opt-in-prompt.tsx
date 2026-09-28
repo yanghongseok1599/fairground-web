@@ -5,12 +5,13 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { BellRing, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { PUSH_CONNECTION_MESSAGE } from "@/lib/notifications/push-connection-result";
 import { getPushEnvironment } from "@/features/tournament-readiness/push-environment";
 import {
   PUSH_SUPPORTED,
   getPushPermission,
   isCurrentlySubscribed,
-  subscribeAndSave,
+  connectPush,
 } from "@/lib/push";
 
 /**
@@ -89,10 +90,10 @@ export function PushOptInPrompt() {
     setBusy(true);
     setError("");
     // requestPermission 은 클릭(사용자 제스처) 안에서 호출되어야 한다.
-    const saved = await subscribeAndSave();
+    const result = await connectPush();
     setBusy(false);
-    if (saved) dismiss();
-    else setError("알림 설정을 완료하지 못했습니다. 마이페이지에서 권한과 연결 상태를 확인해주세요.");
+    if (result.ok) dismiss();
+    else setError(PUSH_CONNECTION_MESSAGE[result.reason]);
   };
 
   // These pages already contain a persistent, actionable readiness checklist.
