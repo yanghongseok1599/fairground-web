@@ -127,6 +127,37 @@ test("일반 선수의 경기 종료 요청은 차단된다", async t => {
   assert.equal((await f.profile(0)).games, 0);
 });
 
+test("경고 취소는 자동 퇴장만 취소하고 직접 퇴장과 원본 이벤트를 보존한다", async t => {
+  const f = await fixture(t);
+  await f.record("red_card", 0); await f.record("yellow_card", 0); await f.record("yellow_card", 0);
+  const yellow = (await f.owner.query("select id from match_events where match_id=$1 and type='yellow_card' limit 1", [f.match])).rows[0];
+  await f.store.cancelMatchEvent(f.tournament, f.match, yellow.id);
+  const rows = (await f.owner.query("select type,is_cancelled from match_events where match_id=$1", [f.match])).rows;
+  assert.equal(rows.length, 3); assert.equal(rows.filter(e => e.type === "red_card" && !e.is_cancelled).length, 1);
+  assert.equal(rows.filter(e => e.type === "yellow_card" && e.is_cancelled).length, 1);
+  await f.store.endMatch(f.tournament, f.match); assert.equal((await f.profile(0)).ban_matches_remaining, 2);
+});
+
+test("심판과 관리자의 동시 득점·종료 요청은 기록을 잃거나 두 번 집계하지 않는다", async t => {
+  const f = await fixture(t);
+  const second = new pg.Client({ connectionString: url }); await second.connect(); t.after(() => second.end());
+  await second.query('set role authenticated');
+  const actor = (await f.actor.query("select auth.uid() id")).rows[0].id;
+  await second.query("select set_config('request.jwt.claim.sub',$1,false)", [actor]);
+  await f.actor.query('begin'); await f.record('goal', 0);
+  let settled = false;
+  const otherGoal = second.query("select add_match_event($1,'goal',$2,'동시 득점',$3,1,1)", [f.match, f.players[1], f.home]).finally(() => { settled = true; });
+  await new Promise(resolve => setTimeout(resolve, 50)); assert.equal(settled, false);
+  await f.actor.query('commit'); await otherGoal;
+  const before = (await f.owner.query('select id from match_events where match_id=$1 order by id', [f.match])).rows;
+  assert.equal(before.length, 2);
+  await Promise.all([f.store.endMatch(f.tournament, f.match), second.query('select end_match($1)', [f.match])]);
+  assert.equal((await f.profile(0)).goals, 1); assert.equal((await f.profile(1)).goals, 1);
+  assert.equal((await f.profile(0)).games, 1); assert.equal((await f.team(f.home)).points, 3);
+  assert.deepEqual((await f.owner.query('select id from match_events where match_id=$1 order by id', [f.match])).rows, before);
+  await assert.rejects(f.record('goal', 0), /not editable/);
+});
+
 test("종료 도중 실패하면 선수 통계·팀 승점·종료 상태가 부분 반영되지 않는다", async t => {
   const f = await fixture(t); await f.record("goal", 0);
   await f.owner.query("update public.teams set season_stats=$2 where id=$1", [f.home, { points: "invalid synthetic value" }]);
@@ -139,4 +170,8 @@ test("종료 도중 실패하면 선수 통계·팀 승점·종료 상태가 부
     // Also restore the invalid row when a different production defect fails this test.
     await f.owner.query("update public.teams set season_stats='{}'::jsonb where id=$1", [f.home]);
   }
+  // Failure leaves the original event available for a safe, exactly-once retry.
+  assert.equal((await f.owner.query('select count(*)::int n from match_events where match_id=$1 and not is_cancelled', [f.match])).rows[0].n, 1);
+  await f.store.endMatch(f.tournament, f.match); await f.store.endMatch(f.tournament, f.match);
+  assert.equal((await f.profile(0)).goals, 1); assert.equal((await f.profile(0)).games, 1);
 });

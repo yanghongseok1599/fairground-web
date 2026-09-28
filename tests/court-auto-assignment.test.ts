@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 //   - 가입 시 number 기본값이 0 → 숫자 정렬에서 맨 앞
 //   - 감독·매니저를 스태프로 구분하지 않음
 const src = readFileSync(
-  join(process.cwd(), "src/app/admin/match/[matchId]/page.tsx"),
+  join(process.cwd(), "src/features/match-control/match-control-screen.tsx"),
   "utf8",
 );
 

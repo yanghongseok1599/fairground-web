@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, useReducedMotion } from "framer-motion";
@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/empty-state";
 import { ScrollVideoHero, type HeroReveal } from "@/components/scroll-video-hero";
 import type { TeamGalleryItem } from "@/components/team-circular-gallery";
 import { getClubLogoPreset } from "@/components/club-emblem";
-import { createTeamCardCanvas } from "@/lib/team-card-canvas";
+import { TeamCardLink } from "@/components/team-card-link";
 import { isFieldChampionTeam, leagueTierCardIndex } from "@/lib/team-home";
 import { FICTIONAL_PLAYER_CARD_POSE_SOURCES } from "@/lib/player-card-pose-templates";
 import type { Team, Player } from "@/types";
@@ -299,8 +299,6 @@ export default function HomePage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamsLoaded, setTeamsLoaded] = useState(false);
   const showcasePlayers = SHOWCASE_SAMPLE_PLAYERS;
-  // 갤러리에서 탭한 팀 — 즉시 이동하지 않고 CTA 버튼을 띄워 그 버튼으로만 이동.
-  const [selectedTeam, setSelectedTeam] = useState<{ id: string; name: string } | null>(null);
   const teamGalleryItems = useMemo<TeamGalleryItem[]>(
     () =>
       teams.map((team, index) => {
@@ -672,51 +670,16 @@ export default function HomePage() {
             />
           ) : (
             <>
-              {/* WebGL 의존 없는 자동 회전 카드 슬라이더(TeamMarquee). 호버/포커스/
-                  드래그/카드 선택 시 일시정지. 카드 탭은 선택만 하고 아래 CTA로 이동. */}
               <TeamMarquee
                 items={teamGalleryItems}
-                paused={!!selectedTeam}
                 reducedMotion={!!prefersReducedMotion}
                 edgeClassName="-mx-5 px-5 sm:-mx-8 sm:px-8 md:mx-0 md:px-0"
                 ariaLabel="참가 팀 카드 슬라이더"
-                renderItem={(item, key) => (
-                  <HomeTeamCard
-                    key={key}
-                    item={item}
-                    active={selectedTeam?.id === item.id}
-                    onSelect={() => {
-                      const t = teams.find((x) => x.id === item.id);
-                      if (t) setSelectedTeam({ id: t.id, name: t.name });
-                    }}
-                  />
-                )}
+                renderItem={(item, key) => <TeamCardLink key={key} item={item} />}
               />
-              {/* 선택된 팀이 있을 때만 이동 CTA 노출 (스크롤 중 오클릭으로 인한
-                  페이지 자동 이동 방지). Link 라 SPA 이동 → 뒤로가기 정상. */}
-              <div className="mt-4 flex min-h-[52px] items-center justify-center">
-                {selectedTeam ? (
-                  <Link
-                    href={`/teams/${selectedTeam.id}`}
-                    className="inline-flex min-h-[48px] items-center gap-2 px-6 fg-display text-[14px] tracking-[0.02em] transition-transform hover:-translate-y-0.5"
-                    style={{
-                      background: "var(--primary)",
-                      color: "var(--primary-foreground)",
-                      boxShadow: "0 12px 26px rgba(0,71,171,0.28)",
-                    }}
-                  >
-                    {selectedTeam.name} 팀 페이지로 이동
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                ) : (
-                  <span
-                    className="text-[13px]"
-                    style={{ color: "var(--color-fg-ink-muted)" }}
-                  >
-                    팀 카드를 탭하면 해당 팀 페이지로 이동할 수 있어요
-                  </span>
-                )}
-              </div>
+              <p className="mt-4 text-center text-[13px]" style={{ color: "var(--color-fg-ink-muted)" }}>
+                팀 카드를 누르면 팀 소개와 선수 명단을 볼 수 있어요
+              </p>
             </>
           )}
         </div>
@@ -945,88 +908,5 @@ export default function HomePage() {
         </div>
       </section>
     </div>
-  );
-}
-
-// 참가 팀 카드 — createTeamCardCanvas 로 그린 <canvas> 를 DOM 에 직접 붙인다.
-// 핵심: toDataURL("image/*") 인코딩을 쓰지 않는다. 1080×1240 캔버스를 카드마다
-// 인코딩하면 카드당 ~340ms 의 동기 메인스레드 블로킹이 발생해(마퀴 reps 로 카드가
-// 20개 이상이면 합계 수 초) 카드가 한참 뒤에야 한꺼번에 뜬다. 인코딩 없이 캔버스를
-// 그대로 표시하면 카드당 비용이 수ms 로 떨어진다. 표시 폭(200px)에 맞춰 540px 로
-// 렌더해 합성 비용·메모리도 함께 줄인다. WebGL(OGL) 의존이 없어 전 기기 안정적.
-const HOME_CARD_RENDER_WIDTH = 540;
-
-function HomeTeamCard({
-  item,
-  active,
-  onSelect,
-}: {
-  item: TeamGalleryItem;
-  active: boolean;
-  onSelect: () => void;
-}) {
-  const cacheKey = `${item.frame}|${item.logo ?? ""}|${item.name}|${item.colorIndex}|${item.isFieldChampion ? "champion" : "standard"}`;
-  const holderRef = useRef<HTMLDivElement>(null);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void createTeamCardCanvas(
-      {
-        name: item.name,
-        logo: item.logo,
-        frame: item.frame,
-        colorIndex: item.colorIndex,
-        isFieldChampion: item.isFieldChampion,
-      },
-      { width: HOME_CARD_RENDER_WIDTH },
-    )
-      .then((canvas) => {
-        const holder = holderRef.current;
-        if (cancelled || !holder) return;
-        canvas.setAttribute("role", "img");
-        canvas.setAttribute("aria-label", item.name);
-        canvas.style.display = "block";
-        canvas.style.width = "100%";
-        canvas.style.height = "100%";
-        canvas.style.borderRadius = "14px";
-        holder.replaceChildren(canvas);
-        setReady(true);
-      })
-      .catch((err) => console.error("[HomeTeamCard] canvas failed:", err));
-    return () => {
-      cancelled = true;
-    };
-    // cacheKey 는 item 의 (frame·logo·name·colorIndex) 파생값이라 승급 등으로
-    // 티어가 바뀌면 변경되어 카드가 새 테두리로 재생성된다.
-  }, [item, cacheKey]);
-
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-label={`${item.name} 선택`}
-      className="shrink-0 snap-center transition-transform active:scale-95"
-      style={{
-        width: 200,
-        borderRadius: 14,
-        outline: active ? "2px solid var(--primary)" : "none",
-        outlineOffset: 3,
-      }}
-    >
-      <div className="relative w-full" style={{ aspectRatio: "1080 / 1240" }}>
-        <div
-          ref={holderRef}
-          className="absolute inset-0"
-          style={{ opacity: ready ? 1 : 0, transition: "opacity 160ms ease" }}
-        />
-        {!ready && (
-          <div
-            className="absolute inset-0 animate-pulse"
-            style={{ background: "var(--color-fg-paper-2)", borderRadius: 14 }}
-          />
-        )}
-      </div>
-    </button>
   );
 }

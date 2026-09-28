@@ -1,6 +1,7 @@
 "use client";
 
 import { requireSavedRow, registrationError } from "@/lib/registration/reliability";
+import { createMatchLiveRefresh } from "@/lib/match-live-refresh";
 import { create } from "zustand";
 import { supabase, isDemoMode } from "@/config/supabase";
 import {
@@ -129,7 +130,7 @@ function eventsToArray(events: Record<string, MatchEvent> | MatchEvent[] | undef
 }
 
 // Supabase: 한 경기의 이벤트 조회 헬퍼 (created_at 오름차순).
-async function fetchEvents(matchId: string): Promise<MatchEvent[]> {
+async function fetchEvents(matchId: string, strict = false): Promise<MatchEvent[]> {
   const { data, error } = await supabase
     .from("match_events")
     .select("*")
@@ -137,6 +138,7 @@ async function fetchEvents(matchId: string): Promise<MatchEvent[]> {
     .order("created_at", { ascending: true });
   if (error) {
     console.error("[dataStore] fetchEvents:", error.message);
+    if (strict) throw new Error(error.message);
     return [];
   }
   return (data ?? []).map(rowToEvent);
@@ -703,7 +705,12 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     const { data, error } = await supabase.from("matches").select("*").eq("id", matchId).maybeSingle();
     if (error) { console.error("[dataStore] fetchMatch:", error.message); return null; }
     if (!data) return null;
-    return rowToMatch(data, await fetchEvents(matchId));
+    try {
+      return rowToMatch(data, await fetchEvents(matchId, true));
+    } catch {
+      // 조회 실패를 기록 0건으로 표현하지 않는다. 호출 화면에서 재시도한다.
+      return null;
+    }
   },
 
   fetchStandings: async () => {
@@ -757,28 +764,46 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     }
     setState({ liveMatchesLoading: true });
 
-    const load = async () => {
-      const { data, error } = await supabase.from("matches").select("*").eq("status", "live");
-      if (error) {
-        console.error("[dataStore] subscribeLiveMatches:", error.message);
+    const sync = createMatchLiveRefresh({
+      load: async () => {
+        const { data, error } = await supabase.from("matches").select("*").eq("status", "live");
+        if (error) throw new Error(error.message);
+        return Promise.all(
+          (data ?? []).map(async (row) => rowToLiveMatch(row, await fetchEvents(row.id, true))),
+        );
+      },
+      publish: (liveMatches) => setState({ liveMatches, liveMatchesLoading: false }),
+      onError: (error) => {
+        // 연결 장애에는 마지막으로 확인한 기록을 보존한다.
+        console.error("[dataStore] subscribeLiveMatches:", error);
         setState({ liveMatchesLoading: false });
-        return;
-      }
-      const withEvents = await Promise.all(
-        (data ?? []).map(async (row) => rowToLiveMatch(row, await fetchEvents(row.id))),
-      );
-      setState({ liveMatches: withEvents, liveMatchesLoading: false });
+      },
+    });
+    const reload = () => { void sync.refresh(); };
+    const refreshVisible = () => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") reload();
     };
 
-    void load();
+    reload();
     // Realtime: matches/match_events 변경 시 재로딩 (Firebase onValue 대체).
     const channel = supabase
       .channel("web-live-matches")
-      .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, () => void load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "match_events" }, () => void load())
-      .subscribe();
+      .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, reload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "match_events" }, reload)
+      .subscribe((status) => { if (status === "SUBSCRIBED") reload(); });
 
-    return () => { void supabase.removeChannel(channel); };
+    // 모바일 백그라운드 복귀·재연결 시 놓친 변경도 서버에서 다시 읽는다.
+    const poll = setInterval(refreshVisible, 5_000);
+    if (typeof window !== "undefined") window.addEventListener("online", reload);
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", refreshVisible);
+
+    return () => {
+      sync.stop();
+      clearInterval(poll);
+      if (typeof window !== "undefined") window.removeEventListener("online", reload);
+      if (typeof document !== "undefined") document.removeEventListener("visibilitychange", refreshVisible);
+      void supabase.removeChannel(channel);
+    };
   },
 
   // ===== Write (운영/심판 콘솔) =====
