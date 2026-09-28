@@ -32,6 +32,7 @@ import { buildAutoGroups, buildGroupRoundRobinMatches, recommendGroupCount } fro
 import { buildRestOptimizedMatches } from "@/lib/fixture-scheduler";
 import { buildTournamentDraft, isValidTournamentDraft } from "@/lib/tournament-admin";
 import { setTournamentGroups } from "@/lib/admin-actions";
+import { hasOpenEditor } from "@/features/app-updates/safe-refresh";
 import { computeLineupReadiness } from "@/lib/lineup-readiness";
 import { resolveMatchTrack } from "@/lib/match-operation-access";
 
@@ -91,7 +92,10 @@ function AdminMatches() {
   >(null);
 
   useEffect(() => {
+    let inFlight = false;
     const load = async () => {
+      if (inFlight) return;
+      inFlight = true;
       setLoading(true);
       try {
         const [tournamentList, teamList] = await Promise.all([
@@ -132,10 +136,21 @@ function AdminMatches() {
       } catch {
         // silent
       } finally {
+        inFlight = false;
         setLoading(false);
       }
     };
-    load();
+    const onResume = () => {
+      if (document.visibilityState === "visible" && !hasOpenEditor(document)) void load();
+    };
+    const onShow = (event: PageTransitionEvent) => { if (event.persisted) onResume(); };
+    void load();
+    document.addEventListener("visibilitychange", onResume);
+    window.addEventListener("pageshow", onShow);
+    return () => {
+      document.removeEventListener("visibilitychange", onResume);
+      window.removeEventListener("pageshow", onShow);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -1,0 +1,15 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
+import {moduleLoader} from './helpers/load-ts-module.mjs';
+const {canRefreshApp}=moduleLoader()('src/features/app-updates/safe-refresh.ts');
+function worker({offline=false,clients=[]}={}){
+ const handlers={},calls=[],deleted=[];let skipped=0;
+ const context={URL,Response,console,self:{location:{origin:'https://fairground-kor.com'},addEventListener:(n,f)=>{handlers[n]=f;},clients:{matchAll:async()=>clients.map(path=>({url:'https://fairground-kor.com'+path})),claim:async()=>{}},skipWaiting:async()=>{skipped++;}},
+ fetch:async(req,options)=>{calls.push({req,options});if(offline)throw Error('offline');return new Response('fresh');},caches:{keys:async()=>['fg-pages-v2','fg-static-v2','fg-static-v3','another-app-cache'],delete:async k=>deleted.push(k),match:async req=>new Response(req==='/offline'?'offline notice':'STALE TEST SCREEN'),open:async()=>({put:()=>{throw Error('HTML must not be cached');}})}};
+ vm.runInNewContext(fs.readFileSync('public/sw.js','utf8'),context);
+ return {handlers,calls,deleted,skipCount:()=>skipped,canRefreshClient:context.canRefreshClient};
+}
+test('화면 HTML은 캐시를 읽거나 저장하지 않고 네트워크 최신본을 받는다',async()=>{const w=worker();let response;w.handlers.fetch({request:{method:'GET',mode:'navigate',url:'https://fairground-kor.com/admin/matches'},respondWith:p=>{response=p;}});assert.equal(await(await response).text(),'fresh');assert.equal(w.calls[0].options.cache,'no-store');});
+test('네트워크 실패 시 구버전 연습 화면 대신 오프라인 안내를 표시한다',async()=>{const w=worker({offline:true});let response;w.handlers.fetch({request:{method:'GET',mode:'navigate',url:'https://fairground-kor.com/admin/matches'},respondWith:p=>{response=p;}});assert.equal(await(await response).text(),'offline notice');});
+test('구버전 FairGround 캐시만 정리한다',async()=>{const w=worker();let done;w.handlers.activate({waitUntil:p=>{done=p;}});await done;assert.deepEqual(w.deleted.sort(),['fg-pages-v2','fg-static-v2']);});
+test('기록·교체·명단·회원 수정 화면이 열려 있으면 SW 교체를 미룬다',async()=>{for(const path of ['/admin/match/123','/matches/123/coach','/matches/123/lineup','/my/card-edit','/login']){const w=worker({clients:['/admin/matches',path]});let done;w.handlers.message({data:{type:'SKIP_WAITING'},waitUntil:p=>{done=p;}});await done;assert.equal(w.skipCount(),0,path);assert.equal(canRefreshApp(path),false);assert.equal(w.canRefreshClient(path),false);}const w=worker({clients:['/admin/matches','/tournaments/123']});let done;w.handlers.message({data:{type:'SKIP_WAITING'},waitUntil:p=>{done=p;}});await done;assert.equal(w.skipCount(),1);assert.equal(canRefreshApp('/admin/matches'),true);});
+test('DB 요청과 쓰기 요청을 가로채지 않는다',()=>{const w=worker();for(const request of [{method:'POST',url:'https://fairground-kor.com/api/action'},{method:'GET',url:'https://example.supabase.co/rest/v1/matches'}])w.handlers.fetch({request,respondWith:()=>{throw Error('Must not intercept');}});assert.equal(w.calls.length,0);});

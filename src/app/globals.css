@@ -171,6 +171,15 @@
     background: var(--color-fg-paper) !important;
   }
 }
+/* Keep the mobile navigation in normal sticky flow without a backdrop layer.
+   Safari's collapsing browser chrome must not move a fixed composited header. */
+@media (max-width: 767px) {
+  [data-site-header] {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--color-fg-paper, #fff) !important;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .fg-glass-header {
     transition: none !important;

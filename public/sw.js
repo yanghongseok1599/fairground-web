@@ -8,7 +8,7 @@
  *   계획서 P4 폴백 지침대로 경량 커스텀 SW 채택. 빌드 도구 영향 0.
  *
  * 범위(과스코프 금지):
- *   - app-shell + 정적/Next 자산 캐시 → 오프라인 graceful degradation
+ *   - 정적/Next 자산 캐시 + 오프라인 안내. 실제 페이지 HTML은 저장하지 않음
  *   - 동적 데이터(Supabase, Firebase RTDB)는 캐시 절대 금지 → stale 방지
  *   - 오프라인 쓰기 큐는 범위 외 (endMatch 멱등 충돌)
  *
@@ -18,11 +18,10 @@
  *     (stale 고착 시 sw-register.tsx 의 controllerchange + reload 로 회복)
  */
 
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const PRECACHE = `fg-precache-${CACHE_VERSION}`;
 const RUNTIME_STATIC = `fg-static-${CACHE_VERSION}`;
-const RUNTIME_PAGES = `fg-pages-${CACHE_VERSION}`;
-const KNOWN_CACHES = [PRECACHE, RUNTIME_STATIC, RUNTIME_PAGES];
+const KNOWN_CACHES = [PRECACHE, RUNTIME_STATIC];
 
 // app-shell 최소 자산. /offline 은 오프라인 문서 폴백.
 const PRECACHE_URLS = ["/offline", "/manifest.webmanifest"];
@@ -63,9 +62,20 @@ self.addEventListener("activate", (event) => {
 });
 
 // 클라이언트가 명시적으로 갱신을 요청할 때만 새 SW 활성화 (kill-switch).
+// Keep this allowlist aligned with src/features/app-updates/safe-refresh.ts.
+function canRefreshClient(pathname) {
+  return pathname === "/" || pathname === "/admin/matches" || pathname === "/live" || pathname === "/standings" ||
+    pathname === "/leaderboard" || pathname === "/about" || /^\/(tournaments|teams|players)(\/[^/]+)?\/?$/.test(pathname);
+}
+
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
+    // Even an old client may send this message automatically. Never replace the
+    // worker while a referee/coach or another editing screen remains open.
+    event.waitUntil((async () => {
+      const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      if (clients.every(client => canRefreshClient(new URL(client.url).pathname))) await self.skipWaiting();
+    })());
   }
 });
 
@@ -85,18 +95,13 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 3) 문서/내비게이션: NetworkFirst → 실패 시 캐시 → 최종 /offline.
+  // 3) HTML is always fresh. Never restore an obsolete admin or simulation app shell.
   if (req.mode === "navigate") {
     event.respondWith(
       (async () => {
         try {
-          const fresh = await fetch(req);
-          const cache = await caches.open(RUNTIME_PAGES);
-          cache.put(req, fresh.clone());
-          return fresh;
+          return await fetch(req, { cache: "no-store" });
         } catch {
-          const cached = await caches.match(req);
-          if (cached) return cached;
           const offline = await caches.match("/offline");
           return (
             offline ||

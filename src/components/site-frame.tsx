@@ -19,7 +19,7 @@ export function SiteFrame({ children }: { children: React.ReactNode }) {
     <Providers>
       <SwRegister />
       <SiteHeader />
-      <main className="pt-[60px] w-full overflow-x-clip"><PortraitConsentReminder />{children}</main>
+      <main className="w-full overflow-x-clip"><PortraitConsentReminder />{children}</main>
       <SiteFooter />
     </Providers>
   );

@@ -55,7 +55,7 @@ export default function OfflinePage() {
         style={{ color: "var(--muted-foreground)" }}
       >
         네트워크 연결이 끊어졌습니다. 실시간 스코어·순위는 연결 복구 후 표시됩니다.
-        이미 방문한 페이지는 계속 이용할 수 있습니다.
+        연결을 복구한 뒤 다시 시도해주세요.
       </p>
 
       <OfflineRetry />

@@ -1,66 +1,61 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { canRefreshApp, hasOpenEditor } from "@/features/app-updates/safe-refresh";
 
-/**
- * Service Worker 등록 — 프로덕션에서만 (P4 / ADR-004).
- *
- * 안전 설계:
- *  - process.env.NODE_ENV === "production" 일 때만 등록 → dev 캐시 stale/디버깅 방해 방지.
- *  - 새 SW 감지 시 자동 skipWaiting 하지 않고, 설치 완료 후 SKIP_WAITING 메시지로
- *    제어된 교체 → controllerchange 에서 1회 reload 로 최신 app-shell 반영(stale 고착 회복).
- *  - 등록 실패는 콘솔 경고만 — 앱 동작에 영향 없음(점진적 향상).
- */
+/** Refresh stale read-only app shells, while protecting active match entry/forms. */
 export function SwRegister() {
+  const pathname = usePathname();
   useEffect(() => {
-    if (process.env.NODE_ENV !== "production") return;
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
-
+    if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) return;
+    let disposed = false;
     let reloaded = false;
-
-    const onControllerChange = () => {
-      if (reloaded) return;
-      reloaded = true;
-      window.location.reload();
+    let registration: ServiceWorkerRegistration | undefined;
+    let lastCheck = 0;
+    const hadController = !!navigator.serviceWorker.controller;
+    const safe = () => canRefreshApp(window.location.pathname) && !hasOpenEditor(document);
+    const reload = () => {
+      if (!reloaded && safe()) { reloaded = true; window.location.reload(); }
     };
-
-    navigator.serviceWorker.addEventListener(
-      "controllerchange",
-      onControllerChange
-    );
-
-    navigator.serviceWorker
-      .register("/sw.js", { scope: "/" })
-      .then((reg) => {
-        // 대기 중 SW 가 이미 있으면 즉시 활성화 요청.
-        if (reg.waiting) {
-          reg.waiting.postMessage({ type: "SKIP_WAITING" });
-        }
-        reg.addEventListener("updatefound", () => {
-          const installing = reg.installing;
-          if (!installing) return;
-          installing.addEventListener("statechange", () => {
-            if (
-              installing.state === "installed" &&
-              navigator.serviceWorker.controller
-            ) {
-              // 갱신 설치 완료 → 제어된 교체.
-              reg.waiting?.postMessage({ type: "SKIP_WAITING" });
-            }
-          });
-        });
-      })
-      .catch((err) => {
-        console.warn("[sw] registration failed", err);
-      });
-
+    const activate = () => {
+      if (!disposed && safe()) registration?.waiting?.postMessage({ type: "SKIP_WAITING" });
+    };
+    const update = () => {
+      if (disposed || document.visibilityState === "hidden") return;
+      activate();
+      if (!registration || Date.now() - lastCheck < 60_000) return;
+      lastCheck = Date.now();
+      void registration.update().then(activate).catch(() => { /* Offline: retain current page. */ });
+    };
+    const onShow = (event: PageTransitionEvent) => { if (event.persisted) reload(); update(); };
+    const onControllerChange = () => { if (hadController) reload(); };
+    const onStateChange = () => activate();
+    const installing = new Set<ServiceWorker>();
+    const onUpdateFound = () => {
+      const worker = registration?.installing;
+      if (worker) { installing.add(worker); worker.addEventListener("statechange", onStateChange); }
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+    window.addEventListener("pageshow", onShow);
+    window.addEventListener("online", update);
+    document.addEventListener("visibilitychange", update);
+    navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" })
+      .then(reg => {
+        if (disposed) return;
+        registration = reg;
+        reg.addEventListener("updatefound", onUpdateFound);
+        onUpdateFound(); update();
+      }).catch(err => console.warn("[sw] registration failed", err));
     return () => {
-      navigator.serviceWorker.removeEventListener(
-        "controllerchange",
-        onControllerChange
-      );
+      disposed = true;
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+      window.removeEventListener("pageshow", onShow);
+      window.removeEventListener("online", update);
+      document.removeEventListener("visibilitychange", update);
+      registration?.removeEventListener("updatefound", onUpdateFound);
+      for (const worker of installing) worker.removeEventListener("statechange", onStateChange);
     };
-  }, []);
-
+  }, [pathname]);
   return null;
 }

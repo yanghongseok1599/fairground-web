@@ -202,10 +202,11 @@ export function SiteHeader() {
 
   return (
     <header
+      data-site-header
       data-scrolled={scrolled ? "true" : "false"}
       // 모바일 메뉴(open)가 열리면 backdrop-blur 글래스를 끄고 솔리드 배경으로
       // 전환 — 메뉴와 헤더가 한 덩어리 솔리드 패널처럼 보이게(뒤 비침 제거).
-      className={`${open ? "" : "fg-glass-header"} fixed top-0 left-0 w-full z-50 h-[60px] flex items-center px-5 md:px-10 gap-3 md:gap-6 xl:gap-8`}
+      className={`${open ? "" : "fg-glass-header"} sticky top-0 w-full z-50 h-[60px] flex items-center px-5 md:px-10 gap-3 md:gap-6 xl:gap-8`}
       style={{
         background: open
           ? "var(--color-fg-paper, #ffffff)"
