@@ -82,6 +82,7 @@ function TeamEmblem({ team }: { team: Team }) {
       : getClubLogoPreset(team.name, cardIndex).asset;
 
     void createTeamCardCanvas({
+      id: team.id,
       name: team.name,
       logo: resolvedLogo,
       frame: TEAM_CARD_VARIANTS[cardIndex],
@@ -97,7 +98,7 @@ function TeamEmblem({ team }: { team: Team }) {
     return () => {
       cancelled = true;
     };
-  }, [team.name, team.logo, cardIndex]);
+  }, [team.id, team.name, team.logo, cardIndex]);
 
   return (
     <div

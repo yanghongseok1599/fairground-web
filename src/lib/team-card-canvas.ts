@@ -1,9 +1,12 @@
-// 팀 카드(브론즈/실버/골드/에메랄드) 렌더링을 단일 캔버스 함수로 통일.
+import { prepareTeamCardLogo } from "@/lib/team-card-logo";
+
+// 팀 카드(브론즈/실버/골드/플래티넘) 렌더링을 단일 캔버스 함수로 통일.
 // 랜딩 캐러셀(team-circular-gallery) 과 팀 상세 헤더(TeamEmblem) 가 같은
 // 함수를 호출해 동일한 텍스처를 그린다 — 텍스트 크기/위치 차이로 인한 surface
 // mismatch 를 차단하기 위함.
 
 export interface TeamCardItem {
+  id?: string;
   name: string;
   // 로고가 없거나 로드 실패한 경우엔 프레임/텍스트만 그린다.
   logo?: string;
@@ -21,13 +24,15 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function getVisibleImageBounds(img: HTMLImageElement) {
+type TeamLogoSource = HTMLImageElement | HTMLCanvasElement;
+
+function getVisibleImageBounds(img: TeamLogoSource) {
   // 투명 여백 트리밍은 중심/contain 배치용이라 정밀할 필요가 없다. 로고 원본이
   // 1000px 이상이면 픽셀 스캔이 카드마다 수백만 회 돌아 메인스레드를 막으므로,
   // 스캔은 최대 256px 로 다운샘플해 O(상수) 로 고정한다(결과는 원본 좌표로 환산).
   const SCAN_MAX = 256;
-  const natW = img.naturalWidth || img.width;
-  const natH = img.naturalHeight || img.height;
+  const natW = "naturalWidth" in img ? img.naturalWidth || img.width : img.width;
+  const natH = "naturalHeight" in img ? img.naturalHeight || img.height : img.height;
   const s = Math.min(1, SCAN_MAX / Math.max(natW, natH));
   const sw = Math.max(1, Math.round(natW * s));
   const sh = Math.max(1, Math.round(natH * s));
@@ -67,7 +72,7 @@ function getVisibleImageBounds(img: HTMLImageElement) {
 
 function drawContain(
   ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
+  img: TeamLogoSource,
   x: number,
   y: number,
   w: number,
@@ -149,6 +154,7 @@ export async function createTeamCardCanvas(
   }
 
   if (logo) {
+    const cardLogo = prepareTeamCardLogo(logo, item.id);
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,0.34)";
     ctx.shadowBlur = 34;
@@ -157,9 +163,9 @@ export async function createTeamCardCanvas(
       item.name.includes("마포 레인저스") ||
       item.name.includes("관악 드리머스")
     ) {
-      drawContain(ctx, logo, 314, 305, 453, 377);
+      drawContain(ctx, cardLogo, 314, 305, 453, 377);
     } else {
-      drawContain(ctx, logo, 289, 284, 503, 419);
+      drawContain(ctx, cardLogo, 289, 284, 503, 419);
     }
     ctx.restore();
   }

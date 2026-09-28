@@ -20,6 +20,8 @@ export function nextLeagueTier(tier: LeagueTier): LeagueTier | null {
 // 리그 등급 → 팀 카드 프레임 인덱스. TEAM_CARD_VARIANTS 순서
 // [bronze, silver, gold, emerald(=premium)] 와 1:1 매핑.
 // 팀 카드 비주얼이 곧 리그 등급을 나타내도록 통일(해시 무작위 배정 대체).
+// 확정 우승팀은 premium(플래티넘)으로 승급해 이 프레임을 사용한다.
+// 현재 순위 1위를 우승으로 추정하거나 별도 윤곽선/광채를 추가하지 않는다.
 export function leagueTierCardIndex(tier: LeagueTier): number {
   const i = TIER_ORDER.indexOf(tier);
   return i >= 0 ? i : 0;
