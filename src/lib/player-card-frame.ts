@@ -54,6 +54,7 @@ export const PLAYER_CARD_FRAME = Object.freeze({
 export const PLAYER_CARD_COMPOSITION = Object.freeze({
   width: 1080,
   height: 1350,
+  exportScale: 2,
   card: Object.freeze({ x: 40, y: 30, width: 1000 }),
   wordmark: Object.freeze({
     x: 315,

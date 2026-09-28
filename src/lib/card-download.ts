@@ -1,3 +1,5 @@
+import { PLAYER_CARD_COMPOSITION } from "./player-card-frame.ts";
+
 const TARGET_EXPORT_PX = 2400;
 const MIN_EXPORT_SCALE = 3;
 const MAX_EXPORT_SCALE = 8;
@@ -30,6 +32,41 @@ async function renderElementToCanvas(element: HTMLElement): Promise<HTMLCanvasEl
   );
 
   const html2canvas = (await import("html2canvas")).default;
+  const composition = element.querySelector<HTMLElement>("[data-player-card-composition]");
+  if (composition) {
+    // Render the same fixed canvas at every viewport size. Capturing a scaled
+    // mobile preview rounds fractional bounds and changes PNG size/text metrics.
+    const original = composition.cloneNode(true) as HTMLElement;
+    Object.assign(original.style, {
+      position: "absolute",
+      left: "-10000px",
+      top: "0",
+      transform: "none",
+      pointerEvents: "none",
+    });
+    original.setAttribute("aria-hidden", "true");
+    original.inert = true;
+    document.body.appendChild(original);
+    try {
+      return await html2canvas(original, {
+        backgroundColor: null,
+        scale: PLAYER_CARD_COMPOSITION.exportScale,
+        width: PLAYER_CARD_COMPOSITION.width,
+        height: PLAYER_CARD_COMPOSITION.height,
+        windowWidth: PLAYER_CARD_COMPOSITION.width,
+        windowHeight: PLAYER_CARD_COMPOSITION.height,
+        scrollX: 0,
+        scrollY: 0,
+        useCORS: true,
+        allowTaint: false,
+        imageTimeout: 20000,
+        logging: false,
+      });
+    } finally {
+      original.remove();
+    }
+  }
+
   const rect = element.getBoundingClientRect();
   const width = Math.ceil(Math.max(rect.width, element.offsetWidth, 1));
   const height = Math.ceil(Math.max(rect.height, element.offsetHeight, 1));
