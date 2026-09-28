@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuthStore } from "@/stores/authStore";
 import { ClubEmblem, getClubLogoPreset } from "@/components/club-emblem";
@@ -47,6 +47,7 @@ export default function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const teamLinkRef = useRef<HTMLAnchorElement>(null);
   const [joinRequesting, setJoinRequesting] = useState(false);
   const [joinFeedback, setJoinFeedback] = useState<{
     teamId: string;
@@ -76,6 +77,15 @@ export default function TeamsPage() {
   const handleSelect = (team: Team) => {
     setSelectedTeam((prev) => (prev?.id === team.id ? null : team));
   };
+
+  useEffect(() => {
+    if (!selectedTeam) return;
+    // Reveal the next action above fixed install/notification banners.
+    const frame = requestAnimationFrame(() => teamLinkRef.current?.scrollIntoView({
+      block: "center", behavior: prefersReducedMotion ? "auto" : "smooth",
+    }));
+    return () => cancelAnimationFrame(frame);
+  }, [selectedTeam, prefersReducedMotion]);
 
   // Memoize so the array reference is stable across renders. Without this,
   // every state update (e.g. setSelectedTeam) creates a new array, which would
@@ -113,7 +123,7 @@ export default function TeamsPage() {
         </div>
       </div>
 
-      <div className="px-6 md:px-10 pb-10" style={{ background: "var(--foreground)" }}>
+      <div className="px-6 md:px-10 pb-36" style={{ background: "var(--foreground)" }}>
         <div className="max-w-6xl mx-auto space-y-8">
           {loading ? (
             <div className="py-16 text-center" style={{ color: "var(--color-fg-ink-dim)" }}>불러오는 중...</div>
@@ -230,8 +240,9 @@ export default function TeamsPage() {
                         선수 카드/명단은 팀 페이지(/teams/[id])에서 확인. */}
                     <div className="flex justify-center px-6 py-6">
                       <Link
+                        ref={teamLinkRef}
                         href={`/teams/${selectedTeam.id}`}
-                        className="inline-flex min-h-[48px] items-center gap-2 px-6 text-[14px] font-bold transition-transform hover:-translate-y-0.5"
+                        className="inline-flex min-h-[48px] scroll-mb-36 items-center gap-2 px-6 text-[14px] font-bold transition-transform hover:-translate-y-0.5"
                         style={{
                           background: "var(--primary)",
                           color: "var(--color-fg-paper)",

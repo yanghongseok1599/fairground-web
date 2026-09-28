@@ -53,7 +53,7 @@ export function TeamMarquee<T extends { id: string }>({
   // (호버로는 멈추지 않는다 — 마우스를 올려도 계속 회전.)
   const pausedRef = useRef(paused);
   const focusRef = useRef(false);
-  const drag = useRef({ active: false, startX: 0, startScroll: 0, moved: false });
+  const drag = useRef({ active: false, pointerId: -1, startX: 0, startScroll: 0, moved: false });
   // 모바일 터치 중 여부 — 네이티브 스크롤은 그대로 두되 자동 회전만 멈춰
   // 매 프레임의 scrollLeft 덮어쓰기가 손가락 스와이프와 싸우지 않게 한다.
   const touching = useRef(false);
@@ -168,26 +168,33 @@ export function TeamMarquee<T extends { id: string }>({
 
   // ── 마우스/펜 드래그(터치는 네이티브 스크롤에 맡김) ──
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === "touch") return;
+    if (e.pointerType === "touch" || !e.isPrimary || e.button !== 0) return;
     const el = scrollRef.current;
     if (!el) return;
     drag.current = {
       active: true,
+      pointerId: e.pointerId,
       startX: e.clientX,
       startScroll: el.scrollLeft,
       moved: false,
     };
-    el.setPointerCapture(e.pointerId);
   };
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const el = scrollRef.current;
-    if (!el || !drag.current.active) return;
+    if (!el || !drag.current.active || e.pointerId !== drag.current.pointerId) return;
     const dx = e.clientX - drag.current.startX;
-    if (Math.abs(dx) > 4) drag.current.moved = true;
+    if (!drag.current.moved) {
+      if (Math.abs(dx) <= 4) return;
+      drag.current.moved = true;
+      // Capture only an actual drag. Capturing on pointerdown retargets a
+      // simple click to this container instead of the team's button/link.
+      el.setPointerCapture(e.pointerId);
+    }
     el.scrollLeft = drag.current.startScroll - dx;
     wrap();
   };
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerId !== drag.current.pointerId) return;
     const el = scrollRef.current;
     if (el) {
       try {
@@ -215,9 +222,12 @@ export function TeamMarquee<T extends { id: string }>({
   // 드래그로 스크롤한 직후의 클릭은 선택으로 이어지지 않게 막는다.
   const onClickCapture = (e: React.MouseEvent) => {
     if (drag.current.moved) {
-      e.preventDefault();
-      e.stopPropagation();
       drag.current.moved = false;
+      // Keyboard/assistive activation has no pointer click to suppress.
+      if (e.detail !== 0) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
     }
   };
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -249,7 +259,18 @@ export function TeamMarquee<T extends { id: string }>({
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        onPointerCancel={(e) => {
+          endDrag(e);
+          drag.current.moved = false;
+        }}
+        onPointerLeave={(e) => {
+          // Before capture starts, a release outside the track must not leave
+          // auto-scrolling permanently paused.
+          if (!drag.current.moved) endDrag(e);
+        }}
+        onLostPointerCapture={(e) => {
+          if (e.target === e.currentTarget) endDrag(e);
+        }}
         onTouchStart={onTouchStart}
         onTouchEnd={endTouch}
         onTouchCancel={endTouch}
