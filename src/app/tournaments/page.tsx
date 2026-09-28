@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
 import { EmptyState } from "@/components/empty-state";
-import { StandingsTable } from "@/components/standings-table";
+import { GroupedStandingsTable } from "@/features/standings/grouped-standings-table";
+import { seasonGroupSource } from "@/features/standings/group-filter";
 import type { TeamStanding, Tournament } from "@/types";
 import { ArrowRight, Calendar, MapPin, Trophy } from "lucide-react";
 
@@ -46,6 +47,8 @@ export default function TournamentsPage() {
       setStandings(store.standings);
     }
   }, [loadingStandings, store.standings]);
+
+  const groupSource = seasonGroupSource(tournaments, store.currentSeason?.id);
 
   return (
     <div className="pt-[60px] overflow-x-hidden">
@@ -211,7 +214,7 @@ export default function TournamentsPage() {
               ]}
             />
           ) : (
-            <StandingsTable standings={standings} showPromotionSplit />
+            <GroupedStandingsTable standings={standings} groups={groupSource?.groups} groupSourceName={groupSource?.name} />
           )}
         </div>
       </section>

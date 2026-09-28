@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useDataStore } from "@/stores/dataStore";
 import { MatchCard } from "@/components/match-card";
+import { GroupedStandingsTable } from "@/features/standings/grouped-standings-table";
 import { StandingsTable } from "@/components/standings-table";
 import type { Tournament, Match, TeamStanding } from "@/types";
 import { Calendar, MapPin, Trophy, Radio } from "lucide-react";
@@ -267,7 +268,7 @@ export default function TournamentDetailPage() {
                   <span className="text-xs" style={{ color: "#627D98" }}>{store.currentSeason.name}</span>
                 )}
               </div>
-              <StandingsTable standings={store.standings} showPromotionSplit />
+              <GroupedStandingsTable key={tournament.id} standings={store.standings} groups={tournament.groups} groupSourceName={tournament.name} />
             </div>
           )}
         </div>
