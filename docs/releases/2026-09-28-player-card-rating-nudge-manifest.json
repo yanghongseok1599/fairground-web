@@ -1,0 +1,40 @@
+{
+  "baseline": "dpl_GUdYz3yizBturGireRENpgzr7kTK",
+  "fileCount": 946,
+  "changed": [
+    {
+      "path": "src/lib/player-card-frame.ts",
+      "before": "e6b501f54724384a61c6687c8b6458ecc5697bad",
+      "after": "ed22722a52f404a9968ff2211479b51e1074d818"
+    },
+    {
+      "path": "tests/player-card-frame.test.ts",
+      "before": "5b0c7c8c75527037f872ae8c913640cb14775fc1",
+      "after": "9f3b87521cd49a6e90fe52bfacd99d21988e4ccf"
+    }
+  ],
+  "deployment": {
+    "id": "dpl_FoTtzYALsZByBV7NrfRnUVQEgCwV",
+    "url": "https://fairground-bwj7lfnj6-milestones-projects-d52c4dda.vercel.app",
+    "uploadedFiles": 946,
+    "hashesMatch": true
+  },
+  "commit": "b6bb111",
+  "rating": {
+    "previousYPercent": 12,
+    "yPercent": 13
+  },
+  "validation": {
+    "lint": {
+      "errors": 0,
+      "existingWarnings": 17
+    },
+    "typescript": "passed",
+    "playerCardTests": "passed",
+    "vercelBuild": "passed",
+    "productionPromoted": true,
+    "databaseMutations": false,
+    "productionDeploymentConfirmed": true,
+    "browserExport": "Not completed: public_player_profiles requests timed out on both the immutable deployment URL and the official domain; an independent read-only request also timed out."
+  }
+}
