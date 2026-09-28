@@ -2,123 +2,90 @@
 
 import { useEffect, useRef, useState } from "react";
 import { PlayerCard } from "@/components/player-card";
-import { PLAYER_CARD_PRESET_ID, type PlayerCardSize } from "@/lib/player-card-frame";
+import {
+  PLAYER_CARD_COMPOSITION,
+  PLAYER_CARD_PRESET_ID,
+  PLAYER_CARD_WIDTH_PX,
+} from "@/lib/player-card-frame";
 import type { Player } from "@/types";
 import type { PlayerCardContext } from "@/lib/player-card-skin";
-
-type CardSize = Extract<PlayerCardSize, "lg" | "xl" | "export">;
 
 interface PlayerCardCaptureFrameProps {
   player: Player;
   teamLogo?: string;
-  boxSize: number;
-  cardSize: CardSize;
-  cardScale?: number;
-  logoHeight?: number;
   displayWidth?: number | string;
   className?: string;
   cardContext?: PlayerCardContext;
 }
 
+/** 화면과 PNG 모두 이 캔버스를 사용한다. 배경은 항상 투명하다. */
 export function PlayerCardCaptureFrame({
   player,
   teamLogo,
-  boxSize,
-  cardSize,
-  cardScale,
-  logoHeight = Math.round(boxSize * 0.055),
-  displayWidth,
+  displayWidth = "100%",
   className = "",
   cardContext = "league",
 }: PlayerCardCaptureFrameProps) {
   const frameRef = useRef<HTMLDivElement>(null);
-  const [renderedWidth, setRenderedWidth] = useState(boxSize);
-  const effectiveScale = cardScale ?? (boxSize / 280);
-  const responsiveRatio = renderedWidth / boxSize;
-  const visualScale = effectiveScale * responsiveRatio;
-  const visualLogoHeight = logoHeight * responsiveRatio;
+  const [renderedWidth, setRenderedWidth] = useState(0);
+  const composition = PLAYER_CARD_COMPOSITION;
 
   useEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
 
-    const updateSize = () => {
-      const width = frame.getBoundingClientRect().width;
-      setRenderedWidth(width > 0 ? width : boxSize);
-    };
-
+    const updateSize = () => setRenderedWidth(frame.getBoundingClientRect().width);
     updateSize();
     const observer = new ResizeObserver(updateSize);
     observer.observe(frame);
     return () => observer.disconnect();
-  }, [boxSize, displayWidth]);
+  }, []);
 
   return (
     <div
       ref={frameRef}
       data-player-card-export-preset={PLAYER_CARD_PRESET_ID}
-      className={`relative overflow-hidden rounded-2xl ${className}`}
+      className={`relative overflow-hidden ${className}`}
       style={{
-        width: displayWidth ?? boxSize,
+        width: displayWidth,
         maxWidth: "100%",
-        height: displayWidth ? undefined : boxSize,
-        aspectRatio: "1 / 1",
+        aspectRatio: `${composition.width} / ${composition.height}`,
       }}
     >
-      <img
-        src="/images/space-bg.jpg"
-        alt=""
-        className="absolute inset-0 h-full w-full object-cover"
-        draggable={false}
-      />
-      <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.45)" }} />
       <div
-        className="absolute"
+        data-player-card-composition
+        className="absolute left-0 top-0"
         style={{
-          left: "50%",
-          top: "45%",
-          transform: "translate(-50%, -50%)",
-          width: "80%",
-          height: "80%",
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(201,168,76,0.28) 0%, rgba(201,168,76,0.08) 40%, transparent 65%)",
+          width: composition.width,
+          height: composition.height,
+          transform: `scale(${renderedWidth / composition.width})`,
+          transformOrigin: "top left",
         }}
-      />
-      {[-18, -6, 0, 6, 18].map((deg, i) => (
+      >
         <div
-          key={i}
           className="absolute"
           style={{
-            left: "50%",
-            top: 0,
-            width: i === 2 ? 3 : 2,
-            height: "130%",
-            background: `linear-gradient(to bottom, transparent 0%, rgba(201,168,76,${i === 2 ? 0.1 : 0.04}) 30%, rgba(201,168,76,${i === 2 ? 0.15 : 0.06}) 48%, rgba(201,168,76,${i === 2 ? 0.1 : 0.04}) 66%, transparent 100%)`,
-            transform: `translateX(-50%) rotate(${deg}deg)`,
-            transformOrigin: "50% 45%",
+            left: composition.card.x,
+            top: composition.card.y,
+            transform: `scale(${composition.card.width / PLAYER_CARD_WIDTH_PX.export})`,
+            transformOrigin: "top left",
           }}
-        />
-      ))}
-      <div className="absolute inset-0 flex items-center justify-center" style={{ paddingBottom: "6%" }}>
-        <div style={{ transform: `scale(${visualScale})`, transformOrigin: "center center" }}>
-          <PlayerCard player={player} cardContext={cardContext} size={cardSize} teamLogo={teamLogo} disableHoverScale />
+        >
+          <PlayerCard player={player} cardContext={cardContext} size="export" teamLogo={teamLogo} disableHoverScale />
         </div>
-      </div>
-      <div
-        className="absolute pointer-events-none flex justify-center"
-        style={{ left: 0, right: 0, bottom: "4%", zIndex: 3 }}
-      >
         <img
-          src="/images/logo-horizontal.png"
+          src={composition.wordmark.src}
           alt="FAIRGROUND"
-          style={{ height: visualLogoHeight, opacity: 0.9 }}
+          className="absolute"
+          style={{
+            left: composition.wordmark.x,
+            top: composition.wordmark.y,
+            width: composition.wordmark.width,
+            height: "auto",
+          }}
           draggable={false}
         />
       </div>
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: "radial-gradient(ellipse 65% 60% at 50% 45%, transparent 35%, rgba(0,0,0,0.55) 100%)" }}
-      />
     </div>
   );
 }

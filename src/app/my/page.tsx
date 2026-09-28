@@ -892,10 +892,6 @@ export default function MyPage() {
                                 player={withCardSkin(player, skin)}
                                 cardContext={skin === "hologram" ? "challenge" : "league"}
                                 teamLogo={team?.logo}
-                                boxSize={760}
-                                cardSize="export"
-                                cardScale={0.69}
-                                logoHeight={36}
                                 displayWidth="100%"
                               />
                             </div>
@@ -939,10 +935,6 @@ export default function MyPage() {
                       <PlayerCardCaptureFrame
                         player={player}
                         teamLogo={team?.logo}
-                        boxSize={760}
-                        cardSize="export"
-                        cardScale={0.69}
-                        logoHeight={36}
                         displayWidth="100%"
                       />
                     </div>

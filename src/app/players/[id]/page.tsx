@@ -20,10 +20,6 @@ import { savePngBlob } from "@/lib/card-download";
 import { usePreparedElementPng } from "@/hooks/usePreparedElementPng";
 import { PLAYER_CARD_CREATE_FROM_SHARE_PATH } from "@/lib/player-card-share-links";
 
-const RESULT_CARD_BOX_SIZE = 560;
-const RESULT_CARD_SCALE = 0.51;
-const RESULT_CARD_LOGO_HEIGHT = 30;
-
 export default function PlayerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const store = useDataStore();
@@ -140,16 +136,12 @@ export default function PlayerDetailPage() {
         </div>
 
         <div className="grid w-full gap-7 lg:grid-cols-[minmax(0,620px)_260px] lg:items-center lg:justify-center lg:gap-10">
-          {/* Space background card */}
-          <div className="flex w-full justify-center lg:justify-end">
+          {/* 공통 투명 캔버스. 화면의 밝은 바탕은 PNG 캡처 영역 밖에 둔다. */}
+          <div className="flex w-full justify-center rounded-2xl bg-white lg:justify-end">
             <div ref={exportCardRef} className="w-full max-w-[560px]">
               <PlayerCardCaptureFrame
                 player={player}
                 teamLogo={team?.logo}
-                boxSize={RESULT_CARD_BOX_SIZE}
-                cardSize="export"
-                cardScale={RESULT_CARD_SCALE}
-                logoHeight={RESULT_CARD_LOGO_HEIGHT}
                 displayWidth="100%"
               />
             </div>

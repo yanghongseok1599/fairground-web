@@ -144,14 +144,14 @@ export function PlayerCard({
   const playerPhotoUrl = resolvePlayerCardPhoto(player);
 
   const fs = {
-    rating: Math.round(cardW * FONT_PCT.rating / 100),
-    pos: Math.round(cardW * FONT_PCT.position / 100),
-    flag: Math.round(cardW * FONT_PCT.flag / 100),
-    name: Math.round(cardW * FONT_PCT.name / 100),
-    statVal: Math.round(cardW * FONT_PCT.statVal / 100),
-    statLabel: Math.round(cardW * FONT_PCT.statLabel / 100),
-    badge: Math.round(cardW * FONT_PCT.badge / 100 * 0.95),
-    logo: Math.round(cardW * FONT_PCT.logo / 100),
+    rating: cardW * FONT_PCT.rating / 100,
+    pos: cardW * FONT_PCT.position / 100,
+    flag: cardW * FONT_PCT.flag / 100,
+    name: cardW * FONT_PCT.name / 100,
+    statVal: cardW * FONT_PCT.statVal / 100,
+    statLabel: cardW * FONT_PCT.statLabel / 100,
+    badge: cardW * FONT_PCT.badge / 100 * 0.95,
+    logo: cardW * FONT_PCT.logo / 100,
   };
 
   // A3 (§6): 카드 정보 전체를 단일 의미로 노출. 내부 장식 img 는 alt="" 유지.
@@ -322,6 +322,7 @@ export function PlayerCard({
           transform: "translateX(-50%)",
           color: ink.solid,
           fontSize: fs.name,
+          lineHeight: 1.2,
           paddingTop: fs.name * 0.25,
           paddingBottom: fs.name * 0.25,
           zIndex: 2,
@@ -432,7 +433,7 @@ export function PlayerCard({
         className={`relative block cursor-pointer select-none appearance-none border-0 bg-transparent p-0 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-ring)] ${
           disableHoverScale ? "" : "transition-transform hover:scale-105"
         }`}
-        style={{ width: cardW, height: cardH }}
+        style={{ width: cardW, height: cardH, fontFamily: "var(--font-pretendard)" }}
       >
         {cardInner}
       </button>
@@ -448,7 +449,7 @@ export function PlayerCard({
       data-player-card-preset={PLAYER_CARD_PRESET_ID}
       data-player-card-size={size}
       className={`relative select-none ${disableHoverScale ? "" : "transition-transform hover:scale-105"}`}
-      style={{ width: cardW, height: cardH }}
+      style={{ width: cardW, height: cardH, fontFamily: "var(--font-pretendard)" }}
     >
       {cardInner}
     </div>
