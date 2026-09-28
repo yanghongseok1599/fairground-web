@@ -1,0 +1,160 @@
+.single-court-callout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 34px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  background: var(--tint);
+}
+
+.single-court-callout > div {
+  display: grid;
+  gap: 3px;
+  padding: 14px 16px;
+  background: var(--white);
+}
+
+.single-court-callout strong {
+  font-size: 1rem;
+}
+
+.single-court-callout span,
+.single-court-callout > p {
+  color: var(--muted);
+  font-size: .875rem;
+}
+
+.single-court-callout > p {
+  grid-column: 1 / -1;
+  padding: 2px 1px 0;
+}
+
+.single-court-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.single-court-table th:first-child,
+.single-court-table td:first-child {
+  width: 22%;
+}
+
+.single-court-table th:nth-child(2),
+.single-court-table td:nth-child(2) {
+  width: 34%;
+}
+
+.single-court-table th:nth-child(3),
+.single-court-table td:nth-child(3) {
+  width: 44%;
+}
+
+.single-court-table td:first-child {
+  white-space: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.single-court-table td:nth-child(2) strong,
+.court-match-stage,
+.court-match-time,
+.slot-number {
+  display: block;
+}
+
+.single-court-table td:nth-child(2) strong {
+  color: var(--ink);
+  font-size: .95rem;
+}
+
+.court-match-stage,
+.slot-number {
+  color: var(--blue);
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.court-match-time {
+  white-space: nowrap;
+  font-size: .875rem;
+}
+
+.single-court-table .ranking-match td {
+  background: #f7f9fd;
+}
+
+@media (max-width: 560px) {
+  .single-court-callout {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 14px;
+    margin-bottom: 25px;
+  }
+
+  .single-court-callout > p {
+    grid-column: 1;
+    padding: 5px 2px 0;
+    font-size: .78rem;
+  }
+
+  .single-court-callout > div {
+    padding: 12px;
+  }
+
+  .single-court-callout strong {
+    font-size: .9rem;
+  }
+
+  .single-court-callout span {
+    font-size: .78rem;
+  }
+
+  .single-court-table th:first-child,
+  .single-court-table td:first-child {
+    width: 31%;
+  }
+
+  .single-court-table th:nth-child(2),
+  .single-court-table td:nth-child(2) {
+    width: 31%;
+  }
+
+  .single-court-table th:nth-child(3),
+  .single-court-table td:nth-child(3) {
+    width: 38%;
+  }
+
+  .single-court-table th,
+  .single-court-table td {
+    padding: 11px 7px;
+    font-size: .73rem;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+
+  .single-court-table th:first-child,
+  .single-court-table td:first-child {
+    padding-left: 7px;
+  }
+
+  .single-court-table .court-match-time {
+    font-size: .68rem;
+    white-space: normal;
+  }
+
+  .single-court-table td:nth-child(2) strong {
+    font-size: .75rem;
+  }
+
+  .court-match-stage,
+  .slot-number {
+    font-size: .64rem;
+  }
+}
+
+@media print {
+  .single-court-callout {
+    background: #fff;
+  }
+}

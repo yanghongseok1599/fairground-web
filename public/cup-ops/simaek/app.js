@@ -1,5 +1,5 @@
-import { prizePlans, schedule } from "./data.js?v=20260923-challenge-roles-v3";
-import { cupAwards } from "../data.js?v=20260923-awards-summerholic-v1";
+import { prizePlans, schedule } from "./data.js?v=20260928-one-court-v1";
+import { cupAwards } from "../data.js?v=20260928-one-court-v1";
 
 const scheduleList = document.querySelector("#schedule-list");
 scheduleList.innerHTML = schedule.map((item) => `
