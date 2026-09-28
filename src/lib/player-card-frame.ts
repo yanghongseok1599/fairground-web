@@ -15,7 +15,7 @@ export const PLAYER_CARD_PRESET_ID = "fairground-player-card-complete-v2";
 export type PlayerCardSize = "sm" | "md" | "lg" | "xl" | "export";
 
 const PLAYER_CARD_POS = Object.freeze({
-  rating: Object.freeze({ y: 12 }),
+  rating: Object.freeze({ y: 13 }),
   position: Object.freeze({ y: 26.5 }),
   logo: Object.freeze({ y: 34 }),
   flag: Object.freeze({ y: 47 }),

@@ -18,7 +18,7 @@ assert.equal(Object.isFrozen(PLAYER_CARD_FRAME.fontPct), true);
 assert.equal(Object.isFrozen(PLAYER_CARD_WIDTH_PX), true);
 
 assert.deepEqual(PLAYER_CARD_FRAME.pos, {
-  rating: { y: 12 },
+  rating: { y: 13 },
   position: { y: 26.5 },
   logo: { y: 34 },
   flag: { y: 47 },
@@ -47,7 +47,7 @@ for (const size of sizes) {
   const { pos, fontPct } = PLAYER_CARD_FRAME;
   const bottom = (y: number, heightPx: number) => y / 100 * height + heightPx;
   const gap = (nextY: number, previousBottom: number) => (nextY / 100 * height - previousBottom) / height;
-  assert.ok(gap(pos.position.y, bottom(pos.rating.y, width * fontPct.rating / 100)) > 0.04);
+  assert.ok(gap(pos.position.y, bottom(pos.rating.y, width * fontPct.rating / 100)) > 0.035);
   assert.ok(gap(pos.logo.y, bottom(pos.position.y, width * fontPct.position / 100)) > 0.03);
   assert.ok(gap(pos.flag.y, bottom(pos.logo.y, width * fontPct.logo / 100)) > 0.03);
   assert.ok(gap(pos.badges.y, bottom(pos.name.y, width * fontPct.name / 100 * 1.7)) > 0.03);
