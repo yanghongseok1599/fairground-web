@@ -22,14 +22,14 @@ def fit_height(image: Image.Image, height: int) -> Image.Image:
     return image.resize((width, height), Image.Resampling.LANCZOS)
 
 
-def build_fg_letters(size: int) -> Image.Image:
+def build_fg_letters(size: int, height_ratio: float = 0.52) -> Image.Image:
     logo = Image.open(OUT / "images" / "logo-horizontal.png").convert("RGBA")
     # Connected components from the FairGround wordmark:
     # F = first component, G = fifth component.
     f = crop_component(logo, (121, 135, 339, 630))
     g = crop_component(logo, (1322, 125, 1622, 640))
 
-    letter_height = int(size * 0.52)
+    letter_height = int(size * height_ratio)
     f = fit_height(f, letter_height)
     g = fit_height(g, letter_height)
     gap = int(size * 0.055)
@@ -37,6 +37,21 @@ def build_fg_letters(size: int) -> Image.Image:
     canvas.alpha_composite(f, (0, canvas.height - f.height))
     canvas.alpha_composite(g, (f.width + gap, canvas.height - g.height))
     return canvas
+
+
+def make_notification_badge(size: int) -> Image.Image:
+    """Android tints the alpha mask: only FG may be opaque, never its backdrop."""
+    badge = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    fg = build_fg_letters(size, height_ratio=0.75)
+    badge.alpha_composite(fg, ((size - fg.width) // 2, (size - fg.height) // 2))
+    return badge
+
+
+def save_notification_badges():
+    badge = make_notification_badge(96)
+    badge.save(OUT / "icons" / "notification-badge-96.png")
+    # Older workers still request this URL. Keep its asset correct as well.
+    badge.save(OUT / "icons" / "badge-96.png")
 
 
 def make_icon(size: int, maskable: bool = False) -> Image.Image:
@@ -77,7 +92,7 @@ def save_assets():
     master.resize((192, 192), Image.Resampling.LANCZOS).save(OUT / "icons" / "icon-192.png")
     master.resize((192, 192), Image.Resampling.LANCZOS).save(OUT / "favicon-192.png")
     master.resize((180, 180), Image.Resampling.LANCZOS).save(OUT / "apple-touch-icon.png")
-    master.resize((96, 96), Image.Resampling.LANCZOS).save(OUT / "icons" / "badge-96.png")
+    save_notification_badges()
     master.resize((32, 32), Image.Resampling.LANCZOS).save(OUT / "favicon-32.png")
     master.resize((16, 16), Image.Resampling.LANCZOS).save(OUT / "favicon-16.png")
 

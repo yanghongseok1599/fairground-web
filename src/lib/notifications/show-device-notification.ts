@@ -8,7 +8,7 @@ export async function showDeviceNotification(title: string): Promise<boolean> {
       if (registration?.active) {
         await registration.showNotification(title, {
           icon: "/icons/icon-192.png",
-          badge: "/icons/badge-96.png",
+          badge: "/icons/notification-badge-96.png?v=1",
           data: { url: "/my" },
         });
         return true;

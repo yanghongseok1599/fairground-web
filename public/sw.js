@@ -195,7 +195,8 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(title, {
       body,
       icon: "/icons/icon-192.png",
-      badge: "/icons/badge-96.png",
+      // Android status-bar glyph: transparent background, unlike the color icon.
+      badge: "/icons/notification-badge-96.png?v=1",
       data: { url },
     })
   );

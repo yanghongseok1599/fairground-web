@@ -22,6 +22,7 @@ test('iPhone uses the active service worker without invoking the unsupported con
   assert.equal(await showDeviceNotification('경기 시작 안내'), true);
   assert.equal(calls[0][0], '경기 시작 안내');
   assert.equal(calls[0][1].data.url, '/my');
+  assert.equal(calls[0][1].badge, '/icons/notification-badge-96.png?v=1');
 });
 
 test('unsupported, blocked and throwing mobile APIs do not interrupt the page', async (t) => {
