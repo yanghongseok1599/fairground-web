@@ -1,11 +1,9 @@
 /* global taskSpace, FairgroundCardExport */
 // Run inside ego-browser nodejs. Reuse one caller-owned TaskSpace across retries.
-// Required env: FAIRGROUND_EXPORT_DIR, FAIRGROUND_EXPORT_BUNDLE, FAIRGROUND_EXPORT_SPACE.
+// The caller prepends globalThis.fairgroundExportConfig = { output, bundle, space }.
 const fs = await import("node:fs/promises");
 const path = await import("node:path");
-const output = process.env.FAIRGROUND_EXPORT_DIR;
-const bundle = process.env.FAIRGROUND_EXPORT_BUNDLE;
-const space = Number(process.env.FAIRGROUND_EXPORT_SPACE);
+const { output, bundle, space } = globalThis.fairgroundExportConfig ?? {};
 if (!output || !path.isAbsolute(output) || !bundle || !Number.isInteger(space) || space <= 0) throw new Error("내보내기 경로·브라우저 공간·번들을 지정하세요.");
 const snapshot = JSON.parse(await fs.readFile(path.join(output, "source.json"), "utf8"));
 const task = await taskSpace(space);
