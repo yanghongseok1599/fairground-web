@@ -6,6 +6,7 @@ import { Bell } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
 import { NotificationPanel } from "@/components/notification-panel";
+import { NOTIFICATION_INBOX_CHANGED } from "@/lib/notifications/inbox-events";
 
 export function NotificationBell() {
   const { player } = useAuth();
@@ -26,13 +27,17 @@ export function NotificationBell() {
       };
     }
     let cancelled = false;
-    const seq = ++countRequestSeq.current;
-    (async () => {
+    const refresh = async () => {
+      const seq = ++countRequestSeq.current;
       const c = await fetchCount();
       if (!cancelled && seq === countRequestSeq.current) setUnread(c);
-    })();
+    };
+    const onChange = () => { void refresh(); };
+    onChange();
+    window.addEventListener(NOTIFICATION_INBOX_CHANGED, onChange);
     return () => {
       cancelled = true;
+      window.removeEventListener(NOTIFICATION_INBOX_CHANGED, onChange);
     };
   }, [player?.id, fetchCount, open]);
 

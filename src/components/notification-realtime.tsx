@@ -3,9 +3,9 @@
 import { useEffect } from "react";
 import { supabase } from "@/config/supabase";
 import { useAuth } from "@/hooks/useAuth";
-import { showDeviceNotification } from "@/lib/notifications/show-device-notification";
+import { NOTIFICATION_INBOX_CHANGED } from "@/lib/notifications/inbox-events";
 
-/** 본인 알림 채널을 구독하고, 새 알림이 오면 가벼운 토스트로 알린다. */
+/** 본인 알림함을 갱신한다. 휴대폰 알림은 Web Push에서 한 번만 표시한다. */
 export function NotificationRealtime() {
   const { player } = useAuth();
   useEffect(() => {
@@ -20,10 +20,8 @@ export function NotificationRealtime() {
           table: "notifications",
           filter: `user_id=eq.${player.id}`,
         },
-        (payload) => {
-          const title = (payload.new as { title?: string }).title ?? "새 알림";
-          void showDeviceNotification(title);
-          // 헤더 종 카운트는 다음 open 시 재조회됨.
+        () => {
+          window.dispatchEvent(new Event(NOTIFICATION_INBOX_CHANGED));
         },
       )
       .subscribe();

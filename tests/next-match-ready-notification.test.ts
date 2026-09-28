@@ -50,8 +50,7 @@ test("클라이언트 알림 타입과 패널은 경기 알림을 경기 상세�
   assert.match(typesTs, /"match_ready"/i);
   assert.match(typesTs, /matchId\?: string/i);
   assert.match(mapperTs, /matchId: r\.match_id \?\? undefined/i);
-  assert.match(panelTs, /n\.kind === "match_ready" && n\.matchId/i);
-  assert.match(panelTs, /`\/matches\/\$\{n\.matchId\}`/i);
+  assert.match(panelTs, /href=\{notificationTarget\(n\)\}/);
 });
 
 console.log("next-match-ready-notification tests passed");

@@ -32,7 +32,9 @@ for (const path of ['public/sw.js', 'public/sw-push.js']) {
     const handlers = {};
     const calls = [];
     vm.runInNewContext(readFileSync(path, 'utf8'), {
+      URL,
       self: {
+        location: { origin: "https://fairground-kor.com" },
         addEventListener: (name, fn) => { handlers[name] = fn; },
         registration: { showNotification: async (...args) => calls.push(args) },
       },

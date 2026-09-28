@@ -6,25 +6,13 @@ import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
 import { needsPortraitConsent, PORTRAIT_CONSENT_PATH } from "@/features/portrait-consent/policy";
 import type { NotificationItem } from "@/types";
+import { notificationTarget } from "@/lib/notifications/notification-target";
+import { NOTIFICATION_INBOX_CHANGED } from "@/lib/notifications/inbox-events";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onAllRead?: () => void;
-}
-
-function targetHref(n: NotificationItem): string {
-  // 댓글 알림: 부모 글로 점프 + 댓글 해시
-  if (n.postId && n.commentId) return `/board/${n.postId}#cm-${n.commentId}`;
-  if (n.postId) return `/board/${n.postId}`;
-  if (n.kind === "team_notice" && n.teamId) return `/teams/${n.teamId}/notices`;
-  if (n.kind === "tier_promoted") return `/my`;
-  if (n.kind === "coach_approved") return `/my`;
-  if (n.kind === "player_approved") return n.teamId ? `/teams/${n.teamId}` : `/my`;
-  if (n.kind === "team_role_changed") return n.teamId ? `/teams/${n.teamId}` : `/my`;
-  if (n.kind === "match_ready" && n.matchId) return `/matches/${n.matchId}`;
-  if (n.teamId) return `/teams/${n.teamId}`;
-  return "/";
 }
 
 function relTime(ts: number): string {
@@ -50,12 +38,18 @@ export function NotificationPanel({ open, onClose, onAllRead }: Props) {
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    (async () => {
+    let requestSeq = 0;
+    const refresh = async () => {
+      const seq = ++requestSeq;
       const r = await fetchN({ unreadOnly: true, limit: 20 });
-      if (!cancelled) setItems(r);
-    })();
+      if (!cancelled && seq === requestSeq) setItems(r);
+    };
+    const onChange = () => { void refresh(); };
+    onChange();
+    window.addEventListener(NOTIFICATION_INBOX_CHANGED, onChange);
     return () => {
       cancelled = true;
+      window.removeEventListener(NOTIFICATION_INBOX_CHANGED, onChange);
     };
   }, [open, fetchN]);
 
@@ -118,7 +112,7 @@ export function NotificationPanel({ open, onClose, onAllRead }: Props) {
           items.map((n) => (
             <li key={n.id}>
               <Link
-                href={targetHref(n)}
+                href={notificationTarget(n)}
                 onClick={async () => {
                   if (!n.readAt) await markRead(n.id);
                   onClose();

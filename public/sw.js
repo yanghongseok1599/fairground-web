@@ -181,22 +181,31 @@ async function staleWhileRevalidate(req, cacheName) {
  * 기존 /sw.js 가 이미 scope='/' 점유 → 별도 SW 등록은 충돌하므로 본 SW 에 병합.
  * 페이로드: { title, body, url, kind } (JSON 문자열, push-dispatch Edge Function).
  */
+// Only same-origin destinations may be opened from a notification.
+function notificationUrl(value) {
+  try {
+    const url = new URL(typeof value === "string" ? value : "/", self.location.origin);
+    if (url.origin === self.location.origin) return url.pathname + url.search + url.hash;
+  } catch { /* malformed or external URL: use the home page */ }
+  return "/";
+}
+
 self.addEventListener("push", (event) => {
   let payload = {};
   try {
-    if (event.data) payload = event.data.json();
-  } catch {
-    // 비정형 페이로드는 무시 — userVisibleOnly 의무는 아래 fallback 알림으로 충족.
-  }
+    const data = event.data && event.data.json();
+    if (data && typeof data === "object") payload = data;
+  } catch { /* Always show a visible fallback notification. */ }
   const title = payload.title || "FairGround";
   const body = payload.body || "새 알림이 있습니다.";
-  const url = payload.url || "/";
+  const url = notificationUrl(payload.url);
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
       icon: "/icons/icon-192.png",
-      // Android status-bar glyph: transparent background, unlike the color icon.
       badge: "/icons/notification-badge-96.png?v=1",
+      // Retries of one notification replace it; different match events remain separate.
+      ...(payload.notificationId ? { tag: `fg-notification-${payload.notificationId}` } : {}),
       data: { url },
     })
   );
@@ -204,33 +213,29 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || "/";
+  const targetUrl = notificationUrl(event.notification.data && event.notification.data.url);
   event.waitUntil(
     (async () => {
-      const all = await self.clients.matchAll({
-        type: "window",
-        includeUncontrolled: true,
-      });
-      const sameOrigin = all.filter((c) => {
-        try {
-          return new URL(c.url).origin === self.location.origin;
-        } catch {
-          return false;
-        }
-      });
-      if (sameOrigin.length > 0) {
-        const client = sameOrigin[0];
-        try {
-          await client.focus();
-          if ("navigate" in client) {
-            await client.navigate(targetUrl);
-          }
-          return;
-        } catch {
-          // focus/navigate 실패 시 새 창 폴백.
-        }
+      const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const destination = new URL(targetUrl, self.location.origin).href;
+      const exact = all.find((client) => client.url === destination);
+      if (exact) {
+        try { await exact.focus(); return; } catch { /* Open a new window below. */ }
       }
-      await self.clients.openWindow(targetUrl);
+      // Do not navigate away from a referee, card editor, or other unfinished form.
+      const reusable = all.find((client) => {
+        try {
+          const url = new URL(client.url);
+          return url.origin === self.location.origin && ["/", "/live"].includes(url.pathname);
+        } catch { return false; }
+      });
+      if (reusable && "navigate" in reusable) {
+        try {
+          const navigated = await reusable.navigate(destination);
+          if (navigated) { await navigated.focus(); return; }
+        } catch { /* A closed client or failed navigation needs a new window. */ }
+      }
+      await self.clients.openWindow(destination);
     })()
   );
 });

@@ -348,7 +348,8 @@ export type NotificationKind =
   | "tier_promoted"
   | "player_approved"
   | "team_role_changed"
-  | "match_ready";
+  | "match_ready"
+  | "admin_broadcast";
 
 export interface NotificationItem {
   id: string;
