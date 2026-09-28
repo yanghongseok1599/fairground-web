@@ -1,7 +1,5 @@
 "use client";
 
-import { parseJerseyNumber } from "@/lib/jersey-number";
-
 import { Suspense, useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle, ChevronDown, Camera, X, Loader2 } from "lucide-react";
@@ -172,7 +170,7 @@ function PlayerSetupContent() {
         ? player.role
         : presetRole;
     setName((current) => current || player.name || "");
-    setNumber((current) => current || (player.jerseyNumberAssigned || Number(player.number) > 0 ? String(player.number) : ""));
+    setNumber((current) => current || (player.number > 0 ? String(player.number) : ""));
     setPosition((current) => current || player.position || "");
     setRole((current) => current || nextRole);
     setTeamId((current) => current || player.teamId || "");
@@ -301,8 +299,8 @@ function PlayerSetupContent() {
     if (photoError) return;
     clearError();
     setFormError("");
-    if (!name.trim() || !position || parseJerseyNumber(number) === null) {
-      setFormError("이름, 포지션, 등번호(0, 00, 1~99)를 확인해주세요."); return;
+    if (!name.trim() || !position || !/^[1-9]\d?$/.test(number)) {
+      setFormError("이름, 포지션, 등번호(1~99)를 확인해주세요."); return;
     }
     if (!hasPortraitConsent(player) && !portraitConsent) { setFormError("촬영물 활용 동의 항목을 확인해주세요."); return; }
     if (bgProcessing || !draft.ready || !submission.begin()) return;
@@ -316,7 +314,7 @@ function PlayerSetupContent() {
       }
       await createPlayer({
         name: name.trim(),
-        number: parseJerseyNumber(number)!,
+        number: parseInt(number, 10),
         position: position as Position,
         role,
         teamId: teamId || "",
@@ -404,7 +402,7 @@ function PlayerSetupContent() {
     id: "preview",
     uid: "preview",
     name: name.trim() || "이름",
-    number: parseJerseyNumber(number) ?? 10,
+    number: parseInt(number, 10) || 10,
     position: (position as Position) || "ALA",
     teamId: teamId || "",
     nationality: nationality || "KOR",
@@ -710,11 +708,10 @@ function PlayerSetupContent() {
             <FieldLabel htmlFor="setup-number">등번호</FieldLabel>
             <input
               id="setup-number"
-              type="text"
-              inputMode="numeric"
-              pattern="(00|0|[1-9][0-9]?)"
-              maxLength={2}
-              placeholder="0, 00, 1 – 99"
+              type="number"
+              placeholder="1 – 99"
+              min={1}
+              max={99}
               value={number}
               onChange={(e) => setNumber(e.target.value)}
               required

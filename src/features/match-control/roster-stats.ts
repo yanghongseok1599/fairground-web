@@ -1,4 +1,3 @@
-import { jerseySortOrder } from "@/lib/jersey-number";
 import type { MatchEvent, MatchEventType, Player } from "@/types";
 
 export const ROSTER_EVENTS = [
@@ -13,7 +12,7 @@ export const isRosterEvent = (value: unknown): value is RosterEventType => ROSTE
 
 export function rosterPlayers(players: Player[], teamId: string) {
   return players.filter(p => p.teamId === teamId && !p.hasPlayerExperience)
-    .sort((a, b) => jerseySortOrder(a) - jerseySortOrder(b) || a.name.localeCompare(b.name, "ko"));
+    .sort((a, b) => (a.number > 0 ? a.number : Infinity) - (b.number > 0 ? b.number : Infinity) || a.name.localeCompare(b.name, "ko"));
 }
 
 export function rosterStats(events: MatchEvent[]) {

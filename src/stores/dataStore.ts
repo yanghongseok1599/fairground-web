@@ -1,9 +1,6 @@
 "use client";
 
 import { requireSavedRow, registrationError } from "@/lib/registration/reliability";
-import { jerseyNumberFromRow, jerseyNumberToRow } from "@/lib/jersey-number";
-import { recordingApi } from "@/features/match-review/api";
-import type { RecordingInput } from "@/features/match-review/types";
 import { createMatchLiveRefresh } from "@/lib/match-live-refresh";
 import { create } from "zustand";
 import { supabase, isDemoMode } from "@/config/supabase";
@@ -44,6 +41,7 @@ import type {
   Match,
   LiveMatch,
   MatchEvent,
+  MatchEventType,
   Tournament,
   Season,
   TeamStanding,
@@ -189,7 +187,7 @@ interface DataState {
   startMatch: (tournamentId: string, matchId: string) => Promise<void>;
   pauseMatch: (matchId: string) => Promise<void>;
   resumeMatch: (matchId: string) => Promise<void>;
-  endMatch: (tournamentId: string, matchId: string, expectedRevision?: number, momPlayerId?: string | null) => Promise<void>;
+  endMatch: (tournamentId: string, matchId: string) => Promise<void>;
   /** 몰수패 처리 — 공식 기록 3:0 (지목 팀 0, 상대 3). 규정 제13조/대회규정 제9조. */
   forfeitMatch: (matchId: string, forfeitTeamId: string) => Promise<void>;
   substitutePlayer: (
@@ -204,7 +202,7 @@ interface DataState {
   addMatchEvent: (
     tournamentId: string,
     matchId: string,
-    event: RecordingInput,
+    event: { type: MatchEventType; playerId: string; playerName: string; teamId: string; minute: number; half: 1 | 2 },
   ) => Promise<void>;
   cancelMatchEvent: (tournamentId: string, matchId: string, eventId: string) => Promise<void>;
   updateMatchTimer: (matchId: string, elapsedSeconds: number, currentHalf: 1 | 2) => Promise<void>;
@@ -362,7 +360,7 @@ interface DataState {
     matchId: string,
     teamId: string,
     playerId: string,
-    opts?: { isStarter?: boolean; jerseyNumber?: Player["number"] }
+    opts?: { isStarter?: boolean; jerseyNumber?: number }
   ) => Promise<void>;
   removeLineupEntry: (matchId: string, teamId: string, playerId: string) => Promise<void>;
   setLineupStarter: (
@@ -394,7 +392,7 @@ type JoinReqRow = {
     email: string | null;
     phone: string | null;
     position: Position | null;
-    number: number | "00" | null;
+    number: number | null;
     gender: Gender | null;
     birth_date: string | null;
   } | null;
@@ -1004,7 +1002,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     }
   },
 
-  endMatch: async (tournamentId, matchId, expectedRevision, momPlayerId) => {
+  endMatch: async (tournamentId, matchId) => {
     if (isDemoMode) {
       // 데모 분기: 원본 로직 보존
       const live = getLocalLive();
@@ -1045,8 +1043,14 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       return;
     }
 
-    if (expectedRevision === undefined) throw new Error("최신 경기 기록을 확인한 후 확정해주세요.");
-    await recordingApi.confirm(matchId, expectedRevision, momPlayerId);
+    // Supabase: 단일 트랜잭션 RPC. 멱등(stats_applied) — 더블탭/재시도 안전.
+    // 점수/MOM 은 라이브 중 matches 행에 이미 반영됨. RPC가 개인 통계,
+    // 카드 레이팅, 팀 season_stats, status='finished' 처리를 함께 수행한다.
+    const { error } = await supabase.rpc("end_match", { p_match_id: matchId });
+    if (error) {
+      console.error("[dataStore] endMatch RPC:", error.message);
+      throw new Error(error.message);
+    }
   },
 
   forfeitMatch: async (matchId, forfeitTeamId) => {
@@ -1136,7 +1140,19 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       return;
     }
 
-    await recordingApi.record(matchId, eventData);
+    const { error } = await supabase.rpc("add_match_event", {
+      p_match_id: matchId,
+      p_type: eventData.type,
+      p_player_id: eventData.playerId,
+      p_player_name: eventData.playerName,
+      p_team_id: eventData.teamId,
+      p_minute: eventData.minute,
+      p_half: eventData.half,
+    });
+    if (error) {
+      console.error("[dataStore] addMatchEvent RPC:", error.message);
+      throw new Error(error.message);
+    }
   },
 
   cancelMatchEvent: async (_tournamentId, matchId, eventId) => {
@@ -1436,14 +1452,11 @@ export const useDataStore = create<DataState>((setState, getState) => ({
   },
 
   hideTarget: async (targetType, targetId, hide) => {
-    const tbl =
-      targetType === "post" ? "board_posts"
-      : targetType === "comment" ? "board_comments"
-      : "team_gallery_photos";
-    const { error } = await supabase
-      .from(tbl)
-      .update({ is_hidden: hide })
-      .eq("id", targetId);
+    const { error } = targetType === "post"
+      ? await supabase.from("board_posts").update({ is_hidden: hide }).eq("id", targetId)
+      : targetType === "comment"
+        ? await supabase.from("board_comments").update({ is_hidden: hide }).eq("id", targetId)
+        : await supabase.from("team_gallery_photos").update({ is_hidden: hide }).eq("id", targetId);
     if (error) throw new Error(error.message);
     // hidden 처리 시 활동 피드에서도 해당 row 제거 (admin RLS로 허용).
     if (hide) {
@@ -1866,7 +1879,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
           email: profile.email,
           phone: profile.phone,
           position: profile.position,
-          number: jerseyNumberFromRow(profile),
+          number: profile.number,
           gender: profile.gender as Gender | null,
           birth_date: profile.birth_date,
         } : null,
@@ -1900,7 +1913,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
         email: profile.email,
         phone: profile.phone,
         position: profile.position,
-        number: jerseyNumberFromRow(profile),
+        number: profile.number,
         gender: profile.gender as Gender | null,
         birth_date: profile.birth_date,
       } : null,
@@ -2126,7 +2139,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
         .limit(limit),
       supabase
         .from("public_player_profiles")
-        .select("id, name, photo_url, profile_photo_url, profile_photo_locked, number, number_label, team_id")
+        .select("id, name, photo_url, profile_photo_url, profile_photo_locked, number, team_id")
         .eq("is_approved", true)
         .ilike("name", pattern)
         .limit(limit),
@@ -2142,7 +2155,6 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       profile_photo_url: string | null;
       profile_photo_locked: boolean | null;
       number: number;
-      number_label?: string | null;
       team_id: string | null;
     };
 
@@ -2168,7 +2180,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       id: r.id,
       name: r.name,
       photoUrl: r.profile_photo_locked && r.profile_photo_url ? r.profile_photo_url : r.photo_url ?? r.profile_photo_url ?? undefined,
-      number: jerseyNumberFromRow(r),
+      number: r.number,
       teamId: r.team_id ?? undefined,
     }));
 
@@ -2240,7 +2252,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
   fetchMatchLineup: async (matchId) => {
     const { data, error } = await supabase
       .from("match_lineups")
-      .select("match_id, team_id, player_id, is_starter, jersey_number, jersey_number_label, created_at, profiles:player_id(name)")
+      .select("match_id, team_id, player_id, is_starter, jersey_number, created_at, profiles:player_id(name)")
       .eq("match_id", matchId)
       .order("is_starter", { ascending: false })
       .order("jersey_number", { ascending: true, nullsFirst: false });
@@ -2250,7 +2262,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     }
     type Row = {
       match_id: string; team_id: string; player_id: string;
-      is_starter: boolean; jersey_number: number | null; jersey_number_label: string | null; created_at: string;
+      is_starter: boolean; jersey_number: number | null; created_at: string;
       profiles?: { name: string } | { name: string }[] | null;
     };
     return ((data ?? []) as unknown as Row[]).map((r) => {
@@ -2261,22 +2273,20 @@ export const useDataStore = create<DataState>((setState, getState) => ({
         playerId: r.player_id,
         playerName: p?.name,
         isStarter: r.is_starter,
-        jerseyNumber: r.jersey_number == null ? undefined : jerseyNumberFromRow({ number: r.jersey_number, number_label: r.jersey_number_label }),
+        jerseyNumber: r.jersey_number ?? undefined,
         createdAt: new Date(r.created_at).getTime(),
       };
     });
   },
 
   upsertLineupEntry: async (matchId, teamId, playerId, opts) => {
-    const jersey = opts?.jerseyNumber === undefined ? null : jerseyNumberToRow(opts.jerseyNumber);
     const { error } = await supabase.from("match_lineups").upsert(
       {
         match_id: matchId,
         team_id: teamId,
         player_id: playerId,
         is_starter: opts?.isStarter ?? false,
-        jersey_number: jersey?.number ?? null,
-        jersey_number_label: jersey?.number_label ?? null,
+        jersey_number: opts?.jerseyNumber ?? null,
       },
       { onConflict: "match_id,team_id,player_id" }
     );

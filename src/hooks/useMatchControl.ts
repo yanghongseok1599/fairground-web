@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { useRecordingOutbox } from "@/features/match-review/use-recording-outbox";
 import { useMatchControlStore } from "@/features/match-control/store-context";
 import {
   MATCH_DURATION_SECONDS,
   clampMatchElapsedSeconds,
   matchMinuteFromElapsed,
 } from "@/lib/match-config";
+import { reconcileClock, type ClockSnapshot } from "@/features/match-control/clock-sync";
 import type { Match, LiveMatch, Player, MatchEventType, MatchEvent } from "@/types";
 
 const NEXT_MATCH_READY_NOTICE_SECONDS_BEFORE_END = 10 * 60;
@@ -64,16 +63,12 @@ interface MatchControlActions {
   startMatch: () => Promise<boolean>;
   pauseMatch: () => Promise<boolean>;
   resumeMatch: () => Promise<boolean>;
-  endMatch: (momPlayerId?: string | null) => Promise<boolean>;
-  retryPendingRecords: () => Promise<boolean>;
-  pendingRecordCount: number;
-  storageError: string;
+  endMatch: () => Promise<boolean>;
   addEvent: (event: {
     type: MatchEventType;
     playerId: string;
     playerName: string;
     teamId: string;
-    goalEventId?: string;
   }) => Promise<boolean>;
   cancelEvent: (eventId: string) => Promise<boolean>;
   setMom: (playerId: string) => Promise<boolean>;
@@ -88,8 +83,6 @@ export function useMatchControl({
   readOnly = false,
 }: UseMatchControlOptions): MatchControlState & MatchControlActions {
   const store = useMatchControlStore();
-  const { player: actor } = useAuth();
-  const outbox = useRecordingOutbox(actor?.id, matchId, !readOnly && !store.managesClock);
 
   const [match, setMatch] = useState<Match | null>(null);
   const [homePlayers, setHomePlayers] = useState<Player[]>([]);
@@ -106,12 +99,22 @@ export function useMatchControl({
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const syncCounterRef = useRef(0);
+  const elapsedRef = useRef(0);
+  const serverClockRef = useRef<ClockSnapshot | null>(null);
+  const updateTimer = store.updateMatchTimer;
+  const timerWritesRef = useRef<Promise<void>>(Promise.resolve());
+  // A pause/final save must run after any periodic write already in flight.
+  const saveClock = useCallback((seconds: number, half: 1 | 2) => {
+    const write = timerWritesRef.current.catch(() => {}).then(() =>
+      updateTimer(matchId, seconds, half));
+    timerWritesRef.current = write;
+    return write;
+  }, [matchId, updateTimer]);
   const nextMatchReadyNoticeSentRef = useRef(false);
 
   // Find matching live match from store subscription
   const liveMatch = store.liveMatches.find((m) => m.id === matchId) || null;
   const hasLiveMatch = liveMatch !== null;
-  const ownsClock = !readOnly && (store.managesClock || !!actor?.id && liveMatch?.clockOperatorId === actor.id);
   const sawLiveMatch = useRef(false);
   const fetchFinalMatch = store.fetchMatch;
 
@@ -119,7 +122,7 @@ export function useMatchControl({
   // so a spectator does not remain on the last live frame.
   useEffect(() => {
     if (hasLiveMatch) { sawLiveMatch.current = true; return; }
-    if (!sawLiveMatch.current) return;
+    if (!readOnly || !sawLiveMatch.current) return;
     let alive = true;
     void fetchFinalMatch(tournamentId, matchId).then(final => {
       if (alive && final) { setMatch(final); setLocalRunning(false); }
@@ -174,6 +177,9 @@ export function useMatchControl({
 
   useEffect(() => {
     nextMatchReadyNoticeSentRef.current = false;
+    serverClockRef.current = null;
+    elapsedRef.current = 0;
+    syncCounterRef.current = 0;
   }, [matchId]);
 
   // Subscribe to live matches
@@ -199,11 +205,15 @@ export function useMatchControl({
   // Sync local timer state from live match
   useEffect(() => {
     if (liveMatch) {
-      setLocalElapsed(clampMatchElapsedSeconds(liveMatch.elapsedSeconds));
+      const seconds = store.managesClock ? clampMatchElapsedSeconds(liveMatch.elapsedSeconds)
+        : reconcileClock(elapsedRef.current, serverClockRef.current, liveMatch);
+      elapsedRef.current = seconds;
+      serverClockRef.current = liveMatch;
+      setLocalElapsed(seconds);
       setLocalHalf(liveMatch.currentHalf);
       setLocalRunning(liveMatch.isRunning);
     }
-  }, [liveMatch]);
+  }, [liveMatch, store.managesClock]);
 
   // Timer interval: count only active play time. Injury/stoppage pauses stop the
   // clock, and at 12:00 the clock stops while the match remains live until the
@@ -217,34 +227,22 @@ export function useMatchControl({
     if (!localRunning || store.managesClock) return;
 
     timerRef.current = setInterval(() => {
-      if (!ownsClock) {
-        setLocalElapsed(prev => clampMatchElapsedSeconds(prev + 1));
-        return;
+      const next = clampMatchElapsedSeconds(elapsedRef.current + 1);
+      elapsedRef.current = next;
+      setLocalElapsed(next);
+      if (readOnly) return;
+
+      const reachedRegulationTime = next >= MATCH_DURATION_SECONDS;
+      const nextElapsedForSync = next;
+      const shouldNotifyNextMatchReady = !nextMatchReadyNoticeSentRef.current &&
+        next >= NEXT_MATCH_READY_NOTICE_AT_SECONDS && next < MATCH_DURATION_SECONDS;
+      syncCounterRef.current += 1;
+      if (syncCounterRef.current >= 5 && !reachedRegulationTime) {
+        syncCounterRef.current = 0;
+        void saveClock(next, localHalf).catch(() => {
+          setActionError({ scope: "pause", message: "경기 시간 저장에 실패했습니다. 연결 상태를 확인해주세요." });
+        });
       }
-      let reachedRegulationTime = false;
-      let nextElapsedForSync = 0;
-      let shouldNotifyNextMatchReady = false;
-
-      setLocalElapsed((prev) => {
-        const next = clampMatchElapsedSeconds(prev + 1);
-        nextElapsedForSync = next;
-        reachedRegulationTime = next >= MATCH_DURATION_SECONDS;
-        shouldNotifyNextMatchReady =
-          !nextMatchReadyNoticeSentRef.current &&
-          next >= NEXT_MATCH_READY_NOTICE_AT_SECONDS &&
-          next < MATCH_DURATION_SECONDS;
-        syncCounterRef.current += 1;
-
-        // Sync to Supabase every 5 seconds.
-        if (syncCounterRef.current >= 5) {
-          syncCounterRef.current = 0;
-          void store.updateMatchTimer(matchId, next, localHalf).catch((error) => {
-            console.error("[useMatchControl] timer sync failed:", error);
-          });
-        }
-
-        return next;
-      });
 
       if (shouldNotifyNextMatchReady) {
         nextMatchReadyNoticeSentRef.current = true;
@@ -261,7 +259,7 @@ export function useMatchControl({
         setLocalRunning(false);
         void (async () => {
           try {
-            await store.updateMatchTimer(matchId, nextElapsedForSync, localHalf);
+            await saveClock(nextElapsedForSync, localHalf);
             await store.pauseMatch(matchId);
           } catch {
             setActionError({
@@ -280,7 +278,7 @@ export function useMatchControl({
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localRunning, matchId, localHalf, store.managesClock, readOnly, ownsClock]);
+  }, [localRunning, matchId, localHalf, store.managesClock, readOnly]);
 
   // Q5/A10 — 액션 실행 가드: 진행 중이면 재진입 차단(더블탭→더블집계 방지),
   // 시작 시 pendingAction 설정(버튼 disabled+aria-busy 근거), 실패 시 위치별 에러.
@@ -299,8 +297,8 @@ export function useMatchControl({
       try {
         await fn();
         return true;
-      } catch (error) {
-        setActionError({ scope, message: error instanceof Error ? error.message : failMessage });
+      } catch {
+        setActionError({ scope, message: failMessage });
         return false;
       } finally {
         pendingRef.current = null;
@@ -318,6 +316,9 @@ export function useMatchControl({
       runAction("start", "경기 시작에 실패했습니다", async () => {
         await store.startMatch(tournamentId, matchId);
         nextMatchReadyNoticeSentRef.current = false;
+        elapsedRef.current = 0;
+        serverClockRef.current = null;
+        syncCounterRef.current = 0;
         setLocalElapsed(0);
         setLocalHalf(1);
         setLocalRunning(true);
@@ -329,12 +330,12 @@ export function useMatchControl({
   const pauseMatch = useCallback(
     () =>
       runAction("pause", "일시정지에 실패했습니다", async () => {
-        if (ownsClock) await store.updateMatchTimer(matchId, clampMatchElapsedSeconds(localElapsed), localHalf);
+        await saveClock(clampMatchElapsedSeconds(elapsedRef.current), localHalf);
         await store.pauseMatch(matchId);
         setLocalRunning(false);
       }),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-    [matchId, localElapsed, localHalf, runAction, ownsClock]
+    [matchId, localElapsed, localHalf, runAction]
   );
 
   const resumeMatch = useCallback(
@@ -356,19 +357,18 @@ export function useMatchControl({
   );
 
   const endMatch = useCallback(
-    (momPlayerId?: string | null) =>
+    () =>
       runAction("end", "경기 종료에 실패했습니다", async () => {
-        outbox.assertClear();
-        // Practice retains its isolated legacy lifecycle. Actual confirmation uses the reviewed revision.
-        if (store.managesClock) await store.updateMatchTimer(matchId, clampMatchElapsedSeconds(localElapsed), localHalf);
-        await store.endMatch(tournamentId, matchId, liveMatch?.recordingRevision ?? match?.recordingRevision, momPlayerId);
+        // Sync timer one last time
+        await saveClock(clampMatchElapsedSeconds(elapsedRef.current), localHalf);
+        await store.endMatch(tournamentId, matchId);
         setLocalRunning(false);
         // Reload match data to get final state
         const finalMatch = await store.fetchMatch(tournamentId, matchId);
         if (finalMatch) setMatch(finalMatch);
       }),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tournamentId, matchId, localElapsed, localHalf, runAction, ownsClock, liveMatch?.recordingRevision, match?.recordingRevision, outbox]
+    [tournamentId, matchId, localElapsed, localHalf, runAction]
   );
 
   const addEvent = useCallback(
@@ -377,21 +377,20 @@ export function useMatchControl({
       playerId: string;
       playerName: string;
       teamId: string;
-      goalEventId?: string;
     }) =>
       runAction("event", "이벤트 기록에 실패했습니다", async () => {
         const minute = matchMinuteFromElapsed(localElapsed);
         // 규정 제12조③(동일 경기 경고 2회 누적 → 퇴장)은 add_match_event RPC 가
         // 같은 트랜잭션에서 판정·기록한다. 클라이언트는 방금 넣은 경고가 realtime
         // 으로 자기 목록에 반영됐는지 알 수 없어 여기서 세면 오판한다.
-        await outbox.save({
+        await store.addMatchEvent(tournamentId, matchId, {
           ...event,
           minute,
           half: localHalf,
-        }, input => store.addMatchEvent(tournamentId, matchId, input));
+        });
       }),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tournamentId, matchId, localElapsed, localHalf, runAction, ownsClock, liveMatch?.recordingRevision, match?.recordingRevision, outbox]
+    [tournamentId, matchId, localElapsed, localHalf, runAction]
   );
 
   const cancelEvent = useCallback(
@@ -412,10 +411,7 @@ export function useMatchControl({
     [tournamentId, matchId, runAction]
   );
 
-  const retryPendingRecords = () => runAction("event", "보관된 기록을 재확인하지 못했습니다", () => outbox.retry(input => store.addMatchEvent(tournamentId, matchId, input)));
-
   return {
-    pendingRecordCount: outbox.pendingCount, storageError: outbox.storageError, retryPendingRecords,
     match,
     liveMatch,
     homePlayers,

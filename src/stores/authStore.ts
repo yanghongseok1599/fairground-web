@@ -271,7 +271,7 @@ interface RegisterData {
 
 interface CreatePlayerData {
   name: string;
-  number: Player["number"];
+  number: number;
   position: Position;
   role?: Exclude<PlayerRole, "admin">;
   teamId: string;
@@ -452,7 +452,6 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
         uid,
         name: data.name,
         number: data.number,
-        jerseyNumberAssigned: true,
         position: data.position,
         teamId: existingPlayer?.teamId ?? "",
         photoUrl: data.photoUrl || existingPlayer?.photoUrl || "",
@@ -617,7 +616,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
     if (data.portraitConsentAt !== undefined) requirePortraitConsent(data);
 
     if (isDemoMode) {
-      const updated = { ...state.player, ...data, ...(data.number !== undefined ? { jerseyNumberAssigned: true } : {}) };
+      const updated = { ...state.player, ...data };
       const players = getLocalPlayers();
       players[state.user.uid] = updated;
       saveLocalPlayers(players);

@@ -127,7 +127,7 @@ export function LineupEditor({
     runAction(`add:${playerId}`, () =>
       store.upsertLineupEntry(matchId, teamId, playerId, {
         isStarter: asStarter,
-        jerseyNumber: p?.number,
+        jerseyNumber: p?.number ?? undefined,
       })
     );
   };

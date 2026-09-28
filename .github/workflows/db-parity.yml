@@ -7,9 +7,6 @@ name: db-parity
 
 on:
   push:
-    branches:
-      - main
-      - feat/supabase-migration
   pull_request:
 
 permissions:

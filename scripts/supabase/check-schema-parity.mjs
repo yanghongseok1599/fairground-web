@@ -22,6 +22,8 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { scanColumnContract, diffColumns } from "./column-contract.mjs";
+
 const SKIP_KEY = "FAIRGROUND_SKIP_DB_PARITY";
 const DB_URL_KEY = "SUPABASE_DB_URL";
 const CONNECT_TIMEOUT_MS = 10_000;
@@ -31,7 +33,7 @@ const IGNORE_FILE = path.join("scripts", "supabase", "parity-ignore.json");
 const SKIPPED_DIRECTORIES = new Set(["node_modules", ".next", ".git", "dist", "build", "out"]);
 
 /** `.from(` 앞에 오더라도 Supabase 호출이 아닌 수신자 (Array.from 등). */
-const NON_SUPABASE_RECEIVERS = new Set(["Array"]);
+const NON_SUPABASE_RECEIVERS = new Set(["Array", "Buffer"]);
 
 const KIND_LABELS = {
   function: "함수",
@@ -446,7 +448,7 @@ function scanProject(projectRoot) {
     bucket.get(reference.name).push({ file: reference.file, line: reference.line });
   }
 
-  return { fileCount: files.length, byKind, dynamic, ignored };
+  return { fileCount: files.length, byKind, dynamic, ignored, columns: scanColumnContract(projectRoot, files) };
 }
 
 // ---------------------------------------------------------------------------
@@ -482,18 +484,43 @@ async function fetchDatabaseObjects(connectionString) {
 
   await client.connect();
   try {
-    const [functions, relations, buckets] = await Promise.all([
+    await client.query("begin read only");
+    if (process.env.PGUSER?.startsWith("cli_")) await client.query("set local role postgres");
+    const [functions, relations, buckets, columns, foreignKeys] = await Promise.all([
       client.query(FUNCTION_SQL),
       client.query(RELATION_SQL),
       client.query(BUCKET_SQL),
+      client.query(`
+        select 'relation' kind, c.relname name, a.attname as column
+        from pg_class c join pg_namespace n on n.oid=c.relnamespace
+        join pg_attribute a on a.attrelid=c.oid
+        where n.nspname='public' and a.attnum>0 and not a.attisdropped
+        union
+        select 'function', p.proname, a.attname from pg_proc p
+        join pg_namespace n on n.oid=p.pronamespace join pg_type t on t.oid=p.prorettype
+        join pg_attribute a on a.attrelid=t.typrelid
+        where n.nspname='public' and a.attnum>0 and not a.attisdropped
+        union
+        select 'function',p.proname,args.name from pg_proc p
+        join pg_namespace n on n.oid=p.pronamespace,
+        unnest(p.proargnames,p.proargmodes) as args(name,mode)
+        where n.nspname='public' and args.mode in ('o','b','t')
+      `),
+      client.query(`select c.relname name, a.attname as column, f.relname target, k.conname as constraint
+        from pg_constraint k join pg_class c on c.oid=k.conrelid
+        join pg_namespace n on n.oid=c.relnamespace join pg_class f on f.oid=k.confrelid
+        join pg_attribute a on a.attrelid=c.oid and a.attnum=any(k.conkey)
+        where n.nspname='public' and k.contype='f'`),
     ]);
 
     return {
+      columns: columns.rows, foreignKeys: foreignKeys.rows,
       function: new Set(functions.rows.map((row) => row.name)),
       relation: new Set(relations.rows.map((row) => row.name)),
       bucket: new Set(buckets.rows.flatMap((row) => [row.id, row.name].filter(Boolean))),
     };
   } finally {
+    await client.query("rollback").catch(() => {});
     await client.end();
   }
 }
@@ -606,49 +633,40 @@ async function main() {
     process.exitCode = report.exitCode;
   };
 
-  // 긴급 탈출구. 조용히 통과시키지 않고 반드시 이유를 남긴다.
+  // No emergency bypass: a rollback uses an already verified deployment.
   if (process.env[SKIP_KEY] === "1") {
-    const message = `${SKIP_KEY}=1 이 설정되어 스키마 정합성 검사를 건너뛰었습니다. 코드가 참조하는 DB 객체의 실존 여부를 확인하지 않은 채 빌드가 진행됩니다.`;
-    if (!asJson) {
-      console.warn("################################################################");
-      console.warn(`## 경고: ${SKIP_KEY}=1 — 스키마 정합성 검사를 건너뜁니다.`);
-      console.warn("## 코드가 참조하는 DB 객체의 실존 여부를 확인하지 않았습니다.");
-      console.warn("## 배포 후 반드시 마이그레이션 적용 상태를 직접 확인하고,");
-      console.warn("## 이 플래그를 제거하십시오. 근거: docs/supabase-deploy-gate.md");
-      console.warn("################################################################");
-    }
-    emit(
-      buildJsonReport({
-        scan: emptyScan(),
-        status: { checked: false, skipped: SKIP_KEY, exitCode: 0 },
-        message,
-      }),
-    );
+    const message = `${SKIP_KEY} 우회는 폐지되었습니다. 운영 DB 검증 없이 빌드할 수 없습니다.`;
+    if (!asJson) console.error(message);
+    emit(buildJsonReport({ scan: emptyScan(), status: { checked: false, skipped: null, exitCode: 1 }, message }));
     return;
   }
 
   const scan = scanProject(PROJECT_ROOT);
   if (!asJson) printScanSummary(scan);
+  if (scan.dynamic.length || scan.ignored.length) {
+    const message = "검증하지 않은 동적 DB 호출 또는 검사 제외 항목은 배포할 수 없습니다.";
+    if (!asJson) { console.error(message); printDynamic(scan); printIgnored(scan); }
+    emit(buildJsonReport({ scan, status: { checked: false, skipped: null, exitCode: 1 }, message }));
+    return;
+  }
 
   const connectionString = process.env[DB_URL_KEY];
 
-  if (!connectionString) {
-    const strict = isStrictEnvironment();
+  if (!connectionString && !(process.env.PGHOST && process.env.PGUSER && process.env.PGPASSWORD)) {
+    const strict = true;
     const message = `${DB_URL_KEY} 가 설정되지 않아 DB 조회를 수행하지 못했습니다.`;
 
     if (!asJson) {
       console.error(`\n${strict ? "차단" : "경고"}: ${message}`);
       if (strict) {
-        console.error("CI 또는 프로덕션 빌드에서는 검사를 생략할 수 없습니다. 해결 방법 2가지:");
+        console.error("스키마 검증 없는 빌드는 차단됩니다. 연결 설정:");
         console.error(
           `  1) ${DB_URL_KEY} 를 설정한다 — GitHub repo secret 및 Vercel 환경변수(Production/Preview).`,
         );
         console.error(
           `     Supabase 대시보드 → Project Settings → Database → Connection string (Session pooler, 5432)`,
         );
-        console.error(
-          `  2) 긴급 배포라면 ${SKIP_KEY}=1 을 설정한다 — 검사를 포기하는 것이므로 사후 확인 필수.`,
-        );
+
         console.error("  자세한 절차: docs/supabase-deploy-gate.md");
       } else {
         console.error(
@@ -673,7 +691,7 @@ async function main() {
   try {
     existing = await fetchDatabaseObjects(connectionString);
   } catch (error) {
-    const strict = isStrictEnvironment();
+    const strict = true;
     const message = `DB 연결 또는 조회에 실패했습니다 — ${error.message}`;
 
     if (!asJson) {
@@ -682,7 +700,7 @@ async function main() {
         console.error(
           `CI 또는 프로덕션 빌드에서는 검사를 생략할 수 없습니다. ${DB_URL_KEY} 값과 네트워크를 확인하십시오.`,
         );
-        console.error(`긴급 배포라면 ${SKIP_KEY}=1 로 우회할 수 있으나 사후 확인이 필요합니다.`);
+
       } else {
         console.error("로컬 실행이므로 통과시킵니다.");
       }
@@ -701,8 +719,15 @@ async function main() {
   }
 
   const missing = diffAgainstDatabase(scan.byKind, existing);
-  const missingCount =
-    missing.function.length + missing.relation.length + missing.bucket.length;
+  missing.column = diffColumns(scan.columns.contracts, scan.columns.projections, existing);
+  missing.unresolved = scan.columns.unresolved;
+  const missingCount = missing.function.length + missing.relation.length + missing.bucket.length +
+    missing.column.length + missing.unresolved.length;
+  if (!asJson) {
+    console.log(`컬럼 검증: 타입 계약 ${scan.columns.contracts.length}개 / 조회 ${scan.columns.projections.length}개`);
+    for (const entry of [...missing.column, ...missing.unresolved])
+      console.error(`  ${entry.file}:${entry.line ?? ""} — ${entry.name}.${entry.column ?? "동적 select (검증 불가)"}`);
+  }
 
   if (!asJson) {
     console.log(
@@ -733,7 +758,7 @@ async function main() {
 }
 
 const invokedDirectly =
-  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));
 
 if (invokedDirectly) {
   await main();

@@ -1,5 +1,3 @@
-import type { EventAttribution, RecordingFields } from "../features/match-review/types";
-
 // ===== Player =====
 export type Position = "GK" | "FIXO" | "ALA" | "PIVO";
 export type CardType = "bronze" | "silver" | "gold" | "premium";
@@ -25,8 +23,7 @@ export interface Player {
   id: string;
   uid: string;
   name: string;
-  number: number | "00";
-  jerseyNumberAssigned?: boolean;
+  number: number;
   position: Position;
   teamId: string;
   teamName?: string;
@@ -117,7 +114,7 @@ export type MatchEventType =
   | "substitution"
   | "mom";
 
-export interface MatchEvent extends EventAttribution {
+export interface MatchEvent {
   id: string;
   type: MatchEventType;
   playerId: string;
@@ -129,7 +126,7 @@ export interface MatchEvent extends EventAttribution {
   isCancelled?: boolean;
 }
 
-export interface Match extends RecordingFields {
+export interface Match {
   id: string;
   tournamentId: string;
   groupId?: string;
@@ -270,7 +267,7 @@ export interface MatchLineupEntry {
   playerId: string;
   playerName?: string;
   isStarter: boolean;
-  jerseyNumber?: Player["number"];
+  jerseyNumber?: number;
   createdAt: number;
 }
 
@@ -393,7 +390,7 @@ export interface TeamJoinRequest {
   playerEmail?: string;
   playerPhone?: string;
   playerPosition?: Position;
-  playerNumber?: number | "00";
+  playerNumber?: number;
   playerGender?: Gender;
   playerBirthDate?: string;
   message?: string;
@@ -464,7 +461,7 @@ export interface SearchHitPlayer {
   id: string;
   name: string;
   photoUrl?: string;
-  number?: number | "00";
+  number?: number;
   teamId?: string;
 }
 export interface SearchResults {

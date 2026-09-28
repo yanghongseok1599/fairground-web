@@ -57,39 +57,24 @@ async function fixture(t, { lineup = true } = {}) {
   await actor.query("set role authenticated"); await actor.query("select set_config('request.jwt.claim.sub',$1,false)", [admin]);
   const { useDataStore } = moduleLoader({ "@/config/supabase": { supabase: sqlBridge(actor), isDemoMode: false } })("src/stores/dataStore.ts");
   const store = useDataStore.getState();
-  const record = async (type, index) => {
-    const team = index < 3 ? home : away;
-    const goal = type === "assist" ? (await owner.query("select id from match_events where match_id=$1 and team_id=$2 and type='goal' and not is_cancelled and not assist_checked order by created_at limit 1", [match, team])).rows[0]?.id : undefined;
-    return store.addMatchEvent(tournament, match, { type, playerId: players[index], playerName: `검수 선수 ${index + 1}`, teamId: team, minute: 1, half: 1, goalEventId: goal });
-  };
-  const prepareConfirmation = async () => {
-    await actor.query('select pause_match($1)', [match]);
-    const goals = (await owner.query("select id from match_events where match_id=$1 and type='goal' and not is_cancelled and not assist_checked", [match])).rows;
-    for (const goal of goals) await actor.query('select check_goal_without_assist($1,$2)', [match,goal.id]);
-    return (await owner.query('select recording_revision,mom_player_id from matches where id=$1',[match])).rows[0];
-  };
-  const finish = async () => {
-    const m = (await owner.query('select status,recording_revision,mom_player_id from matches where id=$1',[match])).rows[0];
-    const review = m.status === 'finished' ? m : await prepareConfirmation();
-    return store.endMatch(tournament, match, review.recording_revision, review.mom_player_id);
-  };
+  const record = (type, index) => store.addMatchEvent(tournament, match, { type, playerId: players[index], playerName: `검수 선수 ${index + 1}`, teamId: index < 3 ? home : away, minute: 1, half: 1 });
   const profile = async index => (await owner.query("select goals,assists,games,mom,card_rating,season_yellow_cards,ban_matches_remaining from public.profiles where id=$1", [players[index]])).rows[0];
   const team = async id => (await owner.query("select season_stats from public.teams where id=$1", [id])).rows[0].season_stats;
   await store.startMatch(tournament, match);
-  return { owner, actor, store, useDataStore, home, away, tournament, match, players, record, profile, team, finish, prepareConfirmation };
+  return { owner, actor, store, useDataStore, home, away, tournament, match, players, record, profile, team };
 }
 
 test("공식 종료 결과가 공개 랭킹과 리그 순위 조회까지 연결되고 중복 반영되지 않는다", async t => {
   const f = await fixture(t);
   await f.record("goal", 0); await f.record("goal", 2); await f.record("goal", 3); await f.record("assist", 1);
   await f.store.setMatchMom(f.tournament, f.match, f.players[0]);
-  await f.finish();
+  await f.store.endMatch(f.tournament, f.match);
   assert.deepEqual(await f.profile(0), { goals: 1, assists: 0, games: 1, mom: 1, card_rating: 74, season_yellow_cards: 0, ban_matches_remaining: 0 });
   assert.equal((await f.profile(2)).goals, 1); assert.equal((await f.profile(1)).assists, 1);
   const home = await f.team(f.home), away = await f.team(f.away);
   assert.deepEqual({ ...home, rank: 0 }, { points: 3, rank: 0, wins: 1, draws: 0, losses: 0, goalsFor: 2, goalsAgainst: 1, goalDifference: 1, gamesPlayed: 1 });
   assert.equal(away.points, 0); assert.equal(away.losses, 1); assert.ok(home.rank < away.rank);
-  await f.finish(); assert.deepEqual(await f.team(f.home), home); assert.equal((await f.profile(0)).games, 1);
+  await f.store.endMatch(f.tournament, f.match); assert.deepEqual(await f.team(f.home), home); assert.equal((await f.profile(0)).games, 1);
   // The public view/column grants and the actual TS mappers are exercised as anon.
   await f.actor.query("reset role; set role anon");
   const goals = await f.store.fetchLeaderboard("goals", 500);
@@ -105,17 +90,17 @@ test("취소한 골·어시는 제외되고 무승부는 양 팀 1점이다", as
   const events = (await f.owner.query("select id,type from public.match_events where match_id=$1 order by created_at desc", [f.match])).rows;
   await f.store.cancelMatchEvent(f.tournament, f.match, events.find(e => e.type === "assist").id);
   await f.store.cancelMatchEvent(f.tournament, f.match, events.find(e => e.type === "goal").id);
-  await f.finish();
+  await f.store.endMatch(f.tournament, f.match);
   assert.equal((await f.team(f.home)).points, 1); assert.equal((await f.team(f.away)).points, 1); assert.equal((await f.profile(0)).goals, 1); assert.equal((await f.profile(1)).assists, 0);
 });
 
 test("출전 명단이 없는 경기의 기록도 종료 시 집계된다", async t => {
-  const f = await fixture(t, { lineup: false }); await f.record("goal", 0); await f.finish();
+  const f = await fixture(t, { lineup: false }); await f.record("goal", 0); await f.store.endMatch(f.tournament, f.match);
   assert.equal((await f.profile(0)).goals, 1); assert.equal((await f.team(f.home)).points, 3);
 });
 
 test("0:0 경기의 출전 횟수와 무승부 승점도 반영된다", async t => {
-  const f = await fixture(t); await f.finish();
+  const f = await fixture(t); await f.store.endMatch(f.tournament, f.match);
   assert.equal((await f.profile(0)).games, 1); assert.equal((await f.team(f.home)).points, 1); assert.equal((await f.team(f.away)).points, 1);
 });
 
@@ -126,19 +111,19 @@ test("두 번째 경고·취소·직접 퇴장의 최종 징계가 한 번만 �
   await f.store.cancelMatchEvent(f.tournament, f.match, cards.find(e => e.type === "yellow_card").id);
   cards = (await f.owner.query("select type from public.match_events where match_id=$1 and not is_cancelled", [f.match])).rows;
   assert.equal(cards.filter(e => e.type === "red_card").length, 0);
-  await f.record("red_card", 3); await f.finish(); await f.finish();
+  await f.record("red_card", 3); await f.store.endMatch(f.tournament, f.match); await f.store.endMatch(f.tournament, f.match);
   assert.equal((await f.profile(0)).season_yellow_cards, 1); assert.equal((await f.profile(0)).ban_matches_remaining, 0); assert.equal((await f.profile(3)).ban_matches_remaining, 2);
 });
 
 test("출전 명단 없이 MOM만 선택한 선수의 MOM 기록도 반영된다", async t => {
   const f = await fixture(t, { lineup: false }); await f.record("goal", 0);
-  await f.store.setMatchMom(f.tournament, f.match, f.players[1]); await f.finish();
+  await f.store.setMatchMom(f.tournament, f.match, f.players[1]); await f.store.endMatch(f.tournament, f.match);
   assert.equal((await f.profile(1)).mom, 1); assert.equal((await f.profile(1)).games, 1);
 });
 
 test("일반 선수의 경기 종료 요청은 차단된다", async t => {
   const f = await fixture(t); await f.actor.query("select set_config('request.jwt.claim.sub',$1,false)", [f.players[0]]);
-  await assert.rejects(f.finish(), /승인된 심판|담당자/);
+  await assert.rejects(f.store.endMatch(f.tournament, f.match), /only referee\/admin/);
   assert.equal((await f.profile(0)).games, 0);
 });
 
@@ -150,7 +135,7 @@ test("경고 취소는 자동 퇴장만 취소하고 직접 퇴장과 원본 이
   const rows = (await f.owner.query("select type,is_cancelled from match_events where match_id=$1", [f.match])).rows;
   assert.equal(rows.length, 3); assert.equal(rows.filter(e => e.type === "red_card" && !e.is_cancelled).length, 1);
   assert.equal(rows.filter(e => e.type === "yellow_card" && e.is_cancelled).length, 1);
-  await f.finish(); assert.equal((await f.profile(0)).ban_matches_remaining, 2);
+  await f.store.endMatch(f.tournament, f.match); assert.equal((await f.profile(0)).ban_matches_remaining, 2);
 });
 
 test("심판과 관리자의 동시 득점·종료 요청은 기록을 잃거나 두 번 집계하지 않는다", async t => {
@@ -161,13 +146,12 @@ test("심판과 관리자의 동시 득점·종료 요청은 기록을 잃거나
   await second.query("select set_config('request.jwt.claim.sub',$1,false)", [actor]);
   await f.actor.query('begin'); await f.record('goal', 0);
   let settled = false;
-  const otherGoal = second.query("select record_match_event($1,$4,'goal',$2,'동시 득점',$3,1,1)", [f.match, f.players[1], f.home, randomUUID()]).finally(() => { settled = true; });
+  const otherGoal = second.query("select add_match_event($1,'goal',$2,'동시 득점',$3,1,1)", [f.match, f.players[1], f.home]).finally(() => { settled = true; });
   await new Promise(resolve => setTimeout(resolve, 50)); assert.equal(settled, false);
   await f.actor.query('commit'); await otherGoal;
   const before = (await f.owner.query('select id from match_events where match_id=$1 order by id', [f.match])).rows;
   assert.equal(before.length, 2);
-  const review = await f.prepareConfirmation();
-  await Promise.all([f.store.endMatch(f.tournament,f.match,review.recording_revision,review.mom_player_id), second.query('select confirm_match_recording($1,$2,$3)', [f.match,review.recording_revision,review.mom_player_id])]);
+  await Promise.all([f.store.endMatch(f.tournament, f.match), second.query('select end_match($1)', [f.match])]);
   assert.equal((await f.profile(0)).goals, 1); assert.equal((await f.profile(1)).goals, 1);
   assert.equal((await f.profile(0)).games, 1); assert.equal((await f.team(f.home)).points, 3);
   assert.deepEqual((await f.owner.query('select id from match_events where match_id=$1 order by id', [f.match])).rows, before);
@@ -178,7 +162,7 @@ test("종료 도중 실패하면 선수 통계·팀 승점·종료 상태가 부
   const f = await fixture(t); await f.record("goal", 0);
   await f.owner.query("update public.teams set season_stats=$2 where id=$1", [f.home, { points: "invalid synthetic value" }]);
   try {
-    await assert.rejects(f.finish(), /invalid input syntax for type integer: "invalid synthetic value"/);
+    await assert.rejects(f.store.endMatch(f.tournament, f.match), /invalid input syntax for type integer: "invalid synthetic value"/);
     assert.equal((await f.profile(0)).games, 0); assert.equal((await f.profile(0)).goals, 0);
     const match = (await f.owner.query("select status,stats_applied from public.matches where id=$1", [f.match])).rows[0];
     assert.deepEqual(match, { status: "live", stats_applied: false });
@@ -188,6 +172,6 @@ test("종료 도중 실패하면 선수 통계·팀 승점·종료 상태가 부
   }
   // Failure leaves the original event available for a safe, exactly-once retry.
   assert.equal((await f.owner.query('select count(*)::int n from match_events where match_id=$1 and not is_cancelled', [f.match])).rows[0].n, 1);
-  await f.finish(); await f.finish();
+  await f.store.endMatch(f.tournament, f.match); await f.store.endMatch(f.tournament, f.match);
   assert.equal((await f.profile(0)).goals, 1); assert.equal((await f.profile(0)).games, 1);
 });

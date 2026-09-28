@@ -1,4 +1,3 @@
-import { parseJerseyNumber } from "./jersey-number";
 import { hasPortraitConsent } from "@/features/portrait-consent/policy";
 import type { Player } from "@/types";
 
@@ -6,8 +5,8 @@ export function hasCompletedPlayerCardSetup(player: Player | null | undefined): 
   if (!player) return false;
   return (
     Boolean(player.name?.trim()) &&
-    parseJerseyNumber(String(player.number)) !== null &&
-    (Number(player.number) > 0 || player.number === "00" || player.jerseyNumberAssigned === true) &&
+    Number.isFinite(player.number) &&
+    player.number > 0 &&
     Boolean(player.position) &&
     // A photo alone is not evidence of personal consent.
     hasPortraitConsent(player)

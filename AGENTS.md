@@ -67,3 +67,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## 2026-09-28 운영 컬럼 조회 금지 규칙
+
+- **운영 DB에 없는 컬럼을 조회하는 코드는 배포하지 않는다.** 마이그레이션 파일·수동 타입 정의를 운영 적용의 증거로 삼지 않는다.
+- 실제 배포 소스의 컬럼·RPC 반환 컬럼을 운영 카탈로그와 읽기 전용 대조한 뒤 빌드한다.
+- `FAIRGROUND_SKIP_DB_PARITY` 우회와 직접 `next build` 배포를 금지한다. 연결 불가/미검증 시 빌드를 차단하고, 긴급 복구는 검증된 이전 배포로 롤백한다.
+- 14차 공동 기록·0/00 구분 기능의 SQL은 아직 미적용이므로 런타임에서 제외했다. SQL/개발 이력은 보존하고 검증된 별도 릴리스에서만 활성화한다.
+- 테스트 시뮬레이션 폐기는 전용 브라우저 저장 키와 메뉴만 대상으로 한다. 정규 리그·실제 팀 경기·회원·사진·실제 기록 대기열은 삭제하지 않는다.

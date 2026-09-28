@@ -412,7 +412,6 @@ export type Database = {
           created_at: string
           is_starter: boolean
           jersey_number: number | null
-          jersey_number_label: string | null
           match_id: string
           player_id: string
           team_id: string
@@ -421,7 +420,6 @@ export type Database = {
           created_at?: string
           is_starter?: boolean
           jersey_number?: number | null
-          jersey_number_label?: string | null
           match_id: string
           player_id: string
           team_id: string
@@ -430,7 +428,6 @@ export type Database = {
           created_at?: string
           is_starter?: boolean
           jersey_number?: number | null
-          jersey_number_label?: string | null
           match_id?: string
           player_id?: string
           team_id?: string
@@ -879,7 +876,6 @@ export type Database = {
           name: string
           nationality: string
           number: number
-          number_label: string | null
           personal_values: string | null
           phone: string | null
           photo_offset_x: number | null
@@ -920,7 +916,6 @@ export type Database = {
           name: string
           nationality?: string
           number?: number
-          number_label?: string | null
           personal_values?: string | null
           phone?: string | null
           photo_offset_x?: number | null
@@ -961,7 +956,6 @@ export type Database = {
           name?: string
           nationality?: string
           number?: number
-          number_label?: string | null
           personal_values?: string | null
           phone?: string | null
           photo_offset_x?: number | null
@@ -1635,7 +1629,6 @@ export type Database = {
           name: string
           nationality: string
           number: number
-          number_label: string | null
           personal_values: string | null
           photo_offset_x: number | null
           photo_scale: number | null

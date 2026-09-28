@@ -1,7 +1,5 @@
 "use client";
 
-import { parseJerseyNumber } from "@/lib/jersey-number";
-
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -254,15 +252,15 @@ function CardEditForm() {
     if (photoError) return;
     clearError();
     setFormError("");
-    if (!name.trim() || !position || parseJerseyNumber(number) === null) {
-      setFormError("이름, 포지션, 등번호(0, 00, 1~99)를 확인해주세요."); return;
+    if (!name.trim() || !position || !/^[1-9]\d?$/.test(number)) {
+      setFormError("이름, 포지션, 등번호(1~99)를 확인해주세요."); return;
     }
     if (!hasPortraitConsent(player)) { setFormError("초상권 동의를 먼저 완료해주세요."); return; }
     if (bgProcessing || !draft.ready || !submission.begin()) return;
     try {
       const updates: Partial<Player> = {
         name: name.trim(),
-        number: parseJerseyNumber(number)!,
+        number: parseInt(number, 10),
         position: position as Position,
         nationality,
         photoScale,
@@ -362,7 +360,7 @@ function CardEditForm() {
     id: "preview",
     uid: "preview",
     name: name.trim() || "이름",
-    number: parseJerseyNumber(number) ?? 10,
+    number: parseInt(number, 10) || 10,
     position: (position as Position) || "ALA",
     teamId: teamId || "",
     nationality: nationality || "KOR",
@@ -581,8 +579,10 @@ function CardEditForm() {
           <FieldLabel htmlFor="cardedit-number">등번호</FieldLabel>
           <input
             id="cardedit-number"
-            type="text" inputMode="numeric" maxLength={2} pattern="(00|0|[1-9][0-9]?)"
-            placeholder="0, 00, 1 – 99"
+            type="number"
+            placeholder="1 – 99"
+            min={1}
+            max={99}
             value={number}
             onChange={(e) => setNumber(e.target.value)}
             required

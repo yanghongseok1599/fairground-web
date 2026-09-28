@@ -374,7 +374,7 @@ export function SearchModal({ open, onClose }: Props) {
                           style={{ color: "var(--color-fg-ink, #0D1B2A)" }}
                         >
                           {p.name}
-                          {p.number != null && (
+                          {typeof p.number === "number" && (
                             <span
                               className="ml-2 text-[11px] font-normal"
                               style={{ color: "var(--color-fg-ink-muted, #6B7280)" }}

@@ -158,3 +158,7 @@ FAIRGROUND_ALLOW_PRODUCTION_SUPABASE_DEV=1 npm run dev
 ## 운영 DB에 직접 DDL을 적용하지 않기
 
 SQL 에디터나 MCP `apply_migration`으로 운영에 DDL을 적용하면 원격 이력에만 기록이 남고, 그 경로는 적용 시각을 새 버전으로 부여합니다. 지금의 이력 불일치가 그렇게 만들어졌습니다. 리포에 마이그레이션 파일을 먼저 만들고, 개발에서 검증한 뒤, 같은 파일로 운영에 적용하는 경로만 사용하세요.
+
+## 2026-09-28 선수 조회 장애 복구
+
+웹이 운영 미적용 `number_label` 등을 조회하여 선수 목록이 표시되지 않았다. 운영 회원·사진·경기 데이터는 복원 SQL로 덮어쓰지 않았고, 정상 배포로 웹을 롤백했다. 이후 호환되는 런타임으로 복구하고 컬럼/RPC 반환 컬럼 검증을 배포 게이트에 추가했다. `FAIRGROUND_SKIP_DB_PARITY` 우회는 폐지했다. [배포 게이트](supabase-deploy-gate.md)의 절차를 따른다. 기존 마이그레이션 이력 보호 및 linked push/reset/repair 금지는 유지한다.

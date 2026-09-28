@@ -1,4 +1,3 @@
-import { jerseyNumberFromRow, jerseyNumberToRow } from "@/lib/jersey-number";
 // Supabase profiles row(snake_case, flat) <-> 앱 Player(camelCase, nested) 매퍼.
 // Firebase RTDB → Supabase 마이그레이션의 경계 어댑터.
 // 단일 출처: authStore/dataStore가 공통 사용 (드리프트 D-E 방지).
@@ -63,7 +62,6 @@ export const PUBLIC_PLAYER_PROFILE_SELECT = [
   "id",
   "name",
   "number",
-  "number_label",
   "position",
   "team_id",
   "nationality",
@@ -92,15 +90,14 @@ export const PUBLIC_PLAYER_PROFILE_SELECT = [
   "personal_values",
   "bio",
   "created_at",
-].join(",") as "id,name,number,number_label,position,team_id,nationality,photo_url,profile_photo_url,profile_photo_locked,photo_scale,photo_offset_x,card_type,card_skin,card_rating,goals,assists,games,mom,badges,is_banned,ban_matches_remaining,season_yellow_cards,is_approved,role,attendance_streak,attendance_streak_best,mbti,disposition,personal_values,bio,created_at";
+].join(",") as "id,name,number,position,team_id,nationality,photo_url,profile_photo_url,profile_photo_locked,photo_scale,photo_offset_x,card_type,card_skin,card_rating,goals,assists,games,mom,badges,is_banned,ban_matches_remaining,season_yellow_cards,is_approved,role,attendance_streak,attendance_streak_best,mbti,disposition,personal_values,bio,created_at";
 
 export function rowToPublicPlayer(r: PublicProfileRow): Player {
   return {
     id: r.id,
     uid: r.id,
     name: r.name,
-    number: jerseyNumberFromRow(r),
-    jerseyNumberAssigned: r.number > 0 || r.number_label != null,
+    number: r.number,
     position: r.position,
     teamId: r.team_id ?? "",
     nationality: r.nationality,
@@ -158,7 +155,7 @@ export function playerToInsert(p: Player): ProfileInsert {
   return {
     id: p.id,
     name: p.name,
-    ...jerseyNumberToRow(p.number),
+    number: p.number,
     position: p.position,
     team_id: p.teamId || null,
     nationality: p.nationality,
@@ -200,7 +197,7 @@ export function playerToInsert(p: Player): ProfileInsert {
 export function playerPatchToRow(d: Partial<Player>): ProfileUpdate {
   const u: ProfileUpdate = {};
   if (d.name !== undefined) u.name = d.name;
-  if (d.number !== undefined) Object.assign(u, jerseyNumberToRow(d.number));
+  if (d.number !== undefined) u.number = d.number;
   if (d.position !== undefined) u.position = d.position;
   if (d.teamId !== undefined) u.team_id = d.teamId || null;
   if (d.nationality !== undefined) u.nationality = d.nationality;
@@ -326,7 +323,7 @@ export function teamPatchToRow(d: Partial<Team>): TeamUpdate {
 }
 
 // ===== MatchEvent =====
-export function rowToEvent(r: MatchEventRow & { goal_event_id?: string | null; assist_checked?: boolean; recorded_by_name?: string | null }): MatchEvent {
+export function rowToEvent(r: MatchEventRow): MatchEvent {
   return {
     id: r.id,
     type: r.type,
@@ -337,9 +334,6 @@ export function rowToEvent(r: MatchEventRow & { goal_event_id?: string | null; a
     half: (r.half === 2 ? 2 : 1) as 1 | 2,
     timestamp: ts(r.created_at),
     isCancelled: r.is_cancelled,
-    goalEventId: r.goal_event_id ?? undefined,
-    assistChecked: r.assist_checked,
-    recordedByName: r.recorded_by_name ?? undefined,
   };
 }
 
@@ -359,7 +353,7 @@ export function eventToInsert(
 }
 
 // ===== Match (events 는 별도 조회해 주입) =====
-export function rowToMatch(r: MatchRow & { primary_referee_id?: string | null; assistant_referee_id?: string | null; clock_operator_id?: string | null; recording_revision?: number; confirmed_at?: string | null }, events: MatchEvent[] = []): Match {
+export function rowToMatch(r: MatchRow, events: MatchEvent[] = []): Match {
   return {
     id: r.id,
     tournamentId: r.tournament_id ?? "",
@@ -375,11 +369,6 @@ export function rowToMatch(r: MatchRow & { primary_referee_id?: string | null; a
     scheduledAt: ts(r.scheduled_at),
     events,
     momPlayerId: r.mom_player_id ?? undefined,
-    primaryRefereeId: r.primary_referee_id ?? undefined,
-    assistantRefereeId: r.assistant_referee_id ?? undefined,
-    clockOperatorId: r.clock_operator_id ?? undefined,
-    recordingRevision: r.recording_revision,
-    confirmedAt: r.confirmed_at ? ts(r.confirmed_at) : undefined,
   };
 }
 

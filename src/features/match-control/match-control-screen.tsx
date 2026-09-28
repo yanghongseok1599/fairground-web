@@ -3,9 +3,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { jerseySortOrder } from "@/lib/jersey-number";
-import { RecordingPanel } from "@/features/match-review/recording-panel";
-import { recordingDuty, uncheckedGoals } from "@/features/match-review/policy";
 import { useMatchControl } from "@/hooks/useMatchControl";
 import { useMatchControlStore } from "@/features/match-control/store-context";
 import { FullscreenMatchHeader } from "./fullscreen-match-header";
@@ -226,8 +223,6 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
   // End match dialog
   const [endDialogOpen, setEndDialogOpen] = useState(false);
   const [endMomChoice, setEndMomChoice] = useState("");
-  const [recordsReviewed, setRecordsReviewed] = useState(false);
-  useEffect(() => { setRecordsReviewed(false); }, [mc.liveMatch?.recordingRevision, mc.match?.recordingRevision, endDialogOpen]);
 
   useEffect(() => {
     if (!lastActionNotice) return;
@@ -324,10 +319,6 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
   const matchData = mc.liveMatch || mc.match;
   if (!matchData) return null;
 
-  const isAdmin = practice || player?.role === "admin";
-  const duty = practice ? "admin" : recordingDuty(matchData, player?.id, isAdmin);
-  const canRecord = duty === "primary" || duty === "admin";
-  const canAssist = duty === "assistant" || duty === "admin";
   const isScheduled = matchData.status === "scheduled";
   const isLive = matchData.status === "live";
   const isFinished = matchData.status === "finished";
@@ -373,8 +364,24 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
   const assistEvents = liveEvents.filter((e) => e.type === "assist");
   const goalEventCount = goalEvents.length;
   const assistEventCount = assistEvents.length;
-  const uncheckedAssistGoals = practice ? goalEvents.filter(goal => !assistEvents.some(a => a.goalEventId === goal.id)) : uncheckedGoals(mc.events);
-  const uncheckedAssistGoalIds = new Set(uncheckedAssistGoals.map(goal => goal.id));
+  const assistCountByTeam = new Map<string, number>();
+  for (const event of assistEvents) {
+    assistCountByTeam.set(event.teamId, (assistCountByTeam.get(event.teamId) ?? 0) + 1);
+  }
+  const goalsByTeam = new Map<string, MatchEvent[]>();
+  for (const goal of goalEvents) {
+    goalsByTeam.set(goal.teamId, [...(goalsByTeam.get(goal.teamId) ?? []), goal]);
+  }
+  const uncheckedAssistGoalIds = new Set<string>();
+  for (const [teamId, goals] of goalsByTeam) {
+    const confirmedAssists = assistCountByTeam.get(teamId) ?? 0;
+    for (const goal of goals.slice(confirmedAssists)) {
+      uncheckedAssistGoalIds.add(goal.id);
+    }
+  }
+  const uncheckedAssistGoals = goalEvents.filter((goal) =>
+    uncheckedAssistGoalIds.has(goal.id),
+  );
   const missingAssistCount = uncheckedAssistGoals.length;
   const teamTally = (teamId: string) => ({
     goals: liveEvents.filter((e) => e.teamId === teamId && e.type === "goal").length,
@@ -416,8 +423,11 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
     entries
       .map((e) => pool.find((p) => p.id === e.playerId))
       .filter((p): p is Player => Boolean(p));
-  // Zero and double-zero are valid jersey numbers.
-  const jerseyOrder = (p: Player) => jerseySortOrder(p);
+  // 등번호 정렬. 가입 시 number 기본값이 0 이라 "미지정"과 구분되지 않는데,
+  // 0 을 그대로 숫자로 취급하면 등번호를 아직 안 넣은 사람이 항상 맨 앞으로
+  // 와서 자동 코트 배치의 1순위가 된다. 0 이하는 미지정으로 보고 뒤로 보낸다.
+  const jerseyOrder = (p: Player) =>
+    typeof p.number === "number" && p.number > 0 ? p.number : Number.MAX_SAFE_INTEGER;
   const byNumber = (a: Player, b: Player) =>
     jerseyOrder(a) - jerseyOrder(b) || a.name.localeCompare(b.name, "ko");
 
@@ -520,20 +530,20 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
   // 가로 분할 모델 — 선택된 이벤트 유형으로 특정 선수+팀에 즉시 기록.
   // 유형은 유지(연속 동일 이벤트 빠른 기록). 유형 미선택 시 무시.
   const recordPlayerEvent = async (player: Player, teamId: string) => {
-    if (!eventType || !canRecord || (!practice && eventType === "assist") || mc.pendingAction !== null) return;
+    if (!eventType || mc.pendingAction !== null) return;
     const payload = { type: eventType, playerId: player.id, playerName: player.name, teamId };
     lastEventAttempt.current = payload; // 실패 시 재시도용
     const ok = await mc.addEvent(payload);
     if (ok) {
       setLastActionNotice(`${player.name} ${eventLabel(eventType)} 기록`);
-      if (practice && eventType === "goal") {
+      if (eventType === "goal") {
         setAssistGoal(createAssistTarget(player, teamId, "goal-record"));
       }
     }
   };
 
   const recordRosterEvent = async (type: RosterEventType, player: Player, teamId: string) => {
-    if (!isLive || !canRecord || (!practice && type === "assist") || mc.pendingAction !== null) return;
+    if (!isLive || mc.pendingAction !== null || !mc.isOnline) return;
     const payload = { type, playerId: player.id, playerName: player.name, teamId };
     lastEventAttempt.current = payload;
     if (await mc.addEvent(payload)) setLastActionNotice(`${player.name} ${eventLabel(type)} 기록 완료`);
@@ -541,7 +551,6 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
 
   // 이벤트 기록 실패 시 재시도 — 마지막 시도 payload 재실행.
   const retryLastEvent = async () => {
-    if (!practice) { await mc.retryPendingRecords(); return; }
     const last = lastEventAttempt.current;
     if (!last) return;
     await mc.addEvent(last);
@@ -576,7 +585,6 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
       playerId: assistPlayer.id,
       playerName: assistPlayer.name,
       teamId: assistGoal.teamId,
-      goalEventId: assistGoal.id,
     });
     if (ok) {
       setLastActionNotice(`${assistPlayer.name} 어시스트 기록`);
@@ -686,8 +694,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
 
   const handleEndMatch = async () => {
     const momChoice = endMomChoice || matchData.momPlayerId || "";
-    if (!endDialogOpen || !isAdmin || !momChoice || mc.pendingAction !== null || (!practice && !recordsReviewed)) return;
-    if (!practice) { await mc.endMatch(momChoice === NO_MOM_VALUE ? null : momChoice); return; }
+    if (!endDialogOpen || !momChoice || mc.pendingAction !== null) return;
 
     if (
       momChoice !== NO_MOM_VALUE &&
@@ -708,6 +715,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
   const selectedEndMom = allPlayers.find((p) => p.id === endMomValue);
 
   // 몰수패 처리(관리자 전용) — 지목 팀이 패(0), 상대 승(3). 성공 시 경기 종료·재로드.
+  const isAdmin = practice || player?.role === "admin";
   const handleForfeit = async (forfeitTeamId: string) => {
     setForfeiting(true);
     setForfeitErr("");
@@ -856,12 +864,11 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
       if (a === "pause") return mc.pauseMatch();
       if (a === "resume") return mc.resumeMatch();
       if (a === "endMatch") {
-        if (!isAdmin) return;
         setEndMomChoice(matchData.momPlayerId ?? "");
         return setEndDialogOpen(true);
       }
     };
-    const buttons = halfControlButtons(progress).filter(b => b.action === "endMatch" ? isAdmin : canRecord);
+    const buttons = halfControlButtons(progress);
     if (buttons.length === 0) return null;
     return (
       <div className="flex flex-wrap items-center justify-center gap-2">
@@ -882,7 +889,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
             {mc.pendingAction !== null ? (
               <Loader2 className="mr-1 h-4 w-4 animate-spin" />
             ) : null}
-            {!practice && b.action === "endMatch" ? "최종 기록 확정" : b.label}
+            {b.label}
           </Button>
         ))}
       </div>
@@ -1045,8 +1052,8 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
             }}
           >
             <DialogHeader>
-              <DialogTitle>{practice ? "경기를 종료하시겠습니까?" : "최종 기록을 확정하시겠습니까?"}</DialogTitle>
-              <DialogDescription>주심·부심의 기록을 대조하고 MOM을 확인해주세요. 확정하면 개인 랭킹과 팀 순위에 반영됩니다.</DialogDescription>
+              <DialogTitle>경기를 종료하시겠습니까?</DialogTitle>
+              <DialogDescription>경기 기록과 MOM을 확인한 뒤 ‘확인 후 종료’를 눌러주세요. 취소하면 경기 화면으로 돌아갑니다.</DialogDescription>
             </DialogHeader>
             <p className="text-xs text-muted-foreground">{practice ? "연습 결과만 확정하며 실제 선수 기록에는 반영되지 않습니다." : "경기 종료 시 선수 기록과 순위에 반영됩니다."}</p>
             <div className="space-y-4 pt-2">
@@ -1157,11 +1164,6 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                   </span>
                 </div>
               )}
-              {!practice && <div className="space-y-2 text-sm">
-                {mc.isRunning && <p role="alert" className="text-red-700">경기 시간을 멈춘 뒤 확정해주세요.</p>}
-                {missingAssistCount > 0 && <p role="alert" className="text-amber-800">골 {missingAssistCount}건의 어시스트 또는 어시스트 없음을 먼저 확인해주세요.</p>}
-                <label className="flex items-start gap-2 rounded-lg border p-3"><input type="checkbox" className="mt-1 h-4 w-4" checked={recordsReviewed} onChange={e=>setRecordsReviewed(e.target.checked)} />주심·부심 양쪽의 미전송 입력이 없고, 점수·득점·어시스트·카드 기록을 대조했습니다.</label>
-              </div>}
               <Separator />
               <div className="flex gap-2">
                 <Button
@@ -1176,7 +1178,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                   variant="destructive"
                   className="min-h-[44px] flex-1"
                   onClick={handleEndMatch}
-                  disabled={mc.pendingAction !== null || !endMomReady || (!practice && (!recordsReviewed || mc.isRunning || missingAssistCount > 0 || mc.pendingRecordCount > 0 || !!mc.storageError))}
+                  disabled={mc.pendingAction !== null || !endMomReady}
                   aria-busy={endPending}
                 >
                   {mc.pendingAction === "mom" ? (
@@ -1190,7 +1192,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                       종료 처리중…
                     </>
                   ) : (
-                    (practice ? "확인 후 종료" : "최종 확정")
+                    "확인 후 종료"
                   )}
                 </Button>
               </div>
@@ -1198,9 +1200,6 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
           </MatchDialogContent>
         </Dialog>
   );
-
-  const recordingPanel = practice ? null : <RecordingPanel match={matchData} events={mc.events} duty={duty} busy={mc.pendingAction !== null}
-    pendingCount={mc.pendingRecordCount} storageError={mc.storageError} onAssist={openAssistPicker} onRefresh={mc.reload} onRetry={mc.retryPendingRecords} />;
 
   if (spectator) return <MatchBroadcastView
     fullscreen={fullscreenOpen} landscapeFallback={forceLandscapeStage}
@@ -1218,13 +1217,12 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
       elapsed={mc.elapsedSeconds} status={isScheduled ? "시작 대기" : isFinished ? "경기 종료" : isRegulationComplete ? "종료 대기" : mc.isRunning ? "진행 중" : "일시정지"}
       practice={practice} online={mc.isOnline} controls={renderProgressButtons()} onClose={recordingFullscreen.close}
       roster={<>
-        {recordingPanel}
         {lineupLoading ? <p role="status" className="p-4 text-sm">선수 명단을 불러오고 있습니다…</p> : <RosterEventBoard compact
           teams={[{ id: homeSide.id, name: homeSide.name, players: mc.homePlayers }, { id: awaySide.id, name: awaySide.name, players: mc.awayPlayers }]}
-          events={mc.events} allowedEvents={practice ? undefined : ["goal","foul","yellow_card","red_card"]} disabled={!isLive || !canRecord || mc.pendingAction !== null || !!mc.storageError} onRecord={recordRosterEvent} />}
+          events={mc.events} disabled={!isLive || mc.pendingAction !== null || !mc.isOnline} onRecord={recordRosterEvent} />}
         {!isLive && <p className="p-3 text-sm text-muted-foreground">{isScheduled ? "경기 시작을 누르면 기록할 수 있습니다." : "종료된 경기의 최종 기록입니다."}</p>}
       </>}
-      history={<EventTimeline events={mc.events} onCancel={mc.cancelEvent} onAddAssist={openAssistPicker} uncheckedGoalIds={uncheckedAssistGoalIds} canEdit={isLive && mc.pendingAction === null && mc.isOnline} canCancel={isAdmin} canAddAssist={canAssist} />}
+      history={<EventTimeline events={mc.events} onCancel={mc.cancelEvent} onAddAssist={openAssistPicker} uncheckedGoalIds={uncheckedAssistGoalIds} canEdit={isLive && mc.pendingAction === null && mc.isOnline} />}
       feedback={<>
         {lastActionNotice && !mc.actionError && <p role="status" className="pointer-events-none absolute inset-x-3 bottom-3 mx-auto max-w-md rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center text-sm font-bold text-emerald-900 shadow-lg">{lastActionNotice}</p>}
         {mc.actionError && <div role="alert" className="absolute inset-x-3 bottom-3 mx-auto max-h-32 max-w-lg overflow-y-auto rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800"><p>{mc.actionError.message}</p><div className="mt-2 flex gap-2">{mc.actionError.scope === "event" && <Button variant="outline" disabled={mc.pendingAction !== null || !mc.isOnline} onClick={retryLastEvent}>다시 시도</Button>}<Button variant="outline" onClick={mc.clearError}>알림 닫기</Button></div></div>}
@@ -1245,7 +1243,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
       : null;
     const substitutionChoices = substitution?.choices ?? [];
     const handleEventAction = async (type: MatchEventType) => {
-      if (!actionTarget || !canRecord || (!practice && type === "assist") || mc.pendingAction !== null) return;
+      if (!actionTarget || mc.pendingAction !== null) return;
       const ok = await mc.addEvent({
         type,
         playerId: actionTarget.player.id,
@@ -1254,7 +1252,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
       });
       if (ok) {
         setLastActionNotice(`${actionTarget.player.name} ${eventLabel(type)} 기록`);
-        if (practice && type === "goal") {
+        if (type === "goal") {
           setAssistGoal(
             createAssistTarget(actionTarget.player, actionTarget.teamId, "goal-record"),
           );
@@ -1419,7 +1417,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                       variant="outline"
                       className="min-h-[52px] justify-center text-base"
                       onClick={() => handleEventAction(et.value)}
-                      disabled={!canRecord || (!practice && et.value === "assist") || mc.pendingAction !== null || !!mc.storageError}
+                      disabled={mc.pendingAction !== null}
                     >
                       <span className="mr-1.5">{et.emoji}</span>
                       {et.label}
@@ -1675,14 +1673,13 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
         )}
 
         {lastActionNotice && <p role="status" className="pointer-events-none fixed inset-x-4 bottom-4 z-40 mx-auto max-w-md rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-900 shadow-lg">{lastActionNotice}</p>}
-        {recordingPanel}
         {lineupLoading ? <p role="status" className="p-4 text-sm">선수 명단을 불러오고 있습니다…</p> : <RosterEventBoard
           teams={[{ id: homeSide.id, name: homeSide.name, players: mc.homePlayers }, { id: awaySide.id, name: awaySide.name, players: mc.awayPlayers }]}
-          events={mc.events} allowedEvents={practice ? undefined : ["goal","foul","yellow_card","red_card"]} disabled={!isLive || !canRecord || mc.pendingAction !== null || !!mc.storageError} onRecord={recordRosterEvent}
+          events={mc.events} disabled={!isLive || mc.pendingAction !== null || !mc.isOnline} onRecord={recordRosterEvent}
         />}
         {!isLive && <p className="text-sm text-muted-foreground">{isScheduled ? "경기를 시작하면 선수별 기록 버튼이 활성화됩니다." : "종료된 경기의 선수별 최종 기록입니다."}</p>}
 
-        {practice && isLive && uncheckedAssistGoals.length > 0 && (
+        {isLive && uncheckedAssistGoals.length > 0 && (
           <Card
             style={{
               borderColor: "rgba(245,158,11,0.42)",
@@ -1747,7 +1744,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                 events={mc.events}
                 onCancel={(id) => mc.cancelEvent(id)}
                 onAddAssist={openAssistPicker}
-                canEdit={isLive && mc.pendingAction === null} canCancel={isAdmin} canAddAssist={canAssist}
+                canEdit={isLive}
                 uncheckedGoalIds={uncheckedAssistGoalIds}
               />
               {mc.pendingAction === "cancelEvent" && (
@@ -1763,7 +1760,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
         )}
 
         {/* MOM Selection - during or after match */}
-        {isAdmin && (isLive || isFinished) && (
+        {(isLive || isFinished) && (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">

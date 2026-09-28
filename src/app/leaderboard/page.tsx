@@ -249,7 +249,7 @@ export default function LeaderboardPage() {
                         <span className="truncate font-bold" style={{ color: "var(--color-fg-ink)" }}>
                           {p.name}
                         </span>
-                        {(p.jerseyNumberAssigned || Number(p.number) > 0 || p.number === "00") && (
+                        {p.number > 0 && (
                           <span
                             className="font-mono text-xs"
                             style={{ color: "var(--color-fg-ink-muted)" }}

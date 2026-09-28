@@ -18,6 +18,4 @@ assert.ok(jobs.some((j) => j.relativePath.startsWith("미소속/")));
 assert.equal(JSON.stringify(players), before, "Bronze export must not change ratings, skin eligibility or records");
 assert.throws(() => buildCardExportJobs([player("p", "missing")], []));
 assert.throws(() => buildCardExportJobs([player("p", ""), player("p", "")], []));
-const zeroJobs = buildCardExportJobs([{...player("zero", ""),number:0},{...player("double-zero", ""),number:"00"}], []);
-assert.deepEqual(zeroJobs.map(job=>job.relativePath).sort(), ["미소속/00_김철수.png","미소속/0_김철수.png"].sort());
 console.log("player-card export paths and data preservation tests passed");

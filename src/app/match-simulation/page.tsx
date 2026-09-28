@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { MatchSimulationPage } from "@/features/match-simulation/simulation-page";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "테스트 경기 시뮬레이션",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <MatchSimulationPage />;
+  redirect("/live");
 }

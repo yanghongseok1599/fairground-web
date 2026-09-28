@@ -3,14 +3,15 @@ import { test } from "node:test";
 import { moduleLoader } from "./helpers/load-ts-module.mjs";
 
 // Run the real hook's effects with a deterministic local clock and store.
-function fixture(t) {
+function fixture(t, readOnly = true) {
   const load = moduleLoader();
   const { createPracticeStore } = load("src/features/match-simulation/store.ts");
   const actual = createPracticeStore();
   const m = actual.getState().snapshot.match;
   const writes = [];
   const store = { ...actual.getState(), managesClock: false };
-  for (const key of ["startMatch", "pauseMatch", "resumeMatch", "endMatch", "addMatchEvent", "cancelMatchEvent", "setMatchMom", "updateMatchTimer", "notifyNextMatchReady"]) store[key] = async () => { writes.push(key); };
+  store.updateMatchTimer = async (...args) => { writes.push(["updateMatchTimer", ...args]); };
+  for (const key of ["startMatch", "pauseMatch", "resumeMatch", "endMatch", "addMatchEvent", "cancelMatchEvent", "setMatchMom", "notifyNextMatchReady"]) store[key] = async () => { writes.push(key); };
   const cells = [], effects = [], timers = new Map(); let cursor = 0, nextTimer = 0;
   const prior = { setInterval: globalThis.setInterval, clearInterval: globalThis.clearInterval, window: globalThis.window };
   globalThis.window = new EventTarget();
@@ -22,9 +23,9 @@ function fixture(t) {
     useCallback(fn) { return fn; },
     useEffect(fn, deps) { const i = cursor++; const old = cells[i]; if (!old || !deps || deps.some((d, j) => !Object.is(d, old.deps[j]))) effects.push(() => { old?.cleanup?.(); cells[i] = { deps, cleanup: fn() }; }); },
   };
-  const { useMatchControl: runHook } = moduleLoader({ react, "@/hooks/useAuth": {useAuth: () => ({player:null})}, "@/features/match-control/store-context": { useMatchControlStore: () => store } })("src/hooks/useMatchControl.ts");
+  const { useMatchControl: runHook } = moduleLoader({ react, "@/features/match-control/store-context": { useMatchControlStore: () => store } })("src/hooks/useMatchControl.ts");
   let result;
-  const render = () => { cursor = 0; result = runHook({ tournamentId: m.tournamentId, matchId: m.id, readOnly: true }); while (effects.length) effects.shift()(); return result; };
+  const render = () => { cursor = 0; result = runHook({ tournamentId: m.tournamentId, matchId: m.id, readOnly }); while (effects.length) effects.shift()(); return result; };
   const flush = async () => { for (let i = 0; i < 6; i++) { await Promise.resolve(); render(); } return result; };
   t.after(() => { cells.forEach(c => c?.cleanup?.()); globalThis.setInterval = prior.setInterval; globalThis.clearInterval = prior.clearInterval; if (prior.window) globalThis.window = prior.window; else delete globalThis.window; });
   return { actual, m, store, writes, render, flush, tick: () => [...timers.values()].forEach(fn => fn()) };
@@ -46,4 +47,33 @@ test("라이브 목록에서 빠진 종료 경기를 다시 읽어 최종 점수
   await state.setMatchMom(f.m.tournamentId, f.m.id, "practice-blue-6"); await state.endMatch(f.m.tournamentId, f.m.id);
   f.store.liveMatches = []; const hook = await f.flush();
   assert.equal(hook.match.status, "finished"); assert.equal(hook.match.homeScore, 1); assert.equal(hook.match.momPlayerId, "practice-blue-6"); assert.equal(hook.isRunning, false); assert.deepEqual(f.writes, []);
+});
+
+
+test("서버가 3초마다 0초를 재전송해도 심판 시계와 저장은 계속 진행한다", async t => {
+  const f = fixture(t, false);
+  await f.actual.getState().startMatch(f.m.tournamentId, f.m.id);
+  f.store.liveMatches = f.actual.getState().liveMatches;
+  await f.flush();
+  for (let second = 1; second <= 30; second++) {
+    f.tick();
+    if (second % 3 === 0) f.store.liveMatches = f.store.liveMatches.map(m => ({ ...m, elapsedSeconds: 0 }));
+    const hook = await f.flush();
+    assert.equal(hook.elapsedSeconds, second);
+  }
+  assert.deepEqual(f.writes.filter(w => w[0] === "updateMatchTimer").map(w => w[2]), [5, 10, 15, 20, 25, 30]);
+});
+
+test("원격 일시정지는 마지막 저장 시간으로 맞추고 재개 후 다시 진행한다", async t => {
+  const f = fixture(t);
+  await f.actual.getState().startMatch(f.m.tournamentId, f.m.id);
+  f.store.liveMatches = f.actual.getState().liveMatches;
+  await f.flush();
+  for (let i = 0; i < 8; i++) f.tick();
+  f.store.liveMatches = f.store.liveMatches.map(m => ({ ...m, elapsedSeconds: 6, isRunning: false }));
+  let hook = await f.flush(); assert.equal(hook.elapsedSeconds, 6); assert.equal(hook.isRunning, false);
+  f.tick(); hook = await f.flush(); assert.equal(hook.elapsedSeconds, 6);
+  f.store.liveMatches = f.store.liveMatches.map(m => ({ ...m, isRunning: true }));
+  await f.flush(); f.tick(); hook = await f.flush(); assert.equal(hook.elapsedSeconds, 7);
+  assert.deepEqual(f.writes, []);
 });

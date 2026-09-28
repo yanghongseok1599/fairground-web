@@ -6,11 +6,13 @@ import { NotificationRealtime } from "@/components/notification-realtime";
 import { InAppBanner } from "@/components/in-app-banner";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { PushOptInPrompt } from "@/components/push-opt-in-prompt";
+import { retirePracticeRecords } from "@/features/match-simulation/retirement";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const init = useAuthStore((s) => s.init);
 
   useEffect(() => {
+    retirePracticeRecords();
     const unsubscribe = init();
     return unsubscribe;
   }, [init]);

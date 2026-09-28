@@ -17,7 +17,7 @@
     "supabase:parity": "node scripts/supabase/check-schema-parity.mjs",
     "supabase:migrations": "npx supabase migration list --linked",
     "test:supabase-safety": "node --test tests/supabase-safety.test.mjs",
-    "test:schema-parity": "node --test tests/schema-parity.test.mjs",
+    "test:schema-parity": "node --test tests/schema-parity.test.mjs tests/schema-column-contract.test.mjs",
     "test:security": "node --experimental-strip-types tests/security-hardening.test.ts",
     "test:player-card": "node --experimental-strip-types tests/player-card-frame.test.ts && node --experimental-strip-types tests/player-card-photo-fallback.test.ts && node --experimental-strip-types tests/player-card-assets.test.ts && node --experimental-strip-types tests/player-card-face-geometry.test.ts",
     "test:photo-read": "node --test tests/player-card-photo-read.test.mjs",
