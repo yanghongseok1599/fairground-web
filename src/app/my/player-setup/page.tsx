@@ -817,7 +817,7 @@ function PlayerSetupContent() {
               {portraitConsent && <p className="mt-2 text-xs text-muted-foreground">선수카드 생성 시 동의가 함께 저장됩니다.</p>}
             </div>
           } />
-          {!push.canSave && <p className="text-sm font-medium text-primary">알림 ON 설정을 완료하면 선수카드를 생성할 수 있습니다.</p>}
+          {!push.canSave && <p className="text-sm font-medium text-primary">대회 알림을 켜거나, 설정이 어려우면 위의 직접 확인 항목에 동의해주세요.</p>}
 
           {(formError || error) && (
             <p

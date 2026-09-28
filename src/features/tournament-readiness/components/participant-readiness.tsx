@@ -15,16 +15,17 @@ export function ParticipantReadiness({ push, consentComplete, consent, required 
   consent: ReactNode;
   required?: boolean;
 }) {
-  const ready = consentComplete && push.state === "on";
+  const manual = push.state !== "on" && push.canSave;
+  const ready = consentComplete && push.canSave;
   return (
     <section id="participant-readiness" aria-label="대회 참가 준비" className="scroll-mt-24 rounded-3xl border border-primary/25 bg-muted/40 p-4 sm:p-5">
       <div className="mb-4">
         <h2 className="flex items-center gap-2 text-lg font-black text-foreground"><ClipboardCheck className="h-5 w-5 text-primary" />대회 참가 준비</h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          {ready ? "초상권 동의와 이 기기의 알림 설정을 완료했습니다." : "원활한 현장 진행을 위해 초상권 동의와 대회 알림 ON을 확인해주세요."}
+          {ready ? manual ? "초상권 동의와 경기 진행 직접 확인에 동의했습니다. 이 기기에 알림이 오지 않을 수 있습니다." : "초상권 동의와 이 기기의 알림 설정을 완료했습니다." : "초상권 동의와 알림 설정을 확인해주세요. 알림을 사용할 수 없으면 경기 진행 직접 확인에 동의한 뒤 등록할 수 있습니다."}
         </p>
         <p role="status" className="mt-2 text-xs font-bold text-primary">
-          초상권 {consentComplete ? "동의 완료" : "확인 필요"} · 대회 알림 {push.state === "on" ? "ON" : push.state === "loading" ? "확인 중" : "설정 필요"}
+          초상권 {consentComplete ? "동의 완료" : "확인 필요"} · 대회 알림 {push.state === "on" ? "ON" : push.state === "loading" ? "확인 중" : manual ? "경기 진행 직접 확인" : "설정 필요"}
         </p>
       </div>
       <div className="grid gap-3">

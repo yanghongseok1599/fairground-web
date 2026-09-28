@@ -90,12 +90,12 @@ export function useTournamentPush() {
 
   const verifyForSave = async () => {
     if (inFlight.current) return false;
-    return canSaveWithTournamentAlerts(await refresh(), fallbackAcknowledged);
+    return canSaveWithTournamentAlerts(await refresh(), fallbackAcknowledged, Boolean(error));
   };
 
   return {
     state, ios, busy, error, fallbackAcknowledged, setFallbackAcknowledged,
-    canSave: !busy && canSaveWithTournamentAlerts(state, fallbackAcknowledged),
+    canSave: !busy && canSaveWithTournamentAlerts(state, fallbackAcknowledged, Boolean(error)),
     refresh, enable: () => change(true), disable: () => change(false), verifyForSave,
   };
 }

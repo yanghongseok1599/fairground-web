@@ -2,16 +2,26 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { moduleLoader } from './helpers/load-ts-module.mjs';
 
-const { canSaveWithTournamentAlerts } = moduleLoader()('src/features/tournament-readiness/policy.ts');
+const { canSaveWithTournamentAlerts, canUseManualTournamentAlerts } = moduleLoader()('src/features/tournament-readiness/policy.ts');
 
-test('only verified ON or an acknowledged unsupported device permits card saving', () => {
-  for (const state of ['loading', 'install', 'denied', 'off', 'error']) {
+test('unavailable notifications require explicit manual-check acknowledgement without pretending ON', () => {
+  for (const state of ['loading', 'off']) {
     assert.equal(canSaveWithTournamentAlerts(state, false), false, state);
     assert.equal(canSaveWithTournamentAlerts(state, true), false, `${state} cannot bypass`);
   }
   assert.equal(canSaveWithTournamentAlerts('on', false), true);
-  assert.equal(canSaveWithTournamentAlerts('unsupported', false), false);
-  assert.equal(canSaveWithTournamentAlerts('unsupported', true), true);
+  for (const state of ['install', 'unsupported', 'denied', 'error']) {
+    assert.equal(canUseManualTournamentAlerts(state), true);
+    assert.equal(canSaveWithTournamentAlerts(state, false), false);
+    assert.equal(canSaveWithTournamentAlerts(state, true), true);
+  }
+  assert.equal(canUseManualTournamentAlerts('on'), false);
+});
+
+test('an unsuccessful setup can fall back after acknowledgement, but loading never permits saving', () => {
+  assert.equal(canSaveWithTournamentAlerts('off', true, true), true);
+  assert.equal(canSaveWithTournamentAlerts('off', false, true), false);
+  assert.equal(canSaveWithTournamentAlerts('loading', true, true), false);
 });
 
 function fixture(t, { permission = 'granted', saved = true, readError = null, writeError = null, permissionError = false } = {}) {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ExternalLink, X } from "lucide-react";
+import { BrowserLinkHelp } from "@/features/browser-handoff/components/browser-link-help";
 
 const DISMISS_KEY = "fairground:inapp-banner:dismissed";
 const DISMISS_TTL_MS = 24 * 60 * 60 * 1000;
@@ -33,8 +34,12 @@ function isIOS(): boolean {
 
 function readDismissedAt(): number {
   if (typeof window === "undefined") return 0;
-  const raw = window.localStorage.getItem(DISMISS_KEY);
-  return raw ? Number(raw) : 0;
+  try {
+    const raw = window.localStorage.getItem(DISMISS_KEY);
+    return raw ? Number(raw) : 0;
+  } catch {
+    return 0;
+  }
 }
 
 function openInExternalBrowser(): void {
@@ -48,30 +53,12 @@ function openInExternalBrowser(): void {
     return;
   }
 
-  if (isIOS()) {
-    // iOS Chrome scheme. Chrome 미설치면 Safari fallback — clipboard copy + 안내.
-    const httpsUrl = url.startsWith("https://") ? url : `https://${url.replace(/^http:\/\//, "")}`;
-    const chromeUrl = httpsUrl.replace(/^https:\/\//, "googlechromes://");
-    const beforeNav = Date.now();
-    window.location.href = chromeUrl;
-    // Chrome 미설치 시 fallback — 500ms 후 여전히 같은 페이지면 클립보드 안내
-    setTimeout(() => {
-      if (Date.now() - beforeNav < 1500) {
-        navigator.clipboard?.writeText(httpsUrl).catch(() => undefined);
-        alert("URL이 복사되었습니다. Safari를 열어 붙여넣기 해주세요.");
-      }
-    }, 500);
-    return;
-  }
-
-  // 데스크톱이거나 미지원 OS — 단순 클립보드 복사
-  navigator.clipboard?.writeText(url).catch(() => undefined);
-  alert("URL이 복사되었습니다. 다른 브라우저에서 열어주세요.");
 }
 
 export function InAppBanner() {
   const [visible, setVisible] = useState(false);
   const [browser, setBrowser] = useState<InAppBrowser>(null);
+  const [device, setDevice] = useState({ ios: false, android: false });
 
   useEffect(() => {
     let active = true;
@@ -88,6 +75,7 @@ export function InAppBanner() {
     queueMicrotask(() => {
       if (!active) return;
       setBrowser(b);
+      setDevice({ ios: isIOS(), android: isAndroid() });
       setVisible(true);
     });
     return () => {
@@ -112,7 +100,7 @@ export function InAppBanner() {
 
   const dismiss = () => {
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(DISMISS_KEY, String(Date.now()));
+      try { window.localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch { /* Dismiss still works when storage is unavailable. */ }
     }
     setVisible(false);
   };
@@ -128,12 +116,18 @@ export function InAppBanner() {
         color: "var(--color-fg-ink)",
       }}
     >
-      <div className="mx-auto flex max-w-5xl items-center gap-3">
-        <p className="flex-1 leading-snug">
-          <span className="font-semibold">{label}</span>에서는 푸시 알림이 동작하지 않습니다.
-          Chrome/Safari에서 열면 알림을 받을 수 있어요.
-        </p>
-        <button
+      <div className="mx-auto flex max-w-5xl items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="leading-snug">
+            <span className="font-semibold">{label}</span>에서는 푸시 알림을 받을 수 없습니다.{" "}
+            {device.ios ? "아이폰 알림은 홈 화면에 추가한 FairGround 앱에서 설정해주세요." : "외부 브라우저에서 알림 설정을 확인해주세요."}
+          </p>
+          {!device.android && <details className="mt-2">
+            <summary className="cursor-pointer py-2 font-bold">{device.ios ? "Safari에서 여는 방법" : "외부 브라우저에서 여는 방법"}</summary>
+            <BrowserLinkHelp browserName={device.ios ? "Safari" : "브라우저"} />
+          </details>}
+        </div>
+        {device.android && <button
           type="button"
           onClick={openInExternalBrowser}
           className="inline-flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-bold"
@@ -141,7 +135,7 @@ export function InAppBanner() {
         >
           <ExternalLink width={14} height={14} />
           외부 브라우저로 열기
-        </button>
+        </button>}
         <button
           type="button"
           onClick={dismiss}
