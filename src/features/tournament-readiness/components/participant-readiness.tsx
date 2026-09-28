@@ -8,6 +8,7 @@ import { PortraitConsentCard } from "@/features/portrait-consent/components/cons
 import { hasPortraitConsent } from "@/features/portrait-consent/policy";
 import { useTournamentPush, type TournamentPush } from "../hooks/use-tournament-push";
 import { TournamentPushCard } from "./tournament-push-card";
+import { PUSH_STATE_LABEL } from "../policy";
 
 export function ParticipantReadiness({ push, consentComplete, consent }: {
   push: TournamentPush;
@@ -22,7 +23,7 @@ export function ParticipantReadiness({ push, consentComplete, consent }: {
           초상권 동의 후 선수 정보를 저장할 수 있습니다. 대회 알림은 별도로 설정하며, 설치·권한 확인 중에도 선수등록을 계속할 수 있습니다.
         </p>
         <p role="status" className="mt-2 text-xs font-bold text-primary">
-          초상권 {consentComplete ? "동의 완료" : "확인 필요"} · 대회 알림 {push.state === "on" ? "ON" : push.state === "loading" ? "확인 중" : "OFF · 나중에 설정 가능"}
+          초상권 {consentComplete ? "동의 완료" : "확인 필요"} · 대회 알림 {PUSH_STATE_LABEL[push.state]}
         </p>
       </div>
       <div className="grid gap-3">

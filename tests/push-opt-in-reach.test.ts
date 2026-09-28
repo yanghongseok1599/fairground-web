@@ -25,7 +25,7 @@ test("카드는 상태별로 다음 행동을 안내한다", () => {
   const src = read("src/features/tournament-readiness/components/tournament-push-card.tsx");
   const hook = read("src/features/tournament-readiness/hooks/use-tournament-push.ts");
   // iOS 미설치는 PushManager 가 없어 '미지원'으로 잡히지만, 실제로는 설치하면 된다
-  assert.match(src, /홈 화면에 추가/);
+  assert.match(src, /<IosPushInstallGuide/);
   // 브라우저 차단 상태는 버튼을 눌러도 켤 수 없으므로 해제 방법을 알려야 한다
   assert.match(src, /알림이 차단되어 있습니다/);
   // 켜기/끄기 양방향

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-/** In-app browsers cannot reliably launch Safari. Always provide a manual path. */
-export function BrowserLinkHelp({ browserName = "Safari" }: { browserName?: string }) {
+/** In-app browsers cannot reliably launch another browser. Provide a manual path. */
+export function BrowserLinkHelp({ browserName = "Chrome 또는 Safari" }: { browserName?: string }) {
   const [url, setUrl] = useState("https://fairground-kor.com/");
   const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
   useEffect(() => {

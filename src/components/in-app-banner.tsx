@@ -123,8 +123,8 @@ export function InAppBanner() {
             {device.ios ? "아이폰 알림은 홈 화면에 추가한 FairGround 앱에서 설정해주세요." : "외부 브라우저에서 알림 설정을 확인해주세요."}
           </p>
           {!device.android && <details className="mt-2">
-            <summary className="cursor-pointer py-2 font-bold">{device.ios ? "Safari에서 여는 방법" : "외부 브라우저에서 여는 방법"}</summary>
-            <BrowserLinkHelp browserName={device.ios ? "Safari" : "브라우저"} />
+            <summary className="cursor-pointer py-2 font-bold">외부 브라우저에서 여는 방법</summary>
+            <BrowserLinkHelp browserName={device.ios ? "Chrome 또는 Safari" : "브라우저"} />
           </details>}
         </div>
         {device.android && <button

@@ -20,6 +20,7 @@
  */
 
 import { supabase } from "@/config/supabase";
+import { getPushEnvironment } from "@/features/tournament-readiness/push-environment";
 
 export const PUSH_SUBSCRIPTION_CHANGED = "fairground:push-subscription-changed";
 
@@ -28,11 +29,7 @@ function notifyPushChange() {
 }
 
 /** 브라우저 능력 검사 — Safari iOS PWA 미설치 등에서 false. SSR 안전. */
-export const PUSH_SUPPORTED: boolean =
-  typeof window !== "undefined" &&
-  "serviceWorker" in navigator &&
-  "PushManager" in window &&
-  "Notification" in window;
+export const PUSH_SUPPORTED: boolean = getPushEnvironment().supported;
 
 /**
  * 기존 /sw.js 를 등록 (이미 등록되어 있다면 동일 등록 반환).
@@ -51,8 +48,10 @@ export async function registerPushSw(): Promise<ServiceWorkerRegistration> {
   return navigator.serviceWorker.register("/sw.js", { scope: "/" });
 }
 
-export async function getPushPermission(): Promise<NotificationPermission> {
-  if (!PUSH_SUPPORTED) return "denied";
+export async function getPushPermission(): Promise<NotificationPermission | "unavailable"> {
+  // An iOS browser tab cannot inspect a Home Screen app's permission.
+  // Unsupported is not evidence that the user blocked notifications.
+  if (!PUSH_SUPPORTED) return "unavailable";
   return Notification.permission;
 }
 

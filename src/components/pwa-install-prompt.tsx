@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, Share, X } from "lucide-react";
+import { Download, X } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { IosPushInstallGuide } from "@/features/tournament-readiness/components/ios-push-install-guide";
+import { getPushEnvironment } from "@/features/tournament-readiness/push-environment";
 
 /**
  * PWA 설치 유도 프롬프트.
@@ -86,6 +89,7 @@ function markDismissed(): void {
 }
 
 export function PwaInstallPrompt() {
+  const { player } = useAuth();
   const [mode, setMode] = useState<PromptMode>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
@@ -137,7 +141,9 @@ export function PwaInstallPrompt() {
     };
   }, []);
 
-  if (!mode) return null;
+  // Signed-in iOS users get an actionable guide from PushOptInPrompt or My Page.
+  // Do not stack two fixed installation/notification banners on the same edge.
+  if (!mode || (mode === "ios" && player?.id)) return null;
 
   const dismiss = () => {
     markDismissed();
@@ -214,12 +220,7 @@ export function PwaInstallPrompt() {
     >
       <div className="mx-auto flex max-w-5xl items-start gap-3">
         <div className="flex-1 text-xs leading-snug sm:text-sm">
-          <p className="font-semibold">iPhone에서 FairGround를 설치하세요</p>
-          <p className="mt-1" style={{ color: "var(--color-fg-ink-muted)" }}>
-            하단 <Share width={12} height={12} className="inline-block align-text-bottom" />{" "}
-            공유 버튼 → <span className="font-semibold">&apos;홈 화면에 추가&apos;</span>를
-            눌러주세요. iOS 16.4 이상에서 추가한 아이콘으로 실행한 뒤, 마이페이지에서 대회 알림을 켜고 ‘허용’을 선택해주세요.
-          </p>
+          <IosPushInstallGuide environment={getPushEnvironment()} />
         </div>
         <button
           type="button"

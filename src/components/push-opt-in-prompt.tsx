@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { BellRing, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { getPushEnvironment } from "@/features/tournament-readiness/push-environment";
 import {
   PUSH_SUPPORTED,
   getPushPermission,
@@ -18,7 +20,7 @@ import {
  * 않으므로, 알림을 아직 켜지 않은 로그인 사용자에게 접속할 때마다 배너로 안내한다.
  *
  * 표시 조건:
- *   - 브라우저가 푸시 지원(SW/PushManager/Notification) — iOS 미설치 Safari 등은 제외
+ *   - 푸시 지원 브라우저 또는 홈 화면 설치가 필요한 iOS (설정 방법으로 연결)
  *   - 로그인 상태 (player 있음)
  *   - 아직 구독하지 않음 (권한 granted + 구독 보유가 아닌 경우)
  *   - 권한이 'denied'(브라우저 차단)가 아님 — 차단 상태면 클릭해도 켤 수 없어 숨김
@@ -36,10 +38,13 @@ export function PushOptInPrompt() {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [needsInstall, setNeedsInstall] = useState(false);
 
   useEffect(() => {
-    if (!PUSH_SUPPORTED || !player?.id) return;
+    if (!player?.id) return;
     if (typeof window === "undefined") return;
+    const device = getPushEnvironment();
+    if (!PUSH_SUPPORTED && !device.needsInstall) return;
     try {
       if (window.sessionStorage.getItem(SESSION_DISMISS_KEY) === "1") return;
     } catch {
@@ -49,14 +54,18 @@ export function PushOptInPrompt() {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     (async () => {
-      const perm = await getPushPermission();
-      if (cancelled) return;
-      if (perm === "denied") return;
-      const subscribed = await isCurrentlySubscribed();
-      if (cancelled) return;
-      if (perm === "granted" && subscribed) return;
+      // Safari tabs need an installation guide, even if notification APIs exist.
+      if (!device.needsInstall) {
+        const perm = await getPushPermission();
+        if (cancelled || perm === "denied") return;
+        const subscribed = await isCurrentlySubscribed();
+        if (cancelled || (perm === "granted" && subscribed)) return;
+      }
       timer = setTimeout(() => {
-        if (!cancelled) setShow(true);
+        if (!cancelled) {
+          setNeedsInstall(device.needsInstall);
+          setShow(true);
+        }
       }, SHOW_DELAY_MS);
     })();
 
@@ -87,7 +96,7 @@ export function PushOptInPrompt() {
   };
 
   // These pages already contain a persistent, actionable readiness checklist.
-  if (!show || pathname === "/my" || pathname.startsWith("/my/")) return null;
+  if (!show || !player?.id || pathname === "/my" || pathname.startsWith("/my/")) return null;
 
   return (
     <div
@@ -98,6 +107,7 @@ export function PushOptInPrompt() {
         background: "var(--color-fg-paper, #ffffff)",
         borderColor: "var(--color-fg-line-soft)",
         color: "var(--color-fg-ink)",
+        paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
       }}
     >
       <div className="mx-auto flex max-w-5xl items-center gap-3">
@@ -110,11 +120,17 @@ export function PushOptInPrompt() {
         <div className="flex-1 text-xs leading-snug sm:text-sm">
           <p className="font-bold">경기·공지 알림을 받아보세요.</p>
           <p style={{ color: "var(--color-fg-ink-muted)" }}>
-            알림을 켜면 경기 일정과 중요 공지를 푸시로 바로 받을 수 있어요.
+            {needsInstall
+              ? "아이폰은 홈 화면에 추가한 FairGround 앱에서 알림을 켤 수 있어요."
+              : "알림을 켜면 경기 일정과 중요 공지를 푸시로 바로 받을 수 있어요."}
           </p>
           {error && <p role="alert" className="mt-1 text-destructive">{error}</p>}
         </div>
-        <button
+        {needsInstall ? <Link
+          href="/my#participant-readiness"
+          className="inline-flex min-h-11 shrink-0 items-center rounded-md px-3.5 py-2 text-xs font-black sm:text-sm"
+          style={{ background: "var(--primary)", color: "var(--primary-foreground, #fff)" }}
+        >설정 방법</Link> : <button
           type="button"
           onClick={handleEnable}
           disabled={busy}
@@ -123,7 +139,7 @@ export function PushOptInPrompt() {
         >
           <BellRing width={14} height={14} />
           {busy ? "켜는 중…" : "알림 켜기"}
-        </button>
+        </button>}
         <button
           type="button"
           onClick={dismiss}
