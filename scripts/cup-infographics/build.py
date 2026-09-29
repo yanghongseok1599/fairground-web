@@ -8,7 +8,7 @@ import subprocess
 
 from reportlab.pdfgen import canvas
 
-from drawing import Board, register_fonts
+from drawing import Board, HEIGHT, PAGE_SCALE, WIDTH, register_fonts
 from pages import overview, group_schedule, placement
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -54,7 +54,8 @@ def main():
     data = read_schedule()
     register_fonts(args.font_dir)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    c = canvas.Canvas(str(args.output), pagesize=(540, 900), pageCompression=1, invariant=1)
+    c = canvas.Canvas(str(args.output), pagesize=(WIDTH*PAGE_SCALE, HEIGHT*PAGE_SCALE),
+                      pageCompression=1, invariant=1)
     c.setTitle('2026 FairGround Cup | 전체 시간표와 대진표')
     c.setAuthor('FairGround')
     c.setSubject('2026.10.03 · 8팀 · A구장 한 면 · 경기 12분 + 교체 3분')

@@ -21,9 +21,9 @@ pdftoppm -png -r 144 output/pdf/fairground-cup-2026-schedule.pdf output/infograp
 
 출력:
 
-- `output/pdf/fairground-cup-2026-schedule.pdf`: 글꼴을 포함한 3쪽 벡터 PDF, 540 × 900 pt
+- `output/pdf/fairground-cup-2026-schedule.pdf`: 글꼴을 포함한 3쪽 벡터 PDF, 540 × 1080 pt
 - `output/infographics/fairground-cup-2026-1.png`: 하루 전체 시간표
 - `output/infographics/fairground-cup-2026-2.png`: 조편성 및 조별리그 12경기
 - `output/infographics/fairground-cup-2026-3.png`: 순위결정전 8경기 연결도
 
-PNG는 각 1080 × 1800 px입니다. 생성 후 세 장 모두 실제 이미지로 확인하고, PDF의 텍스트 추출 결과를 원본 일정과 대조합니다. 이 작업은 웹사이트 배포나 DB 변경을 수행하지 않습니다.
+PNG는 각 1080 × 2160 px입니다. 본문 글자 크기를 유지하면서 바깥 여백을 88px로 넓히고, 행간·구역 간격·대진 연결선 주변 공간을 확보했습니다. 생성 후 세 장 모두 실제 이미지로 확인하고, PDF의 텍스트 추출 결과를 원본 일정과 대조합니다. 이 작업은 웹사이트 배포나 DB 변경을 수행하지 않습니다.

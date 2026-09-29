@@ -1,11 +1,14 @@
-"""Shared vector drawing primitives, in top-left 1080 x 1800 coordinates."""
+"""Shared vector drawing primitives, in top-left 1080 x 2160 coordinates."""
 from pathlib import Path
 
 from reportlab.lib.colors import HexColor
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-WIDTH, HEIGHT = 1080, 1800
+WIDTH, HEIGHT = 1080, 2160
+MARGIN = 88
+CONTENT_WIDTH = WIDTH - 2*MARGIN
+PAGE_SCALE = .5
 BLUE = '#064AAC'
 NAVY = '#122B49'
 TEAL = '#087D78'
@@ -76,17 +79,17 @@ class Board:
 
     def header(self, index, title, subtitle):
         self.c.saveState()
-        self.c.scale(.5, .5)
+        self.c.scale(PAGE_SCALE, PAGE_SCALE)
         self.rect(0, 0, WIDTH, HEIGHT, BG)
-        self.c.drawImage(self.logo, 64, HEIGHT-98, width=286, height=44,
+        self.c.drawImage(self.logo, MARGIN, HEIGHT-116, width=286, height=44,
                          preserveAspectRatio=True, anchor='sw', mask='auto')
-        self.text('2026 · CUP 1ST', 1016, 58, 25, GRAY, 'bold', 'right')
-        self.text(title, 64, 137, 67, NAVY, 'heavy', max_width=952)
-        self.text(subtitle, 64, 224, 29, GRAY, max_width=952)
-        self.line(64, 277, 1016, 277)
-        self.text(f'{index:02d} / 03', 1016, 1737, 25, GRAY, 'bold', 'right')
+        self.text('2026 · CUP 1ST', WIDTH-MARGIN, 78, 25, GRAY, 'bold', 'right')
+        self.text(title, MARGIN, 171, 67, NAVY, 'heavy', max_width=CONTENT_WIDTH)
+        self.text(subtitle, MARGIN, 268, 29, GRAY, max_width=CONTENT_WIDTH)
+        self.line(MARGIN, 329, WIDTH-MARGIN, 329)
+        self.text(f'{index:02d} / 03', WIDTH-MARGIN, HEIGHT-64, 25, GRAY, 'bold', 'right')
         self.text('FAIRGROUND  ·  2026.10.03  ·  엠무브 은평점',
-                  64, 1738, 22, GRAY, max_width=790)
+                  MARGIN, HEIGHT-63, 22, GRAY, max_width=750)
 
     def finish(self):
         self.c.restoreState()
