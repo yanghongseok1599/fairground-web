@@ -106,6 +106,31 @@ function loadWebsiteRulebooks() {
   };
   visit(sourceFile);
 
+  const policyNames = [
+    "TOURNAMENT_WARNING_THRESHOLD_LABEL",
+    "TOURNAMENT_WARNING_SUSPENSION_LABEL",
+    "TOURNAMENT_WARNING_SUSPENSION_RULE",
+    "TOURNAMENT_WARNING_RESET_RULE",
+  ];
+  const policyPath = path.join(ROOT, "src/lib/discipline-policy.ts");
+  const policyText = readFileSync(policyPath, "utf8");
+  const policyFile = ts.createSourceFile(policyPath, policyText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const policyDeclarations = new Map();
+  const collectPolicyConstants = (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      policyDeclarations.set(node.name.text, node.initializer);
+    }
+    ts.forEachChild(node, collectPolicyConstants);
+  };
+  collectPolicyConstants(policyFile);
+  const policyValues = policyNames.map((name) => {
+    const initializer = policyDeclarations.get(name);
+    if (!initializer || !ts.isStringLiteral(initializer)) {
+      throw new Error(`공통 징계 규정 ${name}을 읽지 못했다`);
+    }
+    return initializer.text;
+  });
+
   const durationSource = readFileSync(path.join(ROOT, "src/lib/match-config.ts"), "utf8");
   const durationMatch = durationSource.match(/export const MATCH_DURATION_MINUTES\s*=\s*(\d+)/);
   if (!durationMatch) throw new Error("경기 시간을 룰북에서 읽지 못했다");
@@ -124,9 +149,10 @@ function loadWebsiteRulebooks() {
     const build = new Function(
       "MATCH_DURATION_MINUTES",
       "PHILOSOPHY",
+      ...policyNames,
       `return (${initializer.getText(sourceFile)});`,
     );
-    docs[key] = build(Number(durationMatch[1]), philosophyMatch[2]);
+    docs[key] = build(Number(durationMatch[1]), philosophyMatch[2], ...policyValues);
   }
   return docs;
 }

@@ -16,7 +16,7 @@ import { TeamCardLink } from "@/components/team-card-link";
 import { leagueTierCardIndex } from "@/lib/team-home";
 import { FICTIONAL_PLAYER_CARD_POSE_SOURCES } from "@/lib/player-card-pose-templates";
 import type { Team, Player } from "@/types";
-import { ArrowRight, MapPin, Ticket, Trophy, Users } from "lucide-react";
+import { ArrowRight, MapPin, ShieldCheck, Ticket, Trophy, Users } from "lucide-react";
 import { TeamMarquee } from "@/components/team-marquee";
 import { HomePromotionPopup } from "@/components/home-promotion-popup";
 import { MIXED_FUTSAL_COVER_IMAGE_PATH } from "@/lib/mixed-futsal-assets";
@@ -35,6 +35,7 @@ import {
   MIXED_FUTSAL_MATCH_FORMAT_LABEL,
   MIXED_FUTSAL_TEAM_COUNT_LABEL,
 } from "@/lib/mixed-futsal-event";
+import { TOURNAMENT_WARNING_DISCIPLINE_SUMMARY } from "@/lib/discipline-policy";
 
 // ─── HERO REVEAL SEQUENCE ───────────────────────────────────────────────
 // Five fade-in/fade-out overlays that play across the scroll-scrubbed hero.
@@ -289,6 +290,11 @@ const TOURNAMENT_FACTS = [
     icon: Ticket,
     label: "ENTRY FEE",
     value: MIXED_FUTSAL_ENTRY_FEE_LABEL,
+  },
+  {
+    icon: ShieldCheck,
+    label: "DISCIPLINE",
+    value: TOURNAMENT_WARNING_DISCIPLINE_SUMMARY,
   },
 ] as const;
 

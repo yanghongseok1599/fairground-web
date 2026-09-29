@@ -1,4 +1,5 @@
 import type { PlayerRole } from "@/types";
+import { TOURNAMENT_WARNING_DISCIPLINE_SUMMARY } from "@/lib/discipline-policy";
 
 export interface AdminMenuItem {
   title: string;
@@ -88,7 +89,7 @@ export const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
   },
   {
     title: "페널티 관리",
-    description: "경고 누적, 출전 정지, 오심 정정",
+    description: `${TOURNAMENT_WARNING_DISCIPLINE_SUMMARY} · 오심 정정`,
     href: "/admin/penalties",
     accent: "#FF6B6B",
     roles: ["admin"],

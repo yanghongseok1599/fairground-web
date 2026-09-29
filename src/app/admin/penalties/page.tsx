@@ -7,6 +7,7 @@ import { AdminPanel, AdminShell, AdminStatusPill } from "@/components/admin-shel
 import { useDataStore } from "@/stores/dataStore";
 import type { Player } from "@/types";
 import { setPlayerBan } from "@/lib/admin-actions";
+import { TOURNAMENT_WARNING_DISCIPLINE_SUMMARY } from "@/lib/discipline-policy";
 
 export default function AdminPenaltiesPage() {
   return <AdminGuard allow={["admin"]}><AdminPenalties /></AdminGuard>;
@@ -38,7 +39,7 @@ function AdminPenalties() {
     <AdminShell
       eyebrow="PENALTY CONTROL"
       title="페널티 관리"
-      description="누적 경고 2회 시 1경기 출장정지입니다. 선수별 경고와 잔여 정지 경기를 확인하고 조정합니다."
+      description={`${TOURNAMENT_WARNING_DISCIPLINE_SUMMARY}. 선수별 경고와 잔여 출장정지 경기를 확인하고 조정합니다.`}
     >
       <AdminPanel>
         <div className="border-b px-5 py-4" style={{ borderColor: "rgba(0,71,171,0.14)" }}>
@@ -55,7 +56,7 @@ function AdminPenalties() {
                     </div>
                     <div>
                       <div className="fg-display text-xl font-black" style={{ color: "var(--color-fg-ink)" }}>{player.name}</div>
-                      <div className="mt-1 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>{player.position} · 다음 출장정지까지 경고 {player.penaltyStatus.seasonYellowCards}/2회 · 정지 {player.penaltyStatus.banMatchesRemaining}경기</div>
+                      <div className="mt-1 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>{player.position} · 대회 누적 경고 {player.penaltyStatus.seasonYellowCards}/2회 · 출장정지 {player.penaltyStatus.banMatchesRemaining}경기</div>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">

@@ -1,4 +1,8 @@
 import type { Tournament } from "@/types";
+import {
+  TOURNAMENT_WARNING_RESET_RULE,
+  TOURNAMENT_WARNING_SUSPENSION_RULE,
+} from "@/lib/discipline-policy";
 
 export const MIXED_FUTSAL_EVENT_PATH = "/mixed-futsal";
 export const MIXED_FUTSAL_APPLY_PATH = "/mixed-futsal/apply";
@@ -158,7 +162,7 @@ export const MIXED_FUTSAL_RULEBOOK = [
       "슬라이딩은 금지합니다. 슬라이딩 태클과 슬라이딩 방어 모두 해당됩니다.",
       "한 팀의 세 번째 누적 파울에는 상대팀에 10m 지점 직접 프리킥을 줍니다.",
       "주장만 경기당 2회까지 항의할 수 있습니다. 초과하면 주장에게 경고 1회를 부과합니다.",
-      "대회 중 경고 2회가 누적되면 1경기 출장 정지입니다. 출장 정지로 주장이 출전하지 못하면 팀은 주장을 교체할 수 있습니다.",
+      `${TOURNAMENT_WARNING_SUSPENSION_RULE} ${TOURNAMENT_WARNING_RESET_RULE} 출장정지로 주장이 출전하지 못하면 팀은 주장을 교체할 수 있습니다.`,
       "부상이나 위험 상황에서는 심판이 경기를 중단하고 안전을 먼저 확인합니다.",
     ],
   },
@@ -204,7 +208,7 @@ export const MIXED_FUTSAL_REGULATIONS = [
   },
   {
     title: "경기 규칙",
-    body: `${MIXED_FUTSAL_SAFETY_NOTE} 세 번째 누적 파울에는 10m 직접 프리킥을 줍니다. 경기별 항의는 주장만 2회까지 할 수 있고 초과 시 주장에게 경고를 부과합니다. 대회 중 경고 2회 누적 시 1경기 출장 정지입니다.`,
+    body: `${MIXED_FUTSAL_SAFETY_NOTE} 세 번째 누적 파울에는 10m 직접 프리킥을 줍니다. 경기별 항의는 주장만 2회까지 할 수 있고 초과 시 주장에게 경고를 부과합니다. ${TOURNAMENT_WARNING_SUSPENSION_RULE} ${TOURNAMENT_WARNING_RESET_RULE}`,
   },
   {
     title: "경기 일정",
