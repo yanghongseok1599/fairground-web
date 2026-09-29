@@ -1,4 +1,5 @@
-import {timeline,courtMatches,roles,contentPromises,sponsorReelGuides,countdown,promotionTiers,cupAwards} from './data.js?v=20260928-one-court-v1';
+import { teamSeeds } from './team-seeds.js?v=20260929-confirmed-seeds-v1';
+import {timeline,courtMatches,roles,contentPromises,sponsorReelGuides,countdown,promotionTiers,cupAwards} from './data.js?v=20260929-confirmed-seeds-v1';
 const esc = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const heading = (number,en,title,description) => `<div class="section-heading"><div><p class="eyebrow">${number} / ${en}</p><h2>${title}</h2></div><p>${description}</p></div>`;
 document.querySelector('#timeline-content').innerHTML=timeline.map(group=>`<article class="timeline-group"><header><h3>${group.label}</h3><span>${group.period}</span></header>${group.rows.map(([time,title,description,type=''])=>`<div class="schedule-row ${type}"><time>${time}</time><h4>${title}</h4><p>${description}</p></div>`).join('')}</article>`).join('');
@@ -6,13 +7,14 @@ document.querySelector('#timeline-content').innerHTML=timeline.map(group=>`<arti
 document.querySelector('#guide-sections').innerHTML=`
 <section class="section" id="matches" aria-label="경기 방식과 대진"><div class="wrap">
 ${heading('02','MATCH FORMAT','한 구장에서 20경기.<br>모든 팀이 5경기.','A구장 한 면에서 20분 슬롯으로 한 경기씩 진행합니다. 조별리그 3경기와 순위결정전 2경기, 총 20경기입니다.')}
+<div class="seed-groups" aria-label="확정 조 편성과 시드">${['A','B'].map(group=>`<article><h3>${group}조</h3><ol>${Object.entries(teamSeeds).filter(([seed])=>seed.startsWith(group)).map(([seed,name])=>`<li><b>${esc(seed)}</b><span>${esc(name)}</span></li>`).join('')}</ol></article>`).join('')}</div>
 <div class="two-columns">
  <article class="route-card"><span class="tag">조별 1·2위 진출</span><h3>챔피언십</h3><p>최종 1~4위를 결정합니다.</p><div class="route-steps"><div><span>01 · 교차 준결승</span><strong>A조 1위 vs B조 2위<br>A조 2위 vs B조 1위</strong></div><div><span>02 · 최종 순위전</span><strong>승자 → 결승 / 패자 → 3·4위전</strong><small>결승 승리 팀은 플래티넘으로 승급</small></div></div></article>
  <article class="route-card"><span class="tag">조별 3·4위 진출</span><h3>챌린지</h3><p>최종 5~8위를 결정합니다.</p><div class="route-steps"><div><span>01 · 교차 준결승</span><strong>A조 3위 vs B조 4위<br>A조 4위 vs B조 3위</strong></div><div><span>02 · 최종 순위전</span><strong>승자 → 5·6위전 / 패자 → 7·8위전</strong><small>5·6위전 승리 팀은 골드로 승급</small></div></div></article>
 </div>
 <div class="section-subheading"><h3>20경기 전체 시간표</h3><p>10:00–16:40 · A구장 단일 코트 · 경기당 20분 슬롯</p></div>
-<div class="table-wrap"><table class="group-table single-court-table"><caption>A구장 단일 코트 20경기 시간표와 쉬는 팀</caption><thead><tr><th scope="col">슬롯 · 시간</th><th scope="col">단계 · 경기</th><th scope="col">쉬는 팀</th></tr></thead><tbody>${courtMatches.map(m=>`<tr class="${m.slot>12?'ranking-match':''}"><td><span class="slot-number">${String(m.slot).padStart(2,'0')}</span><time class="court-match-time">${m.time}</time></td><td><span class="court-match-stage">${m.stage}</span><strong>${m.match}</strong></td><td>${m.rest}</td></tr>`).join('')}</tbody></table></div>
-<p class="footnote">A1~A4 / B1~B4는 추첨 번호입니다. 한 슬롯은 경기 12분 + 코트 전환 8분입니다. 조별리그는 팀별 3경기, 순위전은 팀별 2경기로 총 5경기입니다.</p>
+<div class="table-wrap"><table class="group-table single-court-table"><caption>A구장 단일 코트 20경기 시간표와 쉬는 팀</caption><thead><tr><th scope="col">슬롯 · 시간</th><th scope="col">단계 · 경기</th><th scope="col">쉬는 팀</th></tr></thead><tbody>${courtMatches.map(m=>`<tr class="${m.slot>12?'ranking-match':''}"><td><span class="slot-number">${String(m.slot).padStart(2,'0')}</span><time class="court-match-time">${m.time}</time></td><td><span class="court-match-stage">${m.stage}</span><strong>${esc(m.match)}</strong>${m.seedMatch!==m.match?`<small class="fixture-seeds">${esc(m.seedMatch)}</small>`:''}</td><td>${esc(m.rest)}</td></tr>`).join('')}</tbody></table></div>
+<p class="footnote">A1~A4 / B1~B4는 위 확정 조 편성의 시드 번호입니다. 한 슬롯은 경기 12분 + 코트 전환 8분입니다. 조별리그는 팀별 3경기, 순위전은 팀별 2경기로 총 5경기입니다.</p>
 <div class="rest-note"><div><strong>경기 없는 팀 6팀</strong><p>실내구장에서 시맥 MC 그라운드 챌린지를 병행합니다. 다음 경기팀은 호출하지 않습니다.</p></div><div><strong>점심시간 별도 슬롯 없음</strong><p>첨부 일정에는 12:00–14:00도 경기가 이어집니다. 선수·운영진 교대 식사 방법을 별도로 안내해야 합니다.</p></div></div>
 <p class="match-notice">조별리그 종료 후 14:00부터 조별 순위에 따라 교차 준결승을 진행합니다. 동률·경기 동점 처리 기준은 대회 전 확정합니다.</p>
 </div></section>

@@ -124,6 +124,7 @@ function AdminTournaments() {
         return {
           id: previous?.id ?? `group-${name.toLowerCase()}`,
           name,
+          court: previous?.court,
           teamIds: members.map((t) => t.id),
           standings: (previous?.standings ?? []).filter((s) =>
             members.some((t) => t.id === s.teamId),
@@ -364,6 +365,7 @@ function CueSheetSection({
   const generationQuery = new URLSearchParams({
     tournament: tournament?.id ?? "", startTime: settings.startTime,
     lunchStart: settings.lunchStart, lunchMinutes: String(settings.lunchMinutes),
+    courtMode: settings.courtMode ?? "per-group",
   });
 
   const download = () => {

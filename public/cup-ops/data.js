@@ -1,3 +1,4 @@
+import { resolveSeedNames } from './team-seeds.js?v=20260929-confirmed-seeds-v1';
 // 운영 내용은 이 파일에서 수정합니다. 8팀·단일 경기 구장 기준입니다.
 export const timeline = [
   { label: '사전 준비와 오프닝', period: '07:40–10:00', rows: [
@@ -42,7 +43,13 @@ export const courtMatches = [
  {slot:18,time:'15:40–16:00',stage:'5·6위전',match:'챌린지 준결승 승자 2팀',rest:'나머지 6팀'},
  {slot:19,time:'16:00–16:20',stage:'3·4위전',match:'챔피언십 준결승 패자 2팀',rest:'나머지 6팀'},
  {slot:20,time:'16:20–16:40',stage:'결승',match:'챔피언십 준결승 승자 2팀',rest:'나머지 6팀'}
-];
+].map((row) => ({
+  ...row,
+  seedMatch: row.match,
+  match: resolveSeedNames(row.match),
+  rest: resolveSeedNames(row.rest),
+}));
+
 export const roles = [
  {name:'김재민',role:'대표 · 현장 총괄',place:'A구장·실내구장',time:'08:00 심판 브리핑 · 10:00–16:00 챌린지 측정',tasks:['현장 세팅 지휘, 돌발상황 대응 및 현장 순회','실내구장 챌린지 3종 기록 측정 · 성표 보조와 결과 확인','팀 소개·심판 브리핑 진행 총괄, 시상식·등급 승급 발표·클로징','협찬사·VIP 응대 및 MAIN 파트너 관계 관리']},
  {name:'양홍석',role:'총괄이사 · 장비·프로그램',place:'운영 데스크',time:'07:40 장비 세팅 → 챌린지 서버 기록 등록',tasks:['단일 코트 스코어보드·타이머·음향 세팅 및 실시간 유지·보수','실내구장 챌린지 3종 결과를 서버에 입력·등록','드론 촬영, SNS 게시용 소재 취합 · 장비 운영과 겹치면 촬영 순서 조정']},

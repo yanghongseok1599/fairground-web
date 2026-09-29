@@ -158,3 +158,17 @@
     background: #fff;
   }
 }
+
+/* 확정 시드와 실제 팀명은 대진표 바로 위에서 함께 확인합니다. */
+.seed-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 0 0 28px; }
+.seed-groups article { padding: 22px; border: 1px solid var(--line); background: var(--white); }
+.seed-groups h3 { margin: 0 0 12px; color: var(--blue); }
+.seed-groups ol { list-style: none; padding: 0; margin: 0; }
+.seed-groups li { display: flex; align-items: baseline; gap: 12px; padding: 8px 0; }
+.seed-groups b { color: var(--blue); font-variant-numeric: tabular-nums; }
+.seed-groups span { min-width: 0; overflow-wrap: anywhere; }
+.fixture-seeds { display: block; margin-top: 4px; color: var(--muted); font-size: .72rem; }
+@media (max-width: 560px) {
+  .seed-groups { grid-template-columns: 1fr; gap: 12px; }
+  .seed-groups article { padding: 18px; }
+}

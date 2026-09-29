@@ -2,13 +2,14 @@ import { buildRotationFixture } from "./fixture-scheduler.ts";
 import { MATCH_DURATION_MINUTES, MATCH_TRANSITION_MINUTES } from "./match-config.ts";
 
 export interface FixtureTiming {
+  courtMode?: "single" | "per-group";
   startTime: string;
   lunchStart: string;
   lunchMinutes: number;
 }
 
 export const DEFAULT_FIXTURE_TIMING: FixtureTiming = {
-  startTime: "10:00", lunchStart: "13:00", lunchMinutes: 50,
+  courtMode: "single", startTime: "10:00", lunchStart: "", lunchMinutes: 0,
 };
 
 export function clockMinutes(value: string): number {
@@ -25,16 +26,21 @@ export function clockLabel(minutes: number): string {
 
 /** All schedule consumers share seed order, bye handling and lunch boundaries. */
 export function buildFixtureTimetable(teamCount: number, settings: FixtureTiming) {
-  let cursor = clockMinutes(settings.startTime);
-  const lunch = settings.lunchStart.trim() ? clockMinutes(settings.lunchStart) : null;
-  if (!Number.isInteger(settings.lunchMinutes) || settings.lunchMinutes < 0 || settings.lunchMinutes > 180) {
-    throw new Error("점심 시간은 0~180분 사이의 정수로 입력해주세요.");
-  }
   if (!Number.isInteger(teamCount) || teamCount < 2) throw new Error("팀이 2팀 이상 필요합니다.");
   // The virtual final seed is a bye; it never creates a match or consumes a court slot.
   const fixtures = buildRotationFixture(teamCount + teamCount % 2)
     .filter((m) => m.home <= teamCount && m.away <= teamCount)
     .sort((a, b) => a.round - b.round || a.slot - b.slot);
+  return timeFixtureSlots(fixtures, settings);
+}
+
+/** Assign times after court order is decided, so a shared court never overlaps. */
+export function timeFixtureSlots<T>(fixtures: T[], settings: FixtureTiming) {
+  let cursor = clockMinutes(settings.startTime);
+  const lunch = settings.lunchStart.trim() ? clockMinutes(settings.lunchStart) : null;
+  if (!Number.isInteger(settings.lunchMinutes) || settings.lunchMinutes < 0 || settings.lunchMinutes > 180) {
+    throw new Error("점심 시간은 0~180분 사이의 정수로 입력해주세요.");
+  }
   return fixtures.map((fixture, index) => {
     if (lunch !== null && settings.lunchMinutes > 0 && cursor + MATCH_DURATION_MINUTES > lunch && cursor < lunch + settings.lunchMinutes) {
       cursor = lunch + settings.lunchMinutes;

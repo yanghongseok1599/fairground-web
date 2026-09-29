@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { DEFAULT_FIXTURE_TIMING, clockMinutes, fixtureTimestamp, type FixtureTiming } from "@/lib/fixture-timetable";
+import { groupCourt } from "@/lib/group-fixture-timetable";
 import { FixtureTimingFields } from "@/components/fixture-timing-fields";
 import { compareScheduledMatches, groupLabel, scheduledMatchTime } from "@/lib/match-schedule";
 import { Plus, Circle, Wand2 } from "lucide-react";
@@ -101,6 +102,7 @@ function AdminMatches() {
     if (query.get("tournament")) {
       setAutoTournamentId(query.get("tournament")!);
       setAutoTiming({
+        courtMode: query.get("courtMode") === "per-group" ? "per-group" : DEFAULT_FIXTURE_TIMING.courtMode,
         startTime: query.get("startTime") ?? DEFAULT_FIXTURE_TIMING.startTime,
         lunchStart: query.get("lunchStart") ?? DEFAULT_FIXTURE_TIMING.lunchStart,
         lunchMinutes: Number(query.get("lunchMinutes") ?? DEFAULT_FIXTURE_TIMING.lunchMinutes),
@@ -401,7 +403,8 @@ function AdminMatches() {
         groups = current.groups.length > 0 ? current.groups : buildAutoGroups(eligibleTeams, groupCount);
         generatedMatches = buildGroupRoundRobinMatches(groups, eligibleTeams, autoTournamentId, schedule);
       }
-      if (current.groups.length === 0) await setTournamentGroups(autoTournamentId, groups);
+      groups = groups.map((group, index) => ({ ...group, court: groupCourt(index, schedule.courtMode) }));
+      await setTournamentGroups(autoTournamentId, groups);
       const createdMatches = await store.createMatches(autoTournamentId, generatedMatches);
 
       setTournaments((prev) => prev.map((tournament) => tournament.id === autoTournamentId ? { ...tournament, groups } : tournament));

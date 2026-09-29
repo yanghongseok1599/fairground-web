@@ -169,6 +169,8 @@ export interface GroupStanding {
 export interface TournamentGroup {
   id: string;
   name: string;
+  /** 실제 경기 구장. 여러 조가 한 구장을 공유할 수 있다. */
+  court?: string;
   teamIds: string[];
   standings: GroupStanding[];
 }

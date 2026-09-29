@@ -1,5 +1,6 @@
 import type { GroupStanding, Match, TournamentGroup } from "@/types";
-import { buildFixtureTimetable, fixtureTimestamp, type FixtureTiming } from "./fixture-timetable.ts";
+import { fixtureTimestamp, type FixtureTiming } from "./fixture-timetable.ts";
+import { buildGroupFixtureTimetable } from "./group-fixture-timetable.ts";
 
 export interface AutoMatchTeam {
   id: string;
@@ -69,7 +70,8 @@ export function buildGroupRoundRobinMatches(
   }
   const startRound = schedule.startRound ?? 1;
   if (!Number.isInteger(startRound) || startRound < 1) throw new Error("시작 경기 번호를 확인해주세요.");
-  return groups.flatMap((group) => buildFixtureTimetable(group.teamIds.length, schedule).map((fixture) => {
+  return buildGroupFixtureTimetable(groups.map((group) => group.teamIds.length), schedule).map((fixture) => {
+    const group = groups[fixture.groupIndex];
     const home = teamMap.get(group.teamIds[fixture.home - 1])!;
     const away = teamMap.get(group.teamIds[fixture.away - 1])!;
     return {
@@ -79,7 +81,7 @@ export function buildGroupRoundRobinMatches(
       homeScore: 0, awayScore: 0, status: "scheduled" as const,
       scheduledAt: fixtureTimestamp(schedule.date, fixture.startMinute), events: [],
     };
-  }));
+  });
 }
 
 export function recommendGroupCount(teamCount: number): number {
