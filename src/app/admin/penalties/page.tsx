@@ -38,7 +38,7 @@ function AdminPenalties() {
     <AdminShell
       eyebrow="PENALTY CONTROL"
       title="페널티 관리"
-      description="경고 누적과 출전 정지 상태를 확인하고, 안전한 리그 운영을 위해 즉시 조정합니다."
+      description="누적 경고 2회 시 1경기 출장정지입니다. 선수별 경고와 잔여 정지 경기를 확인하고 조정합니다."
     >
       <AdminPanel>
         <div className="border-b px-5 py-4" style={{ borderColor: "rgba(0,71,171,0.14)" }}>
@@ -55,7 +55,7 @@ function AdminPenalties() {
                     </div>
                     <div>
                       <div className="fg-display text-xl font-black" style={{ color: "var(--color-fg-ink)" }}>{player.name}</div>
-                      <div className="mt-1 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>{player.position} · 시즌 경고 {player.penaltyStatus.seasonYellowCards}장 · 정지 {player.penaltyStatus.banMatchesRemaining}경기</div>
+                      <div className="mt-1 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>{player.position} · 다음 출장정지까지 경고 {player.penaltyStatus.seasonYellowCards}/2회 · 정지 {player.penaltyStatus.banMatchesRemaining}경기</div>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
