@@ -1,0 +1,358 @@
+.team-coverage-plan,
+.camera-run-sheet {
+  margin-top: 34px;
+  padding: clamp(18px, 3vw, 30px);
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.coverage-plan-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.coverage-plan-heading h4 {
+  margin-top: 6px;
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+}
+
+.coverage-plan-heading p:not(.small-label) {
+  max-width: 720px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: .875rem;
+}
+
+.coverage-count {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  background: var(--pale);
+  color: var(--blue);
+  font-size: .8125rem;
+  font-weight: 800;
+}
+
+.guaranteed-coverage-grid,
+.sponsor-shoot-window-grid,
+.knockout-coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.guaranteed-coverage-card,
+.sponsor-shoot-window,
+.knockout-coverage-card {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--line);
+  background: #f8faff;
+}
+
+.guaranteed-coverage-card > header,
+.sponsor-shoot-window > header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.guaranteed-coverage-card > header > span,
+.sponsor-shoot-window time,
+.knockout-coverage-card time {
+  color: var(--blue);
+  font-size: .7rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.guaranteed-coverage-card > header > b {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  background: #e7eeff;
+  color: #244eae;
+  font-size: .65rem;
+}
+
+.guaranteed-coverage-card h5,
+.sponsor-shoot-window h6,
+.knockout-coverage-card h6 {
+  margin: 10px 0 8px;
+  font-size: .96rem;
+  line-height: 1.5;
+}
+
+.guaranteed-coverage-card > p {
+  display: grid;
+  grid-template-columns: 55px 1fr;
+  gap: 7px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: .75rem;
+  line-height: 1.6;
+}
+
+.guaranteed-coverage-card > p strong {
+  color: var(--ink);
+}
+
+.coverage-guarantee {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 4px 7px;
+  background: #e5f5ed;
+  color: #16734c;
+  font-size: .65rem;
+  font-weight: 800;
+}
+
+.coverage-rule {
+  margin-top: 16px;
+  padding: 13px 15px;
+  background: #f1f5ff;
+  color: #475875;
+  font-size: .8125rem;
+  line-height: 1.7;
+}
+
+.coverage-rule strong {
+  color: var(--deep);
+}
+
+.camera-run-sheet {
+  display: grid;
+  gap: 18px;
+  background: #fbfcff;
+}
+
+.camera-run-sheet > .coverage-plan-heading {
+  margin-bottom: 0;
+}
+
+.shooting-phase {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.shooting-phase-title {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.shooting-phase-title > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #fff;
+  font-size: .6875rem;
+  font-weight: 800;
+}
+
+.shooting-phase-title h5 {
+  font-size: .98rem;
+}
+
+.shooting-phase-title p {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+.phase-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.phase-summary span {
+  padding: 6px 9px;
+  background: #f1f5ff;
+  color: #3f5275;
+  font-size: .75rem;
+}
+
+.sponsor-shooting-phase {
+  border-color: #c7d7ff;
+  background: #f4f7ff;
+}
+
+.sponsor-shoot-window-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.sponsor-shoot-window {
+  background: #fff;
+}
+
+.sponsor-shoot-window > header > span {
+  color: #6b7890;
+  font-size: .66rem;
+  font-weight: 700;
+}
+
+.sponsor-shoot-window h6 {
+  margin: 8px 0 4px;
+  color: var(--deep);
+  font-size: .875rem;
+}
+
+.sponsor-shoot-window p,
+.knockout-coverage-card p {
+  color: var(--muted);
+  font-size: .74rem;
+  line-height: 1.6;
+}
+
+.sponsor-shoot-window.buffer-window {
+  border-style: dashed;
+  background: #fcfcfd;
+}
+
+.knockout-coverage-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.knockout-coverage-card {
+  background: #f8faff;
+}
+
+.knockout-coverage-card h6 {
+  margin: 6px 0 2px;
+  color: var(--blue);
+  font-size: .7rem;
+}
+
+.knockout-coverage-card p {
+  min-height: 2.4em;
+  color: var(--ink);
+  font-size: .8rem;
+}
+
+.knockout-coverage-card > span {
+  display: block;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  color: #50617d;
+  font-size: .68rem;
+}
+
+@media (max-width: 900px) {
+  .guaranteed-coverage-grid,
+  .sponsor-shoot-window-grid,
+  .knockout-coverage-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .team-coverage-plan,
+  .camera-run-sheet {
+    margin-top: 24px;
+    padding: 16px 13px;
+  }
+
+  .coverage-plan-heading {
+    gap: 10px;
+  }
+
+  .coverage-count {
+    padding: 6px 8px;
+    font-size: .68rem;
+  }
+
+  .coverage-plan-heading p:not(.small-label) {
+    font-size: .78rem;
+  }
+
+  .guaranteed-coverage-grid,
+  .sponsor-shoot-window-grid,
+  .knockout-coverage-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .guaranteed-coverage-card,
+  .sponsor-shoot-window,
+  .knockout-coverage-card {
+    padding: 11px 9px;
+  }
+
+  .guaranteed-coverage-card > header > span,
+  .sponsor-shoot-window time,
+  .knockout-coverage-card time {
+    font-size: .61rem;
+  }
+
+  .guaranteed-coverage-card > header > b {
+    white-space: nowrap;
+    font-size: .57rem;
+  }
+
+  .guaranteed-coverage-card h5,
+  .sponsor-shoot-window h6 {
+    font-size: .82rem;
+  }
+
+  .guaranteed-coverage-card > p {
+    grid-template-columns: 1fr;
+    gap: 0;
+    font-size: .69rem;
+  }
+
+  .coverage-guarantee {
+    font-size: .58rem;
+  }
+
+  .coverage-rule {
+    padding: 11px;
+    font-size: .75rem;
+  }
+
+  .shooting-phase {
+    padding: 13px 10px;
+  }
+
+  .shooting-phase-title h5 {
+    font-size: .87rem;
+  }
+
+  .shooting-phase-title p,
+  .sponsor-shoot-window p,
+  .knockout-coverage-card p {
+    font-size: .68rem;
+  }
+
+  .phase-summary span {
+    font-size: .68rem;
+  }
+
+  .knockout-coverage-card h6 {
+    font-size: .62rem;
+  }
+
+  .knockout-coverage-card > span {
+    font-size: .6rem;
+  }
+}
+
+@media print {
+  .team-coverage-plan,
+  .camera-run-sheet,
+  .shooting-phase,
+  .guaranteed-coverage-card,
+  .sponsor-shoot-window,
+  .knockout-coverage-card {
+    break-inside: avoid;
+  }
+}

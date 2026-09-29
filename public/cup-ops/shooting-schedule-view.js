@@ -1,0 +1,17 @@
+// 경기·협찬·순위전 촬영표 UI를 일정 데이터와 분리해 렌더링합니다.
+export function renderShootingSchedule({ courtMatches, guaranteedTeamCoverage, sponsorShootWindows, knockoutCoverage, escapeHtml }) {
+  const matchForSlot = slot => courtMatches.find(match => match.slot === slot);
+  const esc = escapeHtml;
+
+  return `<section class="team-coverage-plan" aria-labelledby="team-coverage-title"><header class="coverage-plan-heading"><div><p class="small-label">TEAM MATCH COVERAGE · 최소 보장</p><h4 id="team-coverage-title">첫 네 경기에서 8팀을 모두 담습니다.</h4><p>각 조 첫 경기 네 슬롯에 8팀이 한 번씩 출전합니다. 사진 또는 스케치 영상으로 팀마다 최소 한 경기 기록을 남깁니다.</p></div><span class="coverage-count">8팀 · 4경기</span></header><div class="guaranteed-coverage-grid">${guaranteedTeamCoverage.map(item => {
+    const match = matchForSlot(item.slot);
+    return `<article class="guaranteed-coverage-card"><header><span>경기 ${String(item.slot).padStart(2, '0')} · ${esc(match.time)}</span><b>${esc(item.media)}</b></header><h5>${esc(match.match)}</h5><p><strong>촬영</strong>${esc(item.owner)}</p><p><strong>필수 결과</strong>${esc(item.output)}</p><span class="coverage-guarantee">팀별 최소 촬영 보장</span></article>`;
+  }).join('')}</div><p class="coverage-rule"><strong>보장 구간에는 협찬 촬영을 넣지 않습니다.</strong> 김지민이 각 경기 직후 8팀 체크표와 파일을 확인합니다. 누락·파일 오류가 있으면 협찬 촬영을 미루고 해당 팀의 다음 조별 경기를 먼저 보완합니다.</p></section>
+  <section class="camera-run-sheet" aria-labelledby="camera-run-sheet-title"><header class="coverage-plan-heading"><div><p class="small-label">CAMERA RUN SHEET · 담당별 시간표</p><h4 id="camera-run-sheet-title">촬영 시간에는 한 가지 일만 맡습니다.</h4><p>팀 최소 촬영 → 협찬 제품별 촬영 → 순위결정전 순으로 구간을 나눴습니다.</p></div></header><section class="shooting-phase"><div class="shooting-phase-title"><span>01</span><div><h5>10:00–11:20 · 팀별 경기 촬영 보장</h5><p>사진과 영상 담당이 한 경기씩 번갈아 촬영합니다.</p></div></div><div class="phase-summary"><span>최민준 · 경기 1·3번 사진</span><span>영상 담당 · 경기 2·4번 세로 영상</span><span>협찬 촬영 없음</span></div></section><section class="shooting-phase sponsor-shooting-phase"><div class="shooting-phase-title"><span>02</span><div><h5>11:20–14:00 · 협찬사 제품 촬영 집중</h5><p>조별리그 후반 동안 두 촬영자가 제품 한 종씩 순서대로 촬영합니다. 이 시간의 5~12번 경기는 촬영하지 않습니다.</p></div></div><div class="sponsor-shoot-window-grid">${sponsorShootWindows.map(item => {
+    const match = matchForSlot(item.slot);
+    return `<article class="sponsor-shoot-window ${item.slot === 12 ? 'buffer-window' : ''}"><header><time>${esc(match.time)}</time><span>${item.slot === 12 ? '보완·백업' : `제품 ${String(item.slot - 4).padStart(2, '0')}`}</span></header><h6>${esc(item.sponsor)}</h6><p>${esc(item.focus)}</p></article>`;
+  }).join('')}</div><p class="coverage-rule"><strong>경기 우선:</strong> 다음 경기 출전팀을 촬영 때문에 부스에 부르지 않습니다. 자원 참가자만 촬영하고, 즉석 이벤트가 시작되면 제품 촬영을 잠시 멈춘 뒤 요청된 두 장면(제품 시상·반응, 제품을 든 인터뷰)만 담습니다.</p></section><section class="shooting-phase"><div class="shooting-phase-title"><span>03</span><div><h5>14:00–16:40 · 순위결정전 촬영</h5><p>두 담당이 번갈아 경기 촬영을 맡고, 결승은 함께 촬영합니다.</p></div></div><div class="knockout-coverage-grid">${knockoutCoverage.map(item => {
+    const match = matchForSlot(item.slot);
+    return `<article class="knockout-coverage-card"><time>${esc(match.time)}</time><h6>${esc(match.stage)}</h6><p>${esc(match.match)}</p><span>${esc(item.media)} · ${esc(item.owner)}</span></article>`;
+  }).join('')}</div></section><p class="coverage-rule"><strong>16:40–17:10 시상·클로징:</strong> 민준은 시상·단체 사진, 영상 담당은 수상 리액션·짧은 소감을 맡습니다. 선수 이동과 시상 진행을 늦추지 않도록 운영진 큐를 받아 촬영합니다.</p></section>`;
+}
