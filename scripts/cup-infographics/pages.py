@@ -17,11 +17,13 @@ def overview(b, data):
     for x in [370, 682]:
         b.line(x, 381, x, 459)
 
-    b.text('15분마다 다음 경기 시작', MARGIN, 520, 36, NAVY, 'bold')
-    b.rect(MARGIN, 582, 708, 68, BLUE, 10)
-    b.rect(812, 582, 180, 68, TEAL, 10)
-    b.text('경기 12분', 442, 602, 30, WHITE, 'bold', 'center')
-    b.text('교체 3분', 902, 604, 27, WHITE, 'bold', 'center')
+    b.text('20분 간격 · 경기 5분 전 집합', MARGIN, 520, 36, NAVY, 'bold')
+    b.rect(MARGIN, 582, 523, 68, BLUE, 10)
+    b.rect(627, 582, 131, 68, '#52657C', 10)
+    b.rect(774, 582, 218, 68, TEAL, 10)
+    b.text('경기 12분', 349, 602, 30, WHITE, 'bold', 'center')
+    b.text('교대 3분', 692, 606, 25, WHITE, 'bold', 'center')
+    b.text('점검·준비 5분', 883, 604, 27, WHITE, 'bold', 'center')
 
     b.rect(MARGIN, 694, CONTENT_WIDTH, 470, WHITE, 20, LINE)
     b.pill('01', LEFT_COLUMN, 728, 56, 42)
@@ -31,6 +33,8 @@ def overview(b, data):
         y = 807+i*58
         if i == 0:
             title = '운영진 세팅 · 구장 밖'
+        elif i == 5:
+            title = '첫 경기 준비 · 09:55 집합'
         b.text(time, LEFT_COLUMN, y, 30, BLUE, 'bold', max_width=298)
         b.text(title, RIGHT_COLUMN, y, 32, NAVY, max_width=510)
 
@@ -45,7 +49,7 @@ def overview(b, data):
 
     b.rect(MARGIN, 1478, CONTENT_WIDTH, 150, PALE_TEAL, 18)
     b.text('동시 진행 · 실내구장', LEFT_COLUMN, 1508, 23, TEAL, 'bold')
-    b.text('10:00-14:30', LEFT_COLUMN, 1559, 32, TEAL, 'bold')
+    b.text('10:00-16:00', LEFT_COLUMN, 1559, 32, TEAL, 'bold')
     b.text('그라운드 챌린지 3종', RIGHT_COLUMN, 1505, 34, TEAL, 'bold')
     b.text('다음 경기팀은 참여 호출에서 제외', RIGHT_COLUMN, 1569, 25, TEAL)
 
@@ -62,7 +66,7 @@ def overview(b, data):
 
 
 def group_schedule(b, data):
-    b.header(2, '조별리그 대진표', '10:00-13:00  |  A구장 한 면  |  팀당 3경기')
+    b.header(2, '조별리그 대진표', '10:00-14:00  |  A구장 한 면  |  팀당 3경기')
     for x, group, color, tint in [(88, 'A', BLUE, PALE_BLUE),
                                     (556, 'B', TEAL, PALE_TEAL)]:
         b.rect(x, 376, 436, 318, WHITE, 18, LINE)
@@ -73,15 +77,15 @@ def group_schedule(b, data):
             b.pill(seed, x+28, y-1, 56, 36, tint, color, 22)
             b.text(data['teamSeeds'][seed], x+102, y+1, 30, NAVY,
                    'medium', max_width=306)
-    b.text('시간 순서대로, A조와 B조가 번갈아 경기합니다.',
+    b.text('두 출전팀 모두 시작 5분 전까지 A구장 앞 집합',
            MARGIN, 738, 28, GRAY)
     b.text('경기', 112, 802, 23, GRAY, 'bold')
-    b.text('시작', 184, 802, 23, GRAY, 'bold')
+    b.text('시작 / 집합', 184, 802, 23, GRAY, 'bold')
     b.text('대진', 388, 802, 23, GRAY, 'bold')
 
     for index, game in enumerate(data['courtMatches'][:12]):
-        # Larger gaps every hour make the 12 games easier to scan in blocks.
-        y = 847+index*84+(index//4)*24
+        # Three 20-minute games per hour, with additional gaps between hours.
+        y = 847+index*84+(index//3)*16
         seeds = game['seedMatch'].split(' vs ')
         home, away = [data['teamSeeds'][seed] for seed in seeds]
         color = BLUE if seeds[0].startswith('A') else TEAL
@@ -89,14 +93,15 @@ def group_schedule(b, data):
         b.rect(MARGIN, y, CONTENT_WIDTH, 76, WHITE, 11)
         b.rect(MARGIN, y, 5, 76, color, 2)
         b.text(f'{game["slot"]:02d}', 112, y+27, 24, GRAY, 'medium')
-        b.text(game['time'].split('–')[0], 184, y+22, 34, color, 'bold')
+        b.text(game['time'].split('–')[0], 184, y+10, 34, color, 'bold')
+        b.text(game['reportTime']+' 집합', 184, y+48, 22, GRAY, max_width=117)
         b.pill(seeds[0][0]+'조', 305, y+21, 62, 37, tint, color, 24)
         b.text(home, 388, y+26, 29, NAVY, 'medium', max_width=244)
         b.text('vs', 665, y+29, 23, GRAY, 'regular', 'center')
         b.text(away, 710, y+26, 29, NAVY, 'medium', max_width=260)
 
     b.rect(MARGIN, 1957, CONTENT_WIDTH, 99, BLUE, 14)
-    b.text('13:00  순위결정전 시작', LEFT_COLUMN, 1990, 34, WHITE, 'bold')
+    b.text('14:00  순위결정전 시작', LEFT_COLUMN, 1990, 34, WHITE, 'bold')
     b.text('전체 대진은 3쪽에서', 960, 1995, 26, '#DAE8FF', align='right')
     b.finish()
 
@@ -107,8 +112,9 @@ def semifinal(b, game, x, y, color, tint):
            tint, color, 22)
     b.text(game['time'].split('–')[0], x+380, y+25, 28, color,
            'bold', 'right')
+    b.text(game['reportTime']+' 집합', x+380, y+63, 22, GRAY, align='right')
     home, away = game['match'].split(' vs ')
-    b.text(f'{home}  vs  {away}', x+202, y+91, 31, NAVY,
+    b.text(f'{home}  vs  {away}', x+202, y+106, 31, NAVY,
            'bold', 'center', 356)
 
 
@@ -116,6 +122,7 @@ def result_game(b, game, x, y, label, color, tint, participants):
     b.rect(x, y, 404, 174, tint, 14)
     b.text(f'{game["slot"]:02d}경기  ·  {game["time"].split("–")[0]}',
            x+24, y+25, 25, color, 'bold')
+    b.text(game['reportTime']+' 집합', x+380, y+28, 22, color, align='right')
     b.text(label, x+24, y+71, 38, color, 'bold', max_width=356)
     b.text(participants, x+24, y+129, 24, color, max_width=356)
 
@@ -149,16 +156,16 @@ def bracket_block(b, games, y, title, ranks, color, tint, semi_ids, final_ids):
 
 
 def placement(b, data):
-    b.header(3, '순위결정전 대진표', '13:00-15:00  |  A구장 한 면  |  팀당 2경기')
+    b.header(3, '순위결정전 대진표', '14:00-16:40  |  A구장 한 면  |  팀당 2경기')
     b.rect(MARGIN, 376, CONTENT_WIDTH, 130, PALE_BLUE, 14)
     b.text('“A조 1위”는 조별리그 최종 순위입니다.', LEFT_COLUMN, 404, 31, BLUE, 'bold')
-    b.text('시드 A1·B1과 다릅니다. 경기 번호와 시작 시간을 확인하세요.',
+    b.text('시드 번호와 구분 · 매 경기 5분 전까지 A구장 앞 집합',
            LEFT_COLUMN, 461, 25, BLUE)
     games = {game['slot']: game for game in data['courtMatches']}
     bracket_block(b, games, 554, '챌린지', '5-8위 결정', TEAL, PALE_TEAL,
                   [13, 14], [17, 18])
     bracket_block(b, games, 1292, '챔피언십', '1-4위 결정', BLUE, PALE_BLUE,
                   [15, 16], [19, 20])
-    b.text('15:00 시상식  →  15:25 클로징·단체사진',
+    b.text('16:40 시상식  →  17:05 클로징·단체사진',
            540, 2014, 33, BLUE, 'bold', 'center')
     b.finish()

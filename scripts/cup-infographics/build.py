@@ -26,8 +26,10 @@ def read_schedule():
     for i, game in enumerate(games):
         start, end = game['time'].split('–')
         as_minutes = lambda t: int(t[:2])*60 + int(t[3:])
-        if as_minutes(start) != 600+i*15 or as_minutes(end)-as_minutes(start) != 15:
-            raise ValueError(f'Unexpected 15-minute slot: {game}')
+        if as_minutes(start) != 600+i*20 or as_minutes(end)-as_minutes(start) != 20:
+            raise ValueError(f'Unexpected 20-minute slot: {game}')
+        if as_minutes(game['reportTime']) != as_minutes(start)-5:
+            raise ValueError(f'Report time must be five minutes before kickoff: {game}')
         if i < 12:
             seeds = game['seedMatch'].split(' vs ')
             if len(seeds) != 2 or seeds[0][0] != seeds[1][0]:
@@ -58,7 +60,7 @@ def main():
                       pageCompression=1, invariant=1)
     c.setTitle('2026 FairGround Cup | 전체 시간표와 대진표')
     c.setAuthor('FairGround')
-    c.setSubject('2026.10.03 · 8팀 · A구장 한 면 · 경기 12분 + 교체 3분')
+    c.setSubject('2026.10.03 · 8팀 · A구장 한 면 · 경기 12분 + 교대 3분 + 장비 점검 5분')
     b = Board(c, ROOT/'public/cup-ops/assets/wordmark.png')
     for page in [overview, group_schedule, placement]:
         page(b, data)
