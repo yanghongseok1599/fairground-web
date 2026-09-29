@@ -17,27 +17,27 @@ test("6팀 2조 → 구장별 15경기, 총 30경기", () => {
   assert.equal(rows.filter((r) => r.court === "B구장").length, 15);
 });
 
-// 경기 12분 + 전환 8분 = 슬롯 20분. 타임테이블이 20분 간격인 근거다.
-test("슬롯 간격은 20분, 경기 길이는 12분", () => {
+// 경기 12분 + 전환 3분 = 슬롯 15분. 타임테이블이 15분 간격인 근거다.
+test("슬롯 간격은 15분, 경기 길이는 12분", () => {
   const rows = buildCueSheet(groups, base).rows.filter((r) => r.court === "A구장");
   assert.equal(rows[0].start, "10:00");
   assert.equal(rows[0].end, "10:12");
-  assert.equal(rows[1].start, "10:20");
-  assert.equal(rows[2].start, "10:40");
+  assert.equal(rows[1].start, "10:15");
+  assert.equal(rows[2].start, "10:30");
 });
 
-test("점심 없으면 10:00 시작 → 14:52 종료", () => {
+test("점심 없으면 10:00 시작 → 13:42 종료", () => {
   const { courtEnd } = buildCueSheet(groups, base);
-  // 15경기의 간격은 14번. 10:00 + 14×20분 = 14:40 시작, +12분 = 14:52 종료.
-  assert.equal(courtEnd["A구장"], "14:52");
-  assert.equal(courtEnd["B구장"], "14:52");
+  // 15경기의 간격은 14번. 10:00 + 14×15분 = 13:30 시작, +12분 = 13:42 종료.
+  assert.equal(courtEnd["A구장"], "13:42");
+  assert.equal(courtEnd["B구장"], "13:42");
 });
 
 test("점심 시간에 걸치는 경기는 점심 뒤로 밀린다", () => {
   const { rows } = buildCueSheet(groups, { startTime: "10:00", lunchStart: "13:00", lunchMinutes: 50 });
   const a = rows.filter((r) => r.court === "A구장");
-  // 12:40 경기는 12:52 에 끝나 점심 전에 소화된다
-  assert.ok(a.some((r) => r.start === "12:40"));
+  // 12:45 경기는 12:57 에 끝나 점심 전에 소화된다
+  assert.ok(a.some((r) => r.start === "12:45"));
   // 13:00 에 걸리는 경기는 점심(50분) 뒤인 13:50 으로 밀린다
   assert.ok(a.some((r) => r.start === "13:50"), "점심 후 첫 경기가 13:50 이어야 한다");
   // 점심 시간대(13:00~13:50)에 시작하는 경기가 없어야 한다

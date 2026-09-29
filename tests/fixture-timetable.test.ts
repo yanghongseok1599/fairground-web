@@ -46,7 +46,7 @@ test("대회 날짜의 한국 시간, 자정 이후, 잘못된 날짜를 처리�
 test("점심과 겹치는 경기만 점심 뒤로 이동한다", () => {
   const rows = buildFixtureTimetable(4, { ...timing, startTime: "12:55" });
   assert.equal(rows[0].startMinute, 13 * 60 + 50);
-  assert.equal(rows[1].startMinute, 14 * 60 + 10);
+  assert.equal(rows[1].startMinute, 14 * 60 + 5);
   assert.equal(buildFixtureTimetable(4, { ...timing, startTime: "12:55", lunchMinutes: 0 })[0].startMinute, 12 * 60 + 55);
   assert.throws(() => buildFixtureTimetable(4, { ...timing, lunchStart: "잘못된 시각" }));
   assert.throws(() => buildFixtureTimetable(4, { ...timing, lunchMinutes: NaN }));
