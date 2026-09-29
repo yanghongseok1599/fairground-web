@@ -1149,17 +1149,6 @@
 .broadcastRoute[data-alliance-overlay="true"] {
   background: transparent;
 }
-:global(html:has([data-alliance-overlay="true"])),
-:global(body:has([data-alliance-overlay="true"])) {
-  background: transparent !important;
-}
-:global(body:has([data-alliance-overlay="true"])::before),
-:global(body:has([data-alliance-overlay="true"])::after) {
-  display: none !important;
-}
-:global(body:has([data-alliance-overlay]) nextjs-portal) {
-  display: none;
-}
 @media (min-width: 1500px) {
   .controlGrid {
     grid-template-columns: minmax(520px, 0.92fr) minmax(560px, 1.08fr);

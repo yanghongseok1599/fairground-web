@@ -1,4 +1,5 @@
 import type { LiveMatch, Match, Tournament } from "@/types";
+import { isTournamentFixturesPublic } from "@/features/tournaments/public-fixtures";
 export { compareScheduledMatches as compareMatchOrder, scheduledMatchTime } from "../../lib/match-schedule.ts";
 import { compareScheduledMatches as compareMatchOrder } from "../../lib/match-schedule.ts";
 
@@ -23,7 +24,7 @@ export function selectLiveScoreboard({ matches, tournaments }: LiveScoreSnapshot
   const live = ordered.filter((m): m is ScoreboardMatch & LiveMatch => m.status === "live");
   const upcoming: UpcomingMatch[] = [];
   for (const tournament of tournaments) {
-    if (!tournament.fixturesPublished || tournament.status === "completed") continue;
+    if (!isTournamentFixturesPublic(tournament) || tournament.status === "completed") continue;
     const current = live.filter((m) => m.tournamentId === tournament.id).at(-1);
     const waiting = ordered.filter((m) => m.tournamentId === tournament.id && m.status === "scheduled"
       && (!current || compareMatchOrder(m, current) > 0));

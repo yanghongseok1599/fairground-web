@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { EmptyState } from "@/components/empty-state";
 import { GroupedStandingsTable } from "@/features/standings/grouped-standings-table";
 import { seasonGroupSource } from "@/features/standings/group-filter";
+import { getTournamentDisplayName, isTournamentFixturesPublic } from "@/features/tournaments/public-fixtures";
 import type { TeamStanding, Tournament } from "@/types";
 import { ArrowRight, Calendar, MapPin, Trophy } from "lucide-react";
 
@@ -156,7 +157,7 @@ export default function TournamentsPage() {
                         )}
                       </div>
                       <h3 className="mb-3 flex-1 text-xl font-bold leading-tight" style={{ fontFamily: "var(--font-outfit)", color: "#0D1B2A", letterSpacing: "-0.5px" }}>
-                        {t.name}
+                        {getTournamentDisplayName(t)}
                       </h3>
                       <div className="mt-auto space-y-1.5">
                         <div className="flex items-center gap-2 text-xs" style={{ color: "#627D98" }}>
@@ -169,7 +170,7 @@ export default function TournamentsPage() {
                         </div>
                       </div>
                       <div className="mt-4 flex items-center gap-1 text-xs font-medium" style={{ color: "#00C853" }}>
-                        상세 보기 <ArrowRight className="h-3 w-3" />
+                        {isTournamentFixturesPublic(t) ? (t.status === "completed" ? "경기 결과 보기" : "대진표 보기") : "상세 보기"} <ArrowRight className="h-3 w-3" />
                       </div>
                     </div>
                   </Link>

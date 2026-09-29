@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Clock3, MapPin } from "lucide-react";
 import { scheduledMatchTime, type UpcomingMatch } from "../schedule";
+import { getTournamentDisplayName } from "@/features/tournaments/public-fixtures";
 
 export function UpcomingMatchCard({ item }: { item: UpcomingMatch }) {
   const { match, tournament, groupName } = item;
@@ -11,7 +12,7 @@ export function UpcomingMatchCard({ item }: { item: UpcomingMatch }) {
         <span className="text-xs text-muted-foreground">{groupName ? `${groupName} · ` : ""}R{match.round}</span>
       </div>
       <div className="p-4">
-        <p className="text-xs font-medium text-muted-foreground">{tournament.name}</p>
+        <p className="text-xs font-medium text-muted-foreground">{getTournamentDisplayName(tournament)}</p>
         <div className="my-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-center">
           <p className="min-w-0 break-words text-base font-bold sm:text-lg">{match.homeTeamName}</p>
           <span className="text-sm font-bold text-muted-foreground">VS</span>

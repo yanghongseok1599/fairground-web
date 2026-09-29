@@ -4,6 +4,39 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Page-level selectors belong in the global stylesheet, not CSS modules. */
+body:has([data-proposal-page="true"]) > header,
+body:has([data-proposal-page="true"]) > footer {
+  display: none;
+}
+
+body:has([data-proposal-page="true"]) > main {
+  padding-top: 0 !important;
+  overflow: visible !important;
+}
+
+body:has([data-proposal-page="true"]) {
+  background: #ffffff;
+}
+
+body:has([data-proposal-page="true"])::after {
+  display: none;
+}
+
+html:has([data-alliance-overlay="true"]),
+body:has([data-alliance-overlay="true"]) {
+  background: transparent !important;
+}
+
+body:has([data-alliance-overlay="true"])::before,
+body:has([data-alliance-overlay="true"])::after {
+  display: none !important;
+}
+
+body:has([data-alliance-overlay]) nextjs-portal {
+  display: none;
+}
+
 /* =====================================================
  * SOURCE OF TRUTH: FairGround design-tokens v1 (CEO plan §4)
  * 이 블록이 정본. 수정 시 fairground/src/app/globals.css 와

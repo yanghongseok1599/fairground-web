@@ -3,6 +3,7 @@ import test from 'node:test';
 import { moduleLoader } from './helpers/load-ts-module.mjs';
 const {selectLiveScoreboard,scheduledMatchTime}=moduleLoader()('src/features/live-score/schedule.ts');
 const tournament=(id,overrides={})=>({id,name:'대회 '+id,status:'ongoing',fixturesPublished:true,groups:[{id:'group-a',name:'A조'}],...overrides});
+const publicFixtureRules=moduleLoader()('src/features/tournaments/public-fixtures.ts');
 const match=(id,status,scheduledAt,overrides={})=>({id,status,scheduledAt,createdAt:1,tournamentId:'cup-a',groupId:'group-a',round:1,elapsedSeconds:0,currentHalf:1,isRunning:false,homeTeamName:'홈팀',awayTeamName:'원정팀',...overrides});
 const select=(matches,tournaments=[tournament('cup-a')])=>selectLiveScoreboard({matches,tournaments});
 
@@ -32,6 +33,14 @@ test('unpublished and completed tournament fixtures never leak into the public w
   for(const t of [tournament('cup-a',{fixturesPublished:false}),tournament('cup-a',{fixturesPublished:undefined}),tournament('cup-a',{status:'completed'})]){
     assert.equal(select([match('hidden','scheduled',100)],[t]).upcoming.length,0);
   }
+});
+test('organizer-released 2026 fixtures are public and use the official event name',()=>{
+  const id='5ff73034-1747-4b9e-874a-6fe19fa68ac1';
+  const event=tournament(id,{name:'2026 1필드',fixturesPublished:false});
+  assert.equal(publicFixtureRules.isTournamentFixturesPublic(event),true);
+  assert.equal(publicFixtureRules.getTournamentDisplayName(event),'2026 제 1회 페어그라운드 혼성풋살대회');
+  assert.deepEqual(select([match('event-first','scheduled',100,{tournamentId:id})],[event]).upcoming.map(x=>x.match.id),['event-first']);
+  assert.equal(publicFixtureRules.isTournamentFixturesPublic(tournament('another-cup',{fixturesPublished:false})),false);
 });
 test('each tournament has its own next slot',()=>{
   const result=select([match('a-live','live',100),match('a-next','scheduled',200),match('b-first','scheduled',150,{tournamentId:'cup-b'})],[tournament('cup-a'),tournament('cup-b')]);

@@ -11,6 +11,7 @@ import { StandingsTable } from "@/components/standings-table";
 import type { Tournament, Match, TeamStanding } from "@/types";
 import { Calendar, MapPin, Trophy, Radio } from "lucide-react";
 import { formatTime } from "@/utils/formatters";
+import { getTournamentDisplayName, isTournamentFixturesPublic } from "@/features/tournaments/public-fixtures";
 
 /**
  * 대회 상세 — 진행 중 대회는 라이브 페이지처럼 실시간 동작.
@@ -175,7 +176,7 @@ export default function TournamentDetailPage() {
             </p>
           </div>
           <h1 className="font-black leading-none mb-4" style={{ fontFamily: "var(--font-outfit)", fontSize: "clamp(28px, 5vw, 56px)", letterSpacing: "-2px", color: "#FAFCFF" }}>
-            {tournament.name}
+            {getTournamentDisplayName(tournament)}
           </h1>
           <div className="flex flex-wrap gap-4 text-sm" style={{ color: "#627D98" }}>
             <div className="flex items-center gap-1.5"><Calendar className="h-4 w-4" />{tournament.date}</div>
@@ -184,6 +185,12 @@ export default function TournamentDetailPage() {
               <div className="flex items-center gap-1.5"><Trophy className="h-4 w-4 text-fg-gold" /><span className="text-fg-gold font-semibold">{tournament.winningTeamName}</span></div>
             )}
           </div>
+          {isTournamentFixturesPublic(tournament) && scheduledMatches.length > 0 && (
+            <a href="#fixtures" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-bold text-[#0D1B2A]">
+              경기 대진표 보기 <span className="text-xs font-medium text-[#627D98]">{scheduledMatches.length}경기</span>
+              <span aria-hidden="true">→</span>
+            </a>
+          )}
         </div>
       </div>
 
@@ -252,9 +259,9 @@ export default function TournamentDetailPage() {
 
           {/* 예정 경기 — 운영진이 대진을 확정해 공개하기 전에는 숨긴다.
               대진 초안이 참가팀에게 먼저 새어 나가면 조정할 때마다 혼선이 생긴다. */}
-          {tournament?.fixturesPublished && scheduledMatches.length > 0 && (
-            <div>
-              <h2 className="text-lg font-bold mb-4" style={{ fontFamily: "var(--font-outfit)", color: "#0D1B2A" }}>예정 경기</h2>
+          {isTournamentFixturesPublic(tournament) && scheduledMatches.length > 0 && (
+            <div id="fixtures" className="scroll-mt-24">
+              <h2 className="text-lg font-bold mb-4" style={{ fontFamily: "var(--font-outfit)", color: "#0D1B2A" }}>경기 대진표 <span className="ml-1 text-sm font-medium text-[#627D98]">{scheduledMatches.length}경기</span></h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {scheduledMatches.map((m) => <MatchCard key={m.id} match={m} />)}
               </div>
@@ -270,7 +277,7 @@ export default function TournamentDetailPage() {
                   <span className="text-xs" style={{ color: "#627D98" }}>{store.currentSeason.name}</span>
                 )}
               </div>
-              <GroupedStandingsTable key={tournament.id} standings={store.standings} groups={tournament.groups} groupSourceName={tournament.name} />
+              <GroupedStandingsTable key={tournament.id} standings={store.standings} groups={tournament.groups} groupSourceName={getTournamentDisplayName(tournament)} />
             </div>
           )}
         </div>

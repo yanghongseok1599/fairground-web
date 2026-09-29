@@ -7,6 +7,7 @@ import { useDataStore } from "@/stores/dataStore";
 import type { LiveMatch, MatchLineupEntry, Tournament } from "@/types";
 import { formatTime } from "@/utils/formatters";
 import { LiveLineupPanel } from "./live-lineup-panel";
+import { getTournamentDisplayName } from "@/features/tournaments/public-fixtures";
 
 export function LiveMatchCard({ match, tournament }: { match: LiveMatch; tournament?: Tournament }) {
   const [elapsed, setElapsed] = useState(match.elapsedSeconds);
@@ -41,7 +42,7 @@ export function LiveMatchCard({ match, tournament }: { match: LiveMatch; tournam
         </span>
         <span className="text-xs text-muted-foreground">{groupName ? `${groupName} · ` : ""}R{match.round}</span>
       </div>
-      {tournament && <p className="px-4 pt-4 text-xs font-medium text-muted-foreground">{tournament.name}</p>}
+      {tournament && <p className="px-4 pt-4 text-xs font-medium text-muted-foreground">{getTournamentDisplayName(tournament)}</p>}
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-5">
         <p className="min-w-0 break-words text-center text-base font-bold sm:text-lg">{match.homeTeamName}</p>
         <div className="text-center">

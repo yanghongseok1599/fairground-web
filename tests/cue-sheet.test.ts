@@ -74,13 +74,25 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
-test("공개 대회 페이지는 fixturesPublished 일 때만 예정 경기를 보여준다", () => {
+test("공개 예정 경기에는 공통 공개 게이트를 적용한다", () => {
   const src = read("src/app/tournaments/[id]/page.tsx");
-  assert.match(src, /\{tournament\?\.fixturesPublished && scheduledMatches\.length > 0 && \(/);
+  assert.match(src, /isTournamentFixturesPublic\(tournament\) && scheduledMatches\.length > 0 && \(/);
   assert.ok(
     !/\{scheduledMatches\.length > 0 && \(/.test(src),
     "게이트 없는 예정 경기 렌더가 남아 있으면 대진이 새어 나간다",
   );
+});
+
+test("대회 목록·라이브·상세에서 참가팀이 대진표로 바로 이동한다", () => {
+  const list = read("src/app/tournaments/page.tsx");
+  const live = read("src/features/live-score/live-score-page.tsx");
+  const detail = read("src/app/tournaments/[id]/page.tsx");
+  const eventNames = read("src/features/tournaments/public-fixtures.ts");
+  assert.match(list, /대진표 보기/);
+  assert.match(live, /대회 대진표/);
+  assert.match(live, /#fixtures/);
+  assert.match(detail, /href="#fixtures"/);
+  assert.match(eventNames, /2026 제 1회 페어그라운드 혼성풋살대회/);
 });
 
 test("큐시트는 운영진 화면 전용 — 공개 라우트에 없다", () => {
