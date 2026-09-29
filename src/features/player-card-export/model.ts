@@ -40,7 +40,7 @@ export function buildCardExportJobs(players: Player[], teams: CardExportTeam[]):
     const team = teamById.get(player.teamId);
     if (player.teamId && !team) throw new Error(`선수 소속 팀을 찾을 수 없습니다: ${player.id}`);
     const folder = team ? folderById.get(team.id)! : unassigned;
-    const stem = `${(player.number === 0 ? jerseyNumberText(player, "미지정") : String(player.number).padStart(2, "0"))}_${safeCardPathPart(player.name, "선수")}`;
+    const stem = `${jerseyNumberText(player, "미지정")}_${safeCardPathPart(player.name, "선수")}`;
     let path = `${folder}/${stem}.png`;
     let suffix = 2;
     while (usedFiles.has(path.toLocaleLowerCase())) path = `${folder}/${stem}_${suffix++}.png`;

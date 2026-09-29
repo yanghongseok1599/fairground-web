@@ -27,6 +27,7 @@ import type {
   PlayerRole,
 } from "@/types";
 import type { Database } from "@/lib/database.types";
+import { storedJerseyNumberLabel } from "@/lib/jersey-number";
 
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type ProfileInsert = Database["public"]["Tables"]["profiles"]["Insert"];
@@ -158,7 +159,7 @@ export function playerToInsert(p: Player): ProfileInsert {
     id: p.id,
     name: p.name,
     number: p.number,
-    number_label: p.numberLabel ?? null,
+    number_label: storedJerseyNumberLabel(p),
     position: p.position,
     team_id: p.teamId || null,
     nationality: p.nationality,
@@ -202,7 +203,7 @@ export function playerPatchToRow(d: Partial<Player>): ProfileUpdate {
   if (d.name !== undefined) u.name = d.name;
   if (d.number !== undefined) {
     u.number = d.number;
-    u.number_label = d.number === 0 ? d.numberLabel ?? null : null;
+    u.number_label = storedJerseyNumberLabel(d);
   } else if (d.numberLabel !== undefined) {
     u.number_label = d.numberLabel;
   }

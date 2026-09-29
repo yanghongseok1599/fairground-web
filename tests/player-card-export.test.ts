@@ -11,8 +11,8 @@ const players = [player("p1", "a"), player("p2", "a"), player("p3", "b"), player
 const before = JSON.stringify(players);
 const jobs = buildCardExportJobs(players, [{ id: "a", name: "루트/FC", logo: "" }, { id: "b", name: "루트\\FC", logo: "" }]);
 assert.equal(new Set(jobs.map((j) => j.relativePath)).size, 4);
-assert.ok(jobs.some((j) => j.relativePath === "루트_FC/07_김철수.png"));
-assert.ok(jobs.some((j) => j.relativePath === "루트_FC/07_김철수_2.png"));
+assert.ok(jobs.some((j) => j.relativePath === "루트_FC/7_김철수.png"));
+assert.ok(jobs.some((j) => j.relativePath === "루트_FC/7_김철수_2.png"));
 assert.ok(jobs.some((j) => j.relativePath.startsWith("루트_FC_2/")));
 assert.ok(jobs.some((j) => j.relativePath.startsWith("미소속/")));
 assert.equal(JSON.stringify(players), before, "Bronze export must not change ratings, skin eligibility or records");
@@ -24,3 +24,8 @@ const zeroJobs = buildCardExportJobs([
   { ...player("double-zero", ""), number: 0, numberLabel: "00" },
 ], []);
 assert.deepEqual(zeroJobs.map((job) => job.relativePath).sort(), ["미소속/00_김철수.png", "미소속/0_김철수.png"].sort());
+
+const labeledJobs = buildCardExportJobs(["01", "02", "007", "999"].map((label) => ({
+  ...player(label, ""), number: Number(label), numberLabel: label,
+})), []);
+assert.deepEqual(labeledJobs.map((job) => job.relativePath).sort(), ["01", "02", "007", "999"].map((label) => `미소속/${label}_김철수.png`).sort());

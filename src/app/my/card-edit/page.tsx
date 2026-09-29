@@ -255,7 +255,7 @@ function CardEditForm() {
     clearError();
     setFormError("");
     if (!name.trim() || !position || !parseJerseyNumber(number)) {
-      setFormError("이름, 포지션, 등번호(0, 00, 1~99)를 확인해주세요."); return;
+      setFormError("이름, 포지션, 등번호(숫자 1~3자리)를 확인해주세요."); return;
     }
     if (!hasPortraitConsent(player)) { setFormError("초상권 동의를 먼저 완료해주세요."); return; }
     if (bgProcessing || !draft.ready || !submission.begin()) return;
@@ -584,8 +584,8 @@ function CardEditForm() {
             type="text"
             inputMode="numeric"
             pattern={JERSEY_NUMBER_PATTERN}
-            maxLength={2}
-            placeholder="0, 00, 1 – 99"
+            maxLength={3}
+            placeholder="예: 01, 02, 007, 999"
             value={number}
             onChange={(e) => setNumber(e.target.value)}
             required
