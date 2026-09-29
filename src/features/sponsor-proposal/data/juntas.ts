@@ -42,21 +42,21 @@ export const juntasProposal: SponsorProposal = {
     time: "09:00–18:30",
     venue: "엠무브 은평점",
     category: "혼성 풋살대회",
-    title: "2026년 10월 3일, 12팀이 하루 동안 참가합니다.",
+    title: "2026년 10월 3일, 8팀이 하루 동안 참가합니다.",
     image: {
       src: asset("editorial-match-v3.png"),
       alt: "JUNTAS 팀웨어를 착용한 가상 선수들의 풋살 경기 화보",
     },
     metrics: [
-      { value: "12", label: "참가 팀" },
-      { value: "5+", label: "팀당 최소 경기" },
+      { value: "8", label: "참가 팀" },
+      { value: "5", label: "팀당 보장 경기" },
       { value: "1 DAY", label: "하루 집중 운영" },
     ],
     facts: [
       { title: "2026.10.03 SAT", detail: "09:00–18:30" },
       { title: "엠무브 은평점", detail: "서울 은평구" },
-      { title: "혼성 5인제", detail: "아마추어 · 탈락 없는 리그형 운영" },
-      { title: "2개 그룹", detail: "A/B 각 6팀" },
+      { title: "혼성 5인제", detail: "아마추어 · 조별리그와 순위결정전" },
+      { title: "2개 그룹", detail: "A조 4팀 / B조 4팀" },
     ],
   },
   hero: {

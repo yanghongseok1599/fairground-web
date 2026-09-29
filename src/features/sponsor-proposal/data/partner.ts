@@ -42,21 +42,21 @@ export const partnerProposal: SponsorProposal = {
     time: "09:00–18:30",
     venue: "엠무브 은평점",
     category: "혼성 풋살대회",
-    title: "끝까지 남는 12팀의 하루",
+    title: "끝까지 함께 뛰는 8팀의 하루",
     image: {
       src: asset("editorial-match-brand.jpg"),
       alt: "혼성 풋살대회 참가팀 경기 현장",
     },
     metrics: [
-      { value: "12", label: "참가팀" },
+      { value: "8", label: "참가팀" },
       { value: "5", label: "팀당 최소 경기" },
       { value: "1 DAY", label: "하루 집중 운영" },
     ],
     facts: [
       { title: "2026.10.03 SAT", detail: "09:00–18:30" },
       { title: "엠무브 은평점", detail: "서울 은평구" },
-      { title: "혼성 5인 풋살", detail: "아마추어 전용 · 탈락 없음" },
-      { title: "2개 그룹", detail: "A조 6팀 / B조 6팀" },
+      { title: "혼성 5인 풋살", detail: "아마추어 전용 · 조별리그와 순위결정전" },
+      { title: "2개 그룹", detail: "A조 4팀 / B조 4팀" },
     ],
   },
   hero: {

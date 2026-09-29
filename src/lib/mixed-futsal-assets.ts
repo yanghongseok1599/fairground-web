@@ -11,7 +11,7 @@ export const MIXED_FUTSAL_CARD_NEWS = [
   {
     src: MIXED_FUTSAL_COVER_IMAGE_PATH,
     label: "대회 포스터",
-    title: "제1회 페어그라운드 혼성 풋살 대회",
+    title: "2026 제 1회 페어그라운드 혼성풋살대회",
     description: "2026년 10월 3일, 모두가 함께 뛰는 혼성 풋살 페스티벌",
   },
   {

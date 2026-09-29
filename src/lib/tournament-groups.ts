@@ -1,7 +1,7 @@
 import type { Team } from "@/types";
 
 /**
- * 조 이름. 10월 3일 대회는 A조 6팀 · B조 6팀 두 조 구성이다.
+ * 조 이름. 10월 3일 대회는 A조 4팀 · B조 4팀 두 조 구성이다.
  * 조를 늘리려면 여기에 추가하면 화면·자동배분이 함께 따라간다.
  */
 export const GROUP_NAMES = ["A", "B"] as const;

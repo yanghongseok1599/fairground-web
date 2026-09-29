@@ -182,7 +182,7 @@ const BUILT_IN_MIXED_FUTSAL_POPUP: SitePopup = {
   dismissVersion: 1,
   displayDelayMs: 650,
   eyebrow: "MIXED FUTSAL 2026",
-  title: "제1회 페어그라운드|혼성 풋살 대회",
+  title: "2026 제 1회 페어그라운드|혼성풋살대회",
   body: "남녀가 한 팀으로 함께 뛰고, 참가한 모든 팀이 끝까지 경기를 즐기는 풋살 페스티벌입니다.",
   detailOne: MIXED_FUTSAL_EVENT_LOCATION_LABEL,
   detailTwo: MIXED_FUTSAL_EVENT_DATE_FULL_LABEL,

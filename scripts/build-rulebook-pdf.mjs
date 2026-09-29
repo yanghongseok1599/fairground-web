@@ -8,18 +8,15 @@
  *   node scripts/build-rulebook-pdf.mjs --keep-html  # 중간 HTML을 .build/ 에 남김
  *
  * 동작
- *   public/document/files 2/*.md (규정 원본)
- *     → 브랜드 스타일 HTML
+ *   src/app/rulebook/rulebook-client.tsx (홈페이지 룰북 데이터)
+ *     → Markdown 변환 → 브랜드 스타일 HTML
  *     → Chrome 헤드리스 print-to-PDF (CDP Page.printToPDF)
  *     → public/document/*.pdf
  *
- * 규정이 바뀌면 MD 원본만 고치고 이 스크립트를 다시 실행하면 된다.
- * MD 원본의 정답(single source of truth)은 웹 룰북
- *   src/app/rulebook/rulebook-client.tsx
- * 이며, MD 는 그 내용을 그대로 옮긴 배포본이다. 내용을 여기서 창작하지 말 것.
+ * 웹 룰북 데이터가 바뀌면 이 스크립트를 실행해 다운로드 PDF도 같은 내용으로 갱신한다.
  *
  * 검증
- *   pdftotext public/document/fairground-match-rulebook-v2.5.pdf - | less
+ *   pdftotext public/document/fairground-match-rulebook-v2.6.pdf - | less
  *
  * 요구 사항
  *   - Google Chrome (macOS 기본 경로. CHROME_PATH 환경변수로 덮어쓸 수 있음)
@@ -34,54 +31,45 @@ import { mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import ts from "typescript";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 /* ---------------------------------------------------------------- 문서 등록부 */
-/** 새 규정 PDF를 추가하려면 여기에 항목 하나만 더 넣으면 된다. */
-/*
- * 주의 (2026-09-26): 배포 중인 PDF 3종(match v2.5 / referee v2.4 / captain v1.2)은
- * 운영진이 확정본 PDF를 직접 제공하여 public/document 에 그대로 배치한 것이다.
- * 아래 src 마크다운 원본은 아직 그 개정을 반영하지 않았다. 원본을 먼저 갱신하지 않고
- * 이 스크립트를 실행하면 배포본이 구버전 내용으로 덮인다. 원본이 없으면 즉시 실패한다.
- */
+/** key는 rulebook-client.tsx 룰북 문서 id와 같아야 한다. */
 const DOCS = [
   {
     key: "match",
-    src: "public/document/files 2/페어그라운드_경기_운영규정_v2_5.md",
-    out: "public/document/fairground-match-rulebook-v2.5.pdf",
+    out: "public/document/fairground-match-rulebook-v2.6.pdf",
     // 표지/머리말 표기. src/app/rulebook/rulebook-client.tsx 의 doc.title 과 맞춘다.
     title: "경기 · 운영 규정",
     subtitle: "Fair Ground 혼성 풋살 페스티벌 공식 규정",
-    version: "v2.5",
-    footerLabel: "Fair Ground · 경기 · 운영 규정 v2.5",
+    version: "v2.6",
+    footerLabel: "Fair Ground · 경기 · 운영 규정 v2.6",
   },
   {
     key: "tournament",
-    src: "public/document/files 2/페어그라운드_대회규정_v1_2.md",
-    out: "public/document/fairground-tournament-rulebook-v1.2.pdf",
+    out: "public/document/fairground-tournament-rulebook-v1.3.pdf",
     title: "대회 규정",
     subtitle: "Fair Ground 혼성 풋살 페스티벌 공식 대회 규정",
-    version: "v1.2",
-    footerLabel: "Fair Ground · 대회 규정 v1.2",
+    version: "v1.3",
+    footerLabel: "Fair Ground · 대회 규정 v1.3",
   },
   {
     key: "referee",
-    src: "public/document/files 2/페어그라운드_심판교육가이드_v2_4.md",
-    out: "public/document/fairground-referee-guide-v2.4.pdf",
+    out: "public/document/fairground-referee-guide-v2.5.pdf",
     title: "심판 교육 가이드",
     subtitle: "Fair Ground 혼성 풋살 페스티벌 심판 집행 매뉴얼",
-    version: "v2.4",
-    footerLabel: "Fair Ground · 심판 교육 가이드 v2.4",
+    version: "v2.5",
+    footerLabel: "Fair Ground · 심판 교육 가이드 v2.5",
   },
   {
     key: "captain",
-    src: "public/document/files 2/페어그라운드_주장교육가이드_v1_2.md",
-    out: "public/document/fairground-captain-guide-v1.2.pdf",
+    out: "public/document/fairground-captain-guide-v1.3.pdf",
     title: "주장 교육 가이드",
     subtitle: "Fair Ground 혼성 풋살 페스티벌 — 팀 주장을 위한 안내",
-    version: "v1.2",
-    footerLabel: "Fair Ground · 주장 교육 가이드 v1.2",
+    version: "v1.3",
+    footerLabel: "Fair Ground · 주장 교육 가이드 v1.3",
   },
 ];
 
@@ -104,6 +92,79 @@ const BRAND = {
  *   **제N조 (이름)** / **소제목** / ①②③ 항 / - 목록 / 표 / *꼬리말*
  */
 const CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
+
+function loadWebsiteRulebooks() {
+  const sourcePath = path.join(ROOT, "src/app/rulebook/rulebook-client.tsx");
+  const sourceText = readFileSync(sourcePath, "utf8");
+  const sourceFile = ts.createSourceFile(sourcePath, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const declarations = new Map();
+  const visit = (node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      declarations.set(node.name.text, node.initializer);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+
+  const durationSource = readFileSync(path.join(ROOT, "src/lib/match-config.ts"), "utf8");
+  const durationMatch = durationSource.match(/export const MATCH_DURATION_MINUTES\s*=\s*(\d+)/);
+  if (!durationMatch) throw new Error("경기 시간을 룰북에서 읽지 못했다");
+  const philosophyMatch = sourceText.match(/const PHILOSOPHY\s*=\s*(["'])(.*?)\1;/);
+  if (!philosophyMatch) throw new Error("대회 철학 문구를 룰북에서 읽지 못했다");
+
+  const docs = {};
+  for (const [key, name] of [
+    ["match", "MATCH_RULES"],
+    ["tournament", "TOURNAMENT_RULES"],
+    ["referee", "REFEREE_GUIDE"],
+    ["captain", "CAPTAIN_GUIDE"],
+  ]) {
+    const initializer = declarations.get(name);
+    if (!initializer) throw new Error(`홈페이지 룰북 문서 ${name}을 찾지 못했다`);
+    const build = new Function(
+      "MATCH_DURATION_MINUTES",
+      "PHILOSOPHY",
+      `return (${initializer.getText(sourceFile)});`,
+    );
+    docs[key] = build(Number(durationMatch[1]), philosophyMatch[2]);
+  }
+  return docs;
+}
+
+function rulebookDocumentToMarkdown(doc) {
+  const lines = [
+    `# ${doc.title} ${doc.version.split(" · ")[0]}`,
+    doc.sub,
+    `> **대회 철학** “${doc.philosophy}”`,
+    "",
+  ];
+  for (const block of doc.blocks) {
+    if (block.k === "part") lines.push(`## ${block.x}`, "");
+    else if (block.k === "ch") lines.push(`### ${block.x}`, "");
+    else if (block.k === "sec") lines.push(`#### ${block.x}`, "");
+    else if (block.k === "art") {
+      lines.push(`**${block.no} (${block.name})**`);
+      if (block.pre) lines.push(block.pre);
+      if (block.c) block.c.forEach((text, i) => lines.push(`${CIRCLED[i] ?? "•"} ${text}`));
+      if (block.b) block.b.forEach((text) => lines.push(`- ${text}`));
+      lines.push("");
+    } else if (block.k === "clauses") {
+      block.c.forEach((text, i) => lines.push(`${CIRCLED[i] ?? "•"} ${text}`));
+      lines.push("");
+    } else if (block.k === "ul") {
+      if (block.title) lines.push(`**${block.title}**`);
+      block.items.forEach((text) => lines.push(`- ${text}`));
+      lines.push("");
+    } else if (block.k === "p") lines.push(block.x, "");
+    else if (block.k === "tbl") {
+      lines.push(`| ${block.h.join(" | ")} |`);
+      lines.push(`| ${block.h.map(() => "---").join(" | ")} |`);
+      block.r.forEach((row) => lines.push(`| ${row.join(" | ")} |`));
+      lines.push("");
+    } else if (block.k === "note") lines.push(`> ${block.x}`, "");
+  }
+  return lines.join("\n");
+}
 
 function parseMarkdown(md) {
   const lines = md.replace(/\r\n/g, "\n").split("\n");
@@ -203,7 +264,7 @@ function parseMarkdown(md) {
     }
 
     // **제N조 (이름)**
-    const art = line.match(/^\*\*(제\s*\d+\s*조)\s*\(([^)]+)\)\*\*$/);
+    const art = line.match(/^\*\*(제\s*\d+\s*조(?:의\s*\d+)?)\s*\(([^)]+)\)\*\*$/);
     if (art) {
       blocks.push({ k: "article", no: art[1].replace(/\s+/g, ""), name: art[2].trim() });
       continue;
@@ -730,14 +791,18 @@ const buildDir = keepHtml
   ? path.join(ROOT, ".build", "rulebook")
   : path.join(tmpdir(), `fg-rulebook-html-${process.pid}`);
 mkdirSync(buildDir, { recursive: true });
+const websiteRulebooks = loadWebsiteRulebooks();
 
 for (const doc of targets) {
-  const srcPath = path.join(ROOT, doc.src);
   const outPath = path.join(ROOT, doc.out);
-  const md = readFileSync(srcPath, "utf8");
+  const websiteDoc = websiteRulebooks[doc.key];
+  if (websiteDoc.version.split(" · ")[0] !== doc.version) {
+    throw new Error(`${doc.key} 홈페이지/PDF 버전이 서로 다르다`);
+  }
+  const md = rulebookDocumentToMarkdown(websiteDoc);
   const parsed = parseMarkdown(md);
   const stats = articleStats(parsed.blocks);
-  const html = buildHtml(doc, parsed);
+  const html = buildHtml({ ...doc, title: websiteDoc.title, subtitle: websiteDoc.sub }, parsed);
 
   const htmlPath = path.join(buildDir, `${doc.key}.html`);
   writeFileSync(htmlPath, html, "utf8");

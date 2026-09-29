@@ -44,6 +44,7 @@ import {
   MIXED_FUTSAL_EVENT_START_ISO,
   MIXED_FUTSAL_EVENT_TAGLINE,
   MIXED_FUTSAL_EVENT_TIME_LABEL,
+  MIXED_FUTSAL_EVENT_TOURNAMENT_ID,
   MIXED_FUTSAL_EVENT_VENUE_NOTE,
   MIXED_FUTSAL_FORMAT_SUMMARY_LABEL,
   MIXED_FUTSAL_GENDER_RULE_LABEL,
@@ -77,7 +78,7 @@ export const metadata: Metadata = createSeoMetadata({
   keywords: [
     "혼성 풋살 대회",
     "혼성풋살대회",
-    "제1회 페어그라운드 혼성 풋살 대회",
+    "2026 제 1회 페어그라운드 혼성풋살대회",
     "은평 풋살대회",
     "엠무브 은평점 풋살",
     "서울 혼성 풋살 대회",
@@ -101,7 +102,7 @@ const PROJECT_POINTS = [
   {
     icon: Trophy,
     title: "탈락 없는 대회",
-    body: "조별 6팀이 서로 한 번씩 맞붙는 풀리그입니다. 첫 경기에서 지더라도 남은 경기가 그대로 남아, 하루를 끝까지 함께 뜁니다.",
+    body: "A조와 B조 4팀이 조별리그를 치른 뒤 순위결정전을 진행합니다. 모든 참가팀이 대회 마지막까지 함께 뜁니다.",
   },
   {
     icon: Repeat,
@@ -134,8 +135,8 @@ const FLOW = [
   "팀 대표가 참가 신청",
   "팀원이 회원가입 후 팀가입 신청",
   "운영진 확인 후 대회 안내 수신",
-  "조별 풀리그 5경기 출전",
-  "리그 종료 후 그라운드 챌린지 참여",
+  "조별리그와 순위결정전 5경기 출전",
+  "대기 시간에 실내구장 챌린지 참여",
 ] as const;
 
 const SIDE_EVENT_ICONS = [Gauge, Target] as const;
@@ -239,9 +240,9 @@ export default function MixedFutsalPage() {
             <div>
               <p className="fg-label text-[11px] text-[#D6E4FF]">MIXED FUTSAL 2026</p>
               <h1 className="mt-4 text-[36px] font-black leading-[1.08] text-white sm:text-[56px] sm:leading-[1.04] md:text-[68px]">
-                제1회 페어그라운드
+                2026 제 1회
                 <br />
-                혼성 풋살 대회
+                페어그라운드 혼성풋살대회
               </h1>
               <p className="mt-5 inline-flex items-center gap-2 rounded-[var(--radius-pill)] border border-[#D6E4FF]/45 px-4 py-2 text-[14px] font-black text-[#D6E4FF] sm:text-[15px]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#D6E4FF]" aria-hidden />
@@ -266,15 +267,15 @@ export default function MixedFutsalPage() {
                   <dd className="text-[17px] font-black leading-[1.3] text-white sm:text-[19px]">
                     {MIXED_FUTSAL_EVENT_LOCATION_LABEL}
                     <span className="mt-1 block text-[13px] font-bold text-white/70">
-                      실외 풋살장 · 2개 구장
+                      A구장 한 면 · 실내구장 챌린지
                     </span>
                   </dd>
                 </div>
               </dl>
 
               <p className="mt-6 max-w-2xl text-[16px] leading-[1.78] text-white/78 md:text-[18px]">
-                남녀가 한 팀으로 함께 뛰는 아마추어 혼성 풋살 대회입니다. 12팀이
-                조별 풀리그를 치르며, 탈락 없이 모든 팀이 5경기를 다 뜁니다.
+                남녀가 한 팀으로 함께 뛰는 아마추어 혼성 풋살 대회입니다. 8팀이
+                A조·B조로 나뉘어 조별리그와 순위결정전을 치르며, 모든 팀이 5경기를 뜁니다.
                 하루 동안 뛴 기록은 그대로 선수 카드에 남습니다.
               </p>
 
@@ -294,10 +295,10 @@ export default function MixedFutsalPage() {
                   <ArrowRight className="h-4 w-4" aria-hidden />
                 </Link>
                 <Link
-                  href="/tournaments"
+                  href={`/tournaments/${MIXED_FUTSAL_EVENT_TOURNAMENT_ID}#fixtures`}
                   className="inline-flex min-h-12 w-full items-center justify-center rounded-[var(--radius-md)] border border-white/32 px-5 text-[15px] font-bold text-white transition hover:bg-white/10 sm:w-auto"
                 >
-                  대회 전체 보기
+                  경기 대진표 보기
                 </Link>
               </div>
             </div>
@@ -319,8 +320,9 @@ export default function MixedFutsalPage() {
             <p className="max-w-3xl text-[15px] leading-[1.78] text-[#526277] sm:text-[16px]">
               {MIXED_FUTSAL_EVENT_DATE_FULL_LABEL} {MIXED_FUTSAL_EVENT_TIME_LABEL}에{" "}
               {MIXED_FUTSAL_EVENT_LOCATION_FULL_LABEL}에서 열립니다.{" "}
-              {MIXED_FUTSAL_EVENT_VENUE_NOTE} 12팀이 {MIXED_FUTSAL_GROUP_LABEL}으로 나뉘어
-              하루 동안 30경기를 치릅니다.
+              {MIXED_FUTSAL_EVENT_VENUE_NOTE} 8팀이 {MIXED_FUTSAL_GROUP_LABEL}으로 나뉘어
+              조별리그와 순위결정전을 포함해 총 20경기를 치릅니다. 경기 시작 간격은 20분이며,
+              출전팀은 자기 경기 5분 전까지 A구장 앞에 집합해 장비 확인을 받습니다.
             </p>
           </div>
 
@@ -373,7 +375,7 @@ export default function MixedFutsalPage() {
                 {MIXED_FUTSAL_EVENT_TAGLINE}
               </h2>
               <p className="mt-5 text-[15px] leading-[1.78] text-[#526277] sm:text-[16px]">
-                이기는 팀만 남는 대회가 아니라, 참가한 12팀 모두가 하루를 끝까지
+                이기는 팀만 남는 대회가 아니라, 참가한 8팀 모두가 하루를 끝까지
                 뛰는 대회를 만들었습니다. 실력과 경력이 달라도 같은 코트에서
                 함께 뛸 수 있도록 방식과 규정을 설계했습니다.
               </p>
@@ -406,13 +408,13 @@ export default function MixedFutsalPage() {
             <div>
               <p className="fg-label mb-3 text-[11px] text-[#D6E4FF]">TOURNAMENT FORMAT</p>
               <h2 className="text-[27px] font-black leading-[1.18] text-white sm:text-[42px] sm:leading-tight">
-                탈락도 토너먼트도 없이,
+                조별리그와 순위결정전,
                 <br />모든 팀이 5경기를 뜁니다.
               </h2>
               <p className="mt-5 text-[15px] leading-[1.78] text-white/74 sm:text-[16px]">
-                12팀을 {MIXED_FUTSAL_GROUP_LABEL}으로 나눠 조별 풀리그를 진행합니다.
-                같은 조 6팀이 서로 한 번씩 맞붙어 팀당 5경기를 치르며, 별도의
-                순위결정 토너먼트 없이 리그 성적으로 순위를 가립니다.
+                8팀을 {MIXED_FUTSAL_GROUP_LABEL}으로 나눠 조별리그를 진행합니다.
+                팀당 조별리그 3경기 뒤 순위결정전 2경기를 치러 총 5경기를 보장합니다.
+                모든 경기는 A구장 한 면에서 20분 간격으로 진행됩니다.
               </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 <div className="border border-white/16 bg-white/[0.06] px-4 py-4">
@@ -504,14 +506,14 @@ export default function MixedFutsalPage() {
             <div>
               <p className="fg-label mb-3 text-[11px] text-[#0047AB]">GROUND CHALLENGE</p>
               <h2 className="text-[27px] font-black leading-[1.18] sm:text-[42px] sm:leading-tight">
-                리그가 끝나면
+                경기가 진행되는 동안
                 <br />
-                챌린지가 시작됩니다.
+                실내 챌린지도 함께 열립니다.
               </h2>
               <p className="mt-5 max-w-2xl text-[15px] leading-[1.78] text-[#526277] sm:text-[16px]">
                 {MIXED_FUTSAL_SIDE_EVENT_LABEL}는 {MIXED_FUTSAL_SIDE_EVENT_TIMING_LABEL}에
-                진행하는 부대 이벤트입니다. 조별 리그를 모두 마친 뒤, 참가팀
-                모두가 함께 기록을 남길 수 있습니다.
+                실내구장에서 운영하는 부대 이벤트입니다. 다음 경기 출전팀은 챌린지에
+                호출하지 않고 A구장 앞에서 장비 확인과 경기 준비를 합니다.
               </p>
 
               <div className="mt-7 grid gap-3 sm:grid-cols-2">
@@ -550,9 +552,9 @@ export default function MixedFutsalPage() {
               </h2>
               <p className="mt-5 text-[15px] leading-[1.78] text-[#526277] sm:text-[16px]">
                 참가자가 현장에서 바로 이해할 수 있도록 경기 운영 기준과 참가
-                규정을 한 페이지에 정리했습니다. 경기 시간·교체·대진 순번 등
-                세부 운영은 참가팀 확정 후 전달되는 대회 안내를 기준으로
-                적용합니다.
+                규정과 현장 운영 기준을 한 페이지에 정리했습니다. 경기 슬롯은 20분이며
+                경기 12분, 교대 3분, 장비 점검·준비 5분으로 운영합니다. 양 팀은 경기
+                시작 5분 전까지 A구장 앞에 모여주세요.
               </p>
             </div>
 
