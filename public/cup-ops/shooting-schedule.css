@@ -36,7 +36,7 @@
 }
 
 .guaranteed-coverage-grid,
-.sponsor-shoot-window-grid,
+.capture-window-grid,
 .knockout-coverage-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -44,7 +44,7 @@
 }
 
 .guaranteed-coverage-card,
-.sponsor-shoot-window,
+.capture-window,
 .knockout-coverage-card {
   min-width: 0;
   padding: 15px;
@@ -53,7 +53,7 @@
 }
 
 .guaranteed-coverage-card > header,
-.sponsor-shoot-window > header {
+.capture-window > header {
   display: flex;
   align-items: start;
   justify-content: space-between;
@@ -61,7 +61,7 @@
 }
 
 .guaranteed-coverage-card > header > span,
-.sponsor-shoot-window time,
+.capture-window time,
 .knockout-coverage-card time {
   color: var(--blue);
   font-size: .7rem;
@@ -78,7 +78,7 @@
 }
 
 .guaranteed-coverage-card h5,
-.sponsor-shoot-window h6,
+.capture-window h6,
 .knockout-coverage-card h6 {
   margin: 10px 0 8px;
   font-size: .96rem;
@@ -181,25 +181,30 @@
   font-size: .75rem;
 }
 
-.sponsor-shooting-phase {
+.event-capture-phase {
   border-color: #c7d7ff;
   background: #f4f7ff;
 }
 
-.sponsor-shoot-window-grid {
+.capture-window-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.sponsor-shoot-window {
+.capture-window {
   background: #fff;
 }
 
-.sponsor-shoot-window.instant-window {
+.capture-window.instant-window {
   border-color: #edc58b;
   background: #fff9f0;
 }
 
-.sponsor-shoot-window small {
+.capture-window.challenge-window {
+  border-color: #b8dfce;
+  background: #f4fbf7;
+}
+
+.capture-window small {
   display: block;
   margin-top: 8px;
   color: #63718a;
@@ -207,29 +212,25 @@
   line-height: 1.5;
 }
 
-.sponsor-shoot-window > header > span {
+.capture-window > header > span {
   color: #6b7890;
   font-size: .66rem;
   font-weight: 700;
 }
 
-.sponsor-shoot-window h6 {
+.capture-window h6 {
   margin: 8px 0 4px;
   color: var(--deep);
   font-size: .875rem;
 }
 
-.sponsor-shoot-window p,
+.capture-window p,
 .knockout-coverage-card p {
   color: var(--muted);
   font-size: .74rem;
   line-height: 1.6;
 }
 
-.sponsor-shoot-window.buffer-window {
-  border-style: dashed;
-  background: #fcfcfd;
-}
 
 .knockout-coverage-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -262,7 +263,7 @@
 
 @media (max-width: 900px) {
   .guaranteed-coverage-grid,
-  .sponsor-shoot-window-grid,
+  .capture-window-grid,
   .knockout-coverage-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -289,20 +290,20 @@
   }
 
   .guaranteed-coverage-grid,
-  .sponsor-shoot-window-grid,
+  .capture-window-grid,
   .knockout-coverage-grid {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
 
   .guaranteed-coverage-card,
-  .sponsor-shoot-window,
+  .capture-window,
   .knockout-coverage-card {
     padding: 11px 9px;
   }
 
   .guaranteed-coverage-card > header > span,
-  .sponsor-shoot-window time,
+  .capture-window time,
   .knockout-coverage-card time {
     font-size: .61rem;
   }
@@ -313,7 +314,7 @@
   }
 
   .guaranteed-coverage-card h5,
-  .sponsor-shoot-window h6 {
+  .capture-window h6 {
     font-size: .82rem;
   }
 
@@ -341,7 +342,7 @@
   }
 
   .shooting-phase-title p,
-  .sponsor-shoot-window p,
+  .capture-window p,
   .knockout-coverage-card p {
     font-size: .68rem;
   }
@@ -364,7 +365,7 @@
   .camera-run-sheet,
   .shooting-phase,
   .guaranteed-coverage-card,
-  .sponsor-shoot-window,
+  .capture-window,
   .knockout-coverage-card {
     break-inside: avoid;
   }
