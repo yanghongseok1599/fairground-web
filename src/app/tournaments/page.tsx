@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useDataStore } from "@/stores/dataStore";
 import type { Tournament } from "@/types";
+import { getTournamentDisplayName } from "@/features/tournaments/display-name";
 import { Calendar, MapPin, ArrowRight } from "lucide-react";
 
 const statusLabel: Record<string, string> = { upcoming: "예정", ongoing: "진행중", completed: "종료" };
@@ -68,7 +69,7 @@ export default function TournamentsPage() {
                         className="text-xl font-bold mb-3 leading-tight flex-1"
                         style={{ fontFamily: "var(--font-outfit)", color: "#0D1B2A", letterSpacing: "-0.5px" }}
                       >
-                        {t.name}
+                        {getTournamentDisplayName(t)}
                       </h3>
                       <div className="space-y-1.5 mt-auto">
                         <div className="flex items-center gap-2 text-xs" style={{ color: "#627D98" }}>

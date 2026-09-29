@@ -6,6 +6,7 @@ import { useDataStore } from "@/stores/dataStore";
 import { MatchCard } from "@/components/match-card";
 import { StandingsTable } from "@/components/standings-table";
 import type { Tournament, Match, TeamStanding } from "@/types";
+import { getTournamentDisplayName } from "@/features/tournaments/display-name";
 import { Calendar, MapPin, Trophy } from "lucide-react";
 
 export default function TournamentDetailPage() {
@@ -64,7 +65,7 @@ export default function TournamentDetailPage() {
             Tournament
           </p>
           <h1 className="font-black leading-none mb-4" style={{ fontFamily: "var(--font-outfit)", fontSize: "clamp(28px, 5vw, 56px)", letterSpacing: "-2px", color: "#FAFCFF" }}>
-            {tournament.name}
+            {getTournamentDisplayName(tournament)}
           </h1>
           <div className="flex flex-wrap gap-4 text-sm" style={{ color: "#627D98" }}>
             <div className="flex items-center gap-1.5"><Calendar className="h-4 w-4" />{tournament.date}</div>
