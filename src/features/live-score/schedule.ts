@@ -1,4 +1,6 @@
 import type { LiveMatch, Match, Tournament } from "@/types";
+export { compareScheduledMatches as compareMatchOrder, scheduledMatchTime } from "../../lib/match-schedule.ts";
+import { compareScheduledMatches as compareMatchOrder } from "../../lib/match-schedule.ts";
 
 export type ScoreboardMatch = Match & {
   createdAt: number;
@@ -14,12 +16,6 @@ export interface UpcomingMatch {
   match: ScoreboardMatch;
   tournament: Tournament;
   groupName?: string;
-}
-
-/** Same ordering as the match readiness notification: time, round, creation, ID. */
-export function compareMatchOrder(a: ScoreboardMatch, b: ScoreboardMatch): number {
-  return (a.scheduledAt || a.createdAt) - (b.scheduledAt || b.createdAt)
-    || a.round - b.round || a.createdAt - b.createdAt || a.id.localeCompare(b.id);
 }
 
 export function selectLiveScoreboard({ matches, tournaments }: LiveScoreSnapshot) {
@@ -46,12 +42,4 @@ export function selectLiveScoreboard({ matches, tournaments }: LiveScoreSnapshot
   upcoming.sort((a, b) => compareMatchOrder(a.match, b.match));
   const recent = ordered.filter((m) => m.status === "finished").reverse().slice(0, 6);
   return { live, upcoming, recent };
-}
-
-export function scheduledMatchTime(timestamp: number): string {
-  if (!Number.isFinite(timestamp) || timestamp <= 0) return "시간 미정";
-  return new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul", month: "numeric", day: "numeric",
-    hour: "2-digit", minute: "2-digit", hour12: false,
-  }).format(timestamp);
 }

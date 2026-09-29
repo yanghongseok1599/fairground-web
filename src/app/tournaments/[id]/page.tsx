@@ -1,5 +1,7 @@
 "use client";
 
+import { compareScheduledMatches } from "@/lib/match-schedule";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useDataStore } from "@/stores/dataStore";
@@ -94,7 +96,7 @@ export default function TournamentDetailPage() {
   const refresh = useMemo(
     () => async () => {
       const ms = await store.fetchMatches(id);
-      setMatches(ms.sort((a, b) => a.round - b.round));
+      setMatches(ms.sort(compareScheduledMatches));
       await store.fetchStandings();
     },
     [id, store],
@@ -108,7 +110,7 @@ export default function TournamentDetailPage() {
         store.fetchMatches(id),
       ]);
       setTournament(t);
-      setMatches(ms.sort((a, b) => a.round - b.round));
+      setMatches(ms.sort(compareScheduledMatches));
       void store.fetchStandings();
       setLoading(false);
     };

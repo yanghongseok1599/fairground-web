@@ -1,5 +1,10 @@
 "use client";
 
+import Link from "next/link";
+import { FixtureTimingFields } from "@/components/fixture-timing-fields";
+import { DEFAULT_FIXTURE_TIMING } from "@/lib/fixture-timetable";
+import { restoreGroupAssignment, orderGroupMembers } from "@/lib/group-assignment";
+import { normalizeGroupName, groupLabel } from "@/lib/match-schedule";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Download, Eye, EyeOff, Loader2, Save, Shuffle, Trash2, Users } from "lucide-react";
 import { AdminGuard } from "@/components/admin-guard";
@@ -7,9 +12,9 @@ import { AdminPanel, AdminShell, AdminStatusPill } from "@/components/admin-shel
 import { useDataStore } from "@/stores/dataStore";
 import { setTournamentGroups } from "@/lib/admin-actions";
 import { splitIntoGroups, GROUP_NAMES } from "@/lib/tournament-groups";
-import { buildCueSheet, cueSheetToCsv, type CueSheetSettings } from "@/lib/cue-sheet";
+import { buildCueSheet, buildSavedCueSheet, cueSheetToCsv, type CueSheetSettings } from "@/lib/cue-sheet";
 import { setTournamentFixturesPublished } from "@/lib/admin-actions";
-import type { Team, Tournament, TournamentGroup } from "@/types";
+import type { Match, Team, Tournament, TournamentGroup } from "@/types";
 
 export default function AdminTournamentsPage() {
   return <AdminGuard allow={["admin"]}><AdminTournaments /></AdminGuard>;
@@ -25,11 +30,10 @@ function AdminTournaments() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
-  const [cue, setCue] = useState<CueSheetSettings>({
-    startTime: "10:00",
-    lunchStart: "13:00",
-    lunchMinutes: 50,
-  });
+  const [cue, setCue] = useState<CueSheetSettings>(DEFAULT_FIXTURE_TIMING);
+  const [savedMatches, setSavedMatches] = useState<Match[]>([]);
+  const [matchesLoading, setMatchesLoading] = useState(true);
+  const [matchesError, setMatchesError] = useState("");
   const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
@@ -52,28 +56,43 @@ function AdminTournaments() {
 
   const selected = tournaments.find((t) => t.id === tournamentId) ?? null;
 
+  const groupNames = useMemo(() => [...new Set([...GROUP_NAMES, ...(selected?.groups ?? []).map((g) => normalizeGroupName(g.name))])], [selected]);
+
   // 대회를 바꾸면 저장된 조 편성을 화면 상태로 되돌린다.
   useEffect(() => {
     if (!selected) return;
-    const next: Record<string, string> = {};
-    for (const group of selected.groups ?? []) {
-      for (const teamId of group.teamIds) next[teamId] = group.name;
-    }
-    setAssignment(next);
+    setAssignment(restoreGroupAssignment(selected.groups ?? []));
     setMessage(null);
   }, [selected]);
 
+  useEffect(() => {
+    if (!tournamentId) return;
+    let active = true;
+    setMatchesLoading(true);
+    setMatchesError("");
+    void store.fetchMatches(tournamentId, { throwOnError: true }).then((matches) => {
+      if (active) setSavedMatches(matches);
+    }).catch(() => {
+      if (active) { setSavedMatches([]); setMatchesError("저장된 경기 일정을 불러오지 못했습니다. 새로고침해주세요."); }
+    }).finally(() => { if (active) setMatchesLoading(false); });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tournamentId]);
+
   const grouped = useMemo(() => {
     const buckets: Record<string, Team[]> = {};
-    for (const name of GROUP_NAMES) buckets[name] = [];
+    for (const name of groupNames) buckets[name] = [];
     const unassigned: Team[] = [];
     for (const team of teams) {
       const name = assignment[team.id];
       if (name && buckets[name]) buckets[name].push(team);
       else unassigned.push(team);
     }
+    for (const name of groupNames) {
+      buckets[name] = orderGroupMembers(buckets[name], selected?.groups.find((g) => normalizeGroupName(g.name) === name));
+    }
     return { buckets, unassigned };
-  }, [teams, assignment]);
+  }, [teams, assignment, selected, groupNames]);
 
   const assign = (teamId: string, groupName: string | null) => {
     setAssignment((prev) => {
@@ -95,13 +114,15 @@ function AdminTournaments() {
     setSaving(true);
     setMessage(null);
     try {
-      const groups: TournamentGroup[] = GROUP_NAMES.map((name) => {
+      const existing = await store.fetchMatches(selected.id, { throwOnError: true });
+      if (existing.length > 0) throw new Error("이미 경기 일정이 생성되어 조 편성을 변경할 수 없습니다. 경기 일정을 먼저 확인해주세요.");
+      const groups: TournamentGroup[] = groupNames.map((name) => {
         const members = grouped.buckets[name] ?? [];
         // 기존 순위표는 보존한다. 조 편성만 바꾸는 화면이라 경기 결과를
         // 날려서는 안 된다.
-        const previous = selected.groups?.find((g) => g.name === name);
+        const previous = selected.groups?.find((g) => normalizeGroupName(g.name) === name);
         return {
-          id: previous?.id ?? `group-${name}`,
+          id: previous?.id ?? `group-${name.toLowerCase()}`,
           name,
           teamIds: members.map((t) => t.id),
           standings: (previous?.standings ?? []).filter((s) =>
@@ -200,9 +221,14 @@ function AdminTournaments() {
             )}
 
             <CueSheetSection
+              tournament={selected}
+              savedMatches={savedMatches}
+              matchesLoading={matchesLoading}
+              matchesError={matchesError}
+              assignmentSaved={Object.keys(assignment).length === Object.keys(restoreGroupAssignment(selected?.groups ?? [])).length && Object.entries(assignment).every(([id, name]) => restoreGroupAssignment(selected?.groups ?? [])[id] === name)}
               settings={cue}
               onChange={setCue}
-              groups={GROUP_NAMES.map((name) => ({
+              groups={groupNames.map((name) => ({
                 name,
                 teamNames: (grouped.buckets[name] ?? []).map((t) => t.name),
               })).filter((g) => g.teamNames.length > 0)}
@@ -235,7 +261,7 @@ function AdminTournaments() {
             />
 
             <div className="mt-5 grid gap-4 lg:grid-cols-3">
-              {GROUP_NAMES.map((name) => (
+              {groupNames.map((name) => (
                 <GroupColumn
                   key={name}
                   title={`${name}조`}
@@ -248,7 +274,7 @@ function AdminTournaments() {
                 teams={grouped.unassigned}
                 muted
                 actions={(team) =>
-                  GROUP_NAMES.map((name) => (
+                  groupNames.map((name) => (
                     <button
                       key={name}
                       type="button"
@@ -317,7 +343,13 @@ function GroupColumn({
 
 function CueSheetSection({
   settings, onChange, groups, published, publishing, onTogglePublish,
+  tournament, savedMatches, matchesLoading, matchesError, assignmentSaved,
 }: {
+  tournament: Tournament | null;
+  savedMatches: Match[];
+  matchesLoading: boolean;
+  matchesError: string;
+  assignmentSaved: boolean;
   settings: CueSheetSettings;
   onChange: (next: CueSheetSettings) => void;
   groups: { name: string; teamNames: string[] }[];
@@ -325,7 +357,14 @@ function CueSheetSection({
   publishing: boolean;
   onTogglePublish: () => void;
 }) {
-  const result = useMemo(() => buildCueSheet(groups, settings), [groups, settings]);
+  const stored = savedMatches.length > 0;
+  const result = useMemo(() => stored && tournament
+    ? buildSavedCueSheet(savedMatches, tournament.groups, tournament.date)
+    : buildCueSheet(groups, settings), [stored, savedMatches, tournament, groups, settings]);
+  const generationQuery = new URLSearchParams({
+    tournament: tournament?.id ?? "", startTime: settings.startTime,
+    lunchStart: settings.lunchStart, lunchMinutes: String(settings.lunchMinutes),
+  });
 
   const download = () => {
     const blob = new Blob(["﻿" + cueSheetToCsv(result.rows)], {
@@ -339,12 +378,6 @@ function CueSheetSection({
     URL.revokeObjectURL(url);
   };
 
-  const field = {
-    borderColor: "rgba(0,71,171,0.18)",
-    background: "#fff",
-    color: "var(--color-fg-ink)",
-  };
-
   return (
     <div className="mt-6 border p-4" style={{ borderColor: "rgba(0,71,171,0.14)" }}>
       <div className="flex flex-wrap items-center gap-3">
@@ -356,7 +389,7 @@ function CueSheetSection({
         <button
           type="button"
           onClick={onTogglePublish}
-          disabled={publishing}
+          disabled={publishing || matchesLoading || Boolean(matchesError) || (!published && (!stored || result.warnings.length > 0 || !assignmentSaved))}
           className="ml-auto inline-flex min-h-[38px] items-center gap-2 border px-3 text-sm font-bold disabled:opacity-60"
           style={published
             ? { borderColor: "rgba(255,59,48,0.20)", background: "rgba(255,59,48,0.08)", color: "var(--destructive)" }
@@ -373,39 +406,32 @@ function CueSheetSection({
       </p>
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
-        <label className="grid gap-1">
-          <span className="fg-label text-[10px]" style={{ color: "var(--color-fg-ink-muted)" }}>시작</span>
-          <input type="time" value={settings.startTime}
-                 onChange={(e) => onChange({ ...settings, startTime: e.target.value })}
-                 className="min-h-[38px] border px-2 text-sm font-bold" style={field} />
-        </label>
-        <label className="grid gap-1">
-          <span className="fg-label text-[10px]" style={{ color: "var(--color-fg-ink-muted)" }}>점심 시작</span>
-          <input type="time" value={settings.lunchStart}
-                 onChange={(e) => onChange({ ...settings, lunchStart: e.target.value })}
-                 className="min-h-[38px] border px-2 text-sm font-bold" style={field} />
-        </label>
-        <label className="grid gap-1">
-          <span className="fg-label text-[10px]" style={{ color: "var(--color-fg-ink-muted)" }}>점심(분)</span>
-          <input type="number" min={0} max={180} value={settings.lunchMinutes}
-                 onChange={(e) => onChange({ ...settings, lunchMinutes: Number(e.target.value) })}
-                 className="min-h-[38px] w-24 border px-2 text-sm font-bold" style={field} />
-        </label>
-        <button type="button" onClick={download} disabled={result.rows.length === 0}
+        {!stored && <FixtureTimingFields value={settings} onChange={onChange} disabled={matchesLoading || Boolean(matchesError)} />}
+        {!stored && !matchesLoading && !matchesError && assignmentSaved && result.rows.length > 0 && result.warnings.length === 0 && (
+          <Link href={`/admin/matches?${generationQuery}`} className="inline-flex min-h-[42px] items-center rounded-md bg-[var(--primary)] px-3 text-sm font-bold text-white">
+            이 큐시트로 경기 생성
+          </Link>
+        )}
+        <button type="button" onClick={download} disabled={matchesLoading || Boolean(matchesError) || result.rows.length === 0}
                 className="inline-flex min-h-[38px] items-center gap-2 border px-3 text-sm font-bold disabled:opacity-50"
                 style={{ borderColor: "rgba(0,71,171,0.18)", background: "#fff", color: "var(--primary)" }}>
           <Download className="h-4 w-4" /> CSV
         </button>
       </div>
 
-      {result.warnings.map((w) => (
+      <p role="status" className="mt-3 text-xs leading-relaxed">
+        {matchesLoading ? "저장된 경기 일정 확인 중..." : matchesError || (stored
+          ? "저장된 실제 경기 일정입니다. 경기 관리·라이브 스코어에 같은 순서와 시간이 표시됩니다."
+          : assignmentSaved ? "큐시트 미리보기입니다. ‘이 큐시트로 경기 생성’을 눌러야 일정이 저장됩니다." : "변경한 조 편성을 먼저 저장해주세요.")}
+      </p>
+      {!matchesLoading && !matchesError && result.warnings.map((w) => (
         <p key={w} className="mt-3 flex items-start gap-2 border px-3 py-2 text-xs font-bold"
            style={{ borderColor: "rgba(255,59,48,0.20)", background: "rgba(255,59,48,0.08)", color: "var(--destructive)" }}>
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{w}
         </p>
       ))}
 
-      {result.rows.length === 0 ? (
+      {matchesLoading || matchesError ? null : result.rows.length === 0 ? (
         <p className="mt-4 text-sm" style={{ color: "var(--color-fg-ink-muted)" }}>
           조 편성을 마치면 큐시트가 만들어집니다.
         </p>
@@ -430,7 +456,7 @@ function CueSheetSection({
                     <td className="border px-3 py-2 font-bold" style={{ borderColor: "rgba(13,27,42,0.08)" }}>{r.start}</td>
                     <td className="border px-3 py-2" style={{ borderColor: "rgba(13,27,42,0.08)", color: "var(--color-fg-ink-muted)" }}>{r.end}</td>
                     <td className="border px-3 py-2" style={{ borderColor: "rgba(13,27,42,0.08)" }}>{r.court}</td>
-                    <td className="border px-3 py-2" style={{ borderColor: "rgba(13,27,42,0.08)" }}>{r.groupName}조</td>
+                    <td className="border px-3 py-2" style={{ borderColor: "rgba(13,27,42,0.08)" }}>{groupLabel(r.groupName)}</td>
                     <td className="border px-3 py-2 font-bold" style={{ borderColor: "rgba(13,27,42,0.08)" }}>{r.home} vs {r.away}</td>
                   </tr>
                 ))}

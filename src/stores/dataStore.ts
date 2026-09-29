@@ -166,8 +166,8 @@ interface DataState {
   fetchTeam: (id: string, force?: boolean) => Promise<Team | null>;
   fetchTeamPlayers: (teamId: string) => Promise<Player[]>;
   fetchTournaments: () => Promise<Tournament[]>;
-  fetchTournament: (id: string) => Promise<Tournament | null>;
-  fetchMatches: (tournamentId: string) => Promise<Match[]>;
+  fetchTournament: (id: string, options?: { refresh?: boolean }) => Promise<Tournament | null>;
+  fetchMatches: (tournamentId: string, options?: { throwOnError?: boolean }) => Promise<Match[]>;
   fetchMatch: (tournamentId: string, matchId: string) => Promise<Match | null>;
   fetchStandings: () => Promise<void>;
   subscribeLiveMatches: () => () => void;
@@ -184,6 +184,7 @@ interface DataState {
   relegateTeam: (teamId: string) => Promise<void>;              // 시즌 하위 2팀 → 한 단계 아래
   createTournament: (tournament: Omit<Tournament, "id">) => Promise<string>;
   createMatch: (tournamentId: string, match: Omit<Match, "id">) => Promise<string>;
+  createMatches: (tournamentId: string, matches: Array<Omit<Match, "id">>) => Promise<Match[]>;
   startMatch: (tournamentId: string, matchId: string) => Promise<void>;
   pauseMatch: (matchId: string) => Promise<void>;
   resumeMatch: (matchId: string) => Promise<void>;
@@ -669,14 +670,14 @@ export const useDataStore = create<DataState>((setState, getState) => ({
   // fairground 호환 별칭. fetchTournaments 와 동일 동작.
   fetchAllTournaments: async () => getState().fetchTournaments(),
 
-  fetchTournament: async (id) => {
+  fetchTournament: async (id, options) => {
     if (isDemoMode) {
       const t = getLocalTournaments()[id] || null;
       if (t) setState((s) => ({ tournaments: { ...s.tournaments, [id]: t } }));
       return t;
     }
     const cached = getState().tournaments[id];
-    if (cached) return cached;
+    if (cached && !options?.refresh) return cached;
     const { data, error } = await supabase.from("tournaments").select("*").eq("id", id).maybeSingle();
     if (error) { console.error("[dataStore] fetchTournament:", error.message); return null; }
     if (!data) return null;
@@ -685,14 +686,14 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     return tournament;
   },
 
-  fetchMatches: async (tournamentId) => {
+  fetchMatches: async (tournamentId, options) => {
     if (isDemoMode) {
       const all = getLocalMatches();
       const tMatches = all[tournamentId] || {};
       return Object.entries(tMatches).map(([id, m]) => ({ ...m, id, events: eventsToArray(m.events) }));
     }
     const { data, error } = await supabase.from("matches").select("*").eq("tournament_id", tournamentId);
-    if (error) { console.error("[dataStore] fetchMatches:", error.message); return []; }
+    if (error) { console.error("[dataStore] fetchMatches:", error.message); if (options?.throwOnError) throw new Error(error.message); return []; }
     return Promise.all((data ?? []).map(async (row) => rowToMatch(row, await fetchEvents(row.id))));
   },
 
@@ -923,6 +924,23 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     const created = rowToTournament(data);
     setState((s) => ({ tournaments: { ...s.tournaments, [created.id]: created } }));
     return created.id;
+  },
+
+  createMatches: async (tournamentId, matches) => {
+    if (matches.length === 0) return [];
+    if (isDemoMode) {
+      const all = getLocalMatches();
+      const created = matches.map((match) => ({ ...match, tournamentId, id: generateId() }));
+      if (!all[tournamentId]) all[tournamentId] = {};
+      for (const match of created) all[tournamentId][match.id] = match;
+      saveLocalMatches(all);
+      return created;
+    }
+    // One INSERT is atomic: a failure cannot leave a half-created fixture list.
+    const { data, error } = await supabase.from("matches")
+      .insert(matches.map((match) => matchToInsert({ ...match, tournamentId }))).select("*");
+    if (error || !data) throw new Error(error?.message ?? "경기 생성에 실패했습니다.");
+    return data.map((row) => rowToMatch(row, []));
   },
 
   createMatch: async (tournamentId, match) => {

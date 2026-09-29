@@ -44,18 +44,19 @@ test("점심 시간에 걸치는 경기는 점심 뒤로 밀린다", () => {
   assert.equal(a.filter((r) => r.start >= "13:00" && r.start < "13:50").length, 0);
 });
 
-test("홀수 팀 조는 부전승 처리가 필요하다고 알린다", () => {
+test("홀수 팀은 가상 부전승을 제외한 실제 경기만 생성한다", () => {
   const { rows, warnings } = buildCueSheet(
     [{ name: "A", teamNames: ["1", "2", "3", "4", "5"] }], base,
   );
-  assert.equal(rows.length, 0);
-  assert.match(warnings[0], /홀수/);
+  assert.equal(rows.length, 10);
+  assert.equal(warnings.length, 0);
+  assert.equal(new Set(rows.map((r) => [r.home, r.away].sort().join(":"))).size, 10);
 });
 
 test("시작 시각 형식이 틀리면 빈 결과와 경고", () => {
   const { rows, warnings } = buildCueSheet(groups, { ...base, startTime: "열시" });
   assert.equal(rows.length, 0);
-  assert.match(warnings[0], /시작 시각/);
+  assert.match(warnings[0], /시각 형식/);
 });
 
 test("CSV 는 쉼표·따옴표가 든 팀명을 escape 한다", () => {

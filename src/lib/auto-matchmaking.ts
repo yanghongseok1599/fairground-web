@@ -1,4 +1,5 @@
 import type { GroupStanding, Match, TournamentGroup } from "@/types";
+import { buildFixtureTimetable, fixtureTimestamp, type FixtureTiming } from "./fixture-timetable.ts";
 
 export interface AutoMatchTeam {
   id: string;
@@ -55,40 +56,30 @@ export function buildGroupRoundRobinMatches(
   groups: TournamentGroup[],
   teams: AutoMatchTeam[],
   tournamentId: string,
-  startRound = 1,
+  schedule: FixtureTiming & { date: string; startRound?: number },
 ): Array<Omit<Match, "id">> {
   const teamMap = new Map(teams.map((team) => [team.id, team]));
-  const matches: Array<Omit<Match, "id">> = [];
-
+  const seen = new Set<string>();
   for (const group of groups) {
-    let round = startRound;
-    for (let i = 0; i < group.teamIds.length; i += 1) {
-      for (let j = i + 1; j < group.teamIds.length; j += 1) {
-        const homeTeamId = group.teamIds[i];
-        const awayTeamId = group.teamIds[j];
-        const homeTeam = teamMap.get(homeTeamId);
-        const awayTeam = teamMap.get(awayTeamId);
-        if (!homeTeam || !awayTeam) continue;
-        matches.push({
-          tournamentId,
-          groupId: group.id,
-          round,
-          homeTeamId,
-          awayTeamId,
-          homeTeamName: homeTeam.name,
-          awayTeamName: awayTeam.name,
-          homeScore: 0,
-          awayScore: 0,
-          status: "scheduled",
-          scheduledAt: Date.now(),
-          events: [],
-        });
-        round += 1;
-      }
+    for (const id of group.teamIds) {
+      if (!teamMap.has(id)) throw new Error("조 편성에 포함된 팀을 찾을 수 없습니다. 승인 상태를 확인해주세요.");
+      if (seen.has(id)) throw new Error("같은 팀이 여러 조에 중복 편성되어 있습니다.");
+      seen.add(id);
     }
   }
-
-  return matches;
+  const startRound = schedule.startRound ?? 1;
+  if (!Number.isInteger(startRound) || startRound < 1) throw new Error("시작 경기 번호를 확인해주세요.");
+  return groups.flatMap((group) => buildFixtureTimetable(group.teamIds.length, schedule).map((fixture) => {
+    const home = teamMap.get(group.teamIds[fixture.home - 1])!;
+    const away = teamMap.get(group.teamIds[fixture.away - 1])!;
+    return {
+      tournamentId, groupId: group.id, round: startRound + fixture.order - 1,
+      homeTeamId: home.id, awayTeamId: away.id,
+      homeTeamName: home.name, awayTeamName: away.name,
+      homeScore: 0, awayScore: 0, status: "scheduled" as const,
+      scheduledAt: fixtureTimestamp(schedule.date, fixture.startMinute), events: [],
+    };
+  }));
 }
 
 export function recommendGroupCount(teamCount: number): number {

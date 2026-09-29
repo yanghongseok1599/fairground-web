@@ -18,16 +18,16 @@ assert.deepEqual(groups[1].teamIds, ["t2", "t3", "t6"]);
 assert.equal(groups[0].standings[0].teamName, "A");
 assert.equal(groups[0].standings[0].points, 0);
 
-const matches = buildGroupRoundRobinMatches(groups, teams, "tour1", 7);
+const matches = buildGroupRoundRobinMatches(groups, teams, "tour1", { date: "2026-10-03", startTime: "10:00", lunchStart: "", lunchMinutes: 0, startRound: 7 });
 assert.equal(matches.length, 6);
 assert.deepEqual(
   matches.map((m) => `${m.groupId}:${m.round}:${m.homeTeamName}-${m.awayTeamName}`),
   [
     "group-a:7:A-D",
-    "group-a:8:A-E",
+    "group-a:8:E-A",
     "group-a:9:D-E",
     "group-b:7:B-C",
-    "group-b:8:B-F",
+    "group-b:8:F-B",
     "group-b:9:C-F",
   ]
 );

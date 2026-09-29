@@ -26,6 +26,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { DEFAULT_FIXTURE_TIMING, clockMinutes, fixtureTimestamp, type FixtureTiming } from "@/lib/fixture-timetable";
+import { FixtureTimingFields } from "@/components/fixture-timing-fields";
+import { compareScheduledMatches, groupLabel, scheduledMatchTime } from "@/lib/match-schedule";
 import { Plus, Circle, Wand2 } from "lucide-react";
 import type { Tournament, Match, Team, MatchLineupEntry } from "@/types";
 import { buildAutoGroups, buildGroupRoundRobinMatches, recommendGroupCount } from "@/lib/auto-matchmaking";
@@ -75,6 +78,7 @@ function AdminMatches() {
   const [newHomeTeamId, setNewHomeTeamId] = useState("");
   const [newAwayTeamId, setNewAwayTeamId] = useState("");
   const [newRound, setNewRound] = useState("1");
+  const [newMatchTime, setNewMatchTime] = useState("10:00");
   const [creating, setCreating] = useState(false);
   const [matchMessage, setMatchMessage] = useState("");
 
@@ -85,6 +89,7 @@ function AdminMatches() {
   const [autoStartRound, setAutoStartRound] = useState("1");
   const [autoGenerating, setAutoGenerating] = useState(false);
   const [autoMessage, setAutoMessage] = useState("");
+  const [autoTiming, setAutoTiming] = useState<FixtureTiming>(DEFAULT_FIXTURE_TIMING);
   // 대진 모드: group=조 편성(승점 시드) / rest=휴식 최적 단일 풀리그(연속참가 시드).
   const [autoMode, setAutoMode] = useState<"group" | "rest">("group");
   const [restPreview, setRestPreview] = useState<
@@ -92,6 +97,16 @@ function AdminMatches() {
   >(null);
 
   useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    if (query.get("tournament")) {
+      setAutoTournamentId(query.get("tournament")!);
+      setAutoTiming({
+        startTime: query.get("startTime") ?? DEFAULT_FIXTURE_TIMING.startTime,
+        lunchStart: query.get("lunchStart") ?? DEFAULT_FIXTURE_TIMING.lunchStart,
+        lunchMinutes: Number(query.get("lunchMinutes") ?? DEFAULT_FIXTURE_TIMING.lunchMinutes),
+      });
+      setAutoDialogOpen(true);
+    }
     let inFlight = false;
     const load = async () => {
       if (inFlight) return;
@@ -254,6 +269,9 @@ function AdminMatches() {
     setCreating(true);
     setMatchMessage("");
     try {
+      const tournament = tournaments.find((t) => t.id === newTournamentId);
+      if (!tournament) throw new Error("대회를 선택해주세요.");
+      const scheduledAt = fixtureTimestamp(tournament.date, clockMinutes(newMatchTime));
       const homeTeam = teams[newHomeTeamId];
       const awayTeam = teams[newAwayTeamId];
       const matchId = await store.createMatch(newTournamentId, {
@@ -266,7 +284,7 @@ function AdminMatches() {
         homeScore: 0,
         awayScore: 0,
         status: "scheduled",
-        scheduledAt: Date.now(),
+        scheduledAt,
         events: [],
       });
 
@@ -286,7 +304,7 @@ function AdminMatches() {
             homeScore: 0,
             awayScore: 0,
             status: "scheduled",
-            scheduledAt: Date.now(),
+            scheduledAt,
             events: [],
           },
         ],
@@ -331,7 +349,7 @@ function AdminMatches() {
   const recommendedAutoGroupCount = recommendGroupCount(approvedTeamList.length);
 
   const handleAutoGenerate = async () => {
-    if (!autoTournamentId) return;
+    if (!autoTournamentId || autoGenerating) return;
     setAutoMessage("");
     const eligibleTeams = approvedTeamList.map((team) => ({
       id: team.id,
@@ -354,12 +372,20 @@ function AdminMatches() {
     setAutoGenerating(true);
     setRestPreview(null);
     try {
+      const current = await store.fetchTournament(autoTournamentId, { refresh: true });
+      if (!current) throw new Error("대회를 찾을 수 없습니다.");
+      const existing = await store.fetchMatches(autoTournamentId, { throwOnError: true });
+      if (existing.length > 0) {
+        throw new Error("이미 생성된 경기가 있습니다. 기존 대진을 확인해주세요. 자동 생성으로 조 편성이나 경기 순서를 덮어쓰지 않습니다.");
+      }
       const startRound = parseInt(autoStartRound, 10) || 1;
+      const schedule = { ...autoTiming, date: current.date, startRound };
       let groups: ReturnType<typeof buildAutoGroups>;
       let generatedMatches: Array<Omit<Match, "id">>;
 
       if (autoMode === "rest") {
         // 연속참가 시드 배정 → 휴식 최적 단일 풀리그(1개 조).
+        if (current.groups.length > 0) throw new Error("저장된 조 편성이 있습니다. 조 편성 방식으로 기존 대진을 생성해주세요.");
         groups = buildAutoGroups(eligibleTeams, 1);
         const restTeams = approvedTeamList.map((team) => ({
           id: team.id,
@@ -367,27 +393,16 @@ function AdminMatches() {
           participationStreak: team.participationStreak ?? 0,
         }));
         const built = buildRestOptimizedMatches(restTeams, autoTournamentId, { startRound });
-        generatedMatches = built.matches;
+        groups[0].teamIds = [...built.assignments].sort((a, b) => a.seed - b.seed).map((a) => a.team.id);
+        generatedMatches = buildGroupRoundRobinMatches(groups, eligibleTeams, autoTournamentId, schedule);
         setRestPreview(built.assignments);
       } else {
         const groupCount = Math.max(1, Math.min(parseInt(autoGroupCount, 10) || recommendedAutoGroupCount, eligibleTeams.length));
-        groups = buildAutoGroups(eligibleTeams, groupCount);
-        generatedMatches = buildGroupRoundRobinMatches(groups, eligibleTeams, autoTournamentId, startRound);
+        groups = current.groups.length > 0 ? current.groups : buildAutoGroups(eligibleTeams, groupCount);
+        generatedMatches = buildGroupRoundRobinMatches(groups, eligibleTeams, autoTournamentId, schedule);
       }
-      const existingMatches = matchesByTournament[autoTournamentId] || [];
-      const existingPairKeys = new Set(
-        existingMatches.map((match) => [match.homeTeamId, match.awayTeamId].sort().join(":"))
-      );
-      const matchesToCreate = generatedMatches.filter(
-        (match) => !existingPairKeys.has([match.homeTeamId, match.awayTeamId].sort().join(":"))
-      );
-
-      await setTournamentGroups(autoTournamentId, groups);
-      const createdMatches: Match[] = [];
-      for (const match of matchesToCreate) {
-        const matchId = await store.createMatch(autoTournamentId, match);
-        createdMatches.push({ ...match, id: matchId });
-      }
+      if (current.groups.length === 0) await setTournamentGroups(autoTournamentId, groups);
+      const createdMatches = await store.createMatches(autoTournamentId, generatedMatches);
 
       setTournaments((prev) => prev.map((tournament) => tournament.id === autoTournamentId ? { ...tournament, groups } : tournament));
       setMatchesByTournament((prev) => ({
@@ -449,7 +464,7 @@ function AdminMatches() {
           tournaments.map((tournament) => {
             const matches = (matchesByTournament[tournament.id] || []).filter(
               (m) => filter === "all" || m.status === filter,
-            );
+            ).sort(compareScheduledMatches);
 
             return (
               <Card key={tournament.id}>
@@ -517,10 +532,12 @@ function AdminMatches() {
                             </span>
                           </div>
                           <div
-                            className="mt-0.5 flex items-center gap-2 text-[10px]"
+                            className="mt-0.5 flex flex-wrap items-center gap-2 text-xs"
                             style={{ color: "var(--muted-foreground)" }}
                           >
-                            <span>R{match.round}</span>
+                            <span>{scheduledMatchTime(match.scheduledAt)}</span>
+                            {tournament.groups.find((g) => g.id === match.groupId) && <span>{groupLabel(tournament.groups.find((g) => g.id === match.groupId)!.name)}</span>}
+                            <span>경기 {match.round}</span>
                           </div>
                           {match.status === "scheduled" && (() => {
                             const entries = lineupsByMatch[match.id] ?? [];
@@ -698,7 +715,7 @@ function AdminMatches() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">조 개수</label>
-                    <Select value={autoGroupCount} onValueChange={setAutoGroupCount} disabled={autoMode === "rest"}>
+                    <Select value={autoGroupCount} onValueChange={setAutoGroupCount} disabled={autoMode === "rest" || Boolean(selectedAutoTournament?.groups.length)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -712,7 +729,7 @@ function AdminMatches() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">시작 라운드</label>
+                    <label className="text-sm font-medium">시작 경기 번호</label>
                     <Select value={autoStartRound} onValueChange={setAutoStartRound}>
                       <SelectTrigger>
                         <SelectValue />
@@ -728,10 +745,13 @@ function AdminMatches() {
                   </div>
                 </div>
 
+                <FixtureTimingFields value={autoTiming} onChange={setAutoTiming} disabled={autoGenerating} />
                 <div className="rounded-lg border p-3 text-xs" style={{ color: "var(--muted-foreground)" }}>
                   {autoMode === "rest"
                     ? `승인된 신청팀 ${approvedTeamList.length}개를 연속참가 기준으로 시드 배정합니다. 연속참가가 길수록 휴식이 많은 시드를 우선 배정하고, 써클 방식 단일 풀리그(피벗 고정) 예정 경기를 생성합니다. 짝수 팀만 가능.`
-                    : `승인된 신청팀 ${approvedTeamList.length}개를 시즌 승점 기준으로 시드 배정하고, 지그재그 방식으로 조를 나눈 뒤 조별 풀리그 예정 경기를 생성합니다.`}
+                    : selectedAutoTournament?.groups.length
+                      ? "저장된 조 편성과 시드 순서로 큐시트와 동일한 경기를 생성합니다. 조별 전용 구장에서 동시에 시작하며 경기 12분·전환 8분을 적용합니다."
+                      : `승인된 신청팀 ${approvedTeamList.length}개를 조로 나누고, 큐시트 순서대로 경기 시간까지 생성합니다.`}
                   {selectedAutoTournament && (
                     <div className="mt-2 font-medium" style={{ color: "var(--foreground)" }}>
                       대상: {selectedAutoTournament.name}
@@ -842,6 +862,9 @@ function AdminMatches() {
                   </Select>
                 </div>
 
+                <label className="grid gap-2 text-sm font-medium">시작 시간 · 대회 날짜 / 한국 시간
+                  <Input type="time" value={newMatchTime} onChange={(e) => setNewMatchTime(e.target.value)} />
+                </label>
                 <Separator />
 
                 <div className="space-y-2">
