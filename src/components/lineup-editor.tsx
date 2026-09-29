@@ -1,5 +1,7 @@
 "use client";
 
+import { jerseyNumberText, lineupJerseyNumberText } from "@/lib/jersey-number";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import type { MatchLineupEntry, MatchStatus, Player } from "@/types";
@@ -128,6 +130,7 @@ export function LineupEditor({
       store.upsertLineupEntry(matchId, teamId, playerId, {
         isStarter: asStarter,
         jerseyNumber: p?.number ?? undefined,
+        jerseyNumberLabel: p?.numberLabel,
       })
     );
   };
@@ -279,9 +282,9 @@ export function LineupEditor({
                       >
                         <span
                           className="inline-flex h-6 min-w-[28px] items-center justify-center rounded bg-black/5 px-1 text-[11px] font-bold tabular-nums"
-                          aria-label={`등번호 ${p.number}`}
+                          aria-label={`등번호 ${jerseyNumberText(p)}`}
                         >
-                          {p.number}
+                          {jerseyNumberText(p)}
                         </span>
                         <span className="flex-1 truncate text-sm">{p.name}</span>
                         <span
@@ -413,7 +416,7 @@ export function LineupEditor({
                         />
                         {entry.jerseyNumber != null && (
                           <span className="inline-flex h-6 min-w-[28px] items-center justify-center rounded bg-black/10 px-1 text-[11px] font-bold tabular-nums">
-                            {entry.jerseyNumber}
+                            {lineupJerseyNumberText(entry)}
                           </span>
                         )}
                         <span className="flex-1 truncate text-sm font-medium">
@@ -500,7 +503,7 @@ export function LineupEditor({
                         >
                           {entry.jerseyNumber != null && (
                             <span className="inline-flex h-6 min-w-[28px] items-center justify-center rounded bg-black/5 px-1 text-[11px] font-bold tabular-nums">
-                              {entry.jerseyNumber}
+                              {lineupJerseyNumberText(entry)}
                             </span>
                           )}
                           <span className="flex-1 truncate text-sm">

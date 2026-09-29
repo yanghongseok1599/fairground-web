@@ -14,7 +14,7 @@ const src = readFileSync(
 
 test("등번호 0(미지정)은 맨 뒤로 정렬된다", () => {
   assert.match(src, /const jerseyOrder = \(p: Player\) =>/);
-  assert.match(src, /p\.number > 0 \? p\.number : Number\.MAX_SAFE_INTEGER/);
+  assert.match(src, /jerseyNumberOrder\(p\)/);
   assert.ok(
     !/typeof a\.number === "number" \? a\.number : Number\.MAX_SAFE_INTEGER/.test(src),
     "0 을 유효 등번호로 취급하던 옛 정렬이 남아 있으면 안 된다",

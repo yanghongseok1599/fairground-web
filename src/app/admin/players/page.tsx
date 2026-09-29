@@ -1,5 +1,7 @@
 "use client";
 
+import { jerseyNumberText } from "@/lib/jersey-number";
+
 import { useState } from "react";
 import { CheckCircle2, Loader2, Shield, XCircle } from "lucide-react";
 import { AdminGuard } from "@/components/admin-guard";
@@ -130,7 +132,7 @@ function AdminPlayers() {
                     <ApprovalPlayerPhoto key={player.id} id={player.id} name={player.name} />
                     <div>
                       <div className="fg-display text-xl font-black" style={{ color: "var(--color-fg-ink)" }}>{player.name}</div>
-                      <div className="mt-1 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>{player.position} · #{player.number || "-"} · {roleLabels[player.role]}</div>
+                      <div className="mt-1 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>{player.position} · #{jerseyNumberText(player)} · {roleLabels[player.role]}</div>
                     </div>
                   </div>
                   <div className="relative z-10 flex flex-wrap items-center gap-2">

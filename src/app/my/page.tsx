@@ -1,5 +1,7 @@
 "use client";
 
+import { jerseyNumberText } from "@/lib/jersey-number";
+
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -1491,7 +1493,7 @@ export default function MyPage() {
                   {player && (
                     <>
                       <InfoRow icon={<Hash className="w-4 h-4" />} label="이름 · 등번호"
-                        value={`${player.name} · #${player.number}`} />
+                        value={`${player.name} · #${jerseyNumberText(player)}`} />
                       <InfoRow icon={<Phone className="w-4 h-4" />} label="전화번호"
                         value={player.phone || "미입력"} />
                       <InfoRow icon={<UserRound className="w-4 h-4" />} label="성별"

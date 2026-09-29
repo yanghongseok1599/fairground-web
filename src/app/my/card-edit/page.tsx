@@ -1,5 +1,7 @@
 "use client";
 
+import { JERSEY_NUMBER_PATTERN, parseJerseyNumber, jerseyNumberText } from "@/lib/jersey-number";
+
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -111,7 +113,7 @@ function CardEditForm() {
     if (player && seededPlayerRef.current !== player.id) {
       seededPlayerRef.current = player.id;
       setName(player.name);
-      setNumber(String(player.number));
+      setNumber(jerseyNumberText(player, ""));
       setPosition(player.position);
       setTeamId(player.teamId || "");
       setNationality(player.nationality || "KOR");
@@ -252,15 +254,15 @@ function CardEditForm() {
     if (photoError) return;
     clearError();
     setFormError("");
-    if (!name.trim() || !position || !/^[1-9]\d?$/.test(number)) {
-      setFormError("이름, 포지션, 등번호(1~99)를 확인해주세요."); return;
+    if (!name.trim() || !position || !parseJerseyNumber(number)) {
+      setFormError("이름, 포지션, 등번호(0, 00, 1~99)를 확인해주세요."); return;
     }
     if (!hasPortraitConsent(player)) { setFormError("초상권 동의를 먼저 완료해주세요."); return; }
     if (bgProcessing || !draft.ready || !submission.begin()) return;
     try {
       const updates: Partial<Player> = {
         name: name.trim(),
-        number: parseInt(number, 10),
+        ...parseJerseyNumber(number)!,
         position: position as Position,
         nationality,
         photoScale,
@@ -360,7 +362,7 @@ function CardEditForm() {
     id: "preview",
     uid: "preview",
     name: name.trim() || "이름",
-    number: parseInt(number, 10) || 10,
+    ...(parseJerseyNumber(number) ?? { number: 10, numberLabel: null }),
     position: (position as Position) || "ALA",
     teamId: teamId || "",
     nationality: nationality || "KOR",
@@ -579,10 +581,11 @@ function CardEditForm() {
           <FieldLabel htmlFor="cardedit-number">등번호</FieldLabel>
           <input
             id="cardedit-number"
-            type="number"
-            placeholder="1 – 99"
-            min={1}
-            max={99}
+            type="text"
+            inputMode="numeric"
+            pattern={JERSEY_NUMBER_PATTERN}
+            maxLength={2}
+            placeholder="0, 00, 1 – 99"
             value={number}
             onChange={(e) => setNumber(e.target.value)}
             required

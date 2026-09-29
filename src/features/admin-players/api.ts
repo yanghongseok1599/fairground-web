@@ -5,12 +5,12 @@ import type { Player } from "@/types";
 import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 
 export type ApprovalPlayer = Pick<Player,
-  "id" | "name" | "number" | "position" | "role" | "isApproved" |
+  "id" | "name" | "number" | "numberLabel" | "position" | "role" | "isApproved" |
   "hasPlayerExperience" | "portraitConsentAt" | "createdAt"
 >;
 
 // Photos can contain multi-megabyte data URLs. Never include them in the list.
-export const APPROVAL_PLAYER_COLUMNS = "id,name,number,position,role,is_approved,has_player_experience,portrait_consent_at,created_at";
+export const APPROVAL_PLAYER_COLUMNS = "id,name,number,number_label,position,role,is_approved,has_player_experience,portrait_consent_at,created_at";
 export const APPROVAL_LOAD_TIMEOUT_MS = 12_000;
 
 export async function withApprovalDeadline<T>(
@@ -46,15 +46,15 @@ function demoPlayers(): Player[] {
 }
 
 export async function fetchApprovalPlayers(signal: AbortSignal): Promise<ApprovalPlayer[]> {
-  if (isDemoMode) return demoPlayers().map(({id,name,number,position,role,isApproved,hasPlayerExperience,portraitConsentAt,createdAt}) =>
-    ({id,name,number,position,role,isApproved,hasPlayerExperience,portraitConsentAt,createdAt}));
+  if (isDemoMode) return demoPlayers().map(({id,name,number,numberLabel,position,role,isApproved,hasPlayerExperience,portraitConsentAt,createdAt}) =>
+    ({id,name,number,numberLabel,position,role,isApproved,hasPlayerExperience,portraitConsentAt,createdAt}));
   return withApprovalDeadline(async (requestSignal) => {
     const { data, error } = await supabase.rpc("get_admin_profiles", undefined, { get: true })
       .select(APPROVAL_PLAYER_COLUMNS).abortSignal(requestSignal);
     if (error) throw new Error(error.message);
     if (!Array.isArray(data)) throw new Error("선수 목록 응답을 확인하지 못했습니다. 다시 시도해주세요.");
     return data.map((row) => ({
-      id: row.id, name: row.name, number: row.number, position: row.position,
+      id: row.id, name: row.name, number: row.number, numberLabel: row.number_label, position: row.position,
       role: row.role, isApproved: row.is_approved,
       hasPlayerExperience: row.has_player_experience ?? undefined,
       portraitConsentAt: row.portrait_consent_at ? new Date(row.portrait_consent_at).getTime() : undefined,

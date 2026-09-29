@@ -272,6 +272,7 @@ interface RegisterData {
 interface CreatePlayerData {
   name: string;
   number: number;
+  numberLabel?: string | null;
   position: Position;
   role?: Exclude<PlayerRole, "admin">;
   teamId: string;
@@ -452,6 +453,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
         uid,
         name: data.name,
         number: data.number,
+        numberLabel: data.numberLabel ?? null,
         position: data.position,
         teamId: existingPlayer?.teamId ?? "",
         photoUrl: data.photoUrl || existingPlayer?.photoUrl || "",
@@ -492,7 +494,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
         // Only submitted card fields: never resubmit membership, stats, badges,
         // approval, role, or a stale consent timestamp from an earlier read.
         const patch = {
-          name: player.name, number: player.number, position: player.position,
+          name: player.name, number: player.number, numberLabel: player.numberLabel, position: player.position,
           nationality: player.nationality, photoScale: player.photoScale,
           cardSkin: player.cardSkin,
           ...(data.photoUrl ? { photoUrl: data.photoUrl } : {}),
@@ -605,7 +607,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
     const state = useAuthStore.getState();
     if (!state.user || !state.player) throw new Error("로그인 정보가 없습니다. 입력을 유지한 채 다시 로그인해주세요.");
 
-    const cardFields: (keyof Player)[] = ["number", "position", "photoUrl", "profilePhotoUrl", "photoScale"];
+    const cardFields: (keyof Player)[] = ["number", "numberLabel", "position", "photoUrl", "profilePhotoUrl", "photoScale"];
     if (cardFields.some((field) => data[field] !== undefined)) {
       requirePortraitConsent(hasPortraitConsent(state.player) ? state.player : data);
     }

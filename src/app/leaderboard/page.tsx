@@ -1,5 +1,7 @@
 "use client";
 
+import { jerseyNumberText, hasJerseyNumber } from "@/lib/jersey-number";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Gauge, Shield } from "lucide-react";
@@ -249,12 +251,12 @@ export default function LeaderboardPage() {
                         <span className="truncate font-bold" style={{ color: "var(--color-fg-ink)" }}>
                           {p.name}
                         </span>
-                        {p.number > 0 && (
+                        {hasJerseyNumber(p) && (
                           <span
                             className="font-mono text-xs"
                             style={{ color: "var(--color-fg-ink-muted)" }}
                           >
-                            #{p.number}
+                            #{jerseyNumberText(p)}
                           </span>
                         )}
                       </div>

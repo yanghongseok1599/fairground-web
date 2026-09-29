@@ -24,6 +24,7 @@ export interface Player {
   uid: string;
   name: string;
   number: number;
+  numberLabel?: string | null;
   position: Position;
   teamId: string;
   teamName?: string;
@@ -270,6 +271,7 @@ export interface MatchLineupEntry {
   playerName?: string;
   isStarter: boolean;
   jerseyNumber?: number;
+  jerseyNumberLabel?: string | null;
   createdAt: number;
 }
 
@@ -394,6 +396,7 @@ export interface TeamJoinRequest {
   playerPhone?: string;
   playerPosition?: Position;
   playerNumber?: number;
+  playerNumberLabel?: string | null;
   playerGender?: Gender;
   playerBirthDate?: string;
   message?: string;
@@ -465,6 +468,7 @@ export interface SearchHitPlayer {
   name: string;
   photoUrl?: string;
   number?: number;
+  numberLabel?: string | null;
   teamId?: string;
 }
 export interface SearchResults {

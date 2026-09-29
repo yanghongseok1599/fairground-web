@@ -1,5 +1,7 @@
 "use client";
 
+import { lineupJerseyNumberText } from "@/lib/jersey-number";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -328,7 +330,7 @@ export default function CoachSubstitutionPage() {
                       : "border-gray-200 bg-white hover:border-gray-300"
                   }`}
                 >
-                  <JerseyNumber n={e.jerseyNumber} />
+                  <JerseyNumber n={lineupJerseyNumberText(e)} />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">
                     {e.playerName ?? "선수"}
                   </span>
@@ -373,7 +375,7 @@ export default function CoachSubstitutionPage() {
                       : "border-gray-200 bg-white opacity-60"
                   }`}
                 >
-                  <JerseyNumber n={e.jerseyNumber} />
+                  <JerseyNumber n={lineupJerseyNumberText(e)} />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">
                     {e.playerName ?? "선수"}
                   </span>
@@ -402,10 +404,10 @@ export default function CoachSubstitutionPage() {
   );
 }
 
-function JerseyNumber({ n }: { n?: number }) {
+function JerseyNumber({ n }: { n: string }) {
   return (
     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white">
-      {typeof n === "number" ? n : "–"}
+      {n}
     </span>
   );
 }

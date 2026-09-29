@@ -1,3 +1,4 @@
+import { lineupJerseyNumberText } from "@/lib/jersey-number";
 import type { Match, MatchLineupEntry } from "@/types";
 import { Loader2, Star } from "lucide-react";
 
@@ -78,7 +79,7 @@ function LiveLineupColumn({
                   />
                   {e.jerseyNumber != null && (
                     <span className="font-bold tabular-nums">
-                      #{e.jerseyNumber}
+                      #{lineupJerseyNumberText(e)}
                     </span>
                   )}
                   <span className="truncate">
@@ -105,7 +106,7 @@ function LiveLineupColumn({
                   >
                     {e.jerseyNumber != null && (
                       <span className="font-bold tabular-nums">
-                        #{e.jerseyNumber}
+                        #{lineupJerseyNumberText(e)}
                       </span>
                     )}
                     <span className="truncate">

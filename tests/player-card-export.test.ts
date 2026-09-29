@@ -19,3 +19,8 @@ assert.equal(JSON.stringify(players), before, "Bronze export must not change rat
 assert.throws(() => buildCardExportJobs([player("p", "missing")], []));
 assert.throws(() => buildCardExportJobs([player("p", ""), player("p", "")], []));
 console.log("player-card export paths and data preservation tests passed");
+const zeroJobs = buildCardExportJobs([
+  { ...player("zero", ""), number: 0, numberLabel: "0" },
+  { ...player("double-zero", ""), number: 0, numberLabel: "00" },
+], []);
+assert.deepEqual(zeroJobs.map((job) => job.relativePath).sort(), ["미소속/00_김철수.png", "미소속/0_김철수.png"].sort());

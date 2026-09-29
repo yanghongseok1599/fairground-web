@@ -1,3 +1,4 @@
+import { hasJerseyNumber } from "@/lib/jersey-number";
 import { hasPortraitConsent } from "@/features/portrait-consent/policy";
 import type { Player } from "@/types";
 
@@ -5,8 +6,7 @@ export function hasCompletedPlayerCardSetup(player: Player | null | undefined): 
   if (!player) return false;
   return (
     Boolean(player.name?.trim()) &&
-    Number.isFinite(player.number) &&
-    player.number > 0 &&
+    hasJerseyNumber(player) &&
     Boolean(player.position) &&
     // A photo alone is not evidence of personal consent.
     hasPortraitConsent(player)

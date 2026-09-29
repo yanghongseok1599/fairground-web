@@ -1,5 +1,7 @@
 "use client";
 
+import { jerseyNumberText } from "@/lib/jersey-number";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Download,
@@ -332,7 +334,7 @@ function AdminSkillChallenge() {
                 </h2>
                 {selectedParticipant && (
                   <div className="mt-1 text-xs font-semibold" style={{ color: "var(--color-fg-ink-muted)" }}>
-                    #{selectedParticipant.player.number || "-"} · {selectedParticipant.player.position}
+                    #{jerseyNumberText(selectedParticipant.player)} · {selectedParticipant.player.position}
                   </div>
                 )}
               </div>
@@ -553,7 +555,7 @@ function ParticipantButton({
           {participant.player.name}
         </div>
         <div className="mt-1 text-xs font-semibold" style={{ color: "var(--color-fg-ink-muted)" }}>
-          #{participant.player.number || "-"} · {participant.player.position} · {getProgressLabel(participant.record)}
+          #{jerseyNumberText(participant.player)} · {participant.player.position} · {getProgressLabel(participant.record)}
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2">

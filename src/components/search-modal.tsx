@@ -1,5 +1,7 @@
 "use client";
 
+import { jerseyNumberText } from "@/lib/jersey-number";
+
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MessageSquare, Megaphone, Users, User, Search as SearchIcon } from "lucide-react";
@@ -379,7 +381,7 @@ export function SearchModal({ open, onClose }: Props) {
                               className="ml-2 text-[11px] font-normal"
                               style={{ color: "var(--color-fg-ink-muted, #6B7280)" }}
                             >
-                              #{p.number}
+                              #{jerseyNumberText(p)}
                             </span>
                           )}
                         </div>

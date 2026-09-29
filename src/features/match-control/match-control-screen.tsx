@@ -1,5 +1,7 @@
 "use client";
 
+import { jerseyNumberText, jerseyNumberOrder } from "@/lib/jersey-number";
+
 import { useState, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -427,7 +429,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
   // 0 을 그대로 숫자로 취급하면 등번호를 아직 안 넣은 사람이 항상 맨 앞으로
   // 와서 자동 코트 배치의 1순위가 된다. 0 이하는 미지정으로 보고 뒤로 보낸다.
   const jerseyOrder = (p: Player) =>
-    typeof p.number === "number" && p.number > 0 ? p.number : Number.MAX_SAFE_INTEGER;
+    jerseyNumberOrder(p);
   const byNumber = (a: Player, b: Player) =>
     jerseyOrder(a) - jerseyOrder(b) || a.name.localeCompare(b.name, "ko");
 
@@ -665,7 +667,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                   onClick={() => handleAddAssist(p)}
                   disabled={mc.pendingAction !== null}
                 >
-                  <span className="font-bold tabular-nums">#{p.number}</span>
+                  <span className="font-bold tabular-nums">#{jerseyNumberText(p)}</span>
                   <span className="ml-1.5 truncate">{p.name}</span>
                 </Button>
               ))}
@@ -1096,7 +1098,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                       ...(!matchData.momPlayerId ? [{ value: NO_MOM_VALUE, label: "MOM 없음" }] : []),
                       ...allPlayers.map((p) => ({
                         value: p.id,
-                        label: `#${p.number} ${p.name} (${p.position}) - ${p.teamId === matchData.homeTeamId ? matchData.homeTeamName : matchData.awayTeamName}`,
+                        label: `#${jerseyNumberText(p)} ${p.name} (${p.position}) - ${p.teamId === matchData.homeTeamId ? matchData.homeTeamName : matchData.awayTeamName}`,
                       })),
                     ]}
                   />
@@ -1114,7 +1116,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                     )}
                     {allPlayers.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        #{p.number} {p.name} ({p.position}) -{" "}
+                        #{jerseyNumberText(p)} {p.name} ({p.position}) -{" "}
                         {p.teamId === matchData.homeTeamId
                           ? matchData.homeTeamName
                           : matchData.awayTeamName}
@@ -1403,7 +1405,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                     ? `교체 — ${actionTarget?.player.name} 투입: 나갈 필드 선수`
                     : `교체 — ${actionTarget?.player.name} 대신 들어올 벤치 선수`
                   : actionTarget
-                    ? `#${actionTarget.player.number} ${actionTarget.player.name}`
+                    ? `#${jerseyNumberText(actionTarget.player)} ${actionTarget.player.name}`
                     : ""}
               </DialogTitle>
             </DialogHeader>
@@ -1460,7 +1462,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                         onClick={() => handleSubstitute(p.id)}
                         disabled={subBusy || mc.pendingAction !== null}
                       >
-                        <span className="font-bold tabular-nums">#{p.number}</span>
+                        <span className="font-bold tabular-nums">#{jerseyNumberText(p)}</span>
                         <span className="ml-1.5 truncate">{p.name}</span>
                       </Button>
                     ))}
@@ -1806,7 +1808,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                       <SelectContent>
                         {allPlayers.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
-                            #{p.number} {p.name} ({p.position}) -{" "}
+                            #{jerseyNumberText(p)} {p.name} ({p.position}) -{" "}
                             {p.teamId === matchData.homeTeamId
                               ? matchData.homeTeamName
                               : matchData.awayTeamName}
@@ -1960,7 +1962,7 @@ function PlayerToken({
       aria-disabled={visualOnly || !tappable || pending}
       tabIndex={visualOnly ? -1 : undefined}
       className="flex min-w-0 flex-col items-center gap-0.5 transition disabled:cursor-default"
-      title={tappable ? `#${player.number} ${player.name}` : `#${player.number} ${player.name}`}
+      title={tappable ? `#${jerseyNumberText(player)} ${player.name}` : `#${jerseyNumberText(player)} ${player.name}`}
       aria-label={`${player.name}, 골 ${g}, 어시스트 ${a}, 경고 ${y}, 퇴장 ${r}`}
     >
       <span
@@ -1969,7 +1971,7 @@ function PlayerToken({
         }`}
         style={{ background: accent.bg, color: accent.fg, borderColor: accent.ring }}
       >
-        {player.number}
+        {jerseyNumberText(player)}
         {r > 0 ? (
           <span
             className="absolute right-0 top-0 h-3 w-2 rounded-[2px]"

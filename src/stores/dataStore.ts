@@ -361,7 +361,7 @@ interface DataState {
     matchId: string,
     teamId: string,
     playerId: string,
-    opts?: { isStarter?: boolean; jerseyNumber?: number }
+    opts?: { isStarter?: boolean; jerseyNumber?: number; jerseyNumberLabel?: string | null }
   ) => Promise<void>;
   removeLineupEntry: (matchId: string, teamId: string, playerId: string) => Promise<void>;
   setLineupStarter: (
@@ -394,6 +394,7 @@ type JoinReqRow = {
     phone: string | null;
     position: Position | null;
     number: number | null;
+    number_label: string | null;
     gender: Gender | null;
     birth_date: string | null;
   } | null;
@@ -412,6 +413,7 @@ function rowToTeamJoinRequest(r: JoinReqRow): TeamJoinRequest {
     playerPhone: profile?.phone ?? undefined,
     playerPosition: profile?.position ?? undefined,
     playerNumber: profile?.number ?? undefined,
+    playerNumberLabel: profile?.number_label,
     playerGender: profile?.gender ?? undefined,
     playerBirthDate: profile?.birth_date ?? undefined,
     message: r.message ?? undefined,
@@ -1898,6 +1900,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
           phone: profile.phone,
           position: profile.position,
           number: profile.number,
+        number_label: profile.number_label,
           gender: profile.gender as Gender | null,
           birth_date: profile.birth_date,
         } : null,
@@ -1932,6 +1935,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
         phone: profile.phone,
         position: profile.position,
         number: profile.number,
+        number_label: profile.number_label,
         gender: profile.gender as Gender | null,
         birth_date: profile.birth_date,
       } : null,
@@ -2157,7 +2161,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
         .limit(limit),
       supabase
         .from("public_player_profiles")
-        .select("id, name, photo_url, profile_photo_url, profile_photo_locked, number, team_id")
+        .select("id, name, photo_url, profile_photo_url, profile_photo_locked, number, number_label, team_id")
         .eq("is_approved", true)
         .ilike("name", pattern)
         .limit(limit),
@@ -2173,6 +2177,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       profile_photo_url: string | null;
       profile_photo_locked: boolean | null;
       number: number;
+      number_label: string | null;
       team_id: string | null;
     };
 
@@ -2199,6 +2204,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       name: r.name,
       photoUrl: r.profile_photo_locked && r.profile_photo_url ? r.profile_photo_url : r.photo_url ?? r.profile_photo_url ?? undefined,
       number: r.number,
+      numberLabel: r.number_label,
       teamId: r.team_id ?? undefined,
     }));
 
@@ -2270,7 +2276,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
   fetchMatchLineup: async (matchId) => {
     const { data, error } = await supabase
       .from("match_lineups")
-      .select("match_id, team_id, player_id, is_starter, jersey_number, created_at, profiles:player_id(name)")
+      .select("match_id, team_id, player_id, is_starter, jersey_number, jersey_number_label, created_at, profiles:player_id(name)")
       .eq("match_id", matchId)
       .order("is_starter", { ascending: false })
       .order("jersey_number", { ascending: true, nullsFirst: false });
@@ -2280,7 +2286,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     }
     type Row = {
       match_id: string; team_id: string; player_id: string;
-      is_starter: boolean; jersey_number: number | null; created_at: string;
+      is_starter: boolean; jersey_number: number | null; jersey_number_label: string | null; created_at: string;
       profiles?: { name: string } | { name: string }[] | null;
     };
     return ((data ?? []) as unknown as Row[]).map((r) => {
@@ -2292,6 +2298,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
         playerName: p?.name,
         isStarter: r.is_starter,
         jerseyNumber: r.jersey_number ?? undefined,
+        jerseyNumberLabel: r.jersey_number_label,
         createdAt: new Date(r.created_at).getTime(),
       };
     });
@@ -2305,6 +2312,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
         player_id: playerId,
         is_starter: opts?.isStarter ?? false,
         jersey_number: opts?.jerseyNumber ?? null,
+        jersey_number_label: opts?.jerseyNumberLabel ?? null,
       },
       { onConflict: "match_id,team_id,player_id" }
     );

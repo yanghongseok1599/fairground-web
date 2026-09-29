@@ -1,5 +1,7 @@
 "use client";
 
+import { jerseyNumberText } from "@/lib/jersey-number";
+
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -119,7 +121,7 @@ function ApplicantProfileCard({
               {request.playerName ?? "이름 미기재"}
             </p>
             <p className="mt-1 text-xs font-bold" style={{ color: "var(--color-fg-ink-muted)" }}>
-              {request.playerPosition ?? "-"} · #{request.playerNumber ?? "-"}
+              {request.playerPosition ?? "-"} · #{jerseyNumberText({ number: request.playerNumber, numberLabel: request.playerNumberLabel })}
             </p>
           </div>
         </div>
@@ -180,12 +182,12 @@ function MemberRow({ player, busy, onApprove, onReject, onPromote, onDemote }: {
               {getDirectorRoleLabel(player)}
             </span>
           </div>
-          <p className="mt-1 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>{player.position} · #{player.number || "-"} · {player.phone || player.email || "연락처 미등록"}</p>
+          <p className="mt-1 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>{player.position} · #{jerseyNumberText(player)} · {player.phone || player.email || "연락처 미등록"}</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             <JoinRequestInfoItem label="신청일" value={formatJoinRequestedAt(player.createdAt)} />
             <JoinRequestInfoItem label="이메일" value={player.email} />
             <JoinRequestInfoItem label="전화번호" value={player.phone} />
-            <JoinRequestInfoItem label="선수 정보" value={`${player.position} · #${player.number || "-"}`} />
+            <JoinRequestInfoItem label="선수 정보" value={`${player.position} · #${jerseyNumberText(player)}`} />
             <JoinRequestInfoItem
               label="성별 / 나이"
               value={`${player.gender ? GENDER_LABELS[player.gender] ?? player.gender : "미입력"} · ${formatAge(player.birthDate)}`}

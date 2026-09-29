@@ -62,6 +62,7 @@ export const PUBLIC_PLAYER_PROFILE_SELECT = [
   "id",
   "name",
   "number",
+  "number_label",
   "position",
   "team_id",
   "nationality",
@@ -90,7 +91,7 @@ export const PUBLIC_PLAYER_PROFILE_SELECT = [
   "personal_values",
   "bio",
   "created_at",
-].join(",") as "id,name,number,position,team_id,nationality,photo_url,profile_photo_url,profile_photo_locked,photo_scale,photo_offset_x,card_type,card_skin,card_rating,goals,assists,games,mom,badges,is_banned,ban_matches_remaining,season_yellow_cards,is_approved,role,attendance_streak,attendance_streak_best,mbti,disposition,personal_values,bio,created_at";
+].join(",") as "id,name,number,number_label,position,team_id,nationality,photo_url,profile_photo_url,profile_photo_locked,photo_scale,photo_offset_x,card_type,card_skin,card_rating,goals,assists,games,mom,badges,is_banned,ban_matches_remaining,season_yellow_cards,is_approved,role,attendance_streak,attendance_streak_best,mbti,disposition,personal_values,bio,created_at";
 
 export function rowToPublicPlayer(r: PublicProfileRow): Player {
   return {
@@ -98,6 +99,7 @@ export function rowToPublicPlayer(r: PublicProfileRow): Player {
     uid: r.id,
     name: r.name,
     number: r.number,
+    numberLabel: r.number_label,
     position: r.position,
     teamId: r.team_id ?? "",
     nationality: r.nationality,
@@ -156,6 +158,7 @@ export function playerToInsert(p: Player): ProfileInsert {
     id: p.id,
     name: p.name,
     number: p.number,
+    number_label: p.numberLabel ?? null,
     position: p.position,
     team_id: p.teamId || null,
     nationality: p.nationality,
@@ -197,7 +200,12 @@ export function playerToInsert(p: Player): ProfileInsert {
 export function playerPatchToRow(d: Partial<Player>): ProfileUpdate {
   const u: ProfileUpdate = {};
   if (d.name !== undefined) u.name = d.name;
-  if (d.number !== undefined) u.number = d.number;
+  if (d.number !== undefined) {
+    u.number = d.number;
+    u.number_label = d.number === 0 ? d.numberLabel ?? null : null;
+  } else if (d.numberLabel !== undefined) {
+    u.number_label = d.numberLabel;
+  }
   if (d.position !== undefined) u.position = d.position;
   if (d.teamId !== undefined) u.team_id = d.teamId || null;
   if (d.nationality !== undefined) u.nationality = d.nationality;

@@ -1,5 +1,7 @@
 "use client";
 
+import { jerseyNumberText } from "@/lib/jersey-number";
+
 import { useMemo, useState } from "react";
 import type { MatchEvent, Player } from "@/types";
 import { ROSTER_EVENTS, rosterPlayers, rosterStats, type RosterEventType } from "./roster-stats";
@@ -23,7 +25,7 @@ export function RosterEventBoard({ teams, events, disabled, onRecord, compact = 
         <ul className="divide-y">{players.map(player => {
           const counts = stats.get(player.id) ?? {};
           return <li key={player.id} className="space-y-2 p-3" data-roster-player={player.id}>
-            <div className="flex min-w-0 items-center gap-2"><span className={`flex h-8 min-w-8 items-center justify-center rounded-full px-1 text-sm font-black text-white ${side ? "bg-red-700" : "bg-blue-700"}`}>{player.number || "—"}</span><strong className="truncate text-sm">{player.name}</strong>{(counts.red_card ?? 0) > 0 && <span className="ml-auto rounded bg-red-100 px-2 py-1 text-xs font-bold text-red-800">퇴장</span>}</div>
+            <div className="flex min-w-0 items-center gap-2"><span className={`flex h-8 min-w-8 items-center justify-center rounded-full px-1 text-sm font-black text-white ${side ? "bg-red-700" : "bg-blue-700"}`}>{jerseyNumberText(player)}</span><strong className="truncate text-sm">{player.name}</strong>{(counts.red_card ?? 0) > 0 && <span className="ml-auto rounded bg-red-100 px-2 py-1 text-xs font-bold text-red-800">퇴장</span>}</div>
             <div className="grid grid-cols-5 gap-1.5">{ROSTER_EVENTS.map(event => <button key={event.type} type="button" disabled={disabled}
               aria-label={`${player.name} ${event.label} 기록`}
               onClick={() => void onRecord(event.type, player, team.id)}
