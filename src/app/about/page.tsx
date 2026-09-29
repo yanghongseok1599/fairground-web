@@ -14,7 +14,10 @@ import { Section } from "@/components/section";
 import { PlayerCard } from "@/components/player-card";
 import { BADGES } from "@/constants/badges";
 import { FICTIONAL_PLAYER_CARD_POSE_SOURCES } from "@/lib/player-card-pose-templates";
-import { MATCH_RULEBOOK_PDF_PATH } from "@/lib/rulebook-assets";
+import {
+  MATCH_RULEBOOK_PDF_FILENAME,
+  MATCH_RULEBOOK_PDF_PATH,
+} from "@/lib/rulebook-assets";
 import { SITE_URL } from "@/lib/site-config";
 import type { Player } from "@/types";
 
@@ -648,7 +651,7 @@ export default function AboutPage() {
             </Link>
             <a
               href={MATCH_RULEBOOK_PDF_PATH}
-              download
+              download={MATCH_RULEBOOK_PDF_FILENAME}
               className="inline-flex min-h-[48px] items-center gap-2 border px-7 text-[14px] font-bold transition-transform hover:-translate-y-0.5"
               style={{ background: "var(--color-fg-paper)", borderColor: "rgba(0,71,171,0.22)", color: "var(--primary)" }}
             >

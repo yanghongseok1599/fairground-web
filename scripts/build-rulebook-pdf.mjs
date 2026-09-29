@@ -16,7 +16,7 @@
  * 웹 룰북 데이터가 바뀌면 이 스크립트를 실행해 다운로드 PDF도 같은 내용으로 갱신한다.
  *
  * 검증
- *   pdftotext public/document/fairground-match-rulebook-v2.6.pdf - | less
+ *   pdftotext public/document/경기운영규정_v2.6.pdf - | less
  *
  * 요구 사항
  *   - Google Chrome (macOS 기본 경로. CHROME_PATH 환경변수로 덮어쓸 수 있음)
@@ -40,7 +40,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DOCS = [
   {
     key: "match",
-    out: "public/document/fairground-match-rulebook-v2.6.pdf",
+    out: "public/document/경기운영규정_v2.6.pdf",
     // 표지/머리말 표기. src/app/rulebook/rulebook-client.tsx 의 doc.title 과 맞춘다.
     title: "경기 · 운영 규정",
     subtitle: "Fair Ground 혼성 풋살 페스티벌 공식 규정",
@@ -49,7 +49,7 @@ const DOCS = [
   },
   {
     key: "tournament",
-    out: "public/document/fairground-tournament-rulebook-v1.3.pdf",
+    out: "public/document/대회규정_v1.3.pdf",
     title: "대회 규정",
     subtitle: "Fair Ground 혼성 풋살 페스티벌 공식 대회 규정",
     version: "v1.3",
@@ -57,7 +57,7 @@ const DOCS = [
   },
   {
     key: "referee",
-    out: "public/document/fairground-referee-guide-v2.5.pdf",
+    out: "public/document/심판가이드_v2.5.pdf",
     title: "심판 교육 가이드",
     subtitle: "Fair Ground 혼성 풋살 페스티벌 심판 집행 매뉴얼",
     version: "v2.5",
@@ -65,7 +65,7 @@ const DOCS = [
   },
   {
     key: "captain",
-    out: "public/document/fairground-captain-guide-v1.3.pdf",
+    out: "public/document/주장교육가이드_v1.3.pdf",
     title: "주장 교육 가이드",
     subtitle: "Fair Ground 혼성 풋살 페스티벌 — 팀 주장을 위한 안내",
     version: "v1.3",

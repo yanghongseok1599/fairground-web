@@ -12,8 +12,11 @@ import {
 } from "@/lib/discipline-policy";
 import {
   MATCH_RULEBOOK_PDF_PATH,
+  MATCH_RULEBOOK_PDF_FILENAME,
   RULEBOOK_PDF_BY_DOC_ID,
+  RULEBOOK_PDF_FILENAME_BY_DOC_ID,
   TOURNAMENT_RULEBOOK_PDF_PATH,
+  TOURNAMENT_RULEBOOK_PDF_FILENAME,
 } from "@/lib/rulebook-assets";
 
 /**
@@ -1197,7 +1200,7 @@ export function RulebookClient() {
           <div className="mt-6 flex flex-wrap gap-3">
             <a
               href={MATCH_RULEBOOK_PDF_PATH}
-              download
+              download={MATCH_RULEBOOK_PDF_FILENAME}
               className="inline-flex min-h-[46px] items-center gap-2 rounded-xl px-5 text-sm font-bold transition-opacity hover:opacity-90"
               style={{ background: "var(--primary)", color: "var(--color-fg-paper)", boxShadow: "var(--shadow-sm)" }}
             >
@@ -1206,7 +1209,7 @@ export function RulebookClient() {
             </a>
             <a
               href={TOURNAMENT_RULEBOOK_PDF_PATH}
-              download
+              download={TOURNAMENT_RULEBOOK_PDF_FILENAME}
               className="inline-flex min-h-[46px] items-center gap-2 rounded-xl border px-5 text-sm font-bold transition-opacity hover:opacity-90"
               style={{ borderColor: "rgba(0,71,171,0.24)", color: "var(--primary)", background: "var(--color-fg-paper)" }}
             >
@@ -1259,7 +1262,7 @@ export function RulebookClient() {
           {RULEBOOK_PDF_BY_DOC_ID[doc.id] && (
             <a
               href={RULEBOOK_PDF_BY_DOC_ID[doc.id]}
-              download
+              download={RULEBOOK_PDF_FILENAME_BY_DOC_ID[doc.id]}
               className="mt-4 inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-4 text-[13px] font-bold transition-opacity hover:opacity-80"
               style={{ borderColor: "rgba(0,71,171,0.24)", color: "var(--primary)", background: "var(--color-fg-paper)" }}
             >
