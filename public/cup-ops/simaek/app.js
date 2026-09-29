@@ -1,5 +1,5 @@
-import { prizePlans, schedule } from "./data.js?v=20260929-twenty-minutes-report-v1";
-import { cupAwards } from "../data.js?v=20260929-twenty-minutes-report-v1";
+import { prizePlans, schedule } from "./data.js?v=20260930-event-media-v2";
+import { cupAwards } from "../data.js?v=20260930-event-media-v2";
 
 const scheduleList = document.querySelector("#schedule-list");
 scheduleList.innerHTML = schedule.map((item) => `

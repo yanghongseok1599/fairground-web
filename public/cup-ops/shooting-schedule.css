@@ -194,6 +194,19 @@
   background: #fff;
 }
 
+.sponsor-shoot-window.instant-window {
+  border-color: #edc58b;
+  background: #fff9f0;
+}
+
+.sponsor-shoot-window small {
+  display: block;
+  margin-top: 8px;
+  color: #63718a;
+  font-size: .66rem;
+  line-height: 1.5;
+}
+
 .sponsor-shoot-window > header > span {
   color: #6b7890;
   font-size: .66rem;
