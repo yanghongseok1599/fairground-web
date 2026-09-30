@@ -1,5 +1,6 @@
 "use client";
 
+import { internalReturnPath } from "@/lib/internal-return-path";
 import { hasPortraitConsent, requirePortraitConsent } from "@/features/portrait-consent/policy";
 import { create } from "zustand";
 import { supabase, isDemoMode } from "@/config/supabase";
@@ -148,8 +149,8 @@ async function startOAuthSignIn(
   let redirectTo: string | undefined;
   if (typeof window !== "undefined") {
     const callbackUrl = new URL("/auth/callback", getAuthRedirectOrigin());
-    if (returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")) {
-      callbackUrl.searchParams.set("returnTo", returnTo);
+    if (returnTo) {
+      callbackUrl.searchParams.set("returnTo", internalReturnPath(returnTo, "/onboarding"));
     }
     redirectTo = callbackUrl.toString();
   }

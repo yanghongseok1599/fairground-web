@@ -6,15 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 import { hasPortraitConsent, PORTRAIT_CONSENT_PATH } from "@/features/portrait-consent/policy";
 
-// returnTo 는 같은 사이트 내부 경로만 허용 (오픈 리다이렉트 방지).
-function safeReturnTo(raw: string | null): string {
-  // 기본 착지점은 /onboarding. 선수 등록을 마쳤으면 온보딩이 알아서 /my 로
-  // 넘기고, 아직이면 결정 화면 → 선수 등록(실명 입력)으로 이어진다.
-  // 구글 가입자가 실명 확인 없이 바로 /my 로 들어가던 경로를 막는다.
-  if (!raw) return "/onboarding";
-  if (!raw.startsWith("/") || raw.startsWith("//")) return "/onboarding";
-  return raw;
-}
+import { internalReturnPath } from "@/lib/internal-return-path";
 
 /**
  * OAuth 콜백 (implicit flow).
@@ -32,7 +24,7 @@ function CallbackInner() {
   const searchParams = useSearchParams();
   const { user, player, initialized } = useAuth();
   const [timedOut, setTimedOut] = useState(false);
-  const returnTo = safeReturnTo(searchParams.get("returnTo"));
+  const returnTo = internalReturnPath(searchParams.get("returnTo"), "/onboarding");
 
   useEffect(() => {
     if (initialized && user) {

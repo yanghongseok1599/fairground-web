@@ -10,17 +10,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SocialAuthButtons } from "@/components/auth/social-auth-buttons";
 import { useAuth } from "@/hooks/useAuth";
 
-// returnTo 는 같은 사이트 내부 경로만 허용 (오픈 리다이렉트 방지).
-function safeReturnTo(raw: string | null): string {
-  if (!raw) return "/my";
-  if (!raw.startsWith("/") || raw.startsWith("//")) return "/my";
-  return raw;
-}
+import { internalReturnPath } from "@/lib/internal-return-path";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnTo = safeReturnTo(searchParams.get("returnTo"));
+  const returnTo = internalReturnPath(searchParams.get("returnTo"));
   const { login, loginWithGoogle, loginWithKakao, loading, error, clearError } = useAuth();
   const socialReturnTo = searchParams.has("returnTo") ? returnTo : "/onboarding";
   const [email, setEmail] = useState("");

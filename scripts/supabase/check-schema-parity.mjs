@@ -22,6 +22,7 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { verifiedDatabaseClient } from "./verified-db-client.mjs";
 import { scanColumnContract, diffColumns } from "./column-contract.mjs";
 
 const SKIP_KEY = "FAIRGROUND_SKIP_DB_PARITY";
@@ -474,9 +475,8 @@ const BUCKET_SQL = `select id, name from storage.buckets`;
 
 async function fetchDatabaseObjects(connectionString) {
   const { default: pg } = await import("pg");
-  const client = new pg.Client({
+  const client = verifiedDatabaseClient(pg, {
     connectionString,
-    ssl: { rejectUnauthorized: false },
     connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
     query_timeout: CONNECT_TIMEOUT_MS,
     statement_timeout: CONNECT_TIMEOUT_MS,

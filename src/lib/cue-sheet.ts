@@ -1,3 +1,4 @@
+import { csvCell } from "./csv-cell.ts";
 import { clockLabel, type FixtureTiming } from "./fixture-timetable.ts";
 import { buildGroupFixtureTimetable } from "./group-fixture-timetable.ts";
 import { groupLabel } from "./match-schedule.ts";
@@ -68,10 +69,7 @@ export function cueSheetToCsv(rows: CueRow[]): string {
   const header = ["순번", "시작", "종료", "구장", "조", "홈", "어웨이"];
   const body = rows.map((r) =>
     [r.order, r.start, r.end, r.court, groupLabel(r.groupName), r.home, r.away]
-      .map((v) => {
-        const s = String(v);
-        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-      })
+      .map((v) => csvCell(v))
       .join(","),
   );
   return [header.join(","), ...body].join("\n");

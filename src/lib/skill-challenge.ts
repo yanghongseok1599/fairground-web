@@ -1,3 +1,5 @@
+import { csvCell } from "./csv-cell.ts";
+
 export const SKILL_CHALLENGE_PATH = "/skill-challenge";
 export const SKILL_CHALLENGE_EVENT_NAME = "그라운드 챌린지";
 export const SKILL_CHALLENGE_EVENT_SUBTITLE = "FairGround 선수카드 만들기 이벤트";
@@ -222,6 +224,6 @@ export function skillChallengeRecordToCsv(records: SkillChallengeRecord[]) {
   ]);
 
   return [header, ...rows]
-    .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","))
+    .map((row) => row.map((cell) => csvCell(cell, true)).join(","))
     .join("\n");
 }
