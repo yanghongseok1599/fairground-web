@@ -75,3 +75,11 @@ npm run build
 - 보안 테스트 7개 및 수정·동의·스키마·안전장치 테스트 40개 통과. TypeScript 통과. 전체 lint 오류 0, 기존 경고 16개.
 - HEAD와 새 package/잠금 파일만 포함한 격리 소스를 `npm ci`로 설치한 뒤, 개발 DB 카탈로그 검사를 유지한 `npm run build`가 통과했다(54페이지·sitemap 생성). 관련 없는 미추적 퀴즈·제안서 코드는 검증 소스에 넣지 않았다.
 - 운영 DB·웹 배포는 변경하지 않았다. 앞 절의 16건 기록은 수정 전 결과다.
+
+## 2026-10-01 운영 배포 직전 재검사
+
+- npm advisory 재조회에서 Next.js ImageResponse의 GHSA-vcvr-r3jv-pc5j가 새로 탐지되어 Next.js와 eslint-config-next를 16.3.8로 올렸다. 공식 안내: https://github.com/advisories/GHSA-vcvr-r3jv-pc5j (수정 버전 16.3.6 이상).
+- 격리된 실제 운영 릴리스 소스와 새 잠금 파일로 npm ci 후 전체 감사 0건, 기존 보안 테스트와 수정 회귀 테스트를 통과했다. 앞선 16.3.3 유지/0건 기록은 당시 결과다.
+- 운영 스키마 579,105바이트 백업을 격리 PostgreSQL에 복원하여 4,805개 정의 일치와 이번 SQL의 함수 2개 변경·롤백을 검증했다. 기존 운영 이력은 72건이다. 전체 이력 불일치로 이번 SQL은 운영·개발에 미적용이며, 이 검수는 전체 이력 재현 완료를 뜻하지 않는다.
+
+- 운영 웹 배포 dpl_FQnjnWb4oPScojPg2SzNL9QH6hou를 READY 확인 후 공식 도메인에 연결했다. 내부 복귀 주소·CSV 수정 및 Next.js 16.3.8과 의존성 수정이 반영됐다. 운영 DB SQL 미적용 상태는 유지한다. 상세: [배포 기록](releases/2026-10-01-security-deployment.md).
