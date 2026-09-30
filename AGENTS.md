@@ -96,3 +96,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## 2026-09-30 현장 선수검인 개발 시연
 
 최신 개발 스키마 백업·격리 복원·정의/권한 diff·실제 DB 테스트 후 `20260928030000`, `20260929020000`, `20260930010000` 3건을 hosted 개발에만 적용했다. 기존 32개 테이블 행과 이력 4건은 보존했고 새 버전 3건만 추가했다. 개발 카탈로그 게이트를 통과한 소스를 Vercel Preview에 배포하고 가상 대회·기존 합성 계정으로 완료/취소 연동을 확인했다. 앞선 등번호 문서의 개발 미반영 표기는 당시 상태다. 운영 DB·웹은 변경하지 않았으며 전체 이력 복구 및 linked push/reset/repair 금지는 유지한다. [시연 반영 기록](docs/releases/2026-09-30-player-inspection.md).
+
+
+## 2026-09-30 현장 선수검인 운영 반영
+
+기존 운영 관리자 `ccv5`로 검인을 사용하도록 `20260930010000_player_inspections.sql` 한 건을 최신 운영 백업·격리 복원·정의/권한 diff·실제 DB 역할 검수 후 적용했다. 기존 선수 122명과 31개 보호 테이블의 행 해시, 기존 이력 70건은 동일했고 새 버전 1건만 추가했다. 운영 DB 카탈로그 게이트를 통과한 웹을 배포하여 `/admin/inspections`에서 실제 `ccv5` 세션으로 78명 명단 표시를 확인했다. 앞선 개발 전용 시연 기록은 당시 상태다. 비밀번호·권한·OAuth 설정은 변경하지 않았다. 전체 이력 복구 및 linked push/reset/repair 금지 상태는 유지한다. [운영 반영 기록](docs/releases/2026-09-30-player-inspection-production.md).
