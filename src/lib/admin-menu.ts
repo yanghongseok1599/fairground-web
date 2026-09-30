@@ -10,6 +10,7 @@ export interface AdminMenuItem {
   metricKey:
     | "matches"
     | "players"
+    | "inspections"
     | "referees"
     | "teams"
     | "penalties"
@@ -23,6 +24,14 @@ export interface AdminMenuItem {
 }
 
 export const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
+  {
+    title: "현장 선수검인",
+    description: "대회별 선수 본인 확인, 검인 완료·미완료 명단과 현황",
+    href: "/admin/inspections",
+    accent: "#047857",
+    roles: ["admin"],
+    metricKey: "inspections",
+  },
   {
     title: "경기 관리",
     description: "라이브 경기 운영, 타이머, 스코어 입력",

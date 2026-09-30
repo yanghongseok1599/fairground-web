@@ -1657,6 +1657,26 @@ export type Database = {
       }
     }
     Functions: {
+      get_admin_player_inspections: {
+        Args: { p_tournament_id: string }
+        Returns: {
+          player_id: string; name: string; number: number; number_label: string | null;
+          team_id: string; team_name: string; birth_date: string | null; is_approved: boolean;
+          has_player_experience: boolean; checked_at: string | null;
+          checked_by_name: string | null; revision: number;
+        }[]
+      }
+      get_my_player_inspections: {
+        Args: never
+        Returns: {
+          tournament_id: string; tournament_name: string; tournament_date: string | null;
+          tournament_status: string; team_name: string; checked_at: string | null;
+        }[]
+      }
+      set_player_inspection: {
+        Args: { p_tournament_id: string; p_player_id: string; p_checked: boolean; p_expected_revision: number }
+        Returns: number
+      }
       register_team: {
         Args: { p_request_id: string; p_name: string; p_logo?: string; p_founded_year?: number | null; p_team_type?: string; p_portrait_consent_at?: string | null };
         Returns: Database["public"]["Tables"]["teams"]["Row"];
