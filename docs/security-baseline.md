@@ -66,3 +66,12 @@ npm run build
 - 실제 로컬 PostgreSQL의 합성 fixture와 기존 보호 트리거에서 거부/정상 권한, 내부 helper 호출, 재적용을 검증했다. 이는 운영 스키마 전체 복원 검증이 아니다.
 - **운영·개발 DB에는 아직 이 SQL을 적용하지 않았다. 웹도 배포하지 않았다.** 운영 이력 불일치와 백업·실제 정의 diff·격리 복원 요구는 유지한다.
 - 전체 npm 감사는 기존 의존성 16건(높음 11·보통 4·낮음 1)을 보고했다. 이번 6건 수정에서 의존성 잠금 파일은 변경하지 않았다.
+
+## 2026-10-01 의존성 취약점 16건 후속 수정
+
+- `minimatch@3.1.5`의 `brace-expansion` 고정을 `1.1.18`에서 보안 버전 `1.1.21`로 변경했다. 다른 의존 경로의 `brace-expansion`은 기존 호환 범위 안에서 `2.1.7`, `5.0.12`로 갱신했다.
+- `npm audit fix --ignore-scripts`로 humanfs, baseline-browser-mapping, browserslist, fast-uri, ip-address, postcss-selector-parser, qs와 관련 잠금 파일 항목을 갱신했다. 강제 업데이트나 프레임워크 다운그레이드는 하지 않았다. Next.js·eslint-config-next `16.3.3`, React `19.2.3`은 유지한다.
+- 전체 `npm run security:audit` 및 운영 의존성 `npm audit --omit=dev`: 취약점 **0건**. 격리된 소스에서 새 잠금 파일로 `npm ci`와 postinstall을 수행해도 0건이다. 감사 결과는 해당 실행 시점의 npm advisory 기준이다.
+- 보안 테스트 7개 및 수정·동의·스키마·안전장치 테스트 40개 통과. TypeScript 통과. 전체 lint 오류 0, 기존 경고 16개.
+- HEAD와 새 package/잠금 파일만 포함한 격리 소스를 `npm ci`로 설치한 뒤, 개발 DB 카탈로그 검사를 유지한 `npm run build`가 통과했다(54페이지·sitemap 생성). 관련 없는 미추적 퀴즈·제안서 코드는 검증 소스에 넣지 않았다.
+- 운영 DB·웹 배포는 변경하지 않았다. 앞 절의 16건 기록은 수정 전 결과다.
