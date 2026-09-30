@@ -1,5 +1,10 @@
 "use client";
 
+import { TournamentActions } from "@/features/kakao-tools/components/tournament-actions";
+import { EventShareButton } from "@/features/kakao-tools/components/share-button";
+import { getTournamentShareUrl } from "@/features/kakao-tools/links";
+import { SITE_URL } from "@/lib/site-config";
+
 import { compareScheduledMatches } from "@/lib/match-schedule";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -185,6 +190,7 @@ export default function TournamentDetailPage() {
               <div className="flex items-center gap-1.5"><Trophy className="h-4 w-4 text-fg-gold" /><span className="text-fg-gold font-semibold">{tournament.winningTeamName}</span></div>
             )}
           </div>
+          <TournamentActions tournament={tournament} />
           {isTournamentFixturesPublic(tournament) && scheduledMatches.length > 0 && (
             <a href="#fixtures" className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-bold text-[#0D1B2A]">
               경기 대진표 보기 <span className="text-xs font-medium text-[#627D98]">{scheduledMatches.length}경기</span>
@@ -252,7 +258,14 @@ export default function TournamentDetailPage() {
             <div>
               <h2 className="text-lg font-bold mb-4" style={{ fontFamily: "var(--font-outfit)", color: "#0D1B2A" }}>경기 결과</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {finishedMatches.map((m) => <MatchCard key={m.id} match={m} />)}
+                {finishedMatches.map((m) => <div key={m.id} id={`match-${m.id}`} className="scroll-mt-24 space-y-3">
+                  <MatchCard match={m} />
+                  <EventShareButton label="결과 공유" content={{
+                    title: `${m.homeTeamName} ${m.homeScore} : ${m.awayScore} ${m.awayTeamName}`,
+                    description: `${getTournamentDisplayName(tournament)} · R${m.round} · 경기 종료`,
+                    url: getTournamentShareUrl(SITE_URL, tournament.id, m.id),
+                  }} />
+                </div>)}
               </div>
             </div>
           )}
