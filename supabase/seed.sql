@@ -105,6 +105,15 @@ update public.teams set captain_id='a0000000-0000-4000-8000-000000000014' where 
 update public.teams t set member_count=(select count(*) from public.profiles p where p.team_id=t.id)
 where t.id in ('11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222');
 
+-- 현장 검인 시연용 가상 대회. 기존 시연 결과나 사용자가 수정한 대회는 덮어쓰지 않는다.
+insert into public.tournaments (id, name, date, location, status, groups)
+values (
+  '93000000-2026-4000-8000-000000000001', '현장 선수검인 시연 대회', '2026-09-30',
+  '개발 환경 · 시연용 가상 대회', 'ongoing',
+  '[{"id":"demo-group","name":"시연 조","teamIds":["11111111-1111-4111-8111-111111111111","22222222-2222-4222-8222-222222222222"]}]'::jsonb
+)
+on conflict (id) do nothing;
+
 insert into public.matches (id, round, home_team_id, away_team_id, home_team_name, away_team_name,
   home_score, away_score, status, scheduled_at, mom_player_id, stats_applied)
 values
