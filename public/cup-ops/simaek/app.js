@@ -1,12 +1,12 @@
-import { prizePlans, schedule } from "./data.js?v=20260930-challenge-media-v3";
-import { cupAwards } from "../data.js?v=20260930-challenge-media-v3";
+import { prizePlans, schedule } from "./data.js?v=20260930-event-tracks-v4";
+import { cupAwards } from "../data.js?v=20260930-event-tracks-v4";
 
 const scheduleList = document.querySelector("#schedule-list");
 scheduleList.innerHTML = schedule.map((item) => `
-  <article class="schedule-card ${item.kind}${item.highlight ? ` simaek-${item.highlight}` : ""}">
+  <article class="schedule-card ${item.kind}${item.activityType ? ` activity-${item.activityType}` : ""}${item.highlight ? ` simaek-${item.highlight}` : ""}">
     <div class="schedule-time"><time>${item.time}</time><span>${item.place}</span></div>
     <div class="schedule-body">
-      <div class="schedule-title"><h3>${item.title}</h3><span class="tag">${item.tag}</span>${item.highlightLabel ? `<span class="responsibility-tag ${item.highlight}">${item.highlightLabel}</span>` : ""}</div>
+      <div class="schedule-title"><h3>${item.title}</h3><span class="tag${item.activityType ? ` activity-tag-${item.activityType}` : ""}">${item.tag}</span>${item.highlightLabel ? `<span class="responsibility-tag ${item.highlight}">${item.highlightLabel}</span>` : ""}</div>
       <p>${item.description}</p>
       ${item.link ? `<a class="inline-link" href="${item.link}">${item.linkLabel || "대기팀 이벤트 진행 기준 보기"} <span aria-hidden="true">↓</span></a>` : ""}
       ${item.kind === "close" ? `<details class="official-award-reference"><summary>공식 시상 상품 확인</summary><div class="official-award-content"><p>챌린지·대회 공식 시상 상품입니다. 아래 즉석 이벤트 배정 상품과 별도로 관리합니다.</p><div class="official-award-groups">${cupAwards.map((group) => `<section><h4>${group.title}</h4>${group.awards.map((award) => `<article><strong>${award.title}</strong><ul>${award.items.map((product) => `<li>${product}</li>`).join("")}</ul></article>`).join("")}</section>`).join("")}</div></div></details>` : ""}

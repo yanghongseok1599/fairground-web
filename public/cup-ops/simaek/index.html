@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=9">
   <link rel="shortcut icon" href="/favicon.ico?v=9">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=9">
-  <link rel="stylesheet" href="/cup-ops/simaek/styles.css?v=20260930-challenge-media-v3">
+  <link rel="stylesheet" href="/cup-ops/simaek/styles.css?v=20260930-event-tracks-v4">
   <link rel="stylesheet" href="/cup-ops/simaek/award-reference.css?v=20260923-awards-summerholic-v1">
-  <script src="/cup-ops/simaek/app.js?v=20260930-challenge-media-v3" type="module"></script>
+  <script src="/cup-ops/simaek/app.js?v=20260930-event-tracks-v4" type="module"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">진행 안내로 이동</a>
   <header class="site-header">
     <div class="header-inner">
       <a class="brand" href="/cup-ops" aria-label="운영팀 전체 가이드"><img src="/cup-ops/assets/wordmark.png" alt="FAIRGROUND"><span>CUP 1ST <b>이시맥 대표 MC 진행표</b></span></a>
-      <nav aria-label="페이지 목차"><a href="#schedule">시간표</a><a href="#between">경기 사이 이벤트</a><a href="#prizes">상품 배분안</a></nav>
+      <nav aria-label="페이지 목차"><a href="#schedule">시간표</a><a href="#between">챌린지·즉석 이벤트</a><a href="#prizes">상품 배분안</a></nav>
       <button class="share-button" type="button" data-share>링크 공유 <span aria-hidden="true">↗</span></button>
     </div>
   </header>
@@ -55,7 +55,8 @@
     <section class="section schedule-section" id="schedule" aria-labelledby="schedule-title">
       <div class="wrap">
         <div class="section-heading"><div><p class="eyebrow">01 / RUN OF SHOW</p><h2 id="schedule-title">시간대별 진행표</h2></div><p>MC가 움직이는 시점과 준비할 내용을 한 줄씩 확인하세요.</p></div>
-        <div class="schedule-legend" aria-label="시간표 색상 설명"><span><i class="legend-swatch duty"></i>이시맥 대표 진행·준비</span><span><i class="legend-swatch proposal"></i>다음 경기 전 대기팀만 실내 챌린지 참여</span></div>
+        <div class="schedule-legend" aria-label="시간표 색상 설명"><span><i class="legend-swatch duty"></i>이시맥 대표 진행·준비</span><span><i class="legend-swatch ground"></i>공식 그라운드 챌린지</span><span><i class="legend-swatch instant"></i>시맥 즉석 이벤트</span></div>
+        <p class="schedule-clarifier"><strong>용어 구분:</strong> ‘챌린지부 경기’는 풋살 순위전이고, ‘그라운드 챌린지’는 실내구장에서 하는 별도 종목입니다. 시맥 즉석 이벤트는 공식 경기·챌린지 순위와 무관한 경품 행사입니다.</p>
         <div id="schedule-list" class="schedule-list"></div>
         <p class="callout"><strong>챌린지 역할 분담</strong> 3개 챌린지는 시맥 MC가 진행하고, 재민이 측정합니다. 성표가 보조하며 홍석이 결과를 서버에 기록·등록합니다. 경기 중인 팀은 호출하지 않습니다.</p>
       </div>
@@ -63,16 +64,26 @@
 
     <section class="section between-section" id="between" aria-labelledby="between-title">
       <div class="wrap">
-        <div class="section-heading"><div><p class="eyebrow">02 / GROUND CHALLENGES</p><h2 id="between-title">경기와 챌린지는<br>대기팀 중심으로.</h2></div><p>그라운드 챌린지 3종도 기록합니다. 11:20–12:20 최민준은 사진, 영상작가는 가로, 지민은 세로 촬영을 맡습니다. 시맥 즉석 이벤트는 12:20·13:00, 협찬사 홍보부스는 12:40·13:20·13:40에 진행합니다.</p></div>
-        <div class="between-grid">
-          <article class="between-card"><span class="window-label">그라운드 챌린지</span><time>10:00–14:00</time><h3>조별리그와 병행</h3><p>조별 12경기가 A구장에서 진행됩니다. 다음 경기팀은 챌린지에 부르지 않습니다. 출전팀은 경기 시작 5분 전까지 A구장 앞에 집합해 장비 점검을 받습니다.</p></article>
-          <article class="between-card"><span class="window-label">그라운드 챌린지</span><time>14:00–16:00</time><h3>순위결정전과 병행</h3><p>교차 준결승·순위전을 확인합니다. 경기 직전 팀을 제외한 대기팀으로 챌린지를 이어갑니다.</p></article>
+        <div class="section-heading"><div><p class="eyebrow">02 / TWO SEPARATE EVENT TRACKS</p><h2 id="between-title">챌린지와 즉석 이벤트,<br>따로 진행합니다.</h2></div><p>파란색은 기록을 재는 공식 그라운드 챌린지, 주황색은 상품을 나누는 시맥 즉석 이벤트입니다. 풋살 경기팀과 다음 경기팀은 호출하지 않고 대기팀 중심으로 진행합니다.</p></div>
+        <div class="event-track-grid">
+          <article class="event-track ground-track" aria-labelledby="ground-track-title">
+            <header class="event-track-heading"><div><span class="event-index">01 · 공식 종목</span><h3 id="ground-track-title">그라운드 챌린지</h3></div><span class="event-type-badge">측정 · 기록</span></header>
+            <div class="event-time"><time>10:00–16:00</time><span>실내구장 · 경기 없는 대기팀 참여</span></div>
+            <p class="event-track-intro">아래 3종목을 순환 운영하고 결과를 기록합니다. 촬영팀은 <strong>11:20–12:20</strong>에 종목별 장면을 집중 촬영합니다.</p>
+            <ul class="challenge-list"><li>원팀 챌린지</li><li>등바구니 공받기</li><li>슈팅왕 속도대결</li></ul>
+            <div class="event-responsibilities"><p><strong>진행·기록</strong><span>시맥 MC 진행 · 재민 측정 · 성표 보조 · 홍석 서버 기록 등록</span></p><p><strong>촬영</strong><span>최민준 사진 · 영상작가 가로(16:9) · 지민 세로(9:16)</span></p></div>
+            <p class="event-reminder">챌린지부 풋살 준결승·순위전과는 다른 프로그램입니다. 다음 경기팀은 챌린지에 부르지 않습니다.</p>
+          </article>
+          <article class="event-track instant-track" aria-labelledby="instant-track-title">
+            <header class="event-track-heading"><div><span class="event-index">02 · 별도 경품 행사</span><h3 id="instant-track-title">시맥 즉석 이벤트</h3></div><span class="event-type-badge">상품 수여</span></header>
+            <div class="instant-times"><div><time>12:20–12:40</time><span>1회차</span></div><div><time>13:00–13:20</time><span>2회차</span></div></div>
+            <p class="event-track-intro">시맥 MC가 경기 없는 대기팀·선수를 대상으로 진행합니다. 공식 경기·챌린지 기록 경쟁과 분리해 별도 이벤트 상품을 전달합니다.</p>
+            <div class="event-responsibilities"><p><strong>촬영 담당</strong><span>최민준 사진 · 영상작가 가로(16:9) · 지민 세로(9:16)</span></p><p><strong>촬영할 장면</strong><span>① 상품을 받고 즐거워하는 장면 ② 상품을 들고 하는 짧은 인터뷰</span></p><p><strong>배분 기준</strong><span>아래 상품 가이드의 이시맥 대표 배정분을 사용하고, 홍보부스 물량과 따로 관리합니다.</span></p></div>
+            <p class="event-reminder">경기 중인 팀이나 다음 경기 출전팀은 부르지 않습니다. 촬영은 요청된 두 장면만 담습니다.</p>
+          </article>
         </div>
-        <article class="mini-event">
-          <div class="mini-event-title"><span class="number">미니 이벤트 제안</span><h3>5초 팀응원 구호 릴레이</h3><p>팀이 5초 안에 팀 구호를 외치면 참여 완료. 분위기 좋은 5명을 뽑아 니즈 아이싱 패치 2개씩 전달하는 방식입니다.</p></div>
-          <ol><li><strong>대상 확인</strong><span>경기가 없고 호출 대기 중인 선수만</span></li><li><strong>짧게 진행</strong><span>팀별 3~5분, 경기 준비가 시작되면 즉시 종료</span></li><li><strong>안전하게</strong><span>선수대기실 안에서 뛰기·공 차기 없이 구호만</span></li></ol>
-        </article>
-        <p class="room-note"><strong>촬영·이벤트 큐:</strong> 10:00–11:20 1~4번 경기에서 8팀을 사진·가로·세로로 모두 촬영합니다. 11:20–12:20 그라운드 챌린지 3종을 촬영하고, 시맥 즉석 이벤트는 12:20·13:00, 별도 협찬 이벤트 부스는 12:40·13:20·13:40에 운영합니다. 전체 촬영 시간표는 <a href="/cup-ops#shooting">운영팀 가이드에서 확인하세요.</a> 별도 점심시간은 없으므로 식사는 대기시간에 교대로 안내합니다.</p>
+        <aside class="booth-separation"><strong>협찬사 홍보부스는 별도 운영</strong><span>12:40 · 13:20 · 13:40 진행 예정 · 부스 이벤트와 시맥 즉석 이벤트의 상품 수량은 분리 관리합니다.</span></aside>
+        <p class="room-note"><strong>촬영팀 순서:</strong> 10:00–11:20 각 팀 최소 1경기 촬영 → 11:20–12:20 그라운드 챌린지 3종 → 12:20·13:00 시맥 즉석 이벤트 / 12:40·13:20·13:40 홍보부스. <a href="/cup-ops#shooting">운영팀 전체 촬영 시간표 보기</a> · 별도 점심시간은 없으므로 식사는 대기시간에 교대로 안내합니다.</p>
       </div>
     </section>
 
@@ -93,7 +104,7 @@
       </div>
     </section>
   </main>
-  <footer class="site-footer wrap"><div><img src="/cup-ops/assets/wordmark.png" alt="FAIRGROUND"><p>CUP 1ST · 이시맥 대표 MC 진행표</p></div><p>2026.09.29 수정 · 20분 간격 단일 구장안<br><a href="#top">맨 위로 ↑</a></p></footer>
+  <footer class="site-footer wrap"><div><img src="/cup-ops/assets/wordmark.png" alt="FAIRGROUND"><p>CUP 1ST · 이시맥 대표 MC 진행표</p></div><p>2026.09.30 수정 · 20분 간격 단일 구장안<br><a href="#top">맨 위로 ↑</a></p></footer>
   <div id="share-status" class="toast" role="status" aria-live="polite"></div>
   <dialog id="share-dialog"><form method="dialog"><button class="dialog-close" aria-label="공유 창 닫기">×</button><h2>진행표 공유</h2><p>아래 주소를 복사해 팀원들에게 보내주세요.</p><label for="share-url">공유 링크</label><input id="share-url" readonly><button class="button primary" value="close">확인</button></form></dialog>
 </body>
