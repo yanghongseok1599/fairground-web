@@ -17,6 +17,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { useInspectionAccess } from "@/features/player-inspection/use-inspection-access";
 import { useAuth } from "@/hooks/useAuth";
 import { getAdminEntryLabel, isAdminLikeRole } from "@/lib/admin-access";
 import { GlobalBackButton } from "@/components/global-back-button";
@@ -82,9 +83,10 @@ export function SiteHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, player, logout } = useAuth();
-  const showAdminEntry = isAdminLikeRole(player?.role);
+  const { allowed: canInspect } = useInspectionAccess();
+  const showAdminEntry = isAdminLikeRole(player?.role, canInspect);
   const accountHref = showAdminEntry ? "/admin" : user ? "/my" : "/login";
-  const accountLabel = showAdminEntry ? getAdminEntryLabel(player?.role) : user ? "마이페이지" : "로그인";
+  const accountLabel = showAdminEntry ? getAdminEntryLabel(player?.role, canInspect) : user ? "마이페이지" : "로그인";
   const playerActionHref = !user
     ? "/login?returnTo=/my/player-setup"
     : player
@@ -111,11 +113,11 @@ export function SiteHeader() {
         { href: playerActionHref, label: playerActionLabel, icon: PlayerActionIcon },
         ...(player ? [{ href: "/my/badges", label: "내 배지", icon: Award }] : []),
         { href: "/my/team", label: player?.teamId ? "내 팀" : "팀 등록/가입", icon: Users },
-        ...(showAdminEntry ? [{ href: "/admin", label: getAdminEntryLabel(player?.role), icon: Shield }] : []),
+        ...(showAdminEntry ? [{ href: "/admin", label: getAdminEntryLabel(player?.role, canInspect), icon: Shield }] : []),
       ]
     : [];
   const accountName =
-    player?.name || user?.email?.split("@")[0] || (showAdminEntry ? getAdminEntryLabel(player?.role) : "내 계정");
+    player?.name || user?.email?.split("@")[0] || (showAdminEntry ? getAdminEntryLabel(player?.role, canInspect) : "내 계정");
 
   // Glass header elevation: subtle at the top, lifts on scroll.
   // Static transition is acceptable under reduced-motion (no animation loop).

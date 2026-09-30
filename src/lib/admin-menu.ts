@@ -130,7 +130,7 @@ export const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
   },
 ];
 
-export function getAdminMenuItems(role: PlayerRole | undefined): AdminMenuItem[] {
+export function getAdminMenuItems(role: PlayerRole | undefined, canInspect = false): AdminMenuItem[] {
   if (!role) return [];
-  return ADMIN_MENU_ITEMS.filter((item) => item.roles.includes(role));
+  return ADMIN_MENU_ITEMS.filter((item) => item.roles.includes(role) || (canInspect && item.metricKey === "inspections"));
 }

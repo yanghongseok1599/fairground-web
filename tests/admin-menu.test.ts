@@ -25,4 +25,9 @@ assert.equal(adminItems.every((item) => item.href !== "/admin"), true);
 const refereeItems = getAdminMenuItems("referee");
 assert.deepEqual(refereeItems.map((item) => item.href), ["/admin/matches"]);
 
+assert.deepEqual(getAdminMenuItems("player", true).map((item) => item.href), ["/admin/inspections"]);
+assert.deepEqual(getAdminMenuItems("captain", true).map((item) => item.href), ["/admin/inspections"]);
+assert.deepEqual(getAdminMenuItems("player"), []);
+assert.deepEqual(getAdminMenuItems(undefined, true), []);
+assert.equal(getAdminMenuItems("admin", true).length, adminItems.length);
 console.log("admin-menu tests passed");

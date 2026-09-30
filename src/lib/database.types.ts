@@ -1657,6 +1657,7 @@ export type Database = {
       }
     }
     Functions: {
+      can_manage_player_inspections: { Args: never; Returns: boolean }
       get_admin_player_inspections: {
         Args: { p_tournament_id: string }
         Returns: {

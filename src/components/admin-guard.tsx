@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Shield } from "lucide-react";
+import { useInspectionAccess } from "@/features/player-inspection/use-inspection-access";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { AdminLoading } from "@/components/admin-loading";
@@ -11,6 +12,8 @@ import type { PlayerRole } from "@/types";
 interface AdminGuardProps {
   /** 허용 역할. 미지정 시 admin·승인 referee 기본. */
   allow?: PlayerRole[];
+  /** Only opt in on the console and inspection route; other admin routes stay role-gated. */
+  allowInspectionOperator?: boolean;
   children: React.ReactNode;
 }
 
@@ -26,10 +29,11 @@ interface AdminGuardProps {
  * 권한의 최종 강제는 서버측 RLS + RPC 트랜잭션이 책임진다.
  * 본 가드는 UX(불필요한 화면 진입 차단/안내) 레이어다.
  */
-export function AdminGuard({ allow, children }: AdminGuardProps) {
+export function AdminGuard({ allow, allowInspectionOperator = false, children }: AdminGuardProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, player, initialized } = useAuth();
+  const inspectionAccess = useInspectionAccess(allowInspectionOperator);
 
   // 미로그인 시 로그인 페이지로 리다이렉트(의도경로 보존).
   useEffect(() => {
@@ -40,13 +44,14 @@ export function AdminGuard({ allow, children }: AdminGuardProps) {
     }
   }, [initialized, user, pathname, router]);
 
-  if (!initialized) return <AdminLoading />;
+  if (!initialized || (allowInspectionOperator && inspectionAccess.loading)) return <AdminLoading />;
 
   // 리다이렉트 진행 중(미로그인) — 깜빡임 방지용 로딩 유지.
   if (!user) return <AdminLoading />;
 
   const isAllowed = (() => {
     if (!player) return false;
+    if (allowInspectionOperator && inspectionAccess.allowed) return true;
     if (allow && allow.length > 0) return allow.includes(player.role);
     // 기본: admin 전체 허용, referee 는 승인된 경우만.
     if (player.role === "admin") return true;
@@ -72,7 +77,9 @@ export function AdminGuard({ allow, children }: AdminGuardProps) {
         >
           {isPendingReferee
             ? "심판 권한이 아직 승인되지 않았습니다. 관리자 승인 후 이용할 수 있습니다."
-            : "관리자 또는 승인된 심판만 접근할 수 있습니다."}
+            : allowInspectionOperator
+              ? "검인 담당 권한이 필요합니다. 담당자로 지정되었다면 새로고침 후 다시 확인해주세요."
+              : "관리자 또는 승인된 심판만 접근할 수 있습니다."}
         </p>
         <div className="mt-4 flex gap-2">
           <Button

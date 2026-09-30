@@ -12,4 +12,7 @@ assert.equal(getAdminEntryLabel("referee"), "심판 운영");
 assert.equal(getAdminEntryLabel("player"), "마이페이지");
 assert.equal(getAdminEntryLabel(undefined), "마이페이지");
 
+assert.equal(isAdminLikeRole("player", true), true);
+assert.equal(getAdminEntryLabel("player", true), "선수검인");
+assert.equal(getAdminEntryLabel("admin", true), "관리자");
 console.log("admin-access tests passed");

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { AlertTriangle, Bell, ClipboardCheck, Flag, Gamepad2, Layers, Megaphone, Wallet, Shield, ShieldCheck, Sparkles, Target, UserCheck, Users } from "lucide-react";
+import { useInspectionAccess } from "@/features/player-inspection/use-inspection-access";
 import { useAuth } from "@/hooks/useAuth";
 import { AdminGuard } from "@/components/admin-guard";
 import { AdminShell, AdminTile } from "@/components/admin-shell";
@@ -25,7 +26,7 @@ const ICONS = {
 
 export default function AdminPage() {
   return (
-    <AdminGuard>
+    <AdminGuard allowInspectionOperator>
       <AdminDashboard />
     </AdminGuard>
   );
@@ -33,9 +34,10 @@ export default function AdminPage() {
 
 function AdminDashboard() {
   const { player } = useAuth();
+  const { allowed: canInspect } = useInspectionAccess();
   if (!player) return null;
 
-  const visibleItems = getAdminMenuItems(player.role);
+  const visibleItems = getAdminMenuItems(player.role, canInspect);
 
   return (
     <AdminShell
@@ -43,7 +45,7 @@ function AdminDashboard() {
       backLabel="사이트로 돌아가기"
       eyebrow="FAIRGROUND CONTROL ROOM"
       title="운영 콘솔"
-      description="FairGround의 경기, 선수카드, 팀 승인, 페널티 운영을 브랜드 사이트와 같은 스타디움 라이트 컨셉에서 관리합니다."
+      description={player.role === "admin" ? "경기, 선수, 팀 승인과 대회 운영을 관리합니다." : canInspect ? "현장 선수 본인을 확인하고 검인 완료·미완료 상태를 관리합니다." : "담당 경기의 진행과 결과를 관리합니다."}
       aside={
         <div
           className="border p-4 md:p-6"
@@ -58,7 +60,7 @@ function AdminDashboard() {
           <div className="mt-1 fg-display text-2xl font-black md:mt-2 md:text-3xl" style={{ color: "var(--color-fg-ink)" }}>{player.name}</div>
           <div className="mt-3 inline-flex items-center gap-1.5 border px-2.5 py-1 text-[11px] font-bold md:mt-5 md:gap-2 md:px-3 md:py-1.5 md:text-xs" style={{ borderColor: "rgba(0,71,171,0.18)", background: "var(--color-fg-paper-3)", color: "var(--primary)" }}>
             <Shield className="h-3 w-3 md:h-3.5 md:w-3.5" />
-            {player.role === "admin" ? "관리자" : "심판"}
+            {player.role === "admin" ? "관리자" : player.role === "referee" ? "심판" : "검인 담당"}
           </div>
         </div>
       }
