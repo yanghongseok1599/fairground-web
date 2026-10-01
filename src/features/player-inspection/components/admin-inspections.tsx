@@ -102,18 +102,23 @@ function InspectionRoster({ tournament }: { tournament: InspectionTournament }) 
         </select></label>
       </div>
       <p className="mt-3 text-xs text-muted-foreground">{teamId ? "선택 팀" : "전체 팀"} · {filtered.length}명 표시{error ? " · 이전에 확인한 명단" : ""}</p>
-      <div className="mt-3 hidden grid-cols-[minmax(0,1fr)_minmax(0,1fr)_160px_120px] gap-4 rounded-t-xl bg-muted px-4 py-3 text-xs font-bold text-muted-foreground md:grid" aria-hidden="true">
-        <span>선수 / 등번호</span><span>소속팀</span><span>검인 결과</span><span>처리</span>
+      <div className="mt-3 hidden grid-cols-[minmax(0,1fr)_160px_120px] gap-4 rounded-t-xl bg-muted px-4 py-3 text-xs font-bold text-muted-foreground md:grid" aria-hidden="true">
+        <span>선수 / 등번호 · 소속팀 · 생년월일</span><span>검인 결과</span><span>처리</span>
       </div>
       <ul className="divide-y rounded-xl border border-border md:rounded-t-none">
         {filtered.map((p) => {
           const blocked = inspectionBlockReason(p);
-          return <li key={p.player_id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_160px_120px] md:gap-4">
-            <div><p className="font-black">{p.name} <span className="ml-1 text-sm text-primary">#{inspectionNumber(p)}</span></p>
+          return <li key={p.player_id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-4 md:grid-cols-[minmax(0,1fr)_160px_120px] md:gap-4">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <p className="break-words font-black">{p.name} <span className="ml-1 text-sm text-primary">#{inspectionNumber(p)}</span></p>
+                <p className="max-w-full break-words text-sm text-muted-foreground"><span className="sr-only">소속팀 </span>{p.team_name}</p>
+                <p className="text-sm tabular-nums"><span className="text-muted-foreground">생년월일 </span>
+                  {p.birth_date ? <time dateTime={p.birth_date} className="whitespace-nowrap">{p.birth_date}</time> : "미등록"}
+                </p>
+              </div>
               {blocked && <p className="mt-1 text-xs text-destructive">{blocked}</p>}
-              <p className="mt-1 text-sm text-muted-foreground md:hidden">{p.team_name}</p>
             </div>
-            <p className="hidden text-sm md:block">{p.team_name}</p>
             <div className="text-right md:text-left"><p className={`inline-flex items-center gap-1.5 text-sm font-bold ${p.checked_at ? "text-emerald-700" : "text-muted-foreground"}`}>
               {p.checked_at ? <CheckCircle2 className="h-4 w-4" /> : <Clock3 className="h-4 w-4" />}{p.checked_at ? "검인완료" : "미검인"}
             </p>{p.checked_at && <p className="mt-1 text-xs text-muted-foreground">{inspectionTime(p.checked_at)}<br />{p.checked_by_name || "운영진"}</p>}</div>
