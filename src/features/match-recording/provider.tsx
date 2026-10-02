@@ -5,7 +5,7 @@ import { useDataStore } from "@/stores/dataStore";
 import { AdminGuard } from "@/components/admin-guard";
 import { MatchControlStoreContext } from "@/features/match-control/store-context";
 import { prepareOfflineShell } from "./offline-shell";
-import { readRooms, roomKey, updateRoom } from "./storage";
+import { readRooms, updateRoom } from "./storage";
 import { readSnapshot } from "./transport";
 import { createRecordingAdapter } from "./adapter";
 import { syncRecordings } from "./engine";
@@ -14,6 +14,8 @@ import { recordingDeviceId } from "./device";
 import { joinRecordingChannel, type SharedRecordingState } from "./shared-channel";
 import { blockingPendingCount, observeOtherPending } from "./control-safety";
 import { canReleaseRejectedEnd, releaseRejectedEnd } from "./control-recovery";
+import { startRoomSession, type RoomSessionGuard } from "./room-session";
+import { createRoomPublication, prepareRecordingRoom } from "./room-bootstrap";
 
 const SharedContext = createContext<SharedRecordingState>({ connected: false, names: [], pendingElsewhere: 0, blockingPendingElsewhere: 0 });
 export const useSharedRecordingState = () => useContext(SharedContext);
@@ -70,9 +72,10 @@ export function RecordingStatus() {
 export function MatchRecordingProvider({ matchId, children }: { matchId: string; children: ReactNode }) {
   const user = useAuthStore(s => s.user);
   const player = useAuthStore(s => s.player);
-  const [loaded, setLoaded] = useState<{ room: RecordingRoom; adapter: ReturnType<typeof createRecordingAdapter> } | null>(null);
+  const [loaded, setLoaded] = useState<{ room: RecordingRoom; adapter: ReturnType<typeof createRecordingAdapter>; active: () => boolean } | null>(null);
   const [shared, setShared] = useState<SharedRecordingState>({ connected: false, names: [], pendingElsewhere: 0, blockingPendingElsewhere: 0 });
   const [error, setError] = useState("");
+  const [preparation, setPreparation] = useState<"preparing" | "waiting">("preparing");
   const [attempt, setAttempt] = useState(0);
   const actorId = user?.uid;
   const hasProfile = !!player;
@@ -80,11 +83,9 @@ export function MatchRecordingProvider({ matchId, children }: { matchId: string;
   useEffect(() => {
     if (!actorId) return;
     let disposed = false;
-    const lockWait = new AbortController();
     let ownsRoom = false;
-    let releaseLock: (() => void) | undefined;
-    let current: RecordingRoom | undefined;
-    let adapter: ReturnType<typeof createRecordingAdapter> | undefined;
+    let guard: RoomSessionGuard | undefined;
+    let session: ReturnType<typeof startRoomSession> | undefined;
     let refreshing = false;
     let refreshAgain = false;
     let channel: ReturnType<typeof joinRecordingChannel> | undefined;
@@ -92,85 +93,73 @@ export function MatchRecordingProvider({ matchId, children }: { matchId: string;
     let pendingElsewhere = 0;
     let blockingPendingElsewhere = 0;
     const stopObservingPending = observeOtherPending(matchId, () => blockingPendingElsewhere);
-    const publish = (room: RecordingRoom) => {
-      if (!ownsRoom || disposed || (current && room.revision < current.revision)) return;
-      current = room;
+    const active = () => !disposed && ownsRoom && guard?.active() === true;
+    const publication = createRoomPublication(room => createRecordingAdapter(room, active), (room, adapter) => {
       channel?.setPending(room.pending.length, blockingPendingCount(room.pending), room.revision);
-      if (!adapter) adapter = createRecordingAdapter(room); else adapter.publish(room);
-      if (!disposed) { setLoaded({ room, adapter }); setError(""); }
-    };
-    const load = async () => {
-      try {
-        if (!navigator.locks) throw new Error("이 브라우저는 안전한 기기 저장을 지원하지 않습니다. 최신 Chrome 또는 Safari에서 열어주세요.");
-        const existing = (await readRooms(actorId)).find(r => r.matchId === matchId);
-        // Cached UI access only for the same signed-in account. Server RPC rechecks permissions.
-        if (existing && (allowed || !hasProfile)) publish(existing);
-        if (!allowed && (!existing || hasProfile)) return;
-        if (!existing) {
-          const base = await readSnapshot(matchId);
-          const data = useDataStore.getState();
-          const [home, away, lineups] = await Promise.all([
-            data.fetchTeamPlayers(base.homeTeamId, { forRecording: true }), data.fetchTeamPlayers(base.awayTeamId, { forRecording: true }), data.fetchMatchLineup(matchId),
-          ]);
-          if (!home.length || !away.length) throw new Error("양 팀 명단을 확인한 후 기기 저장을 준비할 수 있습니다. 연결 후 다시 시도해주세요.");
-          const room = await updateRoom(roomKey(actorId, matchId), previous => previous ?? {
-            key: roomKey(actorId, matchId), actorId, matchId, base, players: [...home, ...away], lineups,
-            pending: [], journal: [], revision: 0, savedAt: Date.now(), syncedAt: Date.now(),
-          });
-          publish(room);
-          void navigator.storage?.persist?.().catch(() => false);
-        }
-      } catch (e) { if (!disposed && !current) setError(e instanceof Error ? e.message : "경기 준비에 실패했습니다. 연결을 확인하고 다시 시도해주세요."); }
+      setLoaded({ room, adapter, active }); setError("");
+    });
+    const publish = (room: RecordingRoom) => {
+      if (active()) publication.publish(room);
     };
     const refresh = async () => {
-      if (disposed || !ownsRoom) return;
+      if (!active() || !publication.current) return;
       if (refreshing) { refreshAgain = true; return; }
       refreshing = true;
       try {
         const stored = (await readRooms(actorId)).find(r => r.matchId === matchId);
-        if (!stored) return;
-        if (stored.revision !== current?.revision) publish(stored);
+        if (!stored || !active()) return;
+        if (stored.revision !== publication.current?.revision) publish(stored);
         if (navigator.onLine && allowed) {
           const base = await readSnapshot(matchId);
+          if (!active()) return;
           // Merge the latest stored queue, including commands entered during the read.
-          const updated = await updateRoom(stored.key, next => reconcileSnapshot(next ?? stored, base));
+          const updated = await updateRoom(stored.key, next => { guard!.assertActive(); return reconcileSnapshot(next ?? stored, base); }, guard!.signal);
           publish(updated);
         }
       } catch { /* Cached records remain available. Writes have a separate retry status. */ }
-      finally { refreshing = false; if (refreshAgain && !disposed) { refreshAgain = false; scheduleRefresh(); } }
+      finally { refreshing = false; if (refreshAgain && active()) { refreshAgain = false; scheduleRefresh(); } }
     };
     const scheduleRefresh = () => { clearTimeout(debounce); debounce = setTimeout(() => void refresh(), 150); };
-    const storageChanged = () => { void readRooms(actorId).then(rooms => { const next = rooms.find(r => r.matchId === matchId); if (!disposed && next && next.revision !== current?.revision) publish(next); }).catch(() => {}); };
+    const storageChanged = () => { if (active()) void readRooms(actorId).then(rooms => { const next = rooms.find(r => r.matchId === matchId); if (next && next.revision !== publication.current?.revision) publish(next); }).catch(() => {}); };
     if (navigator.locks) {
-      void navigator.locks.request(`fg-recording-room:${actorId}:${matchId}`, { signal: lockWait.signal }, async () => {
-        if (disposed) return;
-        ownsRoom = true;
-        const held = new Promise<void>(resolve => { releaseLock = resolve; });
-        await load();
-        if (!disposed && allowed) {
-          channel = joinRecordingChannel({ matchId, actorId, deviceId: recordingDeviceId(), name: useAuthStore.getState().player?.name ?? "기록자",
-            refresh: scheduleRefresh, onState: state => {
-              if (disposed) return;
-              const previousPending = blockingPendingElsewhere;
-              // A disconnected presence channel cannot confirm another queue has drained.
-              if (state.connected) { pendingElsewhere = state.pendingElsewhere; blockingPendingElsewhere = state.blockingPendingElsewhere; }
-              setShared({ ...state, pendingElsewhere, blockingPendingElsewhere });
-              if (previousPending > 0 && blockingPendingElsewhere === 0) void syncRecordings(actorId, true);
-            } });
-          channel.setPending(current?.pending.length ?? 0, blockingPendingCount(current?.pending ?? []), current?.revision ?? 0);
-        }
-        void refresh();
-        await held;
-      }).catch(e => { if (!disposed && e?.name !== "AbortError") setError("경기 기록 잠금을 준비하지 못했습니다. 다시 시도해주세요."); });
+      session = startRoomSession({
+        locks: navigator.locks, name: `fg-recording-room:${actorId}:${matchId}`,
+        onWaiting: () => { if (!disposed) { setLoaded(null); setPreparation("waiting"); } },
+        onPreparing: () => { if (!disposed) { ownsRoom = true; setLoaded(null); setPreparation("preparing"); } },
+        onError: e => { ownsRoom = false; if (!disposed) { setLoaded(null); channel?.close(); setError(e instanceof Error ? e.message : "경기 준비에 실패했습니다. 저장된 기록을 유지하고 있습니다. 다시 준비해주세요."); } },
+        prepare: async scope => {
+          guard = scope;
+          await prepareRecordingRoom({ actorId, matchId, allowed: !!allowed, hasProfile, guard: scope,
+            readRooms, readSnapshot, updateRoom, publish,
+            fetchPlayers: teamId => useDataStore.getState().fetchTeamPlayers(teamId, { forRecording: true }),
+          });
+          scope.assertActive();
+          if (allowed) {
+            channel = joinRecordingChannel({ matchId, actorId, deviceId: recordingDeviceId(), name: useAuthStore.getState().player?.name ?? "기록자",
+              refresh: scheduleRefresh, onState: state => {
+                if (!active()) return;
+                const previousPending = blockingPendingElsewhere;
+                // A disconnected presence channel cannot confirm another queue has drained.
+                if (state.connected) { pendingElsewhere = state.pendingElsewhere; blockingPendingElsewhere = state.blockingPendingElsewhere; }
+                setShared({ ...state, pendingElsewhere, blockingPendingElsewhere });
+                if (previousPending > 0 && blockingPendingElsewhere === 0) void syncRecordings(actorId, true);
+              } });
+            const current = publication.current;
+            channel.setPending(current?.pending.length ?? 0, blockingPendingCount(current?.pending ?? []), current?.revision ?? 0);
+          }
+          void navigator.storage?.persist?.().catch(() => false);
+          void refresh();
+        },
+      });
     } else { setTimeout(() => { if (!disposed) setError("최신 Chrome 또는 Safari에서 경기 기록을 열어주세요."); }, 0); }
     const stopPreparingShell = prepareOfflineShell();
     const interval = window.setInterval(() => void refresh(), 4000);
     window.addEventListener("fg-recording-change", storageChanged);
     window.addEventListener("online", scheduleRefresh);
     window.addEventListener("focus", scheduleRefresh);
-    return () => { disposed = true; stopObservingPending(); channel?.close(); clearTimeout(debounce); window.removeEventListener("online", scheduleRefresh); window.removeEventListener("focus", scheduleRefresh); stopPreparingShell(); lockWait.abort(); ownsRoom = false; releaseLock?.(); clearInterval(interval); window.removeEventListener("fg-recording-change", storageChanged); };
+    return () => { disposed = true; stopObservingPending(); channel?.close(); clearTimeout(debounce); window.removeEventListener("online", scheduleRefresh); window.removeEventListener("focus", scheduleRefresh); stopPreparingShell(); ownsRoom = false; session?.close(); clearInterval(interval); window.removeEventListener("fg-recording-change", storageChanged); };
   }, [actorId, matchId, allowed, hasProfile, attempt]);
-  const ready = loaded && loaded.room.actorId === actorId && loaded.room.matchId === matchId ? loaded : null;
+  const ready = loaded && loaded.active() && loaded.room.actorId === actorId && loaded.room.matchId === matchId ? loaded : null;
   if (ready && (allowed || !hasProfile)) return <SharedContext.Provider value={shared}><RecordingContext.Provider value={ready.room}><MatchControlStoreContext.Provider value={ready.adapter.store}>{children}</MatchControlStoreContext.Provider></RecordingContext.Provider></SharedContext.Provider>;
-  return <AdminGuard><div className="mx-auto max-w-lg space-y-3 p-6"><p role={error ? "alert" : "status"}>{error || "경기와 선수 명단을 준비하고 있습니다. 같은 경기가 다른 탭에 열려 있다면 닫아주세요."}</p>{error && <button onClick={() => { setError(""); setAttempt(a => a + 1); }} className="min-h-11 rounded border px-4">다시 준비</button>}</div></AdminGuard>;
+  return <AdminGuard><div className="mx-auto max-w-lg space-y-3 p-6"><p role={error ? "alert" : "status"}>{error || (preparation === "waiting" ? "다른 탭에서 이 경기를 기록 중입니다. 해당 경기 탭을 닫으면 이 화면에서 자동으로 준비합니다. 저장된 기록은 유지됩니다." : "경기와 선수 명단을 준비하고 있습니다.")}</p>{error && <button onClick={() => { setError(""); setPreparation("preparing"); setAttempt(a => a + 1); }} className="min-h-11 rounded border px-4">다시 준비</button>}</div></AdminGuard>;
 }

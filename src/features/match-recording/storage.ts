@@ -24,13 +24,23 @@ export async function readRooms(actorId: string): Promise<RecordingRoom[]> {
   });
 }
 /** Resolve only after the IndexedDB transaction has durably committed. No memory fallback. */
-export async function updateRoom(key: string, change: (room?: RecordingRoom) => RecordingRoom): Promise<RecordingRoom> {
+export async function updateRoom(key: string, change: (room?: RecordingRoom) => RecordingRoom, signal?: AbortSignal): Promise<RecordingRoom> {
+  const cancellation = () => signal?.reason ?? new DOMException("기기 저장 준비가 취소되었습니다.", "AbortError");
+  if (signal?.aborted) throw cancellation();
   const db = await database();
+  if (signal?.aborted) throw cancellation();
   return new Promise((resolve, reject) => {
     const tx = db.transaction("rooms", "readwrite", { durability: "strict" });
     const store = tx.objectStore("rooms");
     let saved: RecordingRoom;
     let failure: unknown;
+    const abort = () => {
+      // Abort only this initializer's open transaction, never a committed write
+      // or another recorder's queue. Existing callers do not pass a signal.
+      try { tx.abort(); failure ??= cancellation(); } catch { /* Already committed; oncomplete still confirms durability. */ }
+    };
+    const cleanup = () => signal?.removeEventListener("abort", abort);
+    signal?.addEventListener("abort", abort, { once: true });
     const request = store.get(key);
     request.onsuccess = () => {
       try {
@@ -39,8 +49,8 @@ export async function updateRoom(key: string, change: (room?: RecordingRoom) => 
         store.put(saved);
       } catch (error) { failure = error; tx.abort(); }
     };
-    tx.oncomplete = () => { window.dispatchEvent(new Event("fg-recording-change")); resolve(saved); };
-    tx.onabort = () => reject(failure ?? tx.error ?? new Error("이 기기에 저장하지 못했습니다. 저장 공간을 확인한 뒤 다시 기록해주세요."));
+    tx.oncomplete = () => { cleanup(); window.dispatchEvent(new Event("fg-recording-change")); resolve(saved); };
+    tx.onabort = () => { cleanup(); reject(failure ?? tx.error ?? new Error("이 기기에 저장하지 못했습니다. 저장 공간을 확인한 뒤 다시 기록해주세요.")); };
     tx.onerror = () => { failure ??= tx.error; };
   });
 }

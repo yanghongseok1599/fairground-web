@@ -8,16 +8,19 @@ import { recordingDeviceId } from "./device";
 import { updateRoom } from "./storage";
 import { createObservedClock, finalizationWaitMessage, otherPendingCount } from "./control-safety";
 
-export function createRecordingAdapter(initial: RecordingRoom) {
+export function createRecordingAdapter(initial: RecordingRoom, isActive: () => boolean = () => true) {
   const deviceId = recordingDeviceId();
   let room = initial;
   const observedClock = createObservedClock();
   const match = () => projectRoom(room);
   const ownsClock = () => { const clock = match().clock; return clock?.ownerId === room.actorId && clock.deviceId === deviceId; };
+  const assertActive = () => { if (!isActive()) throw new Error("이 화면의 기록 준비가 해제되었습니다. 다시 준비한 뒤 기록해주세요."); };
   const enqueue = async (kind: CommandKind, payload: Record<string, string | number> = {}) => {
+    assertActive();
     if (useAuthStore.getState().user?.uid !== room.actorId) throw new Error("기록 계정이 변경되었습니다. 원래 계정으로 로그인해주세요.");
     const command = { id: crypto.randomUUID(), kind, payload, at: Date.now() };
     room = await updateRoom(room.key, current => {
+      assertActive();
       if (!current) throw new Error("기기 저장 기록이 없습니다.");
       if (current.blocked) throw new Error(current.error);
       const wait = finalizationWaitMessage(kind, otherPendingCount(current.matchId));
