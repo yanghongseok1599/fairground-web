@@ -1,5 +1,7 @@
 "use client";
 
+import { RecordingStatus } from "@/features/match-recording/provider";
+
 import { jerseyNumberText, jerseyNumberOrder } from "@/lib/jersey-number";
 
 import { useState, useEffect, useRef } from "react";
@@ -269,7 +271,8 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
         className="min-h-screen"
         style={{ background: "var(--background)" }}
       >
-        <AdminHeader title={practice ? "테스트 경기 운영" : "경기 운영"} />
+        <RecordingStatus />
+      <AdminHeader title={practice ? "테스트 경기 운영" : "경기 운영"} />
         <AdminLoading />
       </div>
     );
@@ -282,7 +285,8 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
         className="min-h-screen"
         style={{ background: "var(--background)" }}
       >
-        <AdminHeader title={practice ? "테스트 경기 운영" : "경기 운영"} />
+        <RecordingStatus />
+      <AdminHeader title={practice ? "테스트 경기 운영" : "경기 운영"} />
         <div
           className="py-12 text-center text-sm"
           style={{ color: "var(--muted-foreground)" }}
@@ -545,10 +549,10 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
   };
 
   const recordRosterEvent = async (type: RosterEventType, player: Player, teamId: string) => {
-    if (!isLive || mc.pendingAction !== null || !mc.isOnline) return;
+    if (!isLive || mc.pendingAction !== null || !mc.canRecord) return;
     const payload = { type, playerId: player.id, playerName: player.name, teamId };
     lastEventAttempt.current = payload;
-    if (await mc.addEvent(payload)) setLastActionNotice(`${player.name} ${eventLabel(type)} 기록 완료`);
+    if (await mc.addEvent(payload)) setLastActionNotice(`${player.name} ${eventLabel(type)} 기록 반영`);
   };
 
   // 이벤트 기록 실패 시 재시도 — 마지막 시도 payload 재실행.
@@ -878,7 +882,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
           <Button
             key={b.id}
             onClick={() => runHalf(b.action)}
-            disabled={mc.pendingAction !== null || !mc.isOnline}
+            disabled={mc.pendingAction !== null || !mc.canRecord}
             className="min-h-[44px] px-5"
             variant={
               b.variant === "danger"
@@ -1217,17 +1221,18 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
     <RefereeRecordingFullscreen
       home={{ name: homeSide.name, score: homeScore }} away={{ name: awaySide.name, score: awayScore }}
       elapsed={mc.elapsedSeconds} status={isScheduled ? "시작 대기" : isFinished ? "경기 종료" : isRegulationComplete ? "종료 대기" : mc.isRunning ? "진행 중" : "일시정지"}
-      practice={practice} online={mc.isOnline} controls={renderProgressButtons()} onClose={recordingFullscreen.close}
+      practice={practice} online={mc.canRecord} controls={renderProgressButtons()} onClose={recordingFullscreen.close}
+      syncStatus={<RecordingStatus />}
       roster={<>
         {lineupLoading ? <p role="status" className="p-4 text-sm">선수 명단을 불러오고 있습니다…</p> : <RosterEventBoard compact
           teams={[{ id: homeSide.id, name: homeSide.name, players: mc.homePlayers }, { id: awaySide.id, name: awaySide.name, players: mc.awayPlayers }]}
-          events={mc.events} disabled={!isLive || mc.pendingAction !== null || !mc.isOnline} onRecord={recordRosterEvent} />}
+          events={mc.events} disabled={!isLive || mc.pendingAction !== null || !mc.canRecord} onRecord={recordRosterEvent} />}
         {!isLive && <p className="p-3 text-sm text-muted-foreground">{isScheduled ? "경기 시작을 누르면 기록할 수 있습니다." : "종료된 경기의 최종 기록입니다."}</p>}
       </>}
-      history={<EventTimeline events={mc.events} onCancel={mc.cancelEvent} onAddAssist={openAssistPicker} uncheckedGoalIds={uncheckedAssistGoalIds} canEdit={isLive && mc.pendingAction === null && mc.isOnline} />}
+      history={<EventTimeline events={mc.events} onCancel={mc.cancelEvent} onAddAssist={openAssistPicker} uncheckedGoalIds={uncheckedAssistGoalIds} canEdit={isLive && mc.pendingAction === null && mc.canRecord} />}
       feedback={<>
         {lastActionNotice && !mc.actionError && <p role="status" className="pointer-events-none absolute inset-x-3 bottom-3 mx-auto max-w-md rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center text-sm font-bold text-emerald-900 shadow-lg">{lastActionNotice}</p>}
-        {mc.actionError && <div role="alert" className="absolute inset-x-3 bottom-3 mx-auto max-h-32 max-w-lg overflow-y-auto rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800"><p>{mc.actionError.message}</p><div className="mt-2 flex gap-2">{mc.actionError.scope === "event" && <Button variant="outline" disabled={mc.pendingAction !== null || !mc.isOnline} onClick={retryLastEvent}>다시 시도</Button>}<Button variant="outline" onClick={mc.clearError}>알림 닫기</Button></div></div>}
+        {mc.actionError && <div role="alert" className="absolute inset-x-3 bottom-3 mx-auto max-h-32 max-w-lg overflow-y-auto rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800"><p>{mc.actionError.message}</p><div className="mt-2 flex gap-2">{mc.actionError.scope === "event" && <Button variant="outline" disabled={mc.pendingAction !== null || !mc.canRecord} onClick={retryLastEvent}>다시 시도</Button>}<Button variant="outline" onClick={mc.clearError}>알림 닫기</Button></div></div>}
       </>}
     />
     {renderAssistDialog()}
@@ -1310,7 +1315,8 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
               : undefined
           }
         >
-        {!mc.isOnline && (
+        <RecordingStatus />
+        {!mc.canRecord && (
           <div
             role="status"
             className="flex items-center justify-center gap-2 bg-amber-500 px-4 py-1.5 text-sm font-semibold text-white"
@@ -1504,10 +1510,11 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
 
   return (
     <div className="min-h-screen pb-8" style={{ background: "var(--background)" }}>
+      <RecordingStatus />
       <AdminHeader title={practice ? "테스트 경기 운영" : "경기 운영"} />
 
       {/* 오프라인 인지 배너 — 고정, role=status */}
-      {!mc.isOnline && (
+      {!mc.canRecord && (
         <div
           role="status"
           className="sticky top-14 z-20 flex items-center justify-center gap-2 bg-amber-500 px-4 py-2 text-sm font-semibold text-white"
@@ -1677,7 +1684,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
         {lastActionNotice && <p role="status" className="pointer-events-none fixed inset-x-4 bottom-4 z-40 mx-auto max-w-md rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-900 shadow-lg">{lastActionNotice}</p>}
         {lineupLoading ? <p role="status" className="p-4 text-sm">선수 명단을 불러오고 있습니다…</p> : <RosterEventBoard
           teams={[{ id: homeSide.id, name: homeSide.name, players: mc.homePlayers }, { id: awaySide.id, name: awaySide.name, players: mc.awayPlayers }]}
-          events={mc.events} disabled={!isLive || mc.pendingAction !== null || !mc.isOnline} onRecord={recordRosterEvent}
+          events={mc.events} disabled={!isLive || mc.pendingAction !== null || !mc.canRecord} onRecord={recordRosterEvent}
         />}
         {!isLive && <p className="text-sm text-muted-foreground">{isScheduled ? "경기를 시작하면 선수별 기록 버튼이 활성화됩니다." : "종료된 경기의 선수별 최종 기록입니다."}</p>}
 

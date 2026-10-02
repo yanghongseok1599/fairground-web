@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import { formatTime } from "@/utils/formatters";
 
 /** The scoreboard never scrolls; only the roster/history below it does. */
-export function RefereeRecordingFullscreen({ home, away, elapsed, status, practice, online, controls, roster, history, feedback, onClose }: {
+export function RefereeRecordingFullscreen({ home, away, elapsed, status, practice, online, controls, roster, history, feedback, syncStatus, onClose }: {
   home: { name: string; score: number };
   away: { name: string; score: number };
   elapsed: number;
@@ -17,6 +17,7 @@ export function RefereeRecordingFullscreen({ home, away, elapsed, status, practi
   roster: ReactNode;
   history: ReactNode;
   feedback: ReactNode;
+  syncStatus?: ReactNode;
   onClose: () => void;
 }) {
   const [showHistory, setShowHistory] = useState(false);
@@ -52,6 +53,7 @@ export function RefereeRecordingFullscreen({ home, away, elapsed, status, practi
       </div>
       {!online && <p role="status" className="mt-2 text-center text-xs font-bold text-amber-300">연결 끊김 · 기록 입력이 잠겼습니다</p>}
     </header>
+    {syncStatus}
     <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-20" data-slot="recording-scroll-area">
       <div hidden={showHistory}>{roster}</div>
       {showHistory && <section className="py-3 [&_button]:min-h-11" aria-label="전체화면 기록 내역"><h2 className="mb-2 text-lg font-bold">경기 기록 내역</h2>{history}</section>}

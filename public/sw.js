@@ -8,9 +8,9 @@
  *   계획서 P4 폴백 지침대로 경량 커스텀 SW 채택. 빌드 도구 영향 0.
  *
  * 범위(과스코프 금지):
- *   - 정적/Next 자산 캐시 + 오프라인 안내. 실제 페이지 HTML은 저장하지 않음
+ *   - 정적/Next 자산 캐시 + 오프라인 안내. 경기 기록 화면만 계정 데이터 없는 HTML 셸을 저장
  *   - 동적 데이터(Supabase, Firebase RTDB)는 캐시 절대 금지 → stale 방지
- *   - 오프라인 쓰기 큐는 범위 외 (endMatch 멱등 충돌)
+ *   - 쓰기 큐는 앱 IndexedDB에서 관리하며 SW는 POST를 재전송하지 않음
  *
  * kill-switch / 단계 안전:
  *   - CACHE_VERSION 키로 캐시 네임스페이스 격리, activate 시 구 버전 일괄 제거
@@ -18,10 +18,11 @@
  *     (stale 고착 시 sw-register.tsx 의 controllerchange + reload 로 회복)
  */
 
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v4";
 const PRECACHE = `fg-precache-${CACHE_VERSION}`;
 const RUNTIME_STATIC = `fg-static-${CACHE_VERSION}`;
-const KNOWN_CACHES = [PRECACHE, RUNTIME_STATIC];
+const RECORDING_SHELL = `fg-recording-shell-${CACHE_VERSION}`;
+const KNOWN_CACHES = [PRECACHE, RUNTIME_STATIC, RECORDING_SHELL];
 
 // app-shell 최소 자산. /offline 은 오프라인 문서 폴백.
 const PRECACHE_URLS = ["/offline", "/manifest.webmanifest"];
@@ -69,6 +70,14 @@ function canRefreshClient(pathname) {
 }
 
 self.addEventListener("message", (event) => {
+  if (event.data?.type === "PREPARE_RECORDING_SHELL" && event.source?.url) {
+    const url = new URL(event.source.url);
+    if (url.origin === self.location.origin && /^\/admin\/match\/[0-9a-f-]+$/.test(url.pathname)) {
+      event.waitUntil(fetch(url.href, { cache: "no-store", headers: { Accept: "text/html" } }).then(async response => {
+        if (response.ok && response.headers.get("content-type")?.includes("text/html")) await (await caches.open(RECORDING_SHELL)).put(url.href, response);
+      }).catch(() => {}));
+    }
+  }
   if (event.data && event.data.type === "SKIP_WAITING") {
     // Even an old client may send this message automatically. Never replace the
     // worker while a referee/coach or another editing screen remains open.
@@ -100,8 +109,14 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       (async () => {
         try {
-          return await fetch(req, { cache: "no-store" });
+          const response = await fetch(req, { cache: "no-store" });
+          if (response.ok && /^\/admin\/match\/[0-9a-f-]+$/.test(url.pathname)) {
+            await (await caches.open(RECORDING_SHELL)).put(req, response.clone());
+          }
+          return response;
         } catch {
+          const saved = /^\/admin\/match\/[0-9a-f-]+$/.test(url.pathname) ? await (await caches.open(RECORDING_SHELL)).match(req) : null;
+          if (saved) return saved;
           const offline = await caches.match("/offline");
           return (
             offline ||

@@ -1657,6 +1657,8 @@ export type Database = {
       }
     }
     Functions: {
+      get_match_recording_snapshot: { Args: { p_match_id: string }; Returns: Json }
+      apply_match_recording_operation: { Args: { p_operation_id: string; p_match_id: string; p_kind: string; p_payload: Json }; Returns: Json }
       can_manage_player_inspections: { Args: never; Returns: boolean }
       get_admin_player_inspections: {
         Args: { p_tournament_id: string }

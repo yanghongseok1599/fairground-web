@@ -9,7 +9,7 @@ export type MatchControlOperations = Pick<ReturnType<typeof useDataStore.getStat
   | "subscribeLiveMatches" | "startMatch" | "pauseMatch" | "resumeMatch"
   | "endMatch" | "forfeitMatch" | "substitutePlayer" | "addMatchEvent"
   | "cancelMatchEvent" | "updateMatchTimer" | "notifyNextMatchReady" | "setMatchMom"
-> & { managesClock?: boolean };
+> & { managesClock?: boolean; allowsOfflineRecording?: boolean };
 
 // Only this subtree uses the practice store. The global production store and
 // Supabase configuration are never switched into a demo mode.

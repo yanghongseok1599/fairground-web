@@ -53,6 +53,7 @@ interface MatchControlState {
   pendingAction: MatchActionScope | null;
   /** navigator.onLine 기반 온라인 여부 (오프라인 배너) */
   isOnline: boolean;
+  canRecord: boolean;
   elapsedSeconds: number;
   currentHalf: 1 | 2;
   isRunning: boolean;
@@ -297,8 +298,8 @@ export function useMatchControl({
       try {
         await fn();
         return true;
-      } catch {
-        setActionError({ scope, message: failMessage });
+      } catch (error) {
+        setActionError({ scope, message: error instanceof Error ? error.message : failMessage });
         return false;
       } finally {
         pendingRef.current = null;
@@ -422,6 +423,7 @@ export function useMatchControl({
     error: actionError?.message ?? "",
     pendingAction,
     isOnline,
+    canRecord: isOnline || !!store.allowsOfflineRecording,
     elapsedSeconds: localElapsed,
     currentHalf: localHalf,
     isRunning: localRunning,
