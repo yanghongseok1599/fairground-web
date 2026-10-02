@@ -22,3 +22,27 @@ export async function applyPhotoReplacements(db, replacements) {
   if (result.rowCount !== replacements.length) throw new Error('Photo or consent changed; roll back the entire transaction');
   return result.rowCount;
 }
+
+const sha256 = value => value === null ? '-' : createHash('sha256').update(value).digest('hex');
+export function compactionScope(before, after) {
+  if (before.id !== after.id) throw new Error('Photo owner mismatch');
+  return [before.id, before.photo_url, before.profile_photo_url, after.photo_url, after.profile_photo_url]
+    .map((value, index) => index === 0 ? value : sha256(value)).join(':');
+}
+
+// Requires the owner-session guard in 20261003010000 and an explicit outer transaction.
+// No consent value, permission, trigger, or non-photo column is modified here.
+export async function compactLegacyPhoto(db, before, after) {
+  const replacement = photoReplacement(before, after);
+  await db.query("select set_config('app.inline_photo_compaction',$1,true)", [compactionScope(before, after)]);
+  try {
+    const result = await db.query(`update public.profiles set photo_url=$2,profile_photo_url=$3
+      where id=$1 and portrait_consent_at is null
+        and md5(photo_url) is not distinct from $4 and md5(profile_photo_url) is not distinct from $5
+      returning id`, [replacement.id, replacement.photo_url, replacement.profile_photo_url, replacement.old_photo, replacement.old_profile]);
+    if (result.rowCount !== 1) throw new Error('Legacy photo changed; roll back the entire transaction');
+  } finally {
+    // A database error aborts the transaction; the caller must roll it back.
+    await db.query("select set_config('app.inline_photo_compaction','',true)").catch(() => {});
+  }
+}
