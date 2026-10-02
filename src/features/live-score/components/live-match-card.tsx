@@ -65,7 +65,7 @@ export function LiveMatchCard({ match, tournament }: { match: LiveMatch; tournam
         </button>
         {expanded && <div id={`lineup-panel-${match.id}`} className="px-4 pb-4">
           {lineupError ? <p role="alert" className="text-xs text-destructive">명단을 불러오지 못했습니다. 다시 펼쳐 확인해주세요.</p> : <LiveLineupPanel match={match} data={lineup} />}
-          <Link href={`/matches/${match.id}/lineup`} className="mt-3 block text-right text-xs text-primary underline underline-offset-2">전체 명단 보기</Link>
+          <Link href={`/matches/${match.id}`} className="mt-3 block text-right text-xs text-primary underline underline-offset-2">경기 상세 보기</Link>
         </div>}
       </div>
     </article>

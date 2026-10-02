@@ -209,3 +209,8 @@ SQL 에디터나 MCP `apply_migration`으로 운영에 DDL을 적용하면 원�
 ## 2026-10-03 현장 기록 기기 저장
 
 `20261003030000_match_recording_outbox.sql`을 최신 운영 백업·격리 복원·정의/권한 diff·합성 역할 검증 후 운영에 적용했다. 기록 실행과 UUID 영수증은 한 트랜잭션이며 권한은 기존 경기 RPC와 새 진입 RPC 양쪽에서 검증한다. 기존 테이블 행/정의·마이그레이션 74건은 보존하고 새 이력 1건만 추가했다. hosted 개발 미반영, 전체 이력 불일치 및 linked push/reset/repair 금지는 유지. [반영 기록](releases/2026-10-03-match-recording-outbox.md).
+
+
+## 2026-10-03 Preview 경기 명단 조회 복구
+
+`ef8f7cd` 자동 Preview 빌드는 개발 DB에 `public_match_player_profiles`가 없어 정합성 검사에서 차단됐다. 운영 Supabase 장애가 아니라 개발 반영 누락이었다. 개발의 최신 스키마 530,019바이트를 격리 복원하고 5,469개 정의 일치·추가 뷰 diff·실제 역할 테스트를 확인한 뒤 기존 SQL `20261003020000` 한 건만 개발에 적용했다. 개발 34개 보호 테이블과 합성 회원 15명, 기존 이력 10건은 보존하고 새 이력 1건만 추가했다. 배포 소스의 개발 카탈로그 대조는 타입 컬럼 365개·조회 85개 모두 통과했다. 운영 DB·도메인·환경변수는 변경하지 않았다. 전체 이력 불일치 및 linked push/reset/repair 금지는 유지한다. [반영 기록](releases/2026-10-03-preview-eligibility-repair.md).

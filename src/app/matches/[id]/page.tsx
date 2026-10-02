@@ -12,7 +12,6 @@ import {
   ArrowLeftRight,
   Loader2,
   AlertTriangle,
-  ListOrdered,
 } from "lucide-react";
 import { resolveMatchTrack } from "@/lib/match-operation-access";
 import type { Match, MatchStatus } from "@/types";
@@ -22,7 +21,6 @@ import type { Match, MatchStatus } from "@/types";
  * - URL: /matches/[id]
  * - 경기 기본 정보 + 점수 표시.
  * - 라이브 경기 + 본인 팀 감독(coach 트랙)일 경우 "교체 관리" 버튼 표시 → /matches/[id]/coach.
- * - 출전 명단 링크 → /matches/[id]/lineup.
  */
 export default function MatchDetailPage() {
   const params = useParams();
@@ -232,14 +230,6 @@ export default function MatchDetailPage() {
             </Button>
           </Link>
         )}
-
-        {/* 출전 명단 링크 */}
-        <Link href={`/matches/${matchId}/lineup`}>
-          <Button variant="outline" className="min-h-[44px] gap-2">
-            <ListOrdered className="h-4 w-4" />
-            출전 명단
-          </Button>
-        </Link>
       </div>
     </PageShell>
   );

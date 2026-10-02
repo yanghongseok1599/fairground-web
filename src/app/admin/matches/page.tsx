@@ -31,13 +31,12 @@ import { groupCourt } from "@/lib/group-fixture-timetable";
 import { FixtureTimingFields } from "@/components/fixture-timing-fields";
 import { compareScheduledMatches, groupLabel, scheduledMatchTime } from "@/lib/match-schedule";
 import { Plus, Circle, Wand2 } from "lucide-react";
-import type { Tournament, Match, Team, MatchLineupEntry } from "@/types";
+import type { Tournament, Match, Team } from "@/types";
 import { buildAutoGroups, buildGroupRoundRobinMatches, recommendGroupCount } from "@/lib/auto-matchmaking";
 import { buildRestOptimizedMatches } from "@/lib/fixture-scheduler";
 import { buildTournamentDraft, isValidTournamentDraft } from "@/lib/tournament-admin";
 import { setTournamentGroups } from "@/lib/admin-actions";
 import { hasOpenEditor } from "@/features/app-updates/safe-refresh";
-import { computeLineupReadiness } from "@/lib/lineup-readiness";
 import { resolveMatchTrack } from "@/lib/match-operation-access";
 
 type MatchFilter = "all" | "scheduled" | "live" | "finished";
@@ -62,7 +61,6 @@ function AdminMatches() {
   const [teams, setTeams] = useState<Record<string, Team>>({});
   const [filter, setFilter] = useState<MatchFilter>("all");
   const [loading, setLoading] = useState(true);
-  const [lineupsByMatch, setLineupsByMatch] = useState<Record<string, MatchLineupEntry[]>>({});
 
   // New tournament dialog
   const [tournamentDialogOpen, setTournamentDialogOpen] = useState(false);
@@ -135,21 +133,6 @@ function AdminMatches() {
           }),
         );
         setMatchesByTournament(matchMap);
-
-        // Fetch lineups for scheduled matches only
-        const allMatches = Object.values(matchMap).flat();
-        const scheduledMatches = allMatches.filter((m) => m.status === "scheduled");
-        const lineupMap: Record<string, MatchLineupEntry[]> = {};
-        await Promise.all(
-          scheduledMatches.map(async (m) => {
-            try {
-              lineupMap[m.id] = await store.fetchMatchLineup(m.id);
-            } catch {
-              lineupMap[m.id] = [];
-            }
-          }),
-        );
-        setLineupsByMatch(lineupMap);
       } catch {
         // silent
       } finally {
@@ -542,21 +525,6 @@ function AdminMatches() {
                             {tournament.groups.find((g) => g.id === match.groupId) && <span>{groupLabel(tournament.groups.find((g) => g.id === match.groupId)!.name)}</span>}
                             <span>경기 {match.round}</span>
                           </div>
-                          {match.status === "scheduled" && (() => {
-                            const entries = lineupsByMatch[match.id] ?? [];
-                            const home = computeLineupReadiness(match.homeTeamId, entries);
-                            const away = computeLineupReadiness(match.awayTeamId, entries);
-                            return (
-                              <div className="flex gap-1 text-xs">
-                                <span className={home.ready ? "text-green-700" : "text-amber-600"}>
-                                  HOME {home.ready ? "✅" : "⏳"} {home.label}
-                                </span>
-                                <span className={away.ready ? "text-green-700" : "text-amber-600"}>
-                                  AWAY {away.ready ? "✅" : "⏳"} {away.label}
-                                </span>
-                              </div>
-                            );
-                          })()}
                         </div>
                         <div className="flex flex-col items-end gap-1">
                           <Badge

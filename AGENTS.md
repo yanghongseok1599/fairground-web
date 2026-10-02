@@ -14,6 +14,7 @@
 - `.env.development.local`에는 개발 프로젝트만 설정한다. service-role key와 DB 비밀번호는 Git 또는 `NEXT_PUBLIC_` 변수에 넣지 않는다.
 - 실제 운영 회원 데이터를 개발 환경에 복사하지 않는다. 개발 데이터는 익명화된 `supabase/seed.sql`로 관리한다.
 - DB 스키마 변경은 SQL 마이그레이션으로만 남기고, 개발 환경 검증과 운영 백업을 거친 뒤 운영에 적용한다.
+- 코드가 참조하는 DB 객체를 추가·변경할 때는 GitHub 푸시 전에 해당 브랜치 Preview가 사용하는 개발 DB에도 검증한 변경을 반영하고, 실제 배포할 추적 소스로 개발 카탈로그 검사를 통과시킨다. 운영만 성공한 상태를 개발/자동 Preview까지 완료한 것으로 보고하지 않는다. 푸시 후 자동 Preview의 최종 상태도 확인한다.
 
 ## 대상 프로젝트 고정 (타 서비스와의 분리)
 
@@ -120,3 +121,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## 2026-10-03 경기 기록 대기열
 
 `20261003030000`을 운영 최신 스키마 백업·격리 복원·추가 정의/권한 diff·실제 역할 테스트 후 적용했다. 기존 30개 테이블(회원 132명, 경기 12개)의 행과 기존 이력 74건을 보존하고 기록 영수증 테이블/RPC 및 새 이력 1건만 추가했다. 실제 경기 대기열은 IndexedDB의 `fairground-match-recording-v1`이며 사용자 요청 없이 삭제하거나 연습 데이터 정리에 포함하지 않는다. hosted 개발에는 이번 SQL 미반영이며 전체 이력 복구 및 linked push/reset/repair 금지는 유지한다. [반영 기록](docs/releases/2026-10-03-match-recording-outbox.md).
+
+
+## 2026-10-03 Preview 경기 명단 조회 복구
+
+`ef8f7cd` 자동 Preview 빌드는 개발 DB에 `public_match_player_profiles`가 없어 정합성 검사에서 차단됐다. 운영 Supabase 장애가 아니라 개발 반영 누락이었다. 개발의 최신 스키마 530,019바이트를 격리 복원하고 5,469개 정의 일치·추가 뷰 diff·실제 역할 테스트를 확인한 뒤 기존 SQL `20261003020000` 한 건만 개발에 적용했다. 개발 34개 보호 테이블과 합성 회원 15명, 기존 이력 10건은 보존하고 새 이력 1건만 추가했다. 배포 소스의 개발 카탈로그 대조는 타입 컬럼 365개·조회 85개 모두 통과했다. 운영 DB·도메인·환경변수는 변경하지 않았다. 전체 이력 불일치 및 linked push/reset/repair 금지는 유지한다. [반영 기록](docs/releases/2026-10-03-preview-eligibility-repair.md).
