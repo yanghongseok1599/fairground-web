@@ -6,7 +6,7 @@ import { ResultImage } from "@/features/match-share/result-image";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-const font = readFile(join(process.cwd(), "public/fonts/Paperlogy-7Bold.ttf"));
+const font = readFile(join(process.cwd(), "src/features/match-share/assets/Paperlogy-7Bold.ttf"));
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const result = await getSharedMatchResult((await params).id);
