@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useMatchControl } from "@/hooks/useMatchControl";
 import { useMatchControlStore } from "@/features/match-control/store-context";
+import { benchRoster } from "./bench-roster";
 import { FullscreenMatchHeader } from "./fullscreen-match-header";
 import { MatchDialogContent } from "./match-dialog-content";
 import { LandscapeMomChoices } from "./landscape-mom-choices";
@@ -476,29 +477,12 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
 
     return [...starters, ...filler];
   };
-  const buildBench = (
-    entries: MatchLineupEntry[],
-    pool: Player[],
-    onCourt: Player[],
-  ): Player[] => {
-    if (entries.length === 0) return [];
-
-    const onCourtIds = new Set(onCourt.map((p) => p.id));
-    const explicitBench = eligible(toPlayers(entries.filter((e) => !e.isStarter), pool))
-      .filter((p) => !onCourtIds.has(p.id));
-    const explicitBenchIds = new Set(explicitBench.map((p) => p.id));
-    const rosterBench = eligible(pool)
-      .filter((p) => !onCourtIds.has(p.id) && !explicitBenchIds.has(p.id))
-      .sort(byNumber);
-
-    return [...explicitBench, ...rosterBench];
-  };
   const homeOnCourt =
     buildOnCourt(homeLineup, mc.homePlayers, homeActivePlayers);
-  const homeBench = buildBench(homeLineup, mc.homePlayers, homeOnCourt);
+  const homeBench = benchRoster(homeLineup, mc.homePlayers, homeOnCourt);
   const awayOnCourt =
     buildOnCourt(awayLineup, mc.awayPlayers, awayActivePlayers);
-  const awayBench = buildBench(awayLineup, mc.awayPlayers, awayOnCourt);
+  const awayBench = benchRoster(awayLineup, mc.awayPlayers, awayOnCourt);
 
   const homeSide = {
     side: "home" as const,
@@ -787,7 +771,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
   // ── 타이머 중심 전광판 (7a) ─────────────────────────────────────
   // [HOME 이름+점수] [중앙: 시간·단일 12분·라이브닷·상태] [AWAY 점수+이름]
   // dark=전체화면 코트 위 오버레이용(어두운 배경/흰 글자).
-  const renderScoreboardRow = (dark: boolean) => {
+  const renderScoreboardRow = (dark: boolean, compact = false) => {
     const nameColor = dark
       ? { color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.7)" }
       : undefined;
@@ -809,7 +793,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
           </span>
         </div>
         {/* CENTER: 라이브닷 + 시간 + 경기 시간 모델 + 상태 */}
-        <div className="flex flex-col items-center px-2">
+        <div className={compact ? "flex flex-col items-center px-1" : "flex flex-col items-center px-2"}>
           <div className="flex items-center gap-1.5">
             {isLive && (
               <Circle
@@ -823,14 +807,14 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
               {formatTime(mc.elapsedSeconds)}
             </span>
           </div>
-          <span
+          {!compact && <span
             className="text-[11px] font-semibold tabular-nums"
             style={dimColor}
           >
             {isRegulationComplete ? "12분 완료" : MATCH_DURATION_LABEL}
-          </span>
+          </span>}
           <Badge
-            className={`mt-1 ${
+            className={`${compact ? "text-[10px] py-0" : "mt-1"} ${
               isLive
                 ? "bg-red-100 text-red-700"
                 : isFinished
@@ -921,7 +905,13 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
         >
           {team.name} · {team.bench.length > 0 ? `대기 ${team.bench.length}` : "대기 없음"}
         </div>
-        {team.bench.length > 0 && (
+        {spectator && team.bench.length > 0 ? (
+          <div className="flex max-h-12 flex-wrap gap-1 overflow-y-auto" aria-label={`${team.name} 대기 선수 명단`}>
+            {team.bench.map(p => <span key={p.id} className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] leading-tight text-white">
+              <b className="mr-1" style={{ color: accent.ring }}>{jerseyNumberText(p)}</b>{p.name}
+            </span>)}
+          </div>
+        ) : team.bench.length > 0 && (
           <div className={compact
             ? `pointer-events-auto flex w-max max-w-full gap-2 overflow-x-auto pb-1 [&>button]:shrink-0 ${align === "right" ? "ml-auto" : ""}`
             : `pointer-events-auto flex flex-wrap gap-1.5 ${justify}`}>
@@ -1210,7 +1200,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
   if (spectator) return <MatchBroadcastView
     fullscreen={fullscreenOpen} landscapeFallback={forceLandscapeStage}
     onOpen={openFullscreenMode} onClose={closeFullscreenMode}
-    scoreboard={renderScoreboardRow(true)}
+    scoreboard={renderScoreboardRow(true, fullscreenOpen)}
     homeBench={renderGrassBenchTeam(homeSide, "left", undefined, true)}
     awayBench={renderGrassBenchTeam(awaySide, "right", undefined, true)}
     court={renderCourt({ forceLandscape: fullscreenOpen, homeOnGrass: true, balancedFormation: true, showBench: false, overlay: false })}
