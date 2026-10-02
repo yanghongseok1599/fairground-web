@@ -16,6 +16,7 @@ import { LandscapeMomChoices } from "./landscape-mom-choices";
 import { getSubstitutionChoices } from "./substitution-choices";
 import { RosterEventBoard } from "./roster-event-board";
 import { RefereeRecordingFullscreen } from "./referee-recording-fullscreen";
+import { RecordingCorrectionsDialog } from "./recording-corrections-dialog";
 import { useRecordingFullscreen } from "./use-recording-fullscreen";
 import { MatchBroadcastView } from "./match-broadcast-view";
 import type { RosterEventType } from "./roster-stats";
@@ -225,6 +226,8 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
 
   // 어시스트 체크 — 득점 직후 심판·부심이 바로 기록하거나, 놓친 골을 관리자가 보강.
   const [assistGoal, setAssistGoal] = useState<AssistTarget | null>(null);
+  const [correctionOpen, setCorrectionOpen] = useState(false);
+  const [correctionEventId, setCorrectionEventId] = useState<string | undefined>();
 
   // End match dialog
   const [endDialogOpen, setEndDialogOpen] = useState(false);
@@ -1199,6 +1202,15 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
         </Dialog>
   );
 
+  const openCorrections = (eventId?: string) => { setCorrectionEventId(eventId); setCorrectionOpen(true); };
+  const renderCorrectionEntry = (dark = false) => <Button type="button" variant="outline" className={`min-h-11 font-semibold ${dark ? "border-white/30 bg-white/10 text-white hover:bg-white/20" : ""}`} onClick={() => openCorrections()}>기록 수정·취소</Button>;
+  const renderCorrectionsDialog = () => correctionOpen && <RecordingCorrectionsDialog
+    events={mc.events} teams={[homeSide, awaySide]} isLive={isLive} canRecord={mc.canRecord}
+    busy={mc.pendingAction !== null} initialEventId={correctionEventId}
+    landscapeFallback={isFullscreen && forceLandscapeStage}
+    onClose={() => setCorrectionOpen(false)} onCancel={mc.cancelEvent}
+  />;
+
   if (spectator) return <MatchBroadcastView
     fullscreen={fullscreenOpen} landscapeFallback={forceLandscapeStage}
     onOpen={openFullscreenMode} onClose={closeFullscreenMode}
@@ -1213,7 +1225,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
     <RefereeRecordingFullscreen
       home={{ name: homeSide.name, score: homeScore }} away={{ name: awaySide.name, score: awayScore }}
       elapsed={mc.elapsedSeconds} status={isScheduled ? "시작 대기" : isFinished ? "경기 종료" : isRegulationComplete ? "종료 대기" : mc.isRunning ? "진행 중" : "일시정지"}
-      practice={practice} online={mc.canRecord} controls={renderProgressButtons()} onClose={recordingFullscreen.close}
+      practice={practice} online={mc.canRecord} controls={<div className="flex flex-wrap items-center gap-2">{renderProgressButtons()}{renderCorrectionEntry(true)}</div>} onClose={recordingFullscreen.close}
       syncStatus={<RecordingStatus />}
       roster={<>
         {lineupLoading ? <p role="status" className="p-4 text-sm">선수 명단을 불러오고 있습니다…</p> : <RosterEventBoard compact
@@ -1221,7 +1233,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
           events={mc.events} disabled={!isLive || mc.pendingAction !== null || !mc.canRecord} onRecord={recordRosterEvent} />}
         {!isLive && <p className="p-3 text-sm text-muted-foreground">{isScheduled ? "경기 시작을 누르면 기록할 수 있습니다." : "종료된 경기의 최종 기록입니다."}</p>}
       </>}
-      history={<EventTimeline events={mc.events} onCancel={mc.cancelEvent} onAddAssist={openAssistPicker} uncheckedGoalIds={uncheckedAssistGoalIds} canEdit={isLive && mc.pendingAction === null && mc.canRecord} />}
+      history={<EventTimeline events={mc.events} onCancel={openCorrections} onAddAssist={openAssistPicker} uncheckedGoalIds={uncheckedAssistGoalIds} canEdit={isLive && mc.pendingAction === null && mc.canRecord} />}
       feedback={<>
         {lastActionNotice && !mc.actionError && <p role="status" className="pointer-events-none absolute inset-x-3 bottom-3 mx-auto max-w-md rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-center text-sm font-bold text-emerald-900 shadow-lg">{lastActionNotice}</p>}
         {mc.actionError && <div role="alert" className="absolute inset-x-3 bottom-3 mx-auto max-h-32 max-w-lg overflow-y-auto rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800"><p>{mc.actionError.message}</p><div className="mt-2 flex gap-2">{mc.actionError.scope === "event" && <Button variant="outline" disabled={mc.pendingAction !== null || !mc.canRecord} onClick={retryLastEvent}>다시 시도</Button>}<Button variant="outline" onClick={mc.clearError}>알림 닫기</Button></div></div>}
@@ -1229,6 +1241,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
     />
     {renderAssistDialog()}
     {renderEndDialog()}
+    {renderCorrectionsDialog()}
   </>;
 
   // ── 심판 전체화면 경기장 모드 (7b) ───────────────────────────────
@@ -1320,7 +1333,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
 
         {practice && <div className="bg-blue-700 px-3 py-1 text-center text-xs font-bold text-white">테스트 경기 · 실제 기록에 반영되지 않습니다</div>}
         <FullscreenMatchHeader
-          controls={renderProgressButtons()}
+          controls={<div className="flex flex-wrap items-center gap-2">{renderProgressButtons()}{renderCorrectionEntry(true)}</div>}
           scoreboard={renderScoreboardRow(true)}
           homeBench={renderGrassBenchTeam(homeSide, "left", openActionMenu, true)}
           awayBench={renderGrassBenchTeam(awaySide, "right", openActionMenu, true)}
@@ -1495,6 +1508,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
         {renderAssistDialog()}
 
         {renderEndDialog()}
+        {renderCorrectionsDialog()}
         </div>
       </div>
     );
@@ -1674,6 +1688,10 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
         )}
 
         {lastActionNotice && <p role="status" className="pointer-events-none fixed inset-x-4 bottom-4 z-40 mx-auto max-w-md rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-900 shadow-lg">{lastActionNotice}</p>}
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card p-3">
+          <p className="text-sm text-muted-foreground">잘못 입력한 골·어시스트·경고를 확인하고 취소할 수 있습니다.</p>
+          {renderCorrectionEntry()}
+        </div>
         {lineupLoading ? <p role="status" className="p-4 text-sm">선수 명단을 불러오고 있습니다…</p> : <RosterEventBoard
           teams={[{ id: homeSide.id, name: homeSide.name, players: mc.homePlayers }, { id: awaySide.id, name: awaySide.name, players: mc.awayPlayers }]}
           events={mc.events} disabled={!isLive || mc.pendingAction !== null || !mc.canRecord} onRecord={recordRosterEvent}
@@ -1733,8 +1751,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
           </Card>
         )}
 
-        {/* 이벤트 타임라인 — 관리자 관리뷰. 골에 어시스트 추가 + 누락/실수 이벤트 취소.
-            (심판은 코트 탭으로 골/반칙/카드 기록, 관리자는 여기서 어시스트 보강·정정) */}
+        {/* 심판·관리자 공통 기록 내역. 취소는 같은 확인 창에서 처리한다. */}
         {(isLive || isFinished) && mc.events.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
@@ -1743,9 +1760,9 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
             <CardContent>
               <EventTimeline
                 events={mc.events}
-                onCancel={(id) => mc.cancelEvent(id)}
+                onCancel={openCorrections}
                 onAddAssist={openAssistPicker}
-                canEdit={isLive}
+                canEdit={isLive && mc.pendingAction === null && mc.canRecord}
                 uncheckedGoalIds={uncheckedAssistGoalIds}
               />
               {mc.pendingAction === "cancelEvent" && (
@@ -1851,6 +1868,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
         {renderAssistDialog()}
 
         {renderEndDialog()}
+        {renderCorrectionsDialog()}
 
         {/* 몰수패 처리 다이얼로그(관리자) — 지목 팀 0, 상대 3. 규정 제13조/대회규정 제9조. */}
         <Dialog open={forfeitOpen} onOpenChange={(open) => { if (!forfeiting) setForfeitOpen(open); }}>

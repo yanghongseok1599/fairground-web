@@ -343,6 +343,7 @@ export function rowToEvent(r: MatchEventRow): MatchEvent {
     half: (r.half === 2 ? 2 : 1) as 1 | 2,
     timestamp: ts(r.created_at),
     isCancelled: r.is_cancelled,
+    sourceYellowEventId: r.source_yellow_event_id ?? undefined,
   };
 }
 

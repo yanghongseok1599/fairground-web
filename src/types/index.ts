@@ -125,6 +125,7 @@ export interface MatchEvent {
   half: 1 | 2;
   timestamp: number;
   isCancelled?: boolean;
+  sourceYellowEventId?: string;
   recordedBy?: string;
   recorderName?: string;
 }

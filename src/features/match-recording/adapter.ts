@@ -49,7 +49,9 @@ export function createRecordingAdapter(initial: RecordingRoom, isActive: () => b
     },
     addMatchEvent: async (_t, _m, event) => enqueue("event", event),
     cancelMatchEvent: async (_t, _m, eventId) => {
-      if (eventId.startsWith("auto:")) throw new Error("자동 퇴장은 해당 두 번째 경고를 취소해주세요.");
+      if (eventId.startsWith("auto:") || match().events.find(event => event.id === eventId)?.sourceYellowEventId) {
+        throw new Error("자동 퇴장은 해당 두 번째 경고를 취소해주세요.");
+      }
       await enqueue("cancel", eventId.startsWith("local:") ? { eventOperationId: eventId.slice(6) } : { eventId });
     },
     setMatchMom: async (_t, _m, playerId) => enqueue("mom", { playerId }),

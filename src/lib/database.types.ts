@@ -348,6 +348,7 @@ export type Database = {
       }
       match_events: {
         Row: {
+          source_yellow_event_id: string | null
           created_at: string
           half: number
           id: string
@@ -360,6 +361,7 @@ export type Database = {
           type: Database["public"]["Enums"]["match_event_t"]
         }
         Insert: {
+          source_yellow_event_id?: string | null
           created_at?: string
           half?: number
           id?: string
@@ -372,6 +374,7 @@ export type Database = {
           type: Database["public"]["Enums"]["match_event_t"]
         }
         Update: {
+          source_yellow_event_id?: string | null
           created_at?: string
           half?: number
           id?: string

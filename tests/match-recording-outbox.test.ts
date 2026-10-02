@@ -47,3 +47,36 @@ await test('timer from a previous clock owner never overlays a shared snapshot',
 await test('response error after realtime acknowledgement cannot block the remaining queue',async()=>{
  let r=room();r.pending=[command('start','start')];await flushRoom(r,{currentActor:()=> 'actor',update:async(_k,change)=>r=change(r),send:async()=>{r={...r,pending:[]};throw {code:'22023'};}});assert.notEqual(r.blocked,true);
 });
+
+await test('cancelling a synced second yellow clears its automatic red offline but preserves a direct red',()=>{
+ const r=room();r.base.status='live';
+ const event={playerId:'player',playerName:'선수',teamId:'home',minute:3,half:1 as const,timestamp:100};
+ r.base.events=[
+  {...event,id:'yellow-one',type:'yellow_card'},
+  {...event,id:'local:yellow-two',type:'yellow_card'},
+  {...event,id:'server-auto-red',type:'red_card',sourceYellowEventId:'local:yellow-two'},
+  {...event,id:'direct-red',type:'red_card'},
+ ];
+ r.pending=[command('cancel-yellow','cancel',{eventOperationId:'yellow-two'})];
+ const projected=projectRoom(JSON.parse(JSON.stringify(r)));
+ assert.equal(projected.events.find(e=>e.id==='local:yellow-two')?.isCancelled,true);
+ assert.equal(projected.events.find(e=>e.id==='server-auto-red')?.isCancelled,true);
+ assert.notEqual(projected.events.find(e=>e.id==='direct-red')?.isCancelled,true);
+ assert.notEqual(r.base.events[2].isCancelled,true);
+});
+
+await test('unsent yellow and cancellation keep the automatic red linked and cancelled after refresh',()=>{
+ const r=room();r.base.status='live';
+ r.pending=[command('yellow-one','event',{...goal,type:'yellow_card'}),command('yellow-two','event',{...goal,type:'yellow_card'}),command('cancel-yellow','cancel',{eventOperationId:'yellow-two'})];
+ const projected=projectRoom(JSON.parse(JSON.stringify(r)));
+ assert.equal(projected.events.find(e=>e.id==='auto:yellow-two')?.sourceYellowEventId,'local:yellow-two');
+ assert.equal(projected.events.find(e=>e.id==='auto:yellow-two')?.isCancelled,true);
+});
+
+await test('goal and assist corrections are separate, repeated cancel never subtracts twice',()=>{
+ const r=room();r.base.status='live';
+ r.pending=[command('goal','event',goal),command('assist','event',{...goal,type:'assist',playerId:'teammate'}),command('cancel-goal','cancel',{eventOperationId:'goal'}),command('cancel-goal-again','cancel',{eventOperationId:'goal'})];
+ const projected=projectRoom(r);assert.equal(projected.homeScore,0);assert.notEqual(projected.events[1].isCancelled,true);
+ r.pending.push(command('cancel-assist','cancel',{eventOperationId:'assist'}));
+ assert.equal(projectRoom(r).events[1].isCancelled,true);
+});

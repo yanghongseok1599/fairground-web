@@ -60,7 +60,7 @@ export function projectRoom(room: RecordingRoom): RecordingMatch {
         m.events.push(event);
         if (event.type === "goal") { if (event.teamId === m.homeTeamId) m.homeScore++; else m.awayScore++; }
         if (event.type === "yellow_card" && m.events.filter(e => !e.isCancelled && e.playerId === event.playerId && e.type === "yellow_card").length >= 2 && !m.events.some(e => !e.isCancelled && e.playerId === event.playerId && e.type === "red_card")) {
-          m.events.push({ ...event, id: `auto:${command.id}`, type: "red_card" });
+          m.events.push({ ...event, id: `auto:${command.id}`, type: "red_card", sourceYellowEventId: event.id });
         }
         break;
       }
@@ -71,7 +71,7 @@ export function projectRoom(room: RecordingRoom): RecordingMatch {
           event.isCancelled = true;
           if (event.type === "goal") { if (event.teamId === m.homeTeamId) m.homeScore--; else m.awayScore--; }
           if (event.type === "yellow_card" && m.events.filter(e => !e.isCancelled && e.playerId === event.playerId && e.type === "yellow_card").length < 2) {
-            m.events.filter(e => e.id.startsWith("auto:") && e.playerId === event.playerId).forEach(e => { e.isCancelled = true; });
+            m.events.filter(e => e.type === "red_card" && (e.sourceYellowEventId || e.id.startsWith("auto:")) && e.playerId === event.playerId).forEach(e => { e.isCancelled = true; });
           }
         }
         break;
