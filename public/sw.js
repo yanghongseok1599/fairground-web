@@ -73,9 +73,15 @@ self.addEventListener("message", (event) => {
   if (event.data?.type === "PREPARE_RECORDING_SHELL" && event.source?.url) {
     const url = new URL(event.source.url);
     if (url.origin === self.location.origin && /^\/admin\/match\/[0-9a-f-]+$/.test(url.pathname)) {
-      event.waitUntil(fetch(url.href, { cache: "no-store", headers: { Accept: "text/html" } }).then(async response => {
-        if (response.ok && response.headers.get("content-type")?.includes("text/html")) await (await caches.open(RECORDING_SHELL)).put(url.href, response);
-      }).catch(() => {}));
+      const assets = Array.isArray(event.data.assets) ? event.data.assets.slice(0, 100).filter(value => {
+        try { const asset = new URL(value); return asset.origin === self.location.origin && asset.pathname.startsWith("/_next/static/"); } catch { return false; }
+      }) : [];
+      event.waitUntil(Promise.allSettled([
+        fetch(url.href, { cache: "no-store", headers: { Accept: "text/html" } }).then(async response => {
+          if (response.ok && response.headers.get("content-type")?.includes("text/html")) await (await caches.open(RECORDING_SHELL)).put(url.href, response);
+        }),
+        ...assets.map(asset => cacheFirst(new Request(asset), RUNTIME_STATIC)),
+      ]));
     }
   }
   if (event.data && event.data.type === "SKIP_WAITING") {

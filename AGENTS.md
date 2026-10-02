@@ -116,3 +116,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## 2026-10-03 경기 명단 참가 자격
 
 `20261003020000` 한 건을 운영에 적용했다. 최신 스키마 백업·격리 복원·정의/권한 대조·실제 역할 검수 후 기존 공개 컬럼만 반환하는 경기 명단 뷰를 추가했다. 감독·주장 역할은 제외 조건이 아니며 선수 출신만 제외한다. 기존 33개 보호 테이블과 회원 132명, 이력 73건을 보존했다. 이후 사용자 지시에 따라 기존 관리자 UI에서 ROOT FC B팀 김한주 계정의 선수 출신 값 하나만 정정했다. hosted 개발에는 아직 미반영이며 전체 이력 불일치 및 linked push/reset/repair 금지는 유지한다. [반영 기록](docs/releases/2026-10-03-match-player-eligibility.md).
+
+## 2026-10-03 경기 기록 대기열
+
+`20261003030000`을 운영 최신 스키마 백업·격리 복원·추가 정의/권한 diff·실제 역할 테스트 후 적용했다. 기존 30개 테이블(회원 132명, 경기 12개)의 행과 기존 이력 74건을 보존하고 기록 영수증 테이블/RPC 및 새 이력 1건만 추가했다. 실제 경기 대기열은 IndexedDB의 `fairground-match-recording-v1`이며 사용자 요청 없이 삭제하거나 연습 데이터 정리에 포함하지 않는다. hosted 개발에는 이번 SQL 미반영이며 전체 이력 복구 및 linked push/reset/repair 금지는 유지한다. [반영 기록](docs/releases/2026-10-03-match-recording-outbox.md).
