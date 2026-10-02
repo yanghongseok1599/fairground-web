@@ -14,8 +14,8 @@ import { useMatchResults } from "@/features/match-results/use-match-results";
 import { fetchResultMatches, fetchResultTournaments, fetchTeamResults } from "@/features/match-results/api";
 import { resultStandings, tournamentResultStandings } from "@/features/match-results/model";
 import { MatchCard } from "@/components/match-card";
+import { finalPlacements } from "@/features/standings/final-placements";
 import { GroupedStandingsTable } from "@/features/standings/grouped-standings-table";
-import { StandingsTable } from "@/components/standings-table";
 import type { Tournament, Match, LiveMatch } from "@/types";
 import { Calendar, MapPin, Trophy, Radio } from "lucide-react";
 import { formatTime } from "@/utils/formatters";
@@ -91,7 +91,8 @@ export default function TournamentDetailPage() {
 
   const finishedMatches = matches.filter((m) => m.status === "finished");
   const scheduledMatches = matches.filter((m) => m.status === "scheduled");
-  const tournamentStandings = tournamentResultStandings(matches);
+  const tournamentStandings = tournamentResultStandings(matches.filter(m => m.groupId && tournament.groups.some(g => g.id === m.groupId) && m.round <= 12));
+  const finalRanks = finalPlacements(tournament, matches);
   const isOngoing = tournament.status === "ongoing" || liveMatches.length > 0;
 
   return (
@@ -175,10 +176,10 @@ export default function TournamentDetailPage() {
           )}
 
           {/* 대회 승점표 — 종료 경기 기준 실시간 집계 */}
-          {tournamentStandings.length > 0 && (
+          {(tournamentStandings.length > 0 || finalRanks.length > 0) && (
             <div>
-              <h2 className="text-lg font-bold mb-4" style={{ fontFamily: "var(--font-outfit)", color: "#0D1B2A" }}>대회 승점표</h2>
-              <StandingsTable standings={tournamentStandings} />
+              <h2 className="text-lg font-bold mb-4" style={{ fontFamily: "var(--font-outfit)", color: "#0D1B2A" }}>{finalRanks.length ? "최종 순위" : "조별 순위"}</h2>
+              <GroupedStandingsTable key={tournament.id} standings={tournamentStandings} groups={tournament.groups} finalRanks={finalRanks} />
             </div>
           )}
 
@@ -219,7 +220,7 @@ export default function TournamentDetailPage() {
                   <span className="text-xs" style={{ color: "#627D98" }}>{store.currentSeason.name}</span>
                 )}
               </div>
-              <GroupedStandingsTable key={tournament.id} standings={store.standings} groups={tournament.groups} groupSourceName={getTournamentDisplayName(tournament)} />
+              <GroupedStandingsTable key={tournament.id} standings={store.standings} groups={tournament.groups} finalRanks={finalRanks} groupSourceName={getTournamentDisplayName(tournament)} />
             </div>
           )}
         </div>

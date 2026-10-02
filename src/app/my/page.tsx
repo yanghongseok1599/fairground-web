@@ -7,6 +7,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useMatchResults } from "@/features/match-results/use-match-results";
 import { fetchPlayerResult } from "@/features/match-results/api";
 import { mergePlayerResult } from "@/features/match-results/model";
+import { useFinalCardTier } from "@/features/standings/use-final-card-tier";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -195,6 +196,7 @@ export default function MyPage() {
   const router = useRouter();
   const { user, player, initialized, logout, updatePlayer, updatePassword, uploadPlayerPhoto } = useAuth();
   const store = useDataStore();
+  const finalCardTier = useFinalCardTier(player?.teamId);
   useMatchResults({
     key: `my-results:${player?.id ?? ""}`, enabled: Boolean(initialized && player?.id),
     load: () => fetchPlayerResult(player!.id, true),
@@ -317,6 +319,7 @@ export default function MyPage() {
     player,
     teamLogo: team?.logo,
     cardSkinChoice,
+    finalCardTier,
   });
   const {
     blob: preparedCardBlob,

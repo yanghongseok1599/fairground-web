@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMatchResults } from "@/features/match-results/use-match-results";
 import { fetchPlayerResult } from "@/features/match-results/api";
 import { mergePlayerResult } from "@/features/match-results/model";
+import { useFinalCardTier } from "@/features/standings/use-final-card-tier";
 import { PlayerCardCaptureFrame } from "@/components/player-card-capture-frame";
 import type { Player, Team } from "@/types";
 import {
@@ -48,7 +49,8 @@ export default function PlayerDetailPage() {
     },
   });
 
-  const cardExportRevision = JSON.stringify({ player, teamLogo: team?.logo });
+  const finalCardTier = useFinalCardTier(player?.teamId);
+  const cardExportRevision = JSON.stringify({ player, teamLogo: team?.logo, finalCardTier });
   const {
     blob: preparedCardBlob,
     error: cardImageError,

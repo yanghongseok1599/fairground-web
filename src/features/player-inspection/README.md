@@ -33,3 +33,10 @@ DB 권한 테스트: 격리된 로컬 DB에 기존 스키마와 해당 마이그
 관련 테스트: `node --test tests/player-inspection.test.mjs tests/player-inspection-editing.test.mjs tests/registration-integrity.test.mjs`.
 격리 복원 DB의 저장 권한·신규 가입 검증: `tests/player-inspection-birth-date-database.test.mjs`.
 참고 API: https://supabase.com/docs/guides/realtime/broadcast
+
+## 현장 성별 입력
+
+- 관리자는 이름·팀·생년월일 옆 성별 `입력`/`수정`에서 가입 양식과 같은 남성·여성·기타·응답 안 함을 선택하고 저장한다. 기존 미입력 값은 미등록으로 표시한다. 자동 갱신 중 초안과 오류를 보존한다.
+- `gender.ts`, `gender-api.ts`, `components/gender-editor.tsx`로 선택값·조회/저장·화면을 분리했다. 기존 관리자 전용 `get_admin_profiles`에서 명단 ID의 `id,gender`만 100명 단위로 읽는다. 사진이나 다른 신원정보는 추가로 내려받지 않는다. 검인 전담 계정은 기존 화면/권한을 유지한다.
+- 성별만 기존 profiles RLS로 저장하며, 소속·기존 성별을 사전 확인하고 변경된 행 ID를 확인한 후 개인정보 없는 동기화 신호를 보낸다. 생년월일과 마찬가지로 사전 조회와 저장은 별개 요청이므로 원자적인 동시 변경 잠금은 아니다. 운영의 성별 직접 SELECT 권한을 확대하지 않는다. DB/권한/환경변수 변경은 없다.
+- 검증: `node --test tests/player-inspection-gender.test.mjs`와 격리 복원 DB의 `tests/player-inspection-gender-database.test.mjs`.

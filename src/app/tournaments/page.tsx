@@ -8,10 +8,12 @@ import { useMatchResults } from "@/features/match-results/use-match-results";
 import { fetchResultTournaments, fetchTeamResults } from "@/features/match-results/api";
 import { resultStandings } from "@/features/match-results/model";
 import { EmptyState } from "@/components/empty-state";
+import { finalPlacements } from "@/features/standings/final-placements";
+import { fetchPlacementMatches } from "@/features/standings/final-results-api";
 import { GroupedStandingsTable } from "@/features/standings/grouped-standings-table";
 import { seasonGroupSource } from "@/features/standings/group-filter";
 import { getTournamentDisplayName, isTournamentFixturesPublic } from "@/features/tournaments/public-fixtures";
-import type { TeamStanding, Tournament } from "@/types";
+import type { TeamStanding, Tournament, Match } from "@/types";
 import { ArrowRight, Calendar, MapPin, Trophy } from "lucide-react";
 
 const statusLabel: Record<string, string> = {
@@ -31,6 +33,7 @@ export default function TournamentsPage() {
   const { user } = useAuth();
   const playerSetupHref = user ? "/my/player-setup" : "/login?returnTo=/my/player-setup";
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
+  const [rankingMatches, setRankingMatches] = useState<Match[]>([]);
   const [standings, setStandings] = useState<TeamStanding[]>([]);
   const [loadingTournaments, setLoadingTournaments] = useState(true);
   const [loadingStandings, setLoadingStandings] = useState(true);
@@ -62,6 +65,15 @@ export default function TournamentsPage() {
   }, [loadingStandings, store.standings]);
 
   const groupSource = seasonGroupSource(tournaments, store.currentSeason?.id);
+
+  const groupSourceId = groupSource?.id;
+  useMatchResults({
+    key: `tournament-final-ranks:${groupSourceId ?? ""}`,
+    tournamentId: groupSourceId, enabled: Boolean(groupSourceId),
+    load: () => fetchPlacementMatches([groupSourceId!]),
+    publish: setRankingMatches,
+  });
+  const finalRanks = groupSource ? finalPlacements(groupSource, rankingMatches) : [];
 
   return (
     <div className="pt-[60px] overflow-x-hidden">
@@ -227,7 +239,7 @@ export default function TournamentsPage() {
               ]}
             />
           ) : (
-            <GroupedStandingsTable standings={standings} groups={groupSource?.groups} groupSourceName={groupSource?.name} />
+            <GroupedStandingsTable standings={standings} finalRanks={finalRanks} groups={groupSource?.groups} groupSourceName={groupSource?.name} />
           )}
         </div>
       </section>

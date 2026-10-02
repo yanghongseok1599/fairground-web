@@ -6,6 +6,8 @@ export interface InspectionPlayer {
   team_id: string;
   team_name: string;
   birth_date: string | null;
+  /** Only populated through the admin-only private profile query. */
+  gender?: string | null;
   is_approved: boolean;
   has_player_experience: boolean;
   checked_at: string | null;

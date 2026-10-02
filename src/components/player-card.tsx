@@ -1,6 +1,8 @@
 "use client";
 
 import type { Player, CardType } from "@/types";
+import { useFinalCardTier } from "@/features/standings/use-final-card-tier";
+
 import { BADGES } from "@/constants/badges";
 import { useTeamLogoBackgroundRemoval } from "@/hooks/useTeamLogoBackgroundRemoval";
 import {
@@ -139,7 +141,8 @@ export function PlayerCard({
   // Every surface scales the same fixed original; font metrics and slots never reflow.
   const { width: cardW, height: cardH } = getPlayerCardFrameDimensions("export");
 
-  const cardType = appearance === "bronze" ? "bronze" : getCardTypeFromRating(player.cardRating);
+  const finalCardTier = useFinalCardTier(cardContext === "league" ? player.teamId : undefined);
+  const cardType = appearance === "bronze" ? "bronze" : finalCardTier ?? getCardTypeFromRating(player.cardRating);
   const visualCardType: VisualCardType = appearance !== "bronze" && getPlayerCardDisplaySkin(player, cardContext) === "hologram" ? "hologram" : cardType;
   const skin = CARD_SKIN[visualCardType] ?? STANDARD_SKIN;
   const processedTeamLogo = useTeamLogoBackgroundRemoval(teamLogo);
