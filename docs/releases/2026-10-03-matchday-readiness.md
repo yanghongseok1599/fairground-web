@@ -78,4 +78,6 @@
 
 최종 카드 등급 조회는 모든 카드가 Realtime 구독 하나와 5초 보완 조회를 공유한다. 대회 점수는 이벤트·사진 없이 일괄 조회하며 실패하면 이미 확정된 등급을 유지한다. 내 카드·선수 상세의 저장/공유 PNG 준비 상태에도 최종 등급을 반영한다.
 
-통합 소스 테스트 23/23, 카드 내보내기 검사, TypeScript, 전체 Lint 오류 0·기존 경고 16을 확인했다. 검인 성별의 실제 역할 테스트는 운영 복원 DB에서 2/2 통과했다. 푸시 전 hosted 개발 카탈로그 대조는 소스 410개·타입 계약 365개·조회 97개 통과했다. 이 통합분의 운영 빌드·자동 Preview·운영 배포는 아래 후속 검증에서 별도로 기록한다. 추가 DB 변경은 없다.
+통합 소스 테스트 23/23, 카드 내보내기 검사, TypeScript, 전체 Lint 오류 0·기존 경고 16을 확인했다. 검인 성별의 실제 역할 테스트는 운영 복원 DB에서 2/2 통과했다. 푸시 전 hosted 개발 카탈로그 대조와 운영 gated build는 소스 410개·타입 계약 365개·조회 97개 통과했다. 추가 DB 변경은 없다.
+
+최종 앱 소스는 `0a802ca54cbab5efccead29b912b760ff14b1da9`다. 자동 Preview `dpl_9NBMA3ytFZYdqywP8QVMoVJAJDFJ`([주소](https://fairground-p3r2hz2xi-milestones-projects-d52c4dda.vercel.app))와 운영 `dpl_G5k5CFHRkSGxH16cMqqZG6bSNYsK`([주소](https://fairground-7brxfmlaz-milestones-projects-d52c4dda.vercel.app)) 모두 Ready를 확인했다. 2026-10-03 03:33 KST 운영 배포에 `fairground-kor.com`이 연결됐고 정식 주소의 홈·대회·선수·경기관리 응답이 모두 HTTP 200이었다. 통합 추가분은 테스트·타입·DB 계약·실제 배포/HTTP로 확인했으며, 앞 절의 두 계정 경기 조작 브라우저 증거는 동일하게 보존된 `ae9a531` 기록 기능에 대한 검수다. 후속 문서 커밋은 앱·SQL을 변경하지 않는다.
