@@ -10,6 +10,8 @@ import { filterInspections, inspectionBlockReason, inspectionNumber, inspectionT
 import { useInspectionQuery } from "../use-inspection-query";
 import type { InspectionFilter, InspectionPlayer, InspectionTournament } from "../types";
 import { InspectionDialog } from "./inspection-dialog";
+import { fetchInspectionPlayersWithGender } from "../gender-api";
+import { GenderEditor } from "./gender-editor";
 import { BirthDateEditor } from "./birth-date-editor";
 
 const fieldClass = "min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground";
@@ -39,7 +41,10 @@ export function AdminInspections() {
 
 function InspectionRoster({ tournament }: { tournament: InspectionTournament }) {
   const { player: operator } = useAuth();
-  const read = useCallback((signal: AbortSignal) => fetchInspectionPlayers(tournament.id, signal), [tournament.id]);
+  const canEditIdentity = operator?.role === "admin";
+  const read = useCallback((signal: AbortSignal) => canEditIdentity
+    ? fetchInspectionPlayersWithGender(tournament.id, signal)
+    : fetchInspectionPlayers(tournament.id, signal), [tournament.id, canEditIdentity]);
   const { data, loading, error, updatedAt, reload, connected } = useInspectionQuery(read, true);
   const [query, setQuery] = useState("");
   const [teamId, setTeamId] = useState("");
@@ -85,7 +90,7 @@ function InspectionRoster({ tournament }: { tournament: InspectionTournament }) 
         <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />새로고침
       </button>
     </div>
-    <p className="my-3 rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">명단에 없는 선수는 현장에서 가입 후 선수등록과 참가팀 소속 선택을 완료해주세요. 팀 가입 신청은 승인 후 반영되며, 가입 미승인 선수도 명단에서 확인할 수 있습니다.{operator?.role !== "admin" && " 생년월일 입력·수정은 관리자 계정에서 할 수 있습니다."}</p>
+    <p className="my-3 rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">명단에 없는 선수는 현장에서 가입 후 선수등록과 참가팀 소속 선택을 완료해주세요. 팀 가입 신청은 승인 후 반영되며, 가입 미승인 선수도 명단에서 확인할 수 있습니다.{operator?.role !== "admin" && " 생년월일·성별 입력·수정은 관리자 계정에서 할 수 있습니다."}</p>
     {error && <div role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
       명단을 새로 확인하지 못했습니다. 연결을 확인한 후 새로고침해주세요. {updatedAt ? `마지막 확인: ${inspectionTime(new Date(updatedAt).toISOString())}` : ""}
     </div>}
@@ -110,7 +115,7 @@ function InspectionRoster({ tournament }: { tournament: InspectionTournament }) 
       </div>
       <p className="mt-3 text-xs text-muted-foreground">{teamId ? "선택 팀" : "전체 팀"} · {filtered.length}명 표시{error ? " · 이전에 확인한 명단" : ""}</p>
       <div className="mt-3 hidden grid-cols-[minmax(0,1fr)_160px_120px] gap-4 rounded-t-xl bg-muted px-4 py-3 text-xs font-bold text-muted-foreground md:grid" aria-hidden="true">
-        <span>선수 / 등번호 · 소속팀 · 생년월일</span><span>검인 결과</span><span>처리</span>
+        <span>선수 / 등번호 · 소속팀 · 생년월일{canEditIdentity ? " · 성별" : ""}</span><span>검인 결과</span><span>처리</span>
       </div>
       <ul className="divide-y rounded-xl border border-border md:rounded-t-none">
         {filtered.map((p) => {
@@ -123,6 +128,7 @@ function InspectionRoster({ tournament }: { tournament: InspectionTournament }) 
                 {operator?.role === "admin" ? <BirthDateEditor player={p} tournamentId={tournament.id} disabled={Boolean(error) || saving} onSaved={reload} /> : <p className="text-sm tabular-nums"><span className="text-muted-foreground">생년월일 </span>
                   {p.birth_date ? <time dateTime={p.birth_date} className="whitespace-nowrap">{p.birth_date}</time> : "미등록"}
                 </p>}
+                {canEditIdentity && <GenderEditor player={p} tournamentId={tournament.id} disabled={Boolean(error) || saving} onSaved={reload} />}
               </div>
               {blocked && <p className="mt-1 text-xs text-destructive">{blocked}</p>}
             </div>
