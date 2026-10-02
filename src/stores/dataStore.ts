@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchCoachSummaries, type CoachSummary } from "@/features/admin-directory/api";
 import { notifyInspectionChange } from "@/lib/inspection-sync";
 
 import { requireSavedRow, registrationError } from "@/lib/registration/reliability";
@@ -74,7 +75,7 @@ import type {
 
 // 단일앱 통합 store: 공개사이트 read(RLS anon) + 운영 write(인증/RLS) 통합.
 // fairground 풀 read+write 구현을 단일 소스화. 공개 페이지가 의존하는
-// read 메서드 시그니처(fetchTeams/fetchPlayers/fetchTournaments 가 배열 반환,
+// read 메서드 시그니처(fetchTeams/fetchPublicPlayers/fetchTournaments 가 배열 반환,
 // fetchStandings/subscribeLiveMatches 등)는 보존 — 페이지 컴포넌트 무파손.
 // 데모 모드(localStorage) 분기 보존.
 
@@ -161,7 +162,6 @@ interface DataState {
   loading: boolean;
 
   // --- Read (공개 페이지 소비 — 시그니처 보존) ---
-  fetchPlayers: () => Promise<Player[]>;
   fetchPublicPlayers: () => Promise<Player[]>;
   fetchPlayer: (id: string) => Promise<Player | null>;
   fetchTeams: () => Promise<Team[]>;
@@ -273,7 +273,7 @@ interface DataState {
   transferTeamOwnership: (teamId: string, newOwnerId: string) => Promise<void>;
   // Legacy 감독 application queue. Current team authority is assigned from
   // /teams/[id]/members through set_team_member_role.
-  fetchPendingCoachApplications: () => Promise<Player[]>;
+  fetchPendingCoachApplications: () => Promise<CoachSummary[]>;
   approveCoach: (playerId: string) => Promise<void>;
 
   // === Community Engine ===
@@ -524,29 +524,6 @@ export const useDataStore = create<DataState>((setState, getState) => ({
   loading: false,
 
   // ===== Read =====
-  fetchPlayers: async () => {
-    if (isDemoMode) {
-      const players = getLocalPlayers();
-      const list = Object.entries(players).map(([id, p]) => ({ ...p, id }));
-      setState({ players });
-      return list;
-    }
-    const { data, error } = await supabase.rpc("get_admin_profiles");
-    if (error) {
-      console.error("[dataStore] fetchPlayers:", error.message);
-      return [];
-    }
-    const players: Record<string, Player> = {};
-    const list: Player[] = [];
-    for (const row of data ?? []) {
-      const p = rowToPlayer(row);
-      players[p.id] = p;
-      list.push(p);
-    }
-    setState({ players });
-    return list;
-  },
-
   fetchPublicPlayers: async () => {
     if (isDemoMode) {
       return Object.entries(getLocalPlayers())
@@ -1571,17 +1548,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
 
   // 감독 신청 대기 큐 (admin 전용 UX, RLS 가 anon/일반에 차단).
   // 조건: team_role='coach' AND is_approved=false.
-  fetchPendingCoachApplications: async () => {
-    if (isDemoMode) return [];
-    const { data, error } = await supabase.rpc("get_admin_profiles");
-    if (error) {
-      console.error("[dataStore] fetchPendingCoachApplications:", error.message);
-      return [];
-    }
-    return (data ?? [])
-      .filter((row) => row.team_role === "coach" && !row.is_approved)
-      .map(rowToPlayer);
-  },
+  fetchPendingCoachApplications: () => fetchCoachSummaries(new AbortController().signal),
 
   // 감독 승인 — admin 전용. RLS 가 차단 시 호출부에서 에러 표시.
   approveCoach: async (playerId) => {

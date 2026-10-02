@@ -1,6 +1,6 @@
 import type { Player } from "@/types";
 
-export function getRefereeCandidates(players: Player[]): Player[] {
+export function getRefereeCandidates<T extends Pick<Player, "role" | "isApproved" | "createdAt">>(players: T[]): T[] {
   return players
     .filter((player) => player.role === "referee")
     .sort((a, b) => Number(a.isApproved) - Number(b.isApproved) || b.createdAt - a.createdAt);

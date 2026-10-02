@@ -1,0 +1,25 @@
+{
+  "checkedAt": "2026-10-02T14:52:11.289Z",
+  "method": "Read-only authenticated-role DB query, not HTTP wall clock",
+  "referees": {
+    "rows": 5,
+    "bytes": 1071,
+    "milliseconds": 22
+  },
+  "penalties": {
+    "rows": 132,
+    "bytes": 19828,
+    "milliseconds": 192
+  },
+  "push": {
+    "rows": 132,
+    "bytes": 13244,
+    "milliseconds": 26
+  },
+  "coaches": {
+    "rows": 0,
+    "bytes": 2,
+    "milliseconds": 28
+  },
+  "anonymousDenied": true
+}

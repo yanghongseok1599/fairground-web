@@ -7,8 +7,10 @@ import { AdminPanel, AdminShell, AdminStatusPill } from "@/components/admin-shel
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useDataStore } from "@/stores/dataStore";
-import type { Player, Team, PlayerRole } from "@/types";
+import { fetchPushDirectory, EMPTY_PUSH_DIRECTORY } from "@/features/admin-directory/api";
+import { useAdminResource } from "@/features/admin-directory/use-admin-resource";
+import { AdminLoadError } from "@/features/admin-directory/load-error";
+import type { PlayerRole } from "@/types";
 import {
   countBroadcastRecipients,
   sendBroadcast,
@@ -39,9 +41,7 @@ export default function AdminPushPage() {
 }
 
 function AdminPush() {
-  const store = useDataStore();
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [players, setPlayers] = useState<Player[]>([]);
+  const { data: { teams, players }, loading, error, reload } = useAdminResource(fetchPushDirectory, EMPTY_PUSH_DIRECTORY);
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -55,40 +55,26 @@ function AdminPush() {
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<{ tone: "ok" | "err"; msg: string } | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    void Promise.all([store.fetchTeams(), store.fetchPlayers()])
-      .then(([t, p]) => {
-        if (cancelled) return;
-        const sortedTeams = [...t].sort((a, b) => a.name.localeCompare(b.name, "ko"));
-        const sortedPlayers = [...p].sort((a, b) => a.name.localeCompare(b.name, "ko"));
-        setTeams(sortedTeams);
-        setPlayers(sortedPlayers);
-        if (sortedTeams[0]) setTeamValue(sortedTeams[0].id);
-        if (sortedPlayers[0]) setUserValue(sortedPlayers[0].id);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const selectedTeam = teamValue || teams[0]?.id || "";
+  const selectedUser = userValue || players[0]?.id || "";
 
   const target = useMemo<BroadcastTarget>(() => {
     if (targetType === "role") return { type: "role", value: roleValue };
-    if (targetType === "team") return { type: "team", value: teamValue };
-    if (targetType === "user") return { type: "user", value: userValue };
+    if (targetType === "team") return { type: "team", value: selectedTeam };
+    if (targetType === "user") return { type: "user", value: selectedUser };
     return { type: "all" };
-  }, [targetType, roleValue, teamValue, userValue]);
+  }, [targetType, roleValue, selectedTeam, selectedUser]);
 
   // 대상이 바뀌면 수신자 수를 다시 계산.
   useEffect(() => {
     let cancelled = false;
     // 값이 필요한 대상인데 아직 비어있으면 계산 보류.
-    if ((targetType === "team" && !teamValue) || (targetType === "user" && !userValue)) {
+    if (loading || error || (targetType === "team" && !selectedTeam) || (targetType === "user" && !selectedUser)) {
       setCount(null);
+      setCounting(false);
       return;
     }
+    setCount(null);
     setCounting(true);
     void countBroadcastRecipients(target)
       .then((n) => {
@@ -103,10 +89,10 @@ function AdminPush() {
     return () => {
       cancelled = true;
     };
-  }, [target, targetType, teamValue, userValue]);
+  }, [target, targetType, selectedTeam, selectedUser, loading, error]);
 
   const canSend =
-    title.trim().length > 0 && !sending && count !== null && count > 0;
+    !loading && !error && !counting && title.trim().length > 0 && !sending && count !== null && count > 0;
 
   const handleSend = async () => {
     if (!canSend) return;
@@ -145,6 +131,8 @@ function AdminPush() {
       title="푸시 발송"
       description="구독자(알림 허용)에게 웹 푸시를 보냅니다. Chrome·Safari를 지원하며, iOS는 홈 화면에 추가(PWA 설치)한 사용자에게만 전달됩니다."
     >
+      {error && <AdminLoadError error={error} onRetry={() => void reload()} />}
+      {loading && <p role="status" className="mb-4 text-sm text-muted-foreground">발송 대상을 불러오는 중...</p>}
       <AdminPanel>
         <div className="grid gap-6 md:grid-cols-[1fr_320px]">
           {/* 작성 영역 */}
@@ -222,12 +210,13 @@ function AdminPush() {
 
               {targetType === "team" && (
                 <select
-                  value={teamValue}
+                  value={selectedTeam}
+                  disabled={loading || !!error}
                   onChange={(e) => setTeamValue(e.target.value)}
                   className="mt-3 w-full rounded-md border px-3 py-2 text-sm"
                   style={inputStyle}
                 >
-                  {teams.length === 0 && <option value="">팀 없음</option>}
+                  {teams.length === 0 && <option value="">{loading ? "불러오는 중..." : error ? "조회 실패" : "팀 없음"}</option>}
                   {teams.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
@@ -238,12 +227,13 @@ function AdminPush() {
 
               {targetType === "user" && (
                 <select
-                  value={userValue}
+                  value={selectedUser}
+                  disabled={loading || !!error}
                   onChange={(e) => setUserValue(e.target.value)}
                   className="mt-3 w-full rounded-md border px-3 py-2 text-sm"
                   style={inputStyle}
                 >
-                  {players.length === 0 && <option value="">사용자 없음</option>}
+                  {players.length === 0 && <option value="">{loading ? "불러오는 중..." : error ? "조회 실패" : "사용자 없음"}</option>}
                   {players.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}

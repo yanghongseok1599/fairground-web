@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, ShieldCheck, UserCheck } from "lucide-react";
+import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { AdminGuard } from "@/components/admin-guard";
 import { AdminPanel, AdminShell, AdminStatusPill } from "@/components/admin-shell";
-import { PlayerProfilePhoto } from "@/components/player-profile-photo";
+import { ApprovalPlayerPhoto } from "@/features/admin-players/approval-player-photo";
+import type { CoachSummary } from "@/features/admin-directory/api";
+import { AdminLoadError } from "@/features/admin-directory/load-error";
 import { useDataStore } from "@/stores/dataStore";
-import type { Player, Team } from "@/types";
-import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
+import type { Team } from "@/types";
 
 /**
  * 감독 신청 대기 큐 — admin 전용.
@@ -34,7 +35,7 @@ function AdminCoaches() {
   const fetchTeams = useDataStore((s) => s.fetchTeams);
   const approveCoach = useDataStore((s) => s.approveCoach);
 
-  const [applicants, setApplicants] = useState<Player[]>([]);
+  const [applicants, setApplicants] = useState<CoachSummary[]>([]);
   const [teams, setTeams] = useState<Record<string, Team>>({});
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState("");
@@ -66,7 +67,7 @@ function AdminCoaches() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleApprove = async (player: Player) => {
+  const handleApprove = async (player: CoachSummary) => {
     if (!confirm(`${player.name} 님을 감독으로 승인하시겠습니까?`)) return;
     setSavingId(player.id);
     try {
@@ -92,7 +93,7 @@ function AdminCoaches() {
           style={{ borderColor: "rgba(0,71,171,0.14)" }}
         >
           <div className="fg-label" style={{ color: "var(--primary)" }}>
-            PENDING COACHES · {applicants.length}
+            PENDING COACHES · {loading || error ? "—" : applicants.length}
           </div>
           <ShieldCheck className="h-5 w-5" style={{ color: "var(--primary)" }} />
         </div>
@@ -102,9 +103,7 @@ function AdminCoaches() {
             로딩 중...
           </div>
         ) : error ? (
-          <div className="p-12 text-center" style={{ color: "var(--destructive)" }}>
-            {error}
-          </div>
+          <AdminLoadError error={error} onRetry={() => void reload()} />
         ) : applicants.length === 0 ? (
           <div className="p-16 text-center" style={{ color: "var(--color-fg-ink-muted)" }}>
             대기 중인 감독 신청이 없습니다
@@ -117,11 +116,7 @@ function AdminCoaches() {
                 <article key={player.id} className="p-5 transition-colors hover:bg-[#F5F7FF]">
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-center gap-4">
-                      <PlayerProfilePhoto
-                        src={getPlayerProfilePhotoUrl(player)}
-                        alt={player.name}
-                        icon={UserCheck}
-                      />
+                      <ApprovalPlayerPhoto id={player.id} name={player.name} />
                       <div>
                         <div
                           className="fg-display text-xl font-black"
