@@ -29,6 +29,9 @@ export function RecordingStatus() {
   if (!room) return null;
   const pending = room.pending.length;
   const recoverableEnd = canReleaseRejectedEnd(room);
+  const needsAttention = pending > 0 || room.blocked || !!room.error || !!notice ||
+    !!room.notice || recovering || recoverableEnd || !shared.connected ||
+    shared.pendingElsewhere > 0 || shared.blockingPendingElsewhere > 0;
   const releaseEnd = async () => {
     if (!recoverableEnd || recovering) return;
     const operationId = room.pending[0].id;
@@ -51,17 +54,17 @@ export function RecordingStatus() {
         return { ...current, blocked: false, error: undefined };
       });
       await syncRecordings(room.actorId, true);
-    } catch { setNotice(canBackup ? "기기 저장소를 확인하지 못했습니다. 창을 유지하고 백업을 저장해주세요." : "기기 저장소를 확인하지 못했습니다. 창을 유지하고 관리자에게 알려주세요."); }
+    } catch { setNotice(canBackup ? "기기 저장소를 확인하지 못했습니다. 창을 유지하고 연결·기기 저장 상태를 확인해주세요." : "기기 저장소를 확인하지 못했습니다. 창을 유지하고 관리자에게 알려주세요."); }
   };
   const backup = async () => {
     const rooms = await readRooms(room.actorId);
     const url = URL.createObjectURL(new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), rooms }, null, 2)], { type: "application/json" }));
     const a = document.createElement("a"); a.href = url; a.download = `fairground-records-${new Date().toISOString().slice(0, 10)}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  return <div className={`shrink-0 border-b px-3 py-2 text-xs ${pending ? "bg-amber-50 text-amber-950" : "bg-emerald-50 text-emerald-950"}`} data-slot="recording-sync-status">
+  return <div className={`${needsAttention ? "" : "hidden md:block"} shrink-0 border-b px-3 py-2 text-xs ${pending ? "bg-amber-50 text-amber-950" : "bg-emerald-50 text-emerald-950"}`} data-slot="recording-sync-status">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <p role="status" aria-live="polite"><strong>{pending ? `이 기기에 저장됨 · 서버 전송 대기 ${pending}건` : "동기화 완료 · 서버 저장 확인"}</strong>{pending > 0 && <span className="ml-2">연결되면 자동 전송</span>}</p>
-      <div className="flex flex-wrap gap-2">{recoverableEnd && <button type="button" onClick={() => void releaseEnd()} disabled={recovering} className="min-h-9 rounded border px-2">{recovering ? "최신 경기 확인 중…" : "이전 종료 요청 해제"}</button>}{pending > 0 && <button type="button" onClick={() => void retry()} disabled={recovering} className="min-h-9 rounded border px-2">동기화 재시도</button>}{canBackup && <button type="button" onClick={() => void backup().catch(() => setNotice("백업 저장에 실패했습니다. 다시 시도해주세요."))} className="min-h-9 rounded border px-2">기록 백업</button>}</div>
+      <div className="flex flex-wrap gap-2">{recoverableEnd && <button type="button" onClick={() => void releaseEnd()} disabled={recovering} className="min-h-9 rounded border px-2">{recovering ? "최신 경기 확인 중…" : "이전 종료 요청 해제"}</button>}{pending > 0 && <button type="button" onClick={() => void retry()} disabled={recovering} className="min-h-9 rounded border px-2">동기화 재시도</button>}{canBackup && <button type="button" onClick={() => void backup().catch(() => setNotice("백업 저장에 실패했습니다. 다시 시도해주세요."))} className="hidden min-h-9 rounded border px-2 md:inline-flex md:items-center">기록 백업</button>}</div>
     </div>
     <p className="mt-1">{shared.connected ? "실시간 공유 연결됨" : "공유 연결 확인 중 · 미전송 기록은 이 기기에 보관"}{shared.names.length > 0 && ` · ${shared.names.join(", ")}`}{projectRoom(room).clock?.ownerName && ` · 시간 관리: ${projectRoom(room).clock?.ownerName}`}</p>
     {shared.pendingElsewhere > 0 && <p role="status" className="mt-1">다른 기기에 전송 대기 {shared.pendingElsewhere}건이 있습니다.{shared.blockingPendingElsewhere > 0 && ` 기록 ${shared.blockingPendingElsewhere}건의 동기화가 완료될 때까지 경기 종료를 기다립니다.`}</p>}
