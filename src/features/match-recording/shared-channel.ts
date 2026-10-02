@@ -1,6 +1,7 @@
 import { supabase } from "@/config/supabase";
 import { createPendingPresenceTracker } from "./presence-pending";
 import { createPresencePublisher } from "./presence-publisher";
+import { protectRecordingPresenceReferences } from "./presence-compatibility";
 
 export interface SharedRecordingState { connected: boolean; names: string[]; pendingElsewhere: number; blockingPendingElsewhere: number }
 
@@ -27,13 +28,12 @@ export function joinRecordingChannel(options: {
   let queueRevision = 0;
   let disposed = false;
   let channel: RecordingChannel | undefined;
+  let publisher: ReturnType<typeof createPresencePublisher> | undefined;
   let rejoinTimer: ReturnType<typeof setTimeout> | undefined;
   const key = `${options.actorId}:${options.deviceId}`;
   const topic = `match-recording:${options.matchId}`;
   const pendingTracker = createPendingPresenceTracker(key);
-  const publisher = createPresencePublisher(payload => channel ? channel.track(payload) : Promise.resolve("error"));
-  const updatePresence = () => publisher.set({ name: options.name, pending, blockingPending, queueRevision });
-  updatePresence();
+  const updatePresence = () => publisher?.set({ name: options.name, pending, blockingPending, queueRevision });
   const publish = () => {
     if (disposed) return;
     if (!connected || !channel) { options.onState({ connected: false, names: [], pendingElsewhere: 0, blockingPendingElsewhere: 0 }); return; }
@@ -50,7 +50,13 @@ export function joinRecordingChannel(options: {
   const join = () => {
     if (disposed) return;
     const current = supabase.channel(topic, { config: { presence: { key } } });
+    protectRecordingPresenceReferences(current);
     channel = current;
+    // SDK teardown can leave an in-flight track promise unresolved. A fresh
+    // channel needs its own publisher so an old send cannot block its presence.
+    const currentPublisher = createPresencePublisher(payload => current.track(payload));
+    publisher = currentPublisher;
+    updatePresence();
     const currentRefresh = () => { if (channel === current) refresh(); };
     current.on("postgres_changes", { event: "*", schema: "public", table: "matches", filter: `id=eq.${options.matchId}` }, currentRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "match_events", filter: `match_id=eq.${options.matchId}` }, currentRefresh)
@@ -58,11 +64,13 @@ export function joinRecordingChannel(options: {
       .subscribe(status => {
         if (disposed || channel !== current) return;
         connected = status === "SUBSCRIBED";
-        publisher.setActive(connected);
+        currentPublisher.setActive(connected);
         publish();
         if (connected) refresh();
         if (status === "CLOSED") {
           // CLOSED channels leave the SDK collection and do not rejoin on their own.
+          currentPublisher.close();
+          publisher = undefined;
           channel = undefined;
           removeRecordingChannel(topic, current);
           clearTimeout(rejoinTimer);
@@ -71,10 +79,10 @@ export function joinRecordingChannel(options: {
       });
   };
   startWhenReady();
-  const offline = () => { connected = false; publisher.setActive(false); publish(); };
+  const offline = () => { connected = false; publisher?.setActive(false); publish(); };
   const online = () => {
     connected = channel?.state === "joined";
-    publisher.setActive(connected); publish(); refresh();
+    publisher?.setActive(connected); publish(); refresh();
     if (!channel && rejoinTimer === undefined) startWhenReady();
   };
   window.addEventListener("offline", offline);
@@ -87,7 +95,7 @@ export function joinRecordingChannel(options: {
     close() {
       if (disposed) return;
       disposed = true;
-      publisher.close();
+      publisher?.close();
       clearTimeout(rejoinTimer);
       window.removeEventListener("offline", offline);
       window.removeEventListener("online", online);

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { RealtimeClient } from "@supabase/realtime-js";
 import { moduleLoader } from "./helpers/load-ts-module.mjs";
 
 function fixture(t) {
@@ -121,4 +122,46 @@ test("unexpected CLOSED rejoins after removal with buffered counts; own close ne
   t.mock.timers.tick(5000);
   await f.flush();
   assert.equal(f.created.length, 2);
+});
+
+test("SDK teardown abandoning an in-flight track cannot block a replacement channel's latest presence", async t => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const f = fixture(t);
+  const recorder = f.join("device-a");
+  await f.flush();
+  const old = f.created[0];
+
+  // Exercise the installed SDK's real send/teardown behavior with no network.
+  const sdk = new RealtimeClient("wss://synthetic.invalid/realtime/v1", { params: { apikey: "synthetic" }, timeout: 15 });
+  const abandoned = sdk.channel("synthetic-old-channel");
+  const raw = abandoned.channelAdapter.getChannel();
+  raw.joinedOnce = true;
+  raw.state = "joined";
+  raw.socket.isConnected = () => true;
+  raw.socket.push = () => {};
+  let oldSettled = false;
+  old.track = value => abandoned.track(value).then(result => { oldSettled = true; return result; });
+  recorder.handle.setPending(2, 2, 11);
+  raw.trigger("phx_close", {});
+  assert.equal(await sdk.removeChannel(abandoned), "ok");
+  t.mock.timers.tick(30);
+  await f.flush();
+  assert.equal(oldSettled, false); // Teardown removes the SDK's timeout reply binding.
+  assert.equal(raw.bindings.length, 0);
+  assert.equal(sdk.getChannels().length, 0);
+
+  old.state = "closed"; old.status("CLOSED");
+  await f.flush();
+  recorder.handle.setPending(0, 0, 12);
+  f.removals.shift()();
+  t.mock.timers.tick(1000);
+  await f.flush();
+  const next = f.created[1];
+  assert.ok(next);
+  assert.deepEqual(next.tracks.at(-1), { name: "device-a", pending: 0, blockingPending: 0, queueRevision: 12 });
+  assert.equal(recorder.states.at(-1).connected, true);
+  assert.equal(oldSettled, false);
+  recorder.handle.close();
+  await f.flush();
+  f.removals.shift()();
 });

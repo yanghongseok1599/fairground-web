@@ -2,7 +2,7 @@
 
 import { TournamentActions } from "@/features/kakao-tools/components/tournament-actions";
 import { EventShareButton } from "@/features/kakao-tools/components/share-button";
-import { getTournamentShareUrl } from "@/features/kakao-tools/links";
+import { getMatchShareLinks } from "@/features/match-share/links";
 import { SITE_URL } from "@/lib/site-config";
 
 import { compareScheduledMatches } from "@/lib/match-schedule";
@@ -193,7 +193,7 @@ export default function TournamentDetailPage() {
                   <EventShareButton label="결과 공유" content={{
                     title: `${m.homeTeamName} ${m.homeScore} : ${m.awayScore} ${m.awayTeamName}`,
                     description: `${getTournamentDisplayName(tournament)} · R${m.round} · 경기 종료`,
-                    url: getTournamentShareUrl(SITE_URL, tournament.id, m.id),
+                    ...getMatchShareLinks(SITE_URL, m.id, m.homeScore, m.awayScore),
                   }} />
                 </div>)}
               </div>
