@@ -24,6 +24,17 @@ test("벤치로 등록된 선수도 교체 조작 없이 기록하고 골·어�
   assert.deepEqual(rosterStats(store.getState().snapshot.match.events).get("practice-blue-6"), { goal: 1, assist: 1, yellow_card: 1 });
 });
 
+test("선수 겸 감독·주장은 유지하고 선수 출신만 경기 기록 명단에서 제외한다", () => {
+  const s = createPracticeStore().getState().snapshot;
+  const player = s.players[0];
+  const list = rosterPlayers([
+    { ...player, id: "playing-coach", teamRole: "coach", hasPlayerExperience: false },
+    { ...player, id: "playing-captain", teamRole: "captain", hasPlayerExperience: false },
+    { ...player, id: "former-player-coach", teamRole: "coach", hasPlayerExperience: true },
+  ], player.teamId);
+  assert.deepEqual(list.map(p => p.id).sort(), ["playing-captain", "playing-coach"]);
+});
+
 test("운영자가 보낸 팀·선수명·시간은 사용하지 않고 현재 경기와 가상 명단으로 검증한다", async () => {
   const store = createPracticeStore(), m = store.getState().snapshot.match;
   await store.getState().startMatch(m.tournamentId, m.id);

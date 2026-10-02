@@ -1612,6 +1612,43 @@ export type Database = {
       }
     }
     Views: {
+      public_match_player_profiles: {
+        Row: {
+          assists: number
+          attendance_streak: number
+          attendance_streak_best: number
+          badges: string[]
+          ban_matches_remaining: number
+          bio: string | null
+          card_rating: number
+          card_skin: "standard" | "hologram"
+          card_type: Database["public"]["Enums"]["card_type_t"]
+          created_at: string
+          disposition: string | null
+          games: number
+          goals: number
+          id: string
+          is_approved: boolean
+          is_banned: boolean
+          mbti: string | null
+          mom: number
+          name: string
+          nationality: string
+          number: number
+          number_label: string | null
+          personal_values: string | null
+          photo_offset_x: number | null
+          photo_scale: number | null
+          photo_url: string
+          position: Database["public"]["Enums"]["position_t"]
+          profile_photo_locked: boolean
+          profile_photo_url: string | null
+          role: Database["public"]["Enums"]["player_role_t"]
+          season_yellow_cards: number
+          team_id: string | null
+        }
+        Relationships: []
+      }
       public_player_profiles: {
         Row: {
           assists: number

@@ -8,7 +8,7 @@ test('recording roster excludes both inline photos and preserves jersey labels a
     is_approved: true, is_banned: true, ban_matches_remaining: 2 }], error: null });
   const [player] = await f.data.getState().fetchTeamPlayers('t', { forRecording: true });
   const steps = f.requests[0].steps;
-  assert.equal(f.requests[0].table, 'public_player_profiles');
+  assert.equal(f.requests[0].table, 'public_match_player_profiles');
   assert.doesNotMatch(steps.find(s => s[0] === 'select')[1], /photo|\*/);
   assert.deepEqual(steps.find(s => s[0] === 'eq'), ['eq', 'team_id', 't']);
   assert.deepEqual(steps.find(s => s[0] === 'retry'), ['retry', false]);
