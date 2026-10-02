@@ -8,7 +8,7 @@ function fixture(responses) {
   const makeQuery = (source) => {
     const call = { source, steps: [] }; calls.push(call);
     const chain = {};
-    for (const method of ['select','eq','abortSignal']) chain[method] = (...args) => { call.steps.push([method,...args]); return chain; };
+    for (const method of ['select','eq','abortSignal','retry']) chain[method] = (...args) => { call.steps.push([method,...args]); return chain; };
     chain.then = (resolve, reject) => Promise.resolve(responses.shift()).then(resolve, reject);
     return chain;
   };
@@ -27,6 +27,7 @@ test('referees use a server-side role filter and small projection, with pending 
   ])]);
   const result=await api.fetchRefereeSummaries(signal());
   assert.deepEqual(result.map(p=>p.id),['pending','active']);
+  assert.ok(calls[0].steps.some(s=>s[0]==='retry'&&s[1]===false));
   assert.ok(calls[0].steps.some(s=>s[0]==='eq' && s[1]==='role' && s[2]==='referee'));
   assert.doesNotMatch(calls[0].steps.find(s=>s[0]==='select')[1],/photo|\*|bio/);
 });

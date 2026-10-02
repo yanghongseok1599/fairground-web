@@ -11,6 +11,7 @@ export type CoachSummary = Pick<Player, "id" | "name" | "teamId" | "email" | "ph
 export type PushDirectory = { teams: Pick<Team, "id" | "name">[]; players: Pick<Player, "id" | "name" | "teamName">[] };
 export const EMPTY_PUSH_DIRECTORY: PushDirectory = { teams: [], players: [] };
 
+// Fail once and offer explicit retry; avoid SDK retry bursts during a DB outage.
 // Each screen has an explicit projection. Never read the two inline photo columns here.
 export const REFEREE_COLUMNS = "id,name,role,is_approved,created_at,phone,email,has_player_experience";
 export const PENALTY_COLUMNS = "id,name,position,is_banned,ban_matches_remaining,season_yellow_cards";
@@ -27,7 +28,7 @@ export async function fetchRefereeSummaries(signal: AbortSignal): Promise<Refere
   if (isDemoMode) return getRefereeCandidates(localPlayers());
   return withApprovalDeadline(async (requestSignal) => {
     const { data, error } = await supabase.rpc("get_admin_profiles", undefined, { get: true })
-      .select(REFEREE_COLUMNS).eq("role", "referee").abortSignal(requestSignal);
+      .select(REFEREE_COLUMNS).eq("role", "referee").abortSignal(requestSignal).retry(false);
     return getRefereeCandidates(requireList(data, error).map(r => ({
       id: r.id, name: r.name, role: r.role, isApproved: r.is_approved, createdAt: Date.parse(r.created_at),
       phone: r.phone ?? undefined, email: r.email ?? undefined, hasPlayerExperience: r.has_player_experience ?? undefined,
@@ -38,7 +39,7 @@ export async function fetchRefereeSummaries(signal: AbortSignal): Promise<Refere
 export async function fetchPenaltySummaries(signal: AbortSignal): Promise<PenaltySummary[]> {
   const list = isDemoMode ? localPlayers() : await withApprovalDeadline(async (requestSignal) => {
     const { data, error } = await supabase.rpc("get_admin_profiles", undefined, { get: true })
-      .select(PENALTY_COLUMNS).abortSignal(requestSignal);
+      .select(PENALTY_COLUMNS).abortSignal(requestSignal).retry(false);
     return requireList(data, error).map(r => ({ id: r.id, name: r.name, position: r.position,
       penaltyStatus: { isBanned: r.is_banned, banMatchesRemaining: r.ban_matches_remaining, seasonYellowCards: r.season_yellow_cards } }));
   }, signal);
@@ -50,7 +51,7 @@ export async function fetchCoachSummaries(signal: AbortSignal): Promise<CoachSum
   if (isDemoMode) return [];
   return withApprovalDeadline(async (requestSignal) => {
     const { data, error } = await supabase.rpc("get_admin_profiles", undefined, { get: true })
-      .select(COACH_COLUMNS).eq("team_role", "coach").eq("is_approved", false).abortSignal(requestSignal);
+      .select(COACH_COLUMNS).eq("team_role", "coach").eq("is_approved", false).abortSignal(requestSignal).retry(false);
     return requireList(data, error).map(r => ({ id: r.id, name: r.name, teamId: r.team_id ?? "",
       phone: r.phone ?? undefined, email: r.email ?? undefined, createdAt: Date.parse(r.created_at) }));
   }, signal);
@@ -60,10 +61,10 @@ export async function fetchPushDirectory(signal: AbortSignal): Promise<PushDirec
   if (isDemoMode) return { teams: Object.values(JSON.parse(localStorage.getItem("fg_teams") || "{}")), players: localPlayers() };
   // Sequential reads avoid leaving a sibling request running if the first fails.
   return withApprovalDeadline(async (requestSignal) => {
-    const teamsResult = await supabase.from("teams").select("id,name").abortSignal(requestSignal);
+    const teamsResult = await supabase.from("teams").select("id,name").abortSignal(requestSignal).retry(false);
     const teams = requireList(teamsResult.data, teamsResult.error).sort((a, b) => a.name.localeCompare(b.name, "ko"));
     const { data, error } = await supabase.rpc("get_admin_profiles", undefined, { get: true })
-      .select(PUSH_PLAYER_COLUMNS).abortSignal(requestSignal);
+      .select(PUSH_PLAYER_COLUMNS).abortSignal(requestSignal).retry(false);
     const names = new Map(teams.map(t => [t.id, t.name]));
     const players = requireList(data, error).map(r => ({ id: r.id, name: r.name, teamName: names.get(r.team_id ?? "") }))
       .sort((a, b) => a.name.localeCompare(b.name, "ko"));
