@@ -2,7 +2,7 @@ import type { Match, MatchEvent, Player, MatchLineupEntry } from "@/types";
 
 export type RecordingMatch = Match & {
   elapsedSeconds: number; currentHalf: 1 | 2; isRunning: boolean; lineups?: MatchLineupEntry[];
-  serverRevision?: number; appliedOperationIds?: string[];
+  serverRevision?: number; appliedOperationIds?: string[]; supersededOperationIds?: string[];
   clock?: { version: number; ownerId: string | null; deviceId: string | null; ownerName: string };
 };
 export type CommandKind = "start" | "pause" | "resume" | "timer" | "event" | "cancel" | "mom" | "end" | "forfeit" | "substitute";
@@ -25,7 +25,10 @@ export interface RecordingRoom {
   savedAt: number;
   syncedAt?: number;
   error?: string;
+  notice?: string;
   blocked?: boolean;
+  rejectedOperation?: { id: string; code: string; message: string };
+  reviewedOperationIds?: string[];
 }
 
 /** Pure projection: only unacknowledged commands overlay the server snapshot. */
@@ -39,6 +42,10 @@ export function projectRoom(room: RecordingRoom): RecordingMatch {
       p._clockVersion !== undefined && Number(p._clockVersion) !== (m.clock?.version ?? 0)) continue;
     if (["start", "pause", "resume", "end", "forfeit"].includes(command.kind)) {
       m.clock = { version: (m.clock?.version ?? 0) + 1, ownerId: room.actorId, deviceId: String(p._deviceId ?? ""), ownerName: String(p._actorName ?? "기록자") };
+    }
+    if ((command.kind === "pause" || command.kind === "end") && Number.isFinite(Number(p._elapsedSeconds))) {
+      m.elapsedSeconds = Math.min(720, Math.max(m.elapsedSeconds, Number(p._elapsedSeconds)));
+      m.currentHalf = m.currentHalf === 2 || Number(p._half) === 2 ? 2 : 1;
     }
     switch (command.kind) {
       case "start": if (m.status === "scheduled") { m.status = "live"; m.elapsedSeconds = 0; m.currentHalf = 1; m.isRunning = true; } break;
@@ -83,6 +90,11 @@ export function reconcileSnapshot(room: RecordingRoom, incoming: RecordingMatch)
   if ((incoming.serverRevision ?? 0) < (room.base.serverRevision ?? 0)) return room;
   const applied = new Set(incoming.appliedOperationIds ?? []);
   const pending = room.pending.filter(command => !applied.has(command.id));
-  return { ...room, base: incoming, pending, syncedAt: Date.now(),
+  const previousSuperseded = new Set(room.base.supersededOperationIds ?? []);
+  const newlySuperseded = new Set((incoming.supersededOperationIds ?? []).filter(id => !previousSuperseded.has(id)));
+  const count = room.journal.filter(command => newlySuperseded.has(command.id) && (command.kind === "pause" || command.kind === "resume")).length;
+  const notice = count ? `다른 심판·관리자가 먼저 진행 상태를 변경하여 이전 일시정지·재개 요청 ${count}건은 반영하지 않았습니다. 현재 경기 상태를 확인해주세요.` : room.notice;
+  return { ...room, base: incoming, pending, notice, syncedAt: Date.now(),
+    rejectedOperation: pending.some(command => command.id === room.rejectedOperation?.id) ? room.rejectedOperation : undefined,
     error: pending.length ? room.error : undefined, blocked: pending.length ? room.blocked : false };
 }

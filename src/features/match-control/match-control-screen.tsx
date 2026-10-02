@@ -1,6 +1,6 @@
 "use client";
 
-import { RecordingStatus } from "@/features/match-recording/provider";
+import { RecordingStatus, useSharedRecordingState } from "@/features/match-recording/provider";
 
 import { jerseyNumberText, jerseyNumberOrder } from "@/lib/jersey-number";
 
@@ -91,6 +91,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
 }) {
   const router = useRouter();
   const recordingFullscreen = useRecordingFullscreen();
+  const { blockingPendingElsewhere } = useSharedRecordingState();
 
   const mc = useMatchControl({ tournamentId, matchId, readOnly: spectator });
   const store = useMatchControlStore();
@@ -684,7 +685,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
 
   const handleEndMatch = async () => {
     const momChoice = endMomChoice || matchData.momPlayerId || "";
-    if (!endDialogOpen || !momChoice || mc.pendingAction !== null) return;
+    if (!endDialogOpen || !momChoice || mc.pendingAction !== null || blockingPendingElsewhere > 0) return;
 
     if (
       momChoice !== NO_MOM_VALUE &&
@@ -1052,6 +1053,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
               <DialogDescription>경기 기록과 MOM을 확인한 뒤 ‘확인 후 종료’를 눌러주세요. 취소하면 경기 화면으로 돌아갑니다.</DialogDescription>
             </DialogHeader>
             <p className="text-xs text-muted-foreground">{practice ? "연습 결과만 확정하며 실제 선수 기록에는 반영되지 않습니다." : "경기 종료 시 선수 기록과 순위에 반영됩니다."}</p>
+            {blockingPendingElsewhere > 0 && <p role="status" className="text-sm text-amber-800">다른 기기에 전송 대기 기록 {blockingPendingElsewhere}건이 있습니다. 동기화가 끝나면 종료할 수 있습니다.</p>}
             <div className="space-y-4 pt-2">
               <div className="rounded-lg border p-4 text-center">
                 <div className="mb-2 text-sm" style={{ color: "var(--muted-foreground)" }}>
@@ -1174,7 +1176,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                   variant="destructive"
                   className="min-h-[44px] flex-1"
                   onClick={handleEndMatch}
-                  disabled={mc.pendingAction !== null || !endMomReady}
+                  disabled={mc.pendingAction !== null || !endMomReady || blockingPendingElsewhere > 0}
                   aria-busy={endPending}
                 >
                   {mc.pendingAction === "mom" ? (

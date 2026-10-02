@@ -6,10 +6,12 @@ import type { LiveMatch } from "@/types";
 import { projectRoom, type CommandKind, type RecordingRoom } from "./model";
 import { recordingDeviceId } from "./device";
 import { updateRoom } from "./storage";
+import { createObservedClock, finalizationWaitMessage, otherPendingCount } from "./control-safety";
 
 export function createRecordingAdapter(initial: RecordingRoom) {
   const deviceId = recordingDeviceId();
   let room = initial;
+  const observedClock = createObservedClock();
   const match = () => projectRoom(room);
   const ownsClock = () => { const clock = match().clock; return clock?.ownerId === room.actorId && clock.deviceId === deviceId; };
   const enqueue = async (kind: CommandKind, payload: Record<string, string | number> = {}) => {
@@ -18,10 +20,12 @@ export function createRecordingAdapter(initial: RecordingRoom) {
     room = await updateRoom(room.key, current => {
       if (!current) throw new Error("기기 저장 기록이 없습니다.");
       if (current.blocked) throw new Error(current.error);
+      const wait = finalizationWaitMessage(kind, otherPendingCount(current.matchId));
+      if (wait) throw new Error(wait);
       const state = projectRoom(current);
       if (kind === "start" ? state.status !== "scheduled" : state.status !== "live") throw new Error("경기 상태가 변경되었습니다. 기록을 확인해주세요.");
       if (kind === "timer" && (state.clock?.ownerId !== room.actorId || state.clock.deviceId !== deviceId)) return current;
-      command.payload = { ...payload, _deviceId: deviceId, _clockVersion: state.clock?.version ?? 0, _actorName: useAuthStore.getState().player?.name ?? "기록자" };
+      command.payload = { ...payload, ...(kind === "pause" || kind === "end" ? observedClock.payload(state) : {}), _deviceId: deviceId, _clockVersion: state.clock?.version ?? 0, _actorName: useAuthStore.getState().player?.name ?? "기록자" };
       return { ...current, pending: [...current.pending, command], journal: [...current.journal, command], savedAt: command.at };
     });
     publish(room);
@@ -36,7 +40,10 @@ export function createRecordingAdapter(initial: RecordingRoom) {
     subscribeLiveMatches: () => () => {},
     startMatch: async () => enqueue("start"), pauseMatch: async () => enqueue("pause"), resumeMatch: async () => enqueue("resume"),
     endMatch: async () => enqueue("end"), forfeitMatch: async (_id, teamId) => enqueue("forfeit", { teamId }),
-    updateMatchTimer: async (_id, seconds, half) => enqueue("timer", { seconds, half }),
+    updateMatchTimer: async (_id, seconds, half) => {
+      observedClock.remember(seconds, half, match().clock?.version ?? 0);
+      if (ownsClock()) await enqueue("timer", { seconds, half });
+    },
     addMatchEvent: async (_t, _m, event) => enqueue("event", event),
     cancelMatchEvent: async (_t, _m, eventId) => {
       if (eventId.startsWith("auto:")) throw new Error("자동 퇴장은 해당 두 번째 경고를 취소해주세요.");

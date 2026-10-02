@@ -3,12 +3,12 @@ import { rowToEvent, rowToMatch } from "@/lib/mappers";
 import type { Database, Json } from "@/lib/database.types";
 import type { RecordingCommand, RecordingMatch } from "./model";
 
-type Snapshot = { serverRevision?: number; appliedOperationIds?: string[]; clock?: RecordingMatch["clock"]; eventAuthors?: Record<string, { id: string; name: string }>; match: Database["public"]["Tables"]["matches"]["Row"]; lineups: Database["public"]["Tables"]["match_lineups"]["Row"][]; events: Database["public"]["Tables"]["match_events"]["Row"][]; eventOperations: Record<string, string> };
+type Snapshot = { serverRevision?: number; appliedOperationIds?: string[]; supersededOperationIds?: string[]; clock?: RecordingMatch["clock"]; eventAuthors?: Record<string, { id: string; name: string }>; match: Database["public"]["Tables"]["matches"]["Row"]; lineups: Database["public"]["Tables"]["match_lineups"]["Row"][]; events: Database["public"]["Tables"]["match_events"]["Row"][]; eventOperations: Record<string, string> };
 export function decodeSnapshot(value: Json): RecordingMatch {
   const snapshot = value as unknown as Snapshot;
   if (!snapshot?.match?.id || !Array.isArray(snapshot.events)) throw new Error("경기 응답을 확인하지 못했습니다.");
   const events = snapshot.events.map(row => ({ ...rowToEvent(row), recordedBy: snapshot.eventAuthors?.[row.id]?.id, recorderName: snapshot.eventAuthors?.[row.id]?.name, id: snapshot.eventOperations?.[row.id] ? `local:${snapshot.eventOperations[row.id]}` : row.id }));
-  return { ...rowToMatch(snapshot.match, events), serverRevision: snapshot.serverRevision, appliedOperationIds: snapshot.appliedOperationIds, clock: snapshot.clock, lineups: (snapshot.lineups ?? []).map(l => ({ matchId: l.match_id, teamId: l.team_id, playerId: l.player_id, isStarter: l.is_starter, jerseyNumber: l.jersey_number ?? undefined, jerseyNumberLabel: l.jersey_number_label, createdAt: Date.parse(l.created_at) })), elapsedSeconds: snapshot.match.elapsed_seconds, currentHalf: snapshot.match.current_half === 2 ? 2 : 1, isRunning: snapshot.match.is_running };
+  return { ...rowToMatch(snapshot.match, events), serverRevision: snapshot.serverRevision, appliedOperationIds: snapshot.appliedOperationIds, supersededOperationIds: snapshot.supersededOperationIds, clock: snapshot.clock, lineups: (snapshot.lineups ?? []).map(l => ({ matchId: l.match_id, teamId: l.team_id, playerId: l.player_id, isStarter: l.is_starter, jerseyNumber: l.jersey_number ?? undefined, jerseyNumberLabel: l.jersey_number_label, createdAt: Date.parse(l.created_at) })), elapsedSeconds: snapshot.match.elapsed_seconds, currentHalf: snapshot.match.current_half === 2 ? 2 : 1, isRunning: snapshot.match.is_running };
 }
 export async function readSnapshot(matchId: string): Promise<RecordingMatch> {
   const { data, error } = await supabase.rpc("get_match_recording_snapshot", { p_match_id: matchId }).retry(false);

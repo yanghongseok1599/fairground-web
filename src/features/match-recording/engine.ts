@@ -2,6 +2,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { readRooms, updateRoom } from "./storage";
 import { sendCommand } from "./transport";
 import { flushRoom } from "./sync-core";
+import { finalizationWaitMessage, otherPendingCount } from "./control-safety";
 
 let running = false;
 let failures = 0;
@@ -14,7 +15,10 @@ export async function syncRecordings(actorId: string, force = false): Promise<vo
     await navigator.locks.request(`fg-match-sync:${actorId}`, { ifAvailable: true }, async lock => {
       if (!lock) return;
       for (const room of await readRooms(actorId)) {
-        if (room.pending.length && !room.blocked) await flushRoom(room, { send: sendCommand, update: updateRoom, currentActor: () => useAuthStore.getState().user?.uid });
+        if (room.pending.length && !room.blocked) await flushRoom(room, {
+          send: sendCommand, update: updateRoom, currentActor: () => useAuthStore.getState().user?.uid,
+          waitBeforeSend: command => finalizationWaitMessage(command.kind, otherPendingCount(room.matchId)),
+        });
       }
       const pending = (await readRooms(actorId)).some(r => r.pending.length && !r.blocked);
       failures = pending ? Math.min(failures + 1, 4) : 0;

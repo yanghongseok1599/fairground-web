@@ -12,15 +12,35 @@ import { syncRecordings } from "./engine";
 import { projectRoom, reconcileSnapshot, type RecordingRoom } from "./model";
 import { recordingDeviceId } from "./device";
 import { joinRecordingChannel, type SharedRecordingState } from "./shared-channel";
+import { blockingPendingCount, observeOtherPending } from "./control-safety";
+import { canReleaseRejectedEnd, releaseRejectedEnd } from "./control-recovery";
 
-const SharedContext = createContext<SharedRecordingState>({ connected: false, names: [], pendingElsewhere: 0 });
+const SharedContext = createContext<SharedRecordingState>({ connected: false, names: [], pendingElsewhere: 0, blockingPendingElsewhere: 0 });
+export const useSharedRecordingState = () => useContext(SharedContext);
 const RecordingContext = createContext<RecordingRoom | null>(null);
 export function RecordingStatus() {
   const room = useContext(RecordingContext);
   const shared = useContext(SharedContext);
   const [notice, setNotice] = useState("");
+  const [recovering, setRecovering] = useState(false);
   if (!room) return null;
   const pending = room.pending.length;
+  const recoverableEnd = canReleaseRejectedEnd(room);
+  const releaseEnd = async () => {
+    if (!recoverableEnd || recovering) return;
+    const operationId = room.pending[0].id;
+    setRecovering(true);
+    setNotice("");
+    try {
+      const latest = await readSnapshot(room.matchId);
+      if (useAuthStore.getState().user?.uid !== room.actorId) throw new Error("기록 계정이 변경되었습니다. 원래 계정으로 로그인해주세요.");
+      await updateRoom(room.key, current => {
+        if (!current) throw new Error("기기 저장 기록이 없습니다.");
+        return releaseRejectedEnd(current, latest, operationId);
+      });
+    } catch (error) { setNotice(error instanceof Error ? error.message : "최신 경기 상태를 확인하지 못했습니다. 기존 기록을 보관하고 있습니다."); }
+    finally { setRecovering(false); }
+  };
   const retry = async () => {
     try {
       await updateRoom(room.key, current => {
@@ -38,10 +58,11 @@ export function RecordingStatus() {
   return <div className={`shrink-0 border-b px-3 py-2 text-xs ${pending ? "bg-amber-50 text-amber-950" : "bg-emerald-50 text-emerald-950"}`} data-slot="recording-sync-status">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <p role="status" aria-live="polite"><strong>{pending ? `이 기기에 저장됨 · 서버 전송 대기 ${pending}건` : "동기화 완료 · 서버 저장 확인"}</strong>{pending > 0 && <span className="ml-2">연결되면 자동 전송</span>}</p>
-      <div className="flex gap-2">{pending > 0 && <button type="button" onClick={() => void retry()} className="min-h-9 rounded border px-2">동기화 재시도</button>}<button type="button" onClick={() => void backup().catch(() => setNotice("백업 저장에 실패했습니다. 다시 시도해주세요."))} className="min-h-9 rounded border px-2">기록 백업</button></div>
+      <div className="flex flex-wrap gap-2">{recoverableEnd && <button type="button" onClick={() => void releaseEnd()} disabled={recovering} className="min-h-9 rounded border px-2">{recovering ? "최신 경기 확인 중…" : "이전 종료 요청 해제"}</button>}{pending > 0 && <button type="button" onClick={() => void retry()} disabled={recovering} className="min-h-9 rounded border px-2">동기화 재시도</button>}<button type="button" onClick={() => void backup().catch(() => setNotice("백업 저장에 실패했습니다. 다시 시도해주세요."))} className="min-h-9 rounded border px-2">기록 백업</button></div>
     </div>
     <p className="mt-1">{shared.connected ? "실시간 공유 연결됨" : "공유 연결 확인 중 · 미전송 기록은 이 기기에 보관"}{shared.names.length > 0 && ` · ${shared.names.join(", ")}`}{projectRoom(room).clock?.ownerName && ` · 시간 관리: ${projectRoom(room).clock?.ownerName}`}</p>
-    {shared.pendingElsewhere > 0 && <p role="status" className="mt-1">다른 기기에서 {shared.pendingElsewhere}건 전송 중입니다. 경기 종료 전에 모두 동기화됐는지 확인해주세요.</p>}
+    {shared.pendingElsewhere > 0 && <p role="status" className="mt-1">다른 기기에 전송 대기 {shared.pendingElsewhere}건이 있습니다.{shared.blockingPendingElsewhere > 0 && ` 기록 ${shared.blockingPendingElsewhere}건의 동기화가 완료될 때까지 경기 종료를 기다립니다.`}</p>}
+    {room.notice && <p role="status" className="mt-1">{room.notice}</p>}
     {(room.error || notice) && <p role="alert" className="mt-1">{notice || room.error}</p>}
   </div>;
 }
@@ -50,7 +71,7 @@ export function MatchRecordingProvider({ matchId, children }: { matchId: string;
   const user = useAuthStore(s => s.user);
   const player = useAuthStore(s => s.player);
   const [loaded, setLoaded] = useState<{ room: RecordingRoom; adapter: ReturnType<typeof createRecordingAdapter> } | null>(null);
-  const [shared, setShared] = useState<SharedRecordingState>({ connected: false, names: [], pendingElsewhere: 0 });
+  const [shared, setShared] = useState<SharedRecordingState>({ connected: false, names: [], pendingElsewhere: 0, blockingPendingElsewhere: 0 });
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const actorId = user?.uid;
@@ -68,10 +89,13 @@ export function MatchRecordingProvider({ matchId, children }: { matchId: string;
     let refreshAgain = false;
     let channel: ReturnType<typeof joinRecordingChannel> | undefined;
     let debounce: ReturnType<typeof setTimeout> | undefined;
+    let pendingElsewhere = 0;
+    let blockingPendingElsewhere = 0;
+    const stopObservingPending = observeOtherPending(matchId, () => blockingPendingElsewhere);
     const publish = (room: RecordingRoom) => {
       if (!ownsRoom || disposed || (current && room.revision < current.revision)) return;
       current = room;
-      channel?.setPending(room.pending.length);
+      channel?.setPending(room.pending.length, blockingPendingCount(room.pending));
       if (!adapter) adapter = createRecordingAdapter(room); else adapter.publish(room);
       if (!disposed) { setLoaded({ room, adapter }); setError(""); }
     };
@@ -125,8 +149,15 @@ export function MatchRecordingProvider({ matchId, children }: { matchId: string;
         await load();
         if (!disposed && allowed) {
           channel = joinRecordingChannel({ matchId, actorId, deviceId: recordingDeviceId(), name: useAuthStore.getState().player?.name ?? "기록자",
-            refresh: scheduleRefresh, onState: state => { if (!disposed) setShared(state); } });
-          channel.setPending(current?.pending.length ?? 0);
+            refresh: scheduleRefresh, onState: state => {
+              if (disposed) return;
+              const previousPending = blockingPendingElsewhere;
+              // A disconnected presence channel cannot confirm another queue has drained.
+              if (state.connected) { pendingElsewhere = state.pendingElsewhere; blockingPendingElsewhere = state.blockingPendingElsewhere; }
+              setShared({ ...state, pendingElsewhere, blockingPendingElsewhere });
+              if (previousPending > 0 && blockingPendingElsewhere === 0) void syncRecordings(actorId, true);
+            } });
+          channel.setPending(current?.pending.length ?? 0, blockingPendingCount(current?.pending ?? []));
         }
         void refresh();
         await held;
@@ -137,7 +168,7 @@ export function MatchRecordingProvider({ matchId, children }: { matchId: string;
     window.addEventListener("fg-recording-change", storageChanged);
     window.addEventListener("online", scheduleRefresh);
     window.addEventListener("focus", scheduleRefresh);
-    return () => { disposed = true; channel?.close(); clearTimeout(debounce); window.removeEventListener("online", scheduleRefresh); window.removeEventListener("focus", scheduleRefresh); stopPreparingShell(); lockWait.abort(); ownsRoom = false; releaseLock?.(); clearInterval(interval); window.removeEventListener("fg-recording-change", storageChanged); };
+    return () => { disposed = true; stopObservingPending(); channel?.close(); clearTimeout(debounce); window.removeEventListener("online", scheduleRefresh); window.removeEventListener("focus", scheduleRefresh); stopPreparingShell(); lockWait.abort(); ownsRoom = false; releaseLock?.(); clearInterval(interval); window.removeEventListener("fg-recording-change", storageChanged); };
   }, [actorId, matchId, allowed, hasProfile, attempt]);
   const ready = loaded && loaded.room.actorId === actorId && loaded.room.matchId === matchId ? loaded : null;
   if (ready && (allowed || !hasProfile)) return <SharedContext.Provider value={shared}><RecordingContext.Provider value={ready.room}><MatchControlStoreContext.Provider value={ready.adapter.store}>{children}</MatchControlStoreContext.Provider></RecordingContext.Provider></SharedContext.Provider>;
