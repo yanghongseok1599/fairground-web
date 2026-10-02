@@ -1,5 +1,6 @@
 "use client";
 
+import { notifyInspectionChange } from "@/lib/inspection-sync";
 import { supabase, isDemoMode } from "@/config/supabase";
 import type { Player, PlayerRole, Team, TournamentGroup } from "@/types";
 import type { Database } from "@/lib/database.types";
@@ -49,6 +50,7 @@ export async function setPlayerApproval(playerId: string, approved: boolean) {
     p_is_approved: approved,
   });
   if (error) throw new Error(error.message);
+  notifyInspectionChange();
 }
 
 export async function setPlayerRole(playerId: string, role: PlayerRole) {
@@ -65,6 +67,7 @@ export async function setPlayerRole(playerId: string, role: PlayerRole) {
     p_role: role,
   });
   if (error) throw new Error(error.message);
+  notifyInspectionChange();
 }
 
 /**
@@ -87,6 +90,7 @@ export async function setPlayerEligibility(playerId: string, isRegisteredPlayer:
     p_is_registered_player: isRegisteredPlayer,
   });
   if (error) throw new Error(error.message);
+  notifyInspectionChange();
 }
 
 export async function setTeamApproval(teamId: string, approved: boolean) {
@@ -100,6 +104,7 @@ export async function setTeamApproval(teamId: string, approved: boolean) {
   }
   const { error } = await supabase.from("teams").update({ is_approved: approved }).eq("id", teamId);
   if (error) throw new Error(error.message);
+  notifyInspectionChange();
 }
 
 /** 팀 삭제 — 잘못 만든 팀을 목록에서 없앤다. */
@@ -147,6 +152,7 @@ export async function setTournamentGroups(tournamentId: string, groups: Tourname
     .update({ groups: groups as unknown as Database["public"]["Tables"]["tournaments"]["Update"]["groups"] })
     .eq("id", tournamentId);
   if (error) throw new Error(error.message);
+  notifyInspectionChange();
 }
 
 /**

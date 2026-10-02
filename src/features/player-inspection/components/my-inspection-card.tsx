@@ -6,7 +6,7 @@ import { inspectionTime } from "../policy";
 import { useInspectionQuery } from "../use-inspection-query";
 
 export function MyInspectionCard() {
-  const { data, error, loading, updatedAt, reload } = useInspectionQuery(fetchMyInspections);
+  const { data, error, loading, updatedAt, reload, connected } = useInspectionQuery(fetchMyInspections, true);
   return <section aria-labelledby="my-inspection-title" className="rounded-3xl border border-primary/25 bg-background p-4 sm:p-5">
     <div className="flex items-center justify-between gap-3">
       <h2 id="my-inspection-title" className="flex items-center gap-2 text-lg font-black"><ClipboardCheck className="h-5 w-5 text-primary" />현장 선수검인</h2>
@@ -28,7 +28,7 @@ export function MyInspectionCard() {
             </p>
             <p className="mt-2 text-sm">{item.checked_at ? `${item.team_name} · ${inspectionTime(item.checked_at)} 완료` : "대회 당일 현장 검인 데스크에서 본인 확인을 받아주세요."}</p>
           </div>)}
-          <p className="text-xs text-muted-foreground">관리자 확인 후 자동으로 반영됩니다. 화면을 보고 있는 동안 15초마다 갱신됩니다.</p>
+          <p className="text-xs text-muted-foreground">{connected ? "검인 결과가 실시간으로 반영됩니다." : "검인 결과를 자동으로 확인하고 있습니다."} 화면을 보고 있는 동안 5초마다 다시 확인합니다.</p>
         </div>}
   </section>;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { notifyInspectionChange } from "@/lib/inspection-sync";
 import { internalReturnPath } from "@/lib/internal-return-path";
 import { hasPortraitConsent, requirePortraitConsent } from "@/features/portrait-consent/policy";
 import { create } from "zustand";
@@ -415,6 +416,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       });
       if (error) throw new Error(error.message);
       if (!signUp.user) throw new Error("가입에 실패했습니다");
+      notifyInspectionChange();
       const uid = signUp.user.id;
       if (!signUp.session) {
         // Email verification is not an authenticated session.
@@ -519,6 +521,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
         throw new Error("로그인 계정이 변경되었습니다. 저장 결과를 해당 계정에서 확인해주세요.");
       }
       setState({ player: savedPlayer, loading: false });
+      notifyInspectionChange();
     } catch (e) {
       setState({ error: registrationError(e), loading: false });
       throw e;
@@ -648,6 +651,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       throw new Error("로그인 계정이 변경되었습니다. 저장 결과를 해당 계정에서 확인해주세요.");
     }
     setState({ player: savedPlayer });
+    notifyInspectionChange();
   },
 
   leaveTeam: async () => {
@@ -672,6 +676,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       throw new Error(error.message);
     }
     setState({ player: { ...state.player, teamId: "", teamRole: "member" } });
+    notifyInspectionChange();
   },
 
   uploadPlayerPhoto: readPhotoFile,

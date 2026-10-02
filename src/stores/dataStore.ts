@@ -1,5 +1,7 @@
 "use client";
 
+import { notifyInspectionChange } from "@/lib/inspection-sync";
+
 import { requireSavedRow, registrationError } from "@/lib/registration/reliability";
 import { createMatchLiveRefresh } from "@/lib/match-live-refresh";
 import { create } from "zustand";
@@ -1592,6 +1594,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       console.error("[dataStore] approveCoach:", error.message);
       throw new Error(error.message);
     }
+    notifyInspectionChange();
   },
 
   // ===== Community Engine =====
@@ -1952,6 +1955,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       console.error("[dataStore] setTeamJoinRequestStatus:", error.message);
       throw new Error(error.message);
     }
+    notifyInspectionChange();
   },
 
   // 본인이 제출한 pending 신청을 취소(DELETE). RLS DELETE 정책이

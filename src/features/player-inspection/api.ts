@@ -1,6 +1,7 @@
 "use client";
 
 import { supabase } from "@/config/supabase";
+import { notifyInspectionChange } from "@/lib/inspection-sync";
 import { inspectionRequest } from "./request";
 import type { InspectionPlayer, InspectionTournament, MyInspection } from "./types";
 
@@ -34,4 +35,5 @@ export async function saveInspection(tournamentId: string, player: InspectionPla
   }).abortSignal(requestSignal));
   if (error) throw new Error(error.message);
   if (typeof data !== "number" || data !== player.revision + 1) throw new Error("저장 결과를 확인하지 못했습니다. 새로고침 후 확인해주세요.");
+  notifyInspectionChange();
 }

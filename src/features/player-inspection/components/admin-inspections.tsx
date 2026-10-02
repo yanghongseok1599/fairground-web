@@ -3,12 +3,14 @@
 import { useCallback, useRef, useState } from "react";
 import { CheckCircle2, Clock3, Loader2, RefreshCw, Search } from "lucide-react";
 import { AdminPanel, AdminShell } from "@/components/admin-shell";
+import { useAuth } from "@/hooks/useAuth";
 import { registrationError } from "@/lib/registration/reliability";
 import { fetchInspectionPlayers, fetchInspectionTournaments, saveInspection } from "../api";
 import { filterInspections, inspectionBlockReason, inspectionNumber, inspectionTime, summarizeInspections } from "../policy";
 import { useInspectionQuery } from "../use-inspection-query";
 import type { InspectionFilter, InspectionPlayer, InspectionTournament } from "../types";
 import { InspectionDialog } from "./inspection-dialog";
+import { BirthDateEditor } from "./birth-date-editor";
 
 const fieldClass = "min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground";
 
@@ -36,8 +38,9 @@ export function AdminInspections() {
 }
 
 function InspectionRoster({ tournament }: { tournament: InspectionTournament }) {
+  const { player: operator } = useAuth();
   const read = useCallback((signal: AbortSignal) => fetchInspectionPlayers(tournament.id, signal), [tournament.id]);
-  const { data, loading, error, updatedAt, reload } = useInspectionQuery(read);
+  const { data, loading, error, updatedAt, reload, connected } = useInspectionQuery(read, true);
   const [query, setQuery] = useState("");
   const [teamId, setTeamId] = useState("");
   const [status, setStatus] = useState<InspectionFilter>("all");
@@ -74,11 +77,15 @@ function InspectionRoster({ tournament }: { tournament: InspectionTournament }) 
 
   return <div className="mt-5">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <p className="text-xs text-muted-foreground">조 편성된 참가팀 기준 · 조 편성 전에는 승인된 전체 팀 · 15초마다 자동 갱신</p>
+      <div className="space-y-1 text-xs text-muted-foreground">
+        <p>조 편성된 참가팀 기준 · 조 편성 전에는 승인된 전체 팀</p>
+        <p>{connected && !error ? "실시간 동기화 연결됨" : "자동 동기화 확인 중"} · 5초마다 명단 재확인{updatedAt ? ` · 최근 확인 ${inspectionTime(new Date(updatedAt).toISOString())}` : ""}</p>
+      </div>
       <button type="button" onClick={() => void reload()} disabled={loading || saving} className="inline-flex min-h-11 items-center gap-2 px-2 text-sm font-bold text-primary disabled:opacity-50">
         <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />새로고침
       </button>
     </div>
+    <p className="my-3 rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">명단에 없는 선수는 현장에서 가입 후 선수등록과 참가팀 소속 선택을 완료해주세요. 팀 가입 신청은 승인 후 반영되며, 가입 미승인 선수도 명단에서 확인할 수 있습니다.{operator?.role !== "admin" && " 생년월일 입력·수정은 관리자 계정에서 할 수 있습니다."}</p>
     {error && <div role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
       명단을 새로 확인하지 못했습니다. 연결을 확인한 후 새로고침해주세요. {updatedAt ? `마지막 확인: ${inspectionTime(new Date(updatedAt).toISOString())}` : ""}
     </div>}
@@ -113,9 +120,9 @@ function InspectionRoster({ tournament }: { tournament: InspectionTournament }) 
               <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
                 <p className="break-words font-black">{p.name} <span className="ml-1 text-sm text-primary">#{inspectionNumber(p)}</span></p>
                 <p className="max-w-full break-words text-sm text-muted-foreground"><span className="sr-only">소속팀 </span>{p.team_name}</p>
-                <p className="text-sm tabular-nums"><span className="text-muted-foreground">생년월일 </span>
+                {operator?.role === "admin" ? <BirthDateEditor player={p} tournamentId={tournament.id} disabled={Boolean(error) || saving} onSaved={reload} /> : <p className="text-sm tabular-nums"><span className="text-muted-foreground">생년월일 </span>
                   {p.birth_date ? <time dateTime={p.birth_date} className="whitespace-nowrap">{p.birth_date}</time> : "미등록"}
-                </p>
+                </p>}
               </div>
               {blocked && <p className="mt-1 text-xs text-destructive">{blocked}</p>}
             </div>

@@ -1,15 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { subscribeInspectionChanges } from "@/lib/inspection-sync";
 
-/** Refresh on return to the page and every 15 seconds while visible. Never overlap reads. */
-export function useInspectionQuery<T>(read: (signal: AbortSignal) => Promise<T>) {
+/** Realtime invalidations plus bounded polling; keep the last successful snapshot. */
+export function useInspectionQuery<T>(read: (signal: AbortSignal) => Promise<T>, live = false) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
+  const [connected, setConnected] = useState(false);
   const active = useRef<AbortController | null>(null);
+  const pending = useRef(false);
+  const followUp = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reload = useCallback(async () => {
+    if (followUp.current) { clearTimeout(followUp.current); followUp.current = null; }
+    pending.current = false;
     active.current?.abort();
     const controller = new AbortController();
     active.current = controller;
@@ -28,6 +34,10 @@ export function useInspectionQuery<T>(read: (signal: AbortSignal) => Promise<T>)
       if (active.current === controller && !controller.signal.aborted) {
         active.current = null;
         setLoading(false);
+        if (pending.current) {
+          pending.current = false;
+          followUp.current = setTimeout(() => { void reload(); }, 250);
+        }
       }
     }
   }, [read]);
@@ -35,20 +45,36 @@ export function useInspectionQuery<T>(read: (signal: AbortSignal) => Promise<T>)
   useEffect(() => {
     void reload();
     const refresh = () => {
-      if (document.visibilityState === "visible" && !active.current) void reload();
+      if (document.visibilityState !== "visible") return;
+      if (active.current) pending.current = true;
+      else void reload();
     };
-    const interval = setInterval(refresh, 15_000);
+    // Coalesce noisy/untrusted broadcasts. They cannot replace authorized data.
+    let signalTimer: ReturnType<typeof setTimeout> | null = null;
+    const signalRefresh = () => {
+      if (signalTimer) return;
+      signalTimer = setTimeout(() => { signalTimer = null; refresh(); }, 500);
+    };
+    const unsubscribe = live ? subscribeInspectionChanges({ refresh: signalRefresh, connection: setConnected }) : () => {};
+    const interval = setInterval(refresh, live ? 5_000 : 15_000);
+    const offline = () => setConnected(false);
     window.addEventListener("focus", refresh);
     window.addEventListener("online", refresh);
+    window.addEventListener("offline", offline);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       active.current?.abort();
+      pending.current = false;
+      if (followUp.current) clearTimeout(followUp.current);
+      if (signalTimer) clearTimeout(signalTimer);
+      unsubscribe();
       clearInterval(interval);
       window.removeEventListener("focus", refresh);
       window.removeEventListener("online", refresh);
+      window.removeEventListener("offline", offline);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [reload]);
+  }, [reload, live]);
 
-  return { data, error, loading, updatedAt, reload };
+  return { data, error, loading, updatedAt, reload, connected };
 }
