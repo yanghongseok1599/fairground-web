@@ -1,0 +1,45 @@
+{
+  "checkedAt": "2026-10-02T14:59:25.161Z",
+  "results": [
+    {
+      "id": "01",
+      "role": "referee",
+      "approved": true,
+      "matches": 12,
+      "allScheduled": true,
+      "loginAndReadsMs": 1123
+    },
+    {
+      "id": "02",
+      "role": "referee",
+      "approved": true,
+      "matches": 12,
+      "allScheduled": true,
+      "loginAndReadsMs": 402
+    },
+    {
+      "id": "03",
+      "role": "referee",
+      "approved": true,
+      "matches": 12,
+      "allScheduled": true,
+      "loginAndReadsMs": 462
+    },
+    {
+      "id": "04",
+      "role": "referee",
+      "approved": true,
+      "matches": 12,
+      "allScheduled": true,
+      "loginAndReadsMs": 430
+    },
+    {
+      "id": "05",
+      "role": "referee",
+      "approved": true,
+      "matches": 12,
+      "allScheduled": true,
+      "loginAndReadsMs": 488
+    }
+  ]
+}

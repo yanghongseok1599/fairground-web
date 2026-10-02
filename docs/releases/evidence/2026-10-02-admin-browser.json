@@ -15,21 +15,6 @@
           "path": "/rest/v1/rpc/get_admin_profiles",
           "query": "?select=id%2Cname%2Crole%2Cis_approved%2Ccreated_at%2Cphone%2Cemail%2Chas_player_experience&role=eq.referee",
           "method": "GET"
-        },
-        {
-          "path": "/rest/v1/rpc/get_admin_profiles",
-          "query": "?select=id%2Cname%2Crole%2Cis_approved%2Ccreated_at%2Cphone%2Cemail%2Chas_player_experience&role=eq.referee",
-          "method": "GET"
-        },
-        {
-          "path": "/rest/v1/rpc/get_admin_profiles",
-          "query": "?select=id%2Cname%2Crole%2Cis_approved%2Ccreated_at%2Cphone%2Cemail%2Chas_player_experience&role=eq.referee",
-          "method": "GET"
-        },
-        {
-          "path": "/rest/v1/rpc/get_admin_profiles",
-          "query": "?select=id%2Cname%2Crole%2Cis_approved%2Ccreated_at%2Cphone%2Cemail%2Chas_player_experience&role=eq.referee",
-          "method": "GET"
         }
       ]
     },
@@ -38,21 +23,6 @@
       "errorThenRetry": true,
       "hasError": true,
       "requests": [
-        {
-          "path": "/rest/v1/rpc/get_admin_profiles",
-          "query": "?select=id%2Cname%2Cposition%2Cis_banned%2Cban_matches_remaining%2Cseason_yellow_cards",
-          "method": "GET"
-        },
-        {
-          "path": "/rest/v1/rpc/get_admin_profiles",
-          "query": "?select=id%2Cname%2Cposition%2Cis_banned%2Cban_matches_remaining%2Cseason_yellow_cards",
-          "method": "GET"
-        },
-        {
-          "path": "/rest/v1/rpc/get_admin_profiles",
-          "query": "?select=id%2Cname%2Cposition%2Cis_banned%2Cban_matches_remaining%2Cseason_yellow_cards",
-          "method": "GET"
-        },
         {
           "path": "/rest/v1/rpc/get_admin_profiles",
           "query": "?select=id%2Cname%2Cposition%2Cis_banned%2Cban_matches_remaining%2Cseason_yellow_cards",
@@ -80,21 +50,6 @@
           "path": "/rest/v1/rpc/get_admin_profiles",
           "query": "?select=id%2Cname%2Cteam_id",
           "method": "GET"
-        },
-        {
-          "path": "/rest/v1/rpc/get_admin_profiles",
-          "query": "?select=id%2Cname%2Cteam_id",
-          "method": "GET"
-        },
-        {
-          "path": "/rest/v1/rpc/get_admin_profiles",
-          "query": "?select=id%2Cname%2Cteam_id",
-          "method": "GET"
-        },
-        {
-          "path": "/rest/v1/rpc/get_admin_profiles",
-          "query": "?select=id%2Cname%2Cteam_id",
-          "method": "GET"
         }
       ]
     },
@@ -103,21 +58,6 @@
       "errorThenRetry": true,
       "hasError": true,
       "requests": [
-        {
-          "path": "/rest/v1/rpc/get_admin_profiles",
-          "query": "?select=id%2Cname%2Cteam_id%2Cemail%2Cphone%2Ccreated_at&team_role=eq.coach&is_approved=eq.false",
-          "method": "GET"
-        },
-        {
-          "path": "/rest/v1/rpc/get_admin_profiles",
-          "query": "?select=id%2Cname%2Cteam_id%2Cemail%2Cphone%2Ccreated_at&team_role=eq.coach&is_approved=eq.false",
-          "method": "GET"
-        },
-        {
-          "path": "/rest/v1/rpc/get_admin_profiles",
-          "query": "?select=id%2Cname%2Cteam_id%2Cemail%2Cphone%2Ccreated_at&team_role=eq.coach&is_approved=eq.false",
-          "method": "GET"
-        },
         {
           "path": "/rest/v1/rpc/get_admin_profiles",
           "query": "?select=id%2Cname%2Cteam_id%2Cemail%2Cphone%2Ccreated_at&team_role=eq.coach&is_approved=eq.false",

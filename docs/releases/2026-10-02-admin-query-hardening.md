@@ -41,3 +41,11 @@
 ## 배포 / 되돌리기
 
 직전 운영 배포: `dpl_2u2xShFnGGmP6AXsktsw86YaNhNZ` (`https://fairground-ou7lqwwvj-milestones-projects-d52c4dda.vercel.app`). 필요하면 이 배포로 웹만 롤백한다. DB 롤백 SQL은 없다.
+
+2026-10-03 00:01 KST 생성한 `dpl_CLc9cyHnfHTn71tfiWkZcbQ9qoZw`를 운영에 배포했고 `fairground-kor.com` 및 기존 별칭이 새 배포를 가리키는 것을 확인했다. 코드 버전은 `dc6ff44`다. [운영 웹](https://fairground-kor.com), [배포](https://fairground-ed8numhtk-milestones-projects-d52c4dda.vercel.app).
+
+Supabase DB/Auth/REST/Storage/Pooler 건강 점검은 모두 정상이다. 심판 `01`~`05`의 비밀번호 로그인·`get_my_profile` 승인 심판 확인·경기 12건 읽기를 재검증했다. 로그인+조회 합산은 약 0.4~1.1초였으며 12경기 모두 예정 상태다. 테스트 세션만 로컬 범위로 로그아웃했다. [계정 검증 근거](evidence/2026-10-02-referee-login-check.json). 회원·사진·경기 데이터는 이 릴리스에서 쓰지 않았다.
+
+최종 로컬 브라우저 검수에서는 관리자 목록별로 자동 재시도 없이 실패 요청 1회와 사용자 재시도 1회만 발생함을 확인했다. 운영 DB에 대한 관리자 브라우저 검수는 기존 관리자 세션이 없어 대체하지 않았으며, 실제 DB의 관리자 역할 검수와 로컬 합성 관리자 UI 검수를 분리했다.
+
+새 운영 웹에서 심판 `01`로 실제 로그인하여 경기 목록→첫 경기 운영 화면→양 팀 선수 명단과 경기 시작/기록 버튼 표시를 확인했다. 시작·기록 버튼은 누르지 않았다. [운영 브라우저 근거](evidence/2026-10-03-production-referee-browser.json).

@@ -1,0 +1,9 @@
+{
+  "checkedAt": "2026-10-02T15:07:08.669Z",
+  "account": "01",
+  "production": true,
+  "matchOperations": true,
+  "hasStartButton": true,
+  "recordButtons": 100,
+  "mutationsPerformed": false
+}
