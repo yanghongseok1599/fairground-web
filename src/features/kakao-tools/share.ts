@@ -2,7 +2,7 @@
 
 import { isKakaoShareConfigured, loadKakaoSdk } from "@/lib/kakao-sdk";
 
-export type EventShareContent = { title: string; description: string; url: string };
+export type EventShareContent = { title: string; description: string; url: string; imageUrl?: string };
 
 export async function shareEvent(content: EventShareContent): Promise<string> {
   if (isKakaoShareConfigured()) {
@@ -14,7 +14,9 @@ export async function shareEvent(content: EventShareContent): Promise<string> {
       content: {
         title: content.title.slice(0, 200),
         description: content.description.slice(0, 200),
-        imageUrl: new URL("/og-image-futsal-shoes-v2.png", content.url).href,
+        imageUrl: content.imageUrl ?? new URL("/og-image-futsal-shoes-v2.png", content.url).href,
+        imageWidth: 1200,
+        imageHeight: 630,
         link,
       },
       buttons: [{ title: "대회·경기 보기", link }],
