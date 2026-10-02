@@ -63,7 +63,7 @@ export function LineupEditor({
     setLoading(true);
     try {
       const [mem, lu] = await Promise.all([
-        store.fetchTeamPlayers(teamId),
+        store.fetchTeamPlayers(teamId, { forRecording: true }),
         store.fetchMatchLineup(matchId),
       ]);
       setMembers(mem);

@@ -617,10 +617,12 @@ export const useDataStore = create<DataState>((setState, getState) => ({
   fetchTeamPlayers: async (teamId, options) => {
     if (isDemoMode) {
       const players = getLocalPlayers();
-      return Object.entries(players).filter(([, p]) => p.teamId === teamId).map(([id, p]) => ({ ...p, id }));
+      return Object.entries(players).filter(([, p]) => p.teamId === teamId &&
+        (!options?.forRecording || !p.hasPlayerExperience)).map(([id, p]) => ({ ...p, id }));
     }
     if (options?.forRecording) {
-      const { data, error } = await supabase.from("public_player_profiles")
+      // The view filters eligibility server-side without exposing private profile fields.
+      const { data, error } = await supabase.from("public_match_player_profiles")
         .select(RECORDING_PLAYER_COLUMNS).eq("team_id", teamId).retry(false);
       if (error) throw new Error(error.message);
       if (!Array.isArray(data)) throw new Error("선수 명단을 확인하지 못했습니다.");
