@@ -7,6 +7,9 @@ import Link from "next/link";
 import { Gauge, Shield } from "lucide-react";
 import { GroundChallengeLeaderboard } from "@/components/ground-challenge-leaderboard";
 import { useDataStore } from "@/stores/dataStore";
+import { useMatchResults } from "@/features/match-results/use-match-results";
+import { fetchLeaderboardResults } from "@/features/match-results/api";
+import { leaderboardResultPlayer } from "@/features/match-results/model";
 import { PlayerProfilePhoto } from "@/components/player-profile-photo";
 import { PUBLIC_PAGE_CONTENT_CLASS, PUBLIC_PAGE_GUTTER_CLASS } from "@/lib/page-layout";
 import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
@@ -40,6 +43,16 @@ export default function LeaderboardPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const fetchLeaderboard = useDataStore((s) => s.fetchLeaderboard);
+
+  useMatchResults({
+    key: `leaderboard:${active}`, enabled: view === "league" && !loading,
+    load: () => fetchLeaderboardResults(active),
+    publish: results => setPlayers(current => {
+      const byId = new Map(current.map(player => [player.id, player]));
+      const cached = useDataStore.getState().players;
+      return results.map(result => leaderboardResultPlayer(result, byId.get(result.id) ?? cached[result.id]));
+    }),
+  });
 
   useEffect(() => {
     if (typeof window === "undefined") return;

@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useMatchResults } from "@/features/match-results/use-match-results";
+import { fetchResultTournaments, fetchTeamResults } from "@/features/match-results/api";
+import { resultStandings } from "@/features/match-results/model";
 import { EmptyState } from "@/components/empty-state";
 import { GroupedStandingsTable } from "@/features/standings/grouped-standings-table";
 import { seasonGroupSource } from "@/features/standings/group-filter";
@@ -31,6 +34,15 @@ export default function TournamentsPage() {
   const [standings, setStandings] = useState<TeamStanding[]>([]);
   const [loadingTournaments, setLoadingTournaments] = useState(true);
   const [loadingStandings, setLoadingStandings] = useState(true);
+
+  useMatchResults({
+    key: "tournament-hub", enabled: !loadingTournaments && !loadingStandings,
+    load: () => Promise.all([fetchResultTournaments(), fetchTeamResults()]),
+    publish: ([list, teams]) => {
+      setTournaments([...list].sort((a, b) => b.createdAt - a.createdAt));
+      useDataStore.setState(state => ({ standings: resultStandings(teams, state.standings) }));
+    },
+  });
 
   useEffect(() => {
     store.fetchTournaments().then((list) => {

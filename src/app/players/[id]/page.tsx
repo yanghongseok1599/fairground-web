@@ -5,6 +5,9 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useMatchResults } from "@/features/match-results/use-match-results";
+import { fetchPlayerResult } from "@/features/match-results/api";
+import { mergePlayerResult } from "@/features/match-results/model";
 import { PlayerCardCaptureFrame } from "@/components/player-card-capture-frame";
 import type { Player, Team } from "@/types";
 import {
@@ -32,6 +35,19 @@ export default function PlayerDetailPage() {
   const [saveMessage, setSaveMessage] = useState("");
   const exportCardRef = useRef<HTMLDivElement>(null);
 
+  useMatchResults({
+    key: `player:${id}`, enabled: Boolean(player && !loading),
+    load: () => fetchPlayerResult(id),
+    publish: result => {
+      if (!result) return;
+      setPlayer(current => current ? mergePlayerResult(current, result) : current);
+      useDataStore.setState(state => {
+        const cached = state.players[id];
+        return cached ? { players: { ...state.players, [id]: mergePlayerResult(cached, result) } } : {};
+      });
+    },
+  });
+
   const cardExportRevision = JSON.stringify({ player, teamLogo: team?.logo });
   const {
     blob: preparedCardBlob,
@@ -45,16 +61,20 @@ export default function PlayerDetailPage() {
   );
 
   useEffect(() => {
+    let alive = true;
     const load = async () => {
       const p = await store.fetchPlayer(id);
+      if (!alive) return;
       setPlayer(p);
       if (p?.teamId) {
         const t = await store.fetchTeam(p.teamId);
+        if (!alive) return;
         setTeam(t);
       }
       setLoading(false);
     };
     load();
+    return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 

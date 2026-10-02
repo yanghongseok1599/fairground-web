@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useMatchResults } from "@/features/match-results/use-match-results";
+import { fetchPlayerResults } from "@/features/match-results/api";
+import { mergePlayerResult } from "@/features/match-results/model";
 import { getCardTypeFromRating, PlayerCard } from "@/components/player-card";
 import { PUBLIC_PAGE_CONTENT_CLASS, PUBLIC_PAGE_GUTTER_CLASS } from "@/lib/page-layout";
 import type { Player } from "@/types";
@@ -20,6 +23,18 @@ export default function PlayersPage() {
   const [search, setSearch] = useState("");
   const [cardFilter, setCardFilter] = useState<FilterType>("all");
   const [posFilter, setPosFilter] = useState<PositionFilter>("all");
+
+  useMatchResults({
+    key: "player-card-list", enabled: !loading && players.length > 0,
+    load: () => fetchPlayerResults(players.map(player => player.id)),
+    publish: results => {
+      const byId = new Map(results.map(result => [result.id, result]));
+      setPlayers(current => current.map(player => {
+        const result = byId.get(player.id);
+        return result ? mergePlayerResult(player, result) : player;
+      }).sort((a, b) => b.cardRating - a.cardRating));
+    },
+  });
 
   useEffect(() => {
     store.fetchPublicPlayers().then((list) => {

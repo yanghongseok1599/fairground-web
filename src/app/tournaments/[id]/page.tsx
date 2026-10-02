@@ -7,88 +7,27 @@ import { SITE_URL } from "@/lib/site-config";
 
 import { compareScheduledMatches } from "@/lib/match-schedule";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useDataStore } from "@/stores/dataStore";
+import { useMatchResults } from "@/features/match-results/use-match-results";
+import { fetchResultMatches, fetchResultTournaments, fetchTeamResults } from "@/features/match-results/api";
+import { resultStandings, tournamentResultStandings } from "@/features/match-results/model";
 import { MatchCard } from "@/components/match-card";
 import { GroupedStandingsTable } from "@/features/standings/grouped-standings-table";
 import { StandingsTable } from "@/components/standings-table";
-import type { Tournament, Match, TeamStanding } from "@/types";
+import type { Tournament, Match, LiveMatch } from "@/types";
 import { Calendar, MapPin, Trophy, Radio } from "lucide-react";
 import { formatTime } from "@/utils/formatters";
 import { getTournamentDisplayName, isTournamentFixturesPublic } from "@/features/tournaments/public-fixtures";
 
 /**
  * 대회 상세 — 진행 중 대회는 라이브 페이지처럼 실시간 동작.
- *  - 실시간 경기 스코어: subscribeLiveMatches 구독 + 1초 타이머 틱
+ *  - 실시간 경기 스코어: 대회 범위 직렬 서버 조회 + 1초 타이머 틱
  *  - 경기 결과 / 예정: 이 대회 matches
  *  - 대회 승점표: 이 대회의 종료 경기로 클라이언트 집계(경기 종료 시 자동 갱신)
  *  - 리그 순위: store.standings(시즌 전체) — 경기 종료 시 재조회로 실시간 반영
  */
-
-// 종료 경기로 대회 승점표 집계 (승 3 · 무 1 · 패 0).
-function computeStandings(matches: Match[]): TeamStanding[] {
-  const acc = new Map<string, TeamStanding>();
-  const ensure = (teamId: string, teamName: string): TeamStanding => {
-    let s = acc.get(teamId);
-    if (!s) {
-      s = {
-        teamId,
-        teamName,
-        teamLogo: "",
-        points: 0,
-        matchPoints: 0,
-        participationBonus: 0,
-        rank: 0,
-        wins: 0,
-        draws: 0,
-        losses: 0,
-        goalsFor: 0,
-        goalsAgainst: 0,
-        goalDifference: 0,
-        gamesPlayed: 0,
-      };
-      acc.set(teamId, s);
-    } else if (teamName && s.teamName !== teamName) {
-      s.teamName = teamName;
-    }
-    return s;
-  };
-
-  for (const m of matches) {
-    if (m.status !== "finished") continue;
-    const home = ensure(m.homeTeamId, m.homeTeamName);
-    const away = ensure(m.awayTeamId, m.awayTeamName);
-    home.gamesPlayed += 1;
-    away.gamesPlayed += 1;
-    home.goalsFor += m.homeScore;
-    home.goalsAgainst += m.awayScore;
-    away.goalsFor += m.awayScore;
-    away.goalsAgainst += m.homeScore;
-    if (m.homeScore > m.awayScore) {
-      home.wins += 1; away.losses += 1; home.matchPoints += 3;
-    } else if (m.homeScore < m.awayScore) {
-      away.wins += 1; home.losses += 1; away.matchPoints += 3;
-    } else {
-      home.draws += 1; away.draws += 1; home.matchPoints += 1; away.matchPoints += 1;
-    }
-  }
-
-  const rows = [...acc.values()].map((s) => ({
-    ...s,
-    goalDifference: s.goalsFor - s.goalsAgainst,
-    points: s.matchPoints,
-  }));
-  rows.sort(
-    (a, b) =>
-      b.points - a.points ||
-      b.goalDifference - a.goalDifference ||
-      b.goalsFor - a.goalsFor ||
-      a.teamName.localeCompare(b.teamName),
-  );
-  rows.forEach((s, i) => { s.rank = i + 1; });
-  return rows;
-}
 
 export default function TournamentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -98,50 +37,40 @@ export default function TournamentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [elapsed, setElapsed] = useState<Record<string, number>>({});
 
-  // 이 대회 경기 + 시즌 순위 재조회 (경기 종료 등으로 결과·순위가 바뀔 때).
-  const refresh = useMemo(
-    () => async () => {
-      const ms = await store.fetchMatches(id);
-      setMatches(ms.sort(compareScheduledMatches));
-      await store.fetchStandings();
+  useMatchResults({
+    key: `tournament:${id}`, tournamentId: id, finalOnly: false, enabled: !loading,
+    load: () => Promise.all([fetchResultTournaments(id), fetchResultMatches({ tournamentId: id }), fetchTeamResults()]),
+    publish: ([tournaments, latest, teams]) => {
+      if (tournaments[0]) setTournament(tournaments[0]);
+      setMatches(latest.sort(compareScheduledMatches));
+      setElapsed({});
+      useDataStore.setState(state => ({ standings: resultStandings(teams, state.standings) }));
     },
-    [id, store],
-  );
+  });
 
   useEffect(() => {
-    const unsub = store.subscribeLiveMatches();
+    let alive = true;
     const load = async () => {
       const [t, ms] = await Promise.all([
         store.fetchTournament(id),
         store.fetchMatches(id),
       ]);
+      if (!alive) return;
       setTournament(t);
       setMatches(ms.sort(compareScheduledMatches));
-      void store.fetchStandings();
-      setLoading(false);
+      await store.fetchStandings();
+      if (alive) setLoading(false);
     };
     void load();
-    return unsub;
+    return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // 이 대회에 속한 라이브 경기 (matchId 기준 필터).
-  const matchIds = useMemo(() => new Set(matches.map((m) => m.id)), [matches]);
+  // 같은 서버 스냅샷으로 진행·종료·예정 상태를 함께 전환한다.
   const liveMatches = useMemo(
-    () => store.liveMatches.filter((m) => matchIds.has(m.id)),
-    [store.liveMatches, matchIds],
+    () => matches.filter((match): match is LiveMatch => match.status === "live" && "elapsedSeconds" in match),
+    [matches],
   );
-
-  // 라이브 경기 집합(시작/종료)이 바뀌면 결과·승점표·리그순위 재조회.
-  const liveKey = liveMatches.map((m) => m.id).sort().join(",");
-  const prevLiveKey = useRef<string | null>(null);
-  useEffect(() => {
-    if (prevLiveKey.current === null) { prevLiveKey.current = liveKey; return; }
-    if (prevLiveKey.current !== liveKey) {
-      prevLiveKey.current = liveKey;
-      void refresh();
-    }
-  }, [liveKey, refresh]);
 
   // 라이브 경기 1초 타이머 틱.
   useEffect(() => {
@@ -162,7 +91,7 @@ export default function TournamentDetailPage() {
 
   const finishedMatches = matches.filter((m) => m.status === "finished");
   const scheduledMatches = matches.filter((m) => m.status === "scheduled");
-  const tournamentStandings = computeStandings(matches);
+  const tournamentStandings = tournamentResultStandings(matches);
   const isOngoing = tournament.status === "ongoing" || liveMatches.length > 0;
 
   return (

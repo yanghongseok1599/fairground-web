@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useMatchResults } from "@/features/match-results/use-match-results";
+import { fetchResultMatches } from "@/features/match-results/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,6 +35,17 @@ export default function MatchDetailPage() {
   const [match, setMatch] = useState<Match | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useMatchResults({
+    key: `match:${matchId}`, matchId, finalOnly: false, enabled: Boolean(matchId && !loading),
+    load: () => fetchResultMatches({ matchId }),
+    publish: matches => {
+      const latest = matches[0];
+      if (!latest) return;
+      setMatch(latest);
+      setError(null);
+    },
+  });
 
   useEffect(() => {
     if (!matchId) return;

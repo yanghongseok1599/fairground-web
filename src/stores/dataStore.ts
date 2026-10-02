@@ -1,6 +1,8 @@
 "use client";
 
 import { RECORDING_PLAYER_COLUMNS } from "@/features/match-control/recording-player-columns";
+import { fetchPlayerResult } from "@/features/match-results/api";
+import { mergePlayerResult } from "@/features/match-results/model";
 import { fetchCoachSummaries, type CoachSummary } from "@/features/admin-directory/api";
 import { notifyInspectionChange } from "@/lib/inspection-sync";
 
@@ -556,7 +558,17 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       return player;
     }
     const cached = getState().players[id];
-    if (cached) return cached;
+    if (cached) {
+      try {
+        const result = await fetchPlayerResult(id);
+        if (!result) return cached;
+        const player = mergePlayerResult(getState().players[id] ?? cached, result);
+        setState((s) => ({ players: { ...s.players, [id]: player } }));
+        return player;
+      } catch {
+        return cached;
+      }
+    }
     const { data, error } = await supabase
       .from("public_player_profiles")
       .select(PUBLIC_PLAYER_PROFILE_SELECT)

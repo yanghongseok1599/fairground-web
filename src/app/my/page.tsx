@@ -3,6 +3,10 @@
 import { jerseyNumberText } from "@/lib/jersey-number";
 
 import { useEffect, useRef, useState } from "react";
+import { useAuthStore } from "@/stores/authStore";
+import { useMatchResults } from "@/features/match-results/use-match-results";
+import { fetchPlayerResult } from "@/features/match-results/api";
+import { mergePlayerResult } from "@/features/match-results/model";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -191,6 +195,18 @@ export default function MyPage() {
   const router = useRouter();
   const { user, player, initialized, logout, updatePlayer, updatePassword, uploadPlayerPhoto } = useAuth();
   const store = useDataStore();
+  useMatchResults({
+    key: `my-results:${player?.id ?? ""}`, enabled: Boolean(initialized && player?.id),
+    load: () => fetchPlayerResult(player!.id, true),
+    publish: result => {
+      if (!result) return;
+      useAuthStore.setState(state => {
+        if (!state.player || state.user?.uid !== result.id) return {};
+        const updated = mergePlayerResult(state.player, result);
+        return updated === state.player ? {} : { player: updated };
+      });
+    },
+  });
   const exportCardRef = useRef<HTMLDivElement>(null);
   const profilePhotoInputRef = useRef<HTMLInputElement>(null);
   const profilePhotoObjectUrlRef = useRef<string | null>(null);

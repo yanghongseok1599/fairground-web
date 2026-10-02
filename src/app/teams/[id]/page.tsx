@@ -5,6 +5,9 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useDataStore } from "@/stores/dataStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useMatchResults } from "@/features/match-results/use-match-results";
+import { fetchTeamPlayerResults, fetchTeamResults } from "@/features/match-results/api";
+import { mergePlayerResult, mergeTeamResult } from "@/features/match-results/model";
 import { PlayerCard } from "@/components/player-card";
 import { getClubLogoPreset } from "@/components/club-emblem";
 import { createTeamCardCanvas } from "@/lib/team-card-canvas";
@@ -145,6 +148,20 @@ export default function TeamDetailPage() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [boardPosts, setBoardPosts] = useState<BoardPost[]>([]);
   const [photos, setPhotos] = useState<TeamPhoto[]>([]);
+
+  useMatchResults({
+    key: `team:${id}`, enabled: Boolean(team && !loading),
+    load: () => Promise.all([fetchTeamResults(id), fetchTeamPlayerResults(id)]),
+    publish: ([teams, results]) => {
+      const result = teams.find(row => row.id === id);
+      if (result) setTeam(current => current ? mergeTeamResult(current, result) : current);
+      const byId = new Map(results.map(row => [row.id, row]));
+      setPlayers(current => current.map(player => {
+        const result = byId.get(player.id);
+        return result ? mergePlayerResult(player, result) : player;
+      }).sort((a, b) => b.cardRating - a.cardRating));
+    },
+  });
 
   useEffect(() => {
     const load = async () => {
