@@ -9,6 +9,7 @@
 
 ## Supabase 환경
 
+- Supabase 오류 진단·배포·경기 기록 변경 시 `/Users/seok/.codex/skills/fairground-supabase-safety/SKILL.md`와 연결된 재발 방지 메모리를 적용한다. 운영·개발 각각의 검증과 자동 Preview 최종 성공을 확인하고, 실제 경기 대기열을 보존한다.
 - Supabase 관련 작업을 시작하기 전에 `docs/supabase-safety.md`를 읽고 `npm run supabase:safety`로 대상 환경을 확인한다.
 - 개발과 운영은 영구적으로 분리한다. 로컬 및 Vercel Preview는 개발 Supabase, Vercel Production은 운영 Supabase를 사용한다.
 - `.env.development.local`에는 개발 프로젝트만 설정한다. service-role key와 DB 비밀번호는 Git 또는 `NEXT_PUBLIC_` 변수에 넣지 않는다.
@@ -126,3 +127,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## 2026-10-03 Preview 경기 명단 조회 복구
 
 `ef8f7cd` 자동 Preview 빌드는 개발 DB에 `public_match_player_profiles`가 없어 정합성 검사에서 차단됐다. 운영 Supabase 장애가 아니라 개발 반영 누락이었다. 개발의 최신 스키마 530,019바이트를 격리 복원하고 5,469개 정의 일치·추가 뷰 diff·실제 역할 테스트를 확인한 뒤 기존 SQL `20261003020000` 한 건만 개발에 적용했다. 개발 34개 보호 테이블과 합성 회원 15명, 기존 이력 10건은 보존하고 새 이력 1건만 추가했다. 배포 소스의 개발 카탈로그 대조는 타입 컬럼 365개·조회 85개 모두 통과했다. 운영 DB·도메인·환경변수는 변경하지 않았다. 전체 이력 불일치 및 linked push/reset/repair 금지는 유지한다. [반영 기록](docs/releases/2026-10-03-preview-eligibility-repair.md).
+
+
+## 2026-10-03 Preview 기록 저장 복구와 재발 방지
+
+`cf183eb` 자동 Preview 실패 로그에서 개발 DB의 `get_match_recording_snapshot`·`apply_match_recording_operation` 누락을 확인했다. 개발 스키마 532,279바이트를 격리 복원하고 5,694개 정의를 대조한 뒤, 실제 역할 테스트에서 발견한 기존 경기 종료 함수의 정수 형식 오류까지 검증하여 `20260928010000`, `20261003030000` 두 SQL만 개발에 적용했다. 기존 34개 보호 테이블의 기존 컬럼 값과 합성 회원 15명, 이력 11건을 보존했다. 새 nullable 컬럼은 모두 null이며 새 이력 2건만 추가했다. 운영 DB는 변경하지 않았다. 전체 이력 불일치 및 linked push/reset/repair 금지는 유지한다. [복구 기록](docs/releases/2026-10-03-preview-outbox-repair.md).
+
+
+## 2026-10-03 실시간 공동 경기 기록
+
+`20261003040000_shared_match_recording.sql`을 개발·운영 각각의 최신 스키마 백업·격리 복원·정의/권한 diff·실제 역할 검수 후 같은 SQL 해시로 적용했다. 서버 버전·시간 관리 기기·기록자 정보를 추가하고 기존 기록 RPC 2개를 확장했다. 운영 31개 보호 테이블(회원 132명·경기 12개)과 기존 이력 75건, 개발 35개 보호 테이블과 기존 이력 13건을 보존했다. 각 환경에 새 버전 1건만 추가했다. 김재민·홍성표는 기존 승인 관리자이며 권한을 바꾸지 않았다. 구형 공동 기록 SQL `20260928020000`은 여전히 미적용이다. 전체 이력 불일치 및 linked push/reset/repair 금지는 유지한다. [반영 기록](docs/releases/2026-10-03-shared-match-recording.md).

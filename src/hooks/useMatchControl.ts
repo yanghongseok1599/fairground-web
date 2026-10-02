@@ -231,7 +231,7 @@ export function useMatchControl({
       const next = clampMatchElapsedSeconds(elapsedRef.current + 1);
       elapsedRef.current = next;
       setLocalElapsed(next);
-      if (readOnly) return;
+      if (readOnly || store.canPersistClock === false) return;
 
       const reachedRegulationTime = next >= MATCH_DURATION_SECONDS;
       const nextElapsedForSync = next;
@@ -279,7 +279,7 @@ export function useMatchControl({
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localRunning, matchId, localHalf, store.managesClock, readOnly]);
+  }, [localRunning, matchId, localHalf, store.managesClock, store.canPersistClock, readOnly]);
 
   // Q5/A10 — 액션 실행 가드: 진행 중이면 재진입 차단(더블탭→더블집계 방지),
   // 시작 시 pendingAction 설정(버튼 disabled+aria-busy 근거), 실패 시 위치별 에러.

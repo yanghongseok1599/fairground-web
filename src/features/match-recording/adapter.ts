@@ -4,11 +4,14 @@ import { useAuthStore } from "@/stores/authStore";
 import type { MatchControlOperations } from "@/features/match-control/store-context";
 import type { LiveMatch } from "@/types";
 import { projectRoom, type CommandKind, type RecordingRoom } from "./model";
+import { recordingDeviceId } from "./device";
 import { updateRoom } from "./storage";
 
 export function createRecordingAdapter(initial: RecordingRoom) {
+  const deviceId = recordingDeviceId();
   let room = initial;
   const match = () => projectRoom(room);
+  const ownsClock = () => { const clock = match().clock; return clock?.ownerId === room.actorId && clock.deviceId === deviceId; };
   const enqueue = async (kind: CommandKind, payload: Record<string, string | number> = {}) => {
     if (useAuthStore.getState().user?.uid !== room.actorId) throw new Error("기록 계정이 변경되었습니다. 원래 계정으로 로그인해주세요.");
     const command = { id: crypto.randomUUID(), kind, payload, at: Date.now() };
@@ -17,13 +20,15 @@ export function createRecordingAdapter(initial: RecordingRoom) {
       if (current.blocked) throw new Error(current.error);
       const state = projectRoom(current);
       if (kind === "start" ? state.status !== "scheduled" : state.status !== "live") throw new Error("경기 상태가 변경되었습니다. 기록을 확인해주세요.");
+      if (kind === "timer" && (state.clock?.ownerId !== room.actorId || state.clock.deviceId !== deviceId)) return current;
+      command.payload = { ...payload, _deviceId: deviceId, _clockVersion: state.clock?.version ?? 0, _actorName: useAuthStore.getState().player?.name ?? "기록자" };
       return { ...current, pending: [...current.pending, command], journal: [...current.journal, command], savedAt: command.at };
     });
     publish(room);
     window.dispatchEvent(new Event("fg-recording-enqueued"));
   };
   const store = createStore<MatchControlOperations>(() => ({
-    ...useDataStore.getState(), allowsOfflineRecording: true,
+    ...useDataStore.getState(), allowsOfflineRecording: true, canPersistClock: ownsClock(),
     liveMatches: [match() as LiveMatch],
     fetchMatch: async () => match(),
     fetchTeamPlayers: async teamId => room.players.filter(p => p.teamId === teamId),
@@ -41,6 +46,6 @@ export function createRecordingAdapter(initial: RecordingRoom) {
     substitutePlayer: async (_m, teamId, outId, inId, inName, minute, half) => enqueue("substitute", { teamId, outId, inId, inName, minute, half }),
     notifyNextMatchReady: async id => navigator.onLine ? useDataStore.getState().notifyNextMatchReady(id).catch(() => 0) : 0,
   }));
-  function publish(next: RecordingRoom) { room = next; store.setState({ liveMatches: [match() as LiveMatch] }); }
+  function publish(next: RecordingRoom) { room = next; store.setState({ canPersistClock: ownsClock(), liveMatches: [match() as LiveMatch] }); }
   return { store, publish };
 }

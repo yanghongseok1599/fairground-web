@@ -125,6 +125,8 @@ export interface MatchEvent {
   half: 1 | 2;
   timestamp: number;
   isCancelled?: boolean;
+  recordedBy?: string;
+  recorderName?: string;
 }
 
 export interface Match {

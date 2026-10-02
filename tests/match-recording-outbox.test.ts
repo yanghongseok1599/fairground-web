@@ -23,3 +23,27 @@ await test('commands added while sending remain queued and ordered',async()=>{
 await test('account change prevents any send',async()=>{const r=room();r.pending=[command('start','start')];await flushRoom(r,{currentActor:()=> 'different',update:async()=>{throw Error('must not write');},send:async()=>{throw Error('must not send');}});assert.equal(r.pending.length,1);});
 await test('permission/conflict failure preserves entire queue and blocks automatic replay',async()=>{let r=room();r.pending=[command('start','start'),command('goal','event',goal)];await flushRoom(r,{currentActor:()=> 'actor',update:async(_k,change)=>r=change(r),send:async()=>{throw {code:'42501'};}});assert.equal(r.blocked,true);assert.equal(r.pending.length,2);});
 await test('acknowledgement storage failure keeps ID for safe server replay',async()=>{const r=room();r.pending=[command('start','start')];await assert.rejects(flushRoom(r,{currentActor:()=> 'actor',update:async()=>{throw Error('quota');},send:async()=>projectRoom(r)}),/quota/);assert.equal(r.pending[0].id,'start');});
+
+const { reconcileSnapshot } = await import('../src/features/match-recording/model.ts');
+await test('remote records merge while own offline commands stay pending',()=>{
+ const r=room();r.base.status='live';r.base.serverRevision=1;r.pending=[command('local','event',goal)];
+ const incoming=projectRoom({...r,pending:[command('remote','event',goal)]});incoming.serverRevision=2;incoming.appliedOperationIds=[];
+ const merged=reconcileSnapshot(r,incoming);assert.equal(merged.pending.length,1);assert.equal(projectRoom(merged).homeScore,2);
+});
+await test('realtime acknowledgement before HTTP response never doubles a score or drops a new command',async()=>{
+ let r=room();r.base.status='live';r.base.serverRevision=1;r.pending=[command('one','event',goal)];
+ await flushRoom(r,{currentActor:()=> 'actor',update:async(_k,change)=>r=change(r),send:async(_m,c)=>{
+   const incoming=projectRoom({...r,pending:[c]});incoming.serverRevision=(r.base.serverRevision??0)+1;incoming.appliedOperationIds=[...(r.base.appliedOperationIds??[]),c.id];
+   r=reconcileSnapshot(r,incoming);if(c.id==='one')r.pending.push(command('two','event',goal));return incoming;
+ }});assert.equal(r.pending.length,0);assert.equal(r.base.homeScore,2);
+});
+await test('late older snapshot cannot roll back newer remote score',()=>{
+ const r=room();r.base.serverRevision=4;r.base.homeScore=3;const old={...r.base,serverRevision:3,homeScore:2};assert.equal(reconcileSnapshot(r,old).base.homeScore,3);
+});
+await test('timer from a previous clock owner never overlays a shared snapshot',()=>{
+ const r=room();r.base.status='live';r.base.elapsedSeconds=40;r.base.clock={version:3,ownerId:'other',deviceId:'B',ownerName:'다른 심판'};
+ r.pending=[command('late','timer',{_clockVersion:1,_deviceId:'A',seconds:500,half:1})];assert.equal(projectRoom(r).elapsedSeconds,40);
+});
+await test('response error after realtime acknowledgement cannot block the remaining queue',async()=>{
+ let r=room();r.pending=[command('start','start')];await flushRoom(r,{currentActor:()=> 'actor',update:async(_k,change)=>r=change(r),send:async()=>{r={...r,pending:[]};throw {code:'22023'};}});assert.notEqual(r.blocked,true);
+});

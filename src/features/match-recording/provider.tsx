@@ -9,11 +9,15 @@ import { readRooms, roomKey, updateRoom } from "./storage";
 import { readSnapshot } from "./transport";
 import { createRecordingAdapter } from "./adapter";
 import { syncRecordings } from "./engine";
-import type { RecordingRoom } from "./model";
+import { projectRoom, reconcileSnapshot, type RecordingRoom } from "./model";
+import { recordingDeviceId } from "./device";
+import { joinRecordingChannel, type SharedRecordingState } from "./shared-channel";
 
+const SharedContext = createContext<SharedRecordingState>({ connected: false, names: [], pendingElsewhere: 0 });
 const RecordingContext = createContext<RecordingRoom | null>(null);
 export function RecordingStatus() {
   const room = useContext(RecordingContext);
+  const shared = useContext(SharedContext);
   const [notice, setNotice] = useState("");
   if (!room) return null;
   const pending = room.pending.length;
@@ -36,6 +40,8 @@ export function RecordingStatus() {
       <p role="status" aria-live="polite"><strong>{pending ? `이 기기에 저장됨 · 서버 전송 대기 ${pending}건` : "동기화 완료 · 서버 저장 확인"}</strong>{pending > 0 && <span className="ml-2">연결되면 자동 전송</span>}</p>
       <div className="flex gap-2">{pending > 0 && <button type="button" onClick={() => void retry()} className="min-h-9 rounded border px-2">동기화 재시도</button>}<button type="button" onClick={() => void backup().catch(() => setNotice("백업 저장에 실패했습니다. 다시 시도해주세요."))} className="min-h-9 rounded border px-2">기록 백업</button></div>
     </div>
+    <p className="mt-1">{shared.connected ? "실시간 공유 연결됨" : "공유 연결 확인 중 · 미전송 기록은 이 기기에 보관"}{shared.names.length > 0 && ` · ${shared.names.join(", ")}`}{projectRoom(room).clock?.ownerName && ` · 시간 관리: ${projectRoom(room).clock?.ownerName}`}</p>
+    {shared.pendingElsewhere > 0 && <p role="status" className="mt-1">다른 기기에서 {shared.pendingElsewhere}건 전송 중입니다. 경기 종료 전에 모두 동기화됐는지 확인해주세요.</p>}
     {(room.error || notice) && <p role="alert" className="mt-1">{notice || room.error}</p>}
   </div>;
 }
@@ -44,6 +50,7 @@ export function MatchRecordingProvider({ matchId, children }: { matchId: string;
   const user = useAuthStore(s => s.user);
   const player = useAuthStore(s => s.player);
   const [loaded, setLoaded] = useState<{ room: RecordingRoom; adapter: ReturnType<typeof createRecordingAdapter> } | null>(null);
+  const [shared, setShared] = useState<SharedRecordingState>({ connected: false, names: [], pendingElsewhere: 0 });
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const actorId = user?.uid;
@@ -58,9 +65,13 @@ export function MatchRecordingProvider({ matchId, children }: { matchId: string;
     let current: RecordingRoom | undefined;
     let adapter: ReturnType<typeof createRecordingAdapter> | undefined;
     let refreshing = false;
+    let refreshAgain = false;
+    let channel: ReturnType<typeof joinRecordingChannel> | undefined;
+    let debounce: ReturnType<typeof setTimeout> | undefined;
     const publish = (room: RecordingRoom) => {
       if (!ownsRoom || disposed || (current && room.revision < current.revision)) return;
       current = room;
+      channel?.setPending(room.pending.length);
       if (!adapter) adapter = createRecordingAdapter(room); else adapter.publish(room);
       if (!disposed) { setLoaded({ room, adapter }); setError(""); }
     };
@@ -88,21 +99,23 @@ export function MatchRecordingProvider({ matchId, children }: { matchId: string;
       } catch (e) { if (!disposed && !current) setError(e instanceof Error ? e.message : "경기 준비에 실패했습니다. 연결을 확인하고 다시 시도해주세요."); }
     };
     const refresh = async () => {
-      if (refreshing || disposed || !ownsRoom) return;
+      if (disposed || !ownsRoom) return;
+      if (refreshing) { refreshAgain = true; return; }
       refreshing = true;
       try {
         const stored = (await readRooms(actorId)).find(r => r.matchId === matchId);
         if (!stored) return;
         if (stored.revision !== current?.revision) publish(stored);
-        if (navigator.onLine && !stored.pending.length && allowed) {
+        if (navigator.onLine && allowed) {
           const base = await readSnapshot(matchId);
-          // A new local command always wins over an in-flight read.
-          const updated = await updateRoom(stored.key, next => !next || next.revision !== stored.revision || next.pending.length ? next ?? stored : { ...next, base, syncedAt: Date.now() });
+          // Merge the latest stored queue, including commands entered during the read.
+          const updated = await updateRoom(stored.key, next => reconcileSnapshot(next ?? stored, base));
           publish(updated);
         }
       } catch { /* Cached records remain available. Writes have a separate retry status. */ }
-      finally { refreshing = false; }
+      finally { refreshing = false; if (refreshAgain && !disposed) { refreshAgain = false; scheduleRefresh(); } }
     };
+    const scheduleRefresh = () => { clearTimeout(debounce); debounce = setTimeout(() => void refresh(), 150); };
     const storageChanged = () => { void readRooms(actorId).then(rooms => { const next = rooms.find(r => r.matchId === matchId); if (!disposed && next && next.revision !== current?.revision) publish(next); }).catch(() => {}); };
     if (navigator.locks) {
       void navigator.locks.request(`fg-recording-room:${actorId}:${matchId}`, { signal: lockWait.signal }, async () => {
@@ -110,16 +123,23 @@ export function MatchRecordingProvider({ matchId, children }: { matchId: string;
         ownsRoom = true;
         const held = new Promise<void>(resolve => { releaseLock = resolve; });
         await load();
+        if (!disposed && allowed) {
+          channel = joinRecordingChannel({ matchId, actorId, deviceId: recordingDeviceId(), name: useAuthStore.getState().player?.name ?? "기록자",
+            refresh: scheduleRefresh, onState: state => { if (!disposed) setShared(state); } });
+          channel.setPending(current?.pending.length ?? 0);
+        }
         void refresh();
         await held;
       }).catch(e => { if (!disposed && e?.name !== "AbortError") setError("경기 기록 잠금을 준비하지 못했습니다. 다시 시도해주세요."); });
     } else { setTimeout(() => { if (!disposed) setError("최신 Chrome 또는 Safari에서 경기 기록을 열어주세요."); }, 0); }
     const stopPreparingShell = prepareOfflineShell();
-    const interval = window.setInterval(() => void refresh(), 10000);
+    const interval = window.setInterval(() => void refresh(), 4000);
     window.addEventListener("fg-recording-change", storageChanged);
-    return () => { disposed = true; stopPreparingShell(); lockWait.abort(); ownsRoom = false; releaseLock?.(); clearInterval(interval); window.removeEventListener("fg-recording-change", storageChanged); };
+    window.addEventListener("online", scheduleRefresh);
+    window.addEventListener("focus", scheduleRefresh);
+    return () => { disposed = true; channel?.close(); clearTimeout(debounce); window.removeEventListener("online", scheduleRefresh); window.removeEventListener("focus", scheduleRefresh); stopPreparingShell(); lockWait.abort(); ownsRoom = false; releaseLock?.(); clearInterval(interval); window.removeEventListener("fg-recording-change", storageChanged); };
   }, [actorId, matchId, allowed, hasProfile, attempt]);
   const ready = loaded && loaded.room.actorId === actorId && loaded.room.matchId === matchId ? loaded : null;
-  if (ready && (allowed || !hasProfile)) return <RecordingContext.Provider value={ready.room}><MatchControlStoreContext.Provider value={ready.adapter.store}>{children}</MatchControlStoreContext.Provider></RecordingContext.Provider>;
+  if (ready && (allowed || !hasProfile)) return <SharedContext.Provider value={shared}><RecordingContext.Provider value={ready.room}><MatchControlStoreContext.Provider value={ready.adapter.store}>{children}</MatchControlStoreContext.Provider></RecordingContext.Provider></SharedContext.Provider>;
   return <AdminGuard><div className="mx-auto max-w-lg space-y-3 p-6"><p role={error ? "alert" : "status"}>{error || "경기와 선수 명단을 준비하고 있습니다. 같은 경기가 다른 탭에 열려 있다면 닫아주세요."}</p>{error && <button onClick={() => { setError(""); setAttempt(a => a + 1); }} className="min-h-11 rounded border px-4">다시 준비</button>}</div></AdminGuard>;
 }

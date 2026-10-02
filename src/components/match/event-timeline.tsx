@@ -72,6 +72,7 @@ export function EventTimeline({
                 </span>
                 <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                   <span>{periodLabel}</span>
+                  {event.recorderName && <span>· 기록: {event.recorderName}</span>}
                   {assistUnchecked && (
                     <span className="rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-700">
                       어시 미확인
