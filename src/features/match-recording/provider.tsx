@@ -23,6 +23,7 @@ const RecordingContext = createContext<RecordingRoom | null>(null);
 export function RecordingStatus() {
   const room = useContext(RecordingContext);
   const shared = useContext(SharedContext);
+  const canBackup = useAuthStore(state => state.player?.role === "admin");
   const [notice, setNotice] = useState("");
   const [recovering, setRecovering] = useState(false);
   if (!room) return null;
@@ -50,7 +51,7 @@ export function RecordingStatus() {
         return { ...current, blocked: false, error: undefined };
       });
       await syncRecordings(room.actorId, true);
-    } catch { setNotice("기기 저장소를 확인하지 못했습니다. 창을 유지하고 백업을 저장해주세요."); }
+    } catch { setNotice(canBackup ? "기기 저장소를 확인하지 못했습니다. 창을 유지하고 백업을 저장해주세요." : "기기 저장소를 확인하지 못했습니다. 창을 유지하고 관리자에게 알려주세요."); }
   };
   const backup = async () => {
     const rooms = await readRooms(room.actorId);
@@ -60,7 +61,7 @@ export function RecordingStatus() {
   return <div className={`shrink-0 border-b px-3 py-2 text-xs ${pending ? "bg-amber-50 text-amber-950" : "bg-emerald-50 text-emerald-950"}`} data-slot="recording-sync-status">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <p role="status" aria-live="polite"><strong>{pending ? `이 기기에 저장됨 · 서버 전송 대기 ${pending}건` : "동기화 완료 · 서버 저장 확인"}</strong>{pending > 0 && <span className="ml-2">연결되면 자동 전송</span>}</p>
-      <div className="flex flex-wrap gap-2">{recoverableEnd && <button type="button" onClick={() => void releaseEnd()} disabled={recovering} className="min-h-9 rounded border px-2">{recovering ? "최신 경기 확인 중…" : "이전 종료 요청 해제"}</button>}{pending > 0 && <button type="button" onClick={() => void retry()} disabled={recovering} className="min-h-9 rounded border px-2">동기화 재시도</button>}<button type="button" onClick={() => void backup().catch(() => setNotice("백업 저장에 실패했습니다. 다시 시도해주세요."))} className="min-h-9 rounded border px-2">기록 백업</button></div>
+      <div className="flex flex-wrap gap-2">{recoverableEnd && <button type="button" onClick={() => void releaseEnd()} disabled={recovering} className="min-h-9 rounded border px-2">{recovering ? "최신 경기 확인 중…" : "이전 종료 요청 해제"}</button>}{pending > 0 && <button type="button" onClick={() => void retry()} disabled={recovering} className="min-h-9 rounded border px-2">동기화 재시도</button>}{canBackup && <button type="button" onClick={() => void backup().catch(() => setNotice("백업 저장에 실패했습니다. 다시 시도해주세요."))} className="min-h-9 rounded border px-2">기록 백업</button>}</div>
     </div>
     <p className="mt-1">{shared.connected ? "실시간 공유 연결됨" : "공유 연결 확인 중 · 미전송 기록은 이 기기에 보관"}{shared.names.length > 0 && ` · ${shared.names.join(", ")}`}{projectRoom(room).clock?.ownerName && ` · 시간 관리: ${projectRoom(room).clock?.ownerName}`}</p>
     {shared.pendingElsewhere > 0 && <p role="status" className="mt-1">다른 기기에 전송 대기 {shared.pendingElsewhere}건이 있습니다.{shared.blockingPendingElsewhere > 0 && ` 기록 ${shared.blockingPendingElsewhere}건의 동기화가 완료될 때까지 경기 종료를 기다립니다.`}</p>}
