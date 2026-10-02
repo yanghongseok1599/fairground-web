@@ -1,5 +1,6 @@
 "use client";
 
+import { RECORDING_PLAYER_COLUMNS } from "@/features/match-control/recording-player-columns";
 import { fetchCoachSummaries, type CoachSummary } from "@/features/admin-directory/api";
 import { notifyInspectionChange } from "@/lib/inspection-sync";
 
@@ -166,7 +167,7 @@ interface DataState {
   fetchPlayer: (id: string) => Promise<Player | null>;
   fetchTeams: () => Promise<Team[]>;
   fetchTeam: (id: string, force?: boolean) => Promise<Team | null>;
-  fetchTeamPlayers: (teamId: string) => Promise<Player[]>;
+  fetchTeamPlayers: (teamId: string, options?: { forRecording?: boolean }) => Promise<Player[]>;
   fetchTournaments: () => Promise<Tournament[]>;
   fetchTournament: (id: string, options?: { refresh?: boolean }) => Promise<Tournament | null>;
   fetchMatches: (tournamentId: string, options?: { throwOnError?: boolean }) => Promise<Match[]>;
@@ -613,10 +614,19 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     return team;
   },
 
-  fetchTeamPlayers: async (teamId) => {
+  fetchTeamPlayers: async (teamId, options) => {
     if (isDemoMode) {
       const players = getLocalPlayers();
       return Object.entries(players).filter(([, p]) => p.teamId === teamId).map(([id, p]) => ({ ...p, id }));
+    }
+    if (options?.forRecording) {
+      const { data, error } = await supabase.from("public_player_profiles")
+        .select(RECORDING_PLAYER_COLUMNS).eq("team_id", teamId).retry(false);
+      if (error) throw new Error(error.message);
+      if (!Array.isArray(data)) throw new Error("선수 명단을 확인하지 못했습니다.");
+      return data.map(row => rowToPublicPlayer({ ...row, photo_url: "", profile_photo_url: null,
+        profile_photo_locked: false, photo_scale: null, photo_offset_x: null, mbti: null,
+        disposition: null, personal_values: null, bio: null }));
     }
     const { data, error } = await supabase
       .from("public_player_profiles")

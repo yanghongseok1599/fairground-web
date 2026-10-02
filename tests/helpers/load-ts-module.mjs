@@ -46,7 +46,7 @@ export function storeFixture() {
   function query(request) {
     requests.push(request);
     const chain = {};
-    for (const method of ['select','insert','update','delete','eq','order','limit','maybeSingle','single','is','in']) {
+    for (const method of ['select','insert','update','delete','eq','order','limit','maybeSingle','single','is','in','retry']) {
       chain[method] = (...args) => { (request.steps ??= []).push([method, ...args]); return chain; };
     }
     chain.then = (resolve, reject) => {

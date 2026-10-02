@@ -1,5 +1,6 @@
 "use client";
 
+import { compressPlayerPhoto, preparePlayerPhotoPatch } from "@/features/player-photos/compress";
 import { notifyInspectionChange } from "@/lib/inspection-sync";
 import { internalReturnPath } from "@/lib/internal-return-path";
 import { hasPortraitConsent, requirePortraitConsent } from "@/features/portrait-consent/policy";
@@ -450,6 +451,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       if (data.role === "referee" && existingPlayer && existingPlayer.role !== "referee") {
         throw new Error("기존 계정의 심판 권한은 관리자가 승인해야 합니다. 선수로 등록을 마친 뒤 심판 등록을 문의해주세요.");
       }
+      if (!isDemoMode) data = await preparePlayerPhotoPatch(data);
       const player: Player = {
         ...existingPlayer,
         id: uid,
@@ -632,7 +634,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
 
     // 팀 소속/역할은 전용 RPC만 변경한다. 같은 값을 다시 보내는 기존 화면은
     // no-op으로 제거하고, 실제 변경 시도는 명시적으로 거부한다.
-    const editableData = selfEditablePlayerPatch(data, state.player);
+    const editableData = await preparePlayerPhotoPatch(selfEditablePlayerPatch(data, state.player));
     if (Object.keys(editableData).length === 0) return;
 
     // RLS: 본인 행만, 특권컬럼은 DB trigger가 최종 거부.
@@ -679,7 +681,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
     notifyInspectionChange();
   },
 
-  uploadPlayerPhoto: readPhotoFile,
+  uploadPlayerPhoto: (file) => isDemoMode ? readPhotoFile(file) : compressPlayerPhoto(file),
 
   clearError: () => setState({ error: null }),
 

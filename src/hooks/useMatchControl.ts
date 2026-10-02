@@ -155,8 +155,8 @@ export function useMatchControl({
 
       // Load team rosters in parallel
       const [home, away] = await Promise.all([
-        store.fetchTeamPlayers(matchData.homeTeamId),
-        store.fetchTeamPlayers(matchData.awayTeamId),
+        store.fetchTeamPlayers(matchData.homeTeamId, { forRecording: true }),
+        store.fetchTeamPlayers(matchData.awayTeamId, { forRecording: true }),
       ]);
       setHomePlayers(home);
       setAwayPlayers(away);
