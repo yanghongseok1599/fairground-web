@@ -58,7 +58,7 @@ function LiveLineupColumn({
           className="text-[10px]"
           style={{ color: "var(--muted-foreground)" }}
         >
-          (미제출)
+          (등록된 명단 없음)
         </p>
       ) : (
         <>
