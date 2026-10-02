@@ -95,7 +95,7 @@ export function MatchRecordingProvider({ matchId, children }: { matchId: string;
     const publish = (room: RecordingRoom) => {
       if (!ownsRoom || disposed || (current && room.revision < current.revision)) return;
       current = room;
-      channel?.setPending(room.pending.length, blockingPendingCount(room.pending));
+      channel?.setPending(room.pending.length, blockingPendingCount(room.pending), room.revision);
       if (!adapter) adapter = createRecordingAdapter(room); else adapter.publish(room);
       if (!disposed) { setLoaded({ room, adapter }); setError(""); }
     };
@@ -157,7 +157,7 @@ export function MatchRecordingProvider({ matchId, children }: { matchId: string;
               setShared({ ...state, pendingElsewhere, blockingPendingElsewhere });
               if (previousPending > 0 && blockingPendingElsewhere === 0) void syncRecordings(actorId, true);
             } });
-          channel.setPending(current?.pending.length ?? 0, blockingPendingCount(current?.pending ?? []));
+          channel.setPending(current?.pending.length ?? 0, blockingPendingCount(current?.pending ?? []), current?.revision ?? 0);
         }
         void refresh();
         await held;

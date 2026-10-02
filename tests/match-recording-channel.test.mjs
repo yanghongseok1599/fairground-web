@@ -15,7 +15,7 @@ function fixture(t) {
         on(type, filter, callback) { this.handlers.push({ type, filter, callback }); return this; },
         subscribe(callback) { this.subscriptions++; this.status = callback; this.state = "joined"; callback("SUBSCRIBED"); return this; },
         presenceState: () => ({}),
-        async track(value) { this.tracks.push(value); },
+        async track(value) { this.tracks.push(value); return "ok"; },
       };
       active.set(topic, channel); created.push(channel); return channel;
     },
@@ -45,8 +45,8 @@ test("same-match rejoin waits for slow removal and publishes the latest buffered
   const old = f.created[0];
   a.handle.close();
   const b = f.join("device-b");
-  b.handle.setPending(4, 3);
-  b.handle.setPending(3, 2);
+  b.handle.setPending(4, 3, 10);
+  b.handle.setPending(3, 2, 11);
   await f.flush();
   assert.equal(f.created.length, 1);
   assert.equal(old.subscriptions, 1); // No subscription can be attached to the departing channel.
@@ -57,7 +57,7 @@ test("same-match rejoin waits for slow removal and publishes the latest buffered
   const current = f.active.get("match-recording:match");
   assert.notEqual(current, old);
   assert.equal(current.config.config.presence.key, "actor:device-b");
-  assert.deepEqual(current.tracks.at(-1), { name: "device-b", pending: 3, blockingPending: 2 });
+  assert.deepEqual(current.tracks.at(-1), { name: "device-b", pending: 3, blockingPending: 2, queueRevision: 11 });
   assert.equal(b.states.at(-1).connected, true);
   assert.equal(a.refreshes(), 1); // Late callbacks from the closed provider do not run.
   b.handle.close();
@@ -68,7 +68,7 @@ test("cancelled waiting provider never joins after removal, while its replacemen
   const a = f.join("device-a");
   a.handle.close();
   const cancelled = f.join("device-b");
-  cancelled.handle.setPending(9, 9);
+  cancelled.handle.setPending(9, 9, 1);
   cancelled.handle.close();
   cancelled.handle.close();
   const current = f.join("device-c");
@@ -93,4 +93,32 @@ test("slow removal for one match does not delay a different match topic", async 
   assert.equal(f.active.has("match-recording:two"), true);
   other.handle.close();
   await f.flush();
+});
+
+test("unexpected CLOSED rejoins after removal with buffered counts; own close never reconnects", async t => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const f = fixture(t);
+  const recorder = f.join("device-a");
+  recorder.handle.setPending(2, 2, 11);
+  await f.flush();
+  const old = f.created[0];
+  old.state = "closed"; old.status("CLOSED");
+  await f.flush();
+  recorder.handle.setPending(0, 0, 12);
+  t.mock.timers.tick(1000);
+  await f.flush();
+  assert.equal(f.created.length, 1); // Removal is still in flight.
+  f.removals.shift()();
+  await f.flush();
+  assert.equal(f.created.length, 2);
+  const next = f.created[1];
+  assert.deepEqual(next.tracks.at(-1), { name: "device-a", pending: 0, blockingPending: 0, queueRevision: 12 });
+  old.status("SUBSCRIBED"); // Old callbacks cannot reactivate the replaced channel.
+  assert.equal(f.active.get("match-recording:match"), next);
+  recorder.handle.close();
+  await f.flush();
+  f.removals.shift()();
+  t.mock.timers.tick(5000);
+  await f.flush();
+  assert.equal(f.created.length, 2);
 });
