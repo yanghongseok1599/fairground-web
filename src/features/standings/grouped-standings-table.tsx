@@ -23,7 +23,7 @@ export function GroupedStandingsTable({ standings, groups = [], groupSourceName,
     count: standings.filter(team => group.teamIds.includes(team.teamId)).length,
   }));
 
-  if (finalRanks.length === 8) return <FinalStandingsTable rows={finalRanks} />;
+  if (finalRanks.length > 0) return <FinalStandingsTable rows={finalRanks} />;
 
   return (
     <div className="min-w-0 space-y-3">
