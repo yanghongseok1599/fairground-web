@@ -36,7 +36,7 @@ export function createRecordingAdapter(initial: RecordingRoom, isActive: () => b
   };
   const store = createStore<MatchControlOperations>(() => ({
     ...useDataStore.getState(), allowsOfflineRecording: true, canPersistClock: ownsClock(),
-    liveMatches: [match() as LiveMatch],
+    liveMatches: [match() as LiveMatch], recordingPlayers: room.players,
     fetchMatch: async () => match(),
     fetchTeamPlayers: async teamId => room.players.filter(p => p.teamId === teamId),
     fetchMatchLineup: async () => match().lineups ?? room.lineups,
@@ -58,6 +58,6 @@ export function createRecordingAdapter(initial: RecordingRoom, isActive: () => b
     substitutePlayer: async (_m, teamId, outId, inId, inName, minute, half) => enqueue("substitute", { teamId, outId, inId, inName, minute, half }),
     notifyNextMatchReady: async id => navigator.onLine ? useDataStore.getState().notifyNextMatchReady(id).catch(() => 0) : 0,
   }));
-  function publish(next: RecordingRoom) { room = next; store.setState({ canPersistClock: ownsClock(), liveMatches: [match() as LiveMatch] }); }
+  function publish(next: RecordingRoom) { room = next; store.setState({ canPersistClock: ownsClock(), liveMatches: [match() as LiveMatch], recordingPlayers: room.players }); }
   return { store, publish };
 }

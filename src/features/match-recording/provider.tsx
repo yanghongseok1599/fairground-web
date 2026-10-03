@@ -16,6 +16,8 @@ import { blockingPendingCount, observeOtherPending } from "./control-safety";
 import { canReleaseRejectedEnd, releaseRejectedEnd } from "./control-recovery";
 import { startRoomSession, type RoomSessionGuard } from "./room-session";
 import { createRoomPublication, prepareRecordingRoom } from "./room-bootstrap";
+import { createJerseyRefresh } from "./jersey-sync";
+import { readRecordingJerseys } from "./jersey-api";
 
 const SharedContext = createContext<SharedRecordingState>({ connected: false, names: [], pendingElsewhere: 0, blockingPendingElsewhere: 0 });
 export const useSharedRecordingState = () => useContext(SharedContext);
@@ -105,6 +107,10 @@ export function MatchRecordingProvider({ matchId, children }: { matchId: string;
     const publish = (room: RecordingRoom) => {
       if (active()) publication.publish(room);
     };
+    const refreshJerseys = createJerseyRefresh({
+      active, current: () => publication.current, read: readRecordingJerseys, publish,
+      update: (key, change) => updateRoom(key, change, guard?.signal),
+    });
     const refresh = async () => {
       if (!active() || !publication.current) return;
       if (refreshing) { refreshAgain = true; return; }
@@ -114,6 +120,7 @@ export function MatchRecordingProvider({ matchId, children }: { matchId: string;
         if (!stored || !active()) return;
         if (stored.revision !== publication.current?.revision) publish(stored);
         if (navigator.onLine && allowed) {
+          void refreshJerseys();
           const base = await readSnapshot(matchId);
           if (!active()) return;
           // Merge the latest stored queue, including commands entered during the read.

@@ -415,8 +415,8 @@ export function useMatchControl({
   return {
     match,
     liveMatch,
-    homePlayers,
-    awayPlayers,
+    homePlayers: store.recordingPlayers?.filter(p => p.teamId === (liveMatch ?? match)?.homeTeamId) ?? homePlayers,
+    awayPlayers: store.recordingPlayers?.filter(p => p.teamId === (liveMatch ?? match)?.awayTeamId) ?? awayPlayers,
     events: sortedEvents,
     loading,
     actionError,
