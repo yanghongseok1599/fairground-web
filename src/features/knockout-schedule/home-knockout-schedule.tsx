@@ -5,7 +5,7 @@ export function HomeKnockoutSchedule() {
   return <section className="border-b bg-[#122B49] px-5 py-8 text-white" aria-labelledby="knockout-title">
     <div className="mx-auto max-w-6xl">
       <p className="text-sm font-bold text-[#8ED9D1]">2026.10.03 · 조별리그 12경기 종료 · A구장</p>
-      <h2 id="knockout-title" className="mt-2 text-2xl font-black">순위결정전 대진표</h2>
+      <h2 id="knockout-title" style={{ color: "#FFFFFF" }} className="mt-2 text-2xl font-black">순위결정전 대진표</h2>
       <p className="mt-2 text-sm text-white/80">출전팀은 시작 5분 전까지 A구장 앞에 집합해 주세요. 시각은 예정이며 현장 진행을 따릅니다.</p>
       <ol className="mt-5 grid gap-3 md:grid-cols-2">
         {knockoutSchedule.fixtures.map(row => <li key={row.slot} className="rounded-xl border border-white/20 bg-white/5 p-4">
