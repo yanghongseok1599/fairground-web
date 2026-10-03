@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { buildGroupRoundRobinMatches } from '../src/lib/auto-matchmaking.ts';
 import { buildCueSheet, buildSavedCueSheet } from '../src/lib/cue-sheet.ts';
 import { DEFAULT_FIXTURE_TIMING } from '../src/lib/fixture-timetable.ts';
-import { courtMatches, timeline } from '../public/cup-ops/data.js';
+import { baseCourtMatches, courtMatches as eventCourtMatches, timeline } from '../public/cup-ops/data.js';
 import { MATCH_DURATION_MINUTES, MATCH_SLOT_MINUTES } from '../src/lib/match-config.ts';
 import { schedule as mcSchedule } from '../public/cup-ops/simaek/data.js';
-import { teamSeeds } from '../public/cup-ops/team-seeds.js';
+import { resolveSeedNames, teamSeeds } from '../public/cup-ops/team-seeds.js';
 import { matchReportTime, REPORT_LEAD_MINUTES } from '../public/cup-ops/match-report-time.js';
 import { MATCH_REPORT_LEAD_MINUTES } from '../src/lib/match-config.ts';
 
@@ -16,6 +16,9 @@ const groups = ['A', 'B'].map(name => ({
 }));
 const teams = Object.entries(teamSeeds).map(([id, name]) => ({ id, name }));
 const timing = { ...DEFAULT_FIXTURE_TIMING, date: '2026-10-03' };
+const courtMatches = eventCourtMatches as Array<{
+  slot: number; time: string; match: string; seedMatch: string; rest: string; reportTime: string;
+}>;
 
 test('20경기 모두 시작 5분 전 집합 시각을 표시한다', () => {
   assert.equal(REPORT_LEAD_MINUTES, MATCH_REPORT_LEAD_MINUTES);
@@ -31,7 +34,7 @@ test('20경기 모두 시작 5분 전 집합 시각을 표시한다', () => {
   assert.throws(() => matchReportTime('24:10'));
 });
 
-test('확정 가이드·자동 생성·큐시트의 12경기 대진, 전체 순번, 시간이 같다', () => {
+test('기본 대진표·자동 생성·큐시트의 12경기 대진, 전체 순번, 시간이 같다', () => {
   const generated = buildGroupRoundRobinMatches(groups, [...teams].reverse(), 'cup', timing);
   const preview = buildCueSheet(groups.map(group => ({
     name: group.name, teamNames: group.teamIds.map(id => teams.find(team => team.id === id)!.name),
@@ -42,9 +45,9 @@ test('확정 가이드·자동 생성·큐시트의 12경기 대진, 전체 순�
   assert.equal(new Set(generated.map(match => match.scheduledAt)).size, 12);
   assert.equal(new Set(generated.map(match => [match.homeTeamId, match.awayTeamId].sort().join(':'))).size, 12);
   for (const [index, match] of generated.entries()) {
-    const guide = courtMatches[index];
+    const guide = baseCourtMatches[index];
     assert.equal(match.round, guide.slot);
-    assert.equal(`${match.homeTeamName} vs ${match.awayTeamName}`, guide.match);
+    assert.equal(`${match.homeTeamName} vs ${match.awayTeamName}`, resolveSeedNames(guide.match));
     assert.equal(match.scheduledAt, Date.parse(`${timing.date}T${guide.time.slice(0,5)}:00+09:00`));
     assert.equal(preview.rows[index].court, 'A구장');
     if (index) assert.equal(match.scheduledAt - generated[index - 1].scheduledAt, 20 * 60_000);
@@ -70,20 +73,42 @@ test('크기가 다른 홀수 조도 부전승 없이 한 구장에 순차 편�
 });
 
 
-test('경기 타이머는 12분이며 운영팀·MC 진행표는 20분 간격의 전체 20경기와 일치한다', () => {
+test('경기 타이머는 12분이며 기본 운영표·MC 진행표의 행사 시간이 유지된다', () => {
   assert.equal(MATCH_DURATION_MINUTES, 12);
   assert.equal(MATCH_SLOT_MINUTES, 20);
   const clock = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-  courtMatches.forEach((row, index) => {
+  baseCourtMatches.forEach((row, index) => {
     assert.equal(row.time, `${clock(600 + index * 20)}–${clock(600 + (index + 1) * 20)}`);
   });
   assert.equal(timeline[1].rows[0][0], '10:00–14:00');
   assert.equal(timeline[1].rows[1][0], '14:00–16:40');
   assert.equal(timeline[3].rows[0][0], '16:40–17:05');
-  assert.equal(mcSchedule[3].time, '10:00–14:00');
-  assert.equal(mcSchedule[4].time, '14:00–15:20');
-  assert.equal(mcSchedule[5].time, '15:20–16:00');
-  assert.equal(mcSchedule[6].time, '16:00–16:40');
-  assert.equal(mcSchedule[7].time, '16:40–17:05');
-  assert.equal(mcSchedule[8].time, '17:05–17:10');
+  for (const time of ['10:00–14:00', '14:00–15:20', '15:20–16:00', '16:00–16:40', '16:40–17:05', '17:05–17:10']) {
+    assert.ok(mcSchedule.some(row => row.time === time), `MC 진행표에 ${time} 구간이 있다`);
+  }
+});
+
+test('현장 확정 대진표는 5경기 11:15 시작과 운영 DB의 변경 순서를 반영한다', () => {
+  const expected = [
+    [5, '11:15–11:35', 'A1 vs A3'],
+    [6, '11:35–11:55', 'A2 vs A4'],
+    [7, '11:55–12:15', 'B1 vs B3'],
+    [8, '12:15–12:35', 'B2 vs B4'],
+    [9, '12:35–12:55', 'A1 vs A4'],
+    [10, '12:55–13:15', 'A2 vs A3'],
+    [11, '13:15–13:35', 'B1 vs B4'],
+    [12, '13:35–13:55', 'B2 vs B3'],
+  ];
+  for (const [slot, time, pair] of expected) {
+    const row = courtMatches.find(row => row.slot === slot)!;
+    assert.equal(row.time, time);
+    assert.equal(row.match, resolveSeedNames(String(pair)));
+    const active = String(pair).split(' vs ');
+    const resting = Object.keys(teamSeeds).filter(seed => !active.includes(seed));
+    assert.equal(row.rest, resolveSeedNames(resting.join(', ')));
+  }
+  assert.equal(courtMatches[4].reportTime, '11:10');
+  assert.deepEqual(courtMatches.slice(0, 4).map(row => row.seedMatch), baseCourtMatches.slice(0, 4).map(row => row.match));
+  assert.deepEqual(courtMatches.slice(12).map(row => row.time), baseCourtMatches.slice(12).map(row => row.time));
+  assert.deepEqual(new Set(courtMatches.slice(0, 12).map(row => row.seedMatch)), new Set(baseCourtMatches.slice(0, 12).map(row => row.match)));
 });

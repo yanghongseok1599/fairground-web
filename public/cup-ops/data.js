@@ -1,5 +1,7 @@
-import { resolveSeedNames } from './team-seeds.js?v=20260929-twenty-minutes-report-v1';
-import { matchReportTime } from './match-report-time.js?v=20260929-twenty-minutes-report-v1';
+import { resolveSeedNames } from './team-seeds.js?v=20261003-live-fixtures-1115-v1';
+import { matchReportTime } from './match-report-time.js?v=20261003-live-fixtures-1115-v1';
+import { applyEventScheduleOverrides, eventScheduleNotice } from './event-schedule.js?v=20261003-live-fixtures-1115-v1';
+export { eventScheduleNotice };
 // 운영 내용은 이 파일에서 수정합니다. 8팀·단일 경기 구장 기준입니다.
 export const timeline = [
   { label: '사전 준비와 오프닝', period: '07:40–10:00', rows: [
@@ -11,7 +13,7 @@ export const timeline = [
     ['09:50–10:00','첫 경기 준비','A구장 단일 코트와 기록판 확인 · 첫 경기 두 팀은 09:55까지 집합해 장비 점검을 받습니다.']
   ]},
   { label: 'A구장 단일 코트 경기', period: '10:00–16:40', rows: [
-    ['10:00–14:00','조별리그 12경기','20분 슬롯(경기 12분 + 교대 3분 + 장비 점검·준비 5분)으로 진행합니다. 출전팀은 시작 5분 전까지 A구장 앞 집합. 실내구장에서는 그라운드 챌린지를 병행합니다.','match'],
+    ['10:00–14:00','조별리그 12경기','현장 변경: 5경기 11:15 시작, 6~12경기는 20분 간격으로 진행합니다. 아래 경기·대진의 확정 순서를 확인하세요. 출전팀은 시작 5분 전까지 A구장 앞 집합. 실내구장에서는 그라운드 챌린지를 병행합니다.','match'],
     ['14:00–16:40','순위결정전 8경기','교차 준결승부터 결승까지 20분 슬롯으로 이어집니다.','match']
   ]},
   { label: '실내구장 그라운드 챌린지', period: '10:00–16:00', rows: [
@@ -23,7 +25,7 @@ export const timeline = [
     ['17:10–18:00','뒷정리','A구장·실내구장 정리, 장비 회수와 촬영본 백업']
   ]}
 ];
-export const courtMatches = [
+export const baseCourtMatches = [
  {slot:1,time:'10:00–10:20',stage:'조별리그',match:'A1 vs A2',rest:'A3, A4, B1, B2, B3, B4'},
  {slot:2,time:'10:20–10:40',stage:'조별리그',match:'B1 vs B2',rest:'A1, A2, A3, A4, B3, B4'},
  {slot:3,time:'10:40–11:00',stage:'조별리그',match:'A3 vs A4',rest:'A1, A2, B1, B2, B3, B4'},
@@ -44,7 +46,8 @@ export const courtMatches = [
  {slot:18,time:'15:40–16:00',stage:'5·6위전',match:'챌린지 준결승 승자 2팀',rest:'나머지 6팀'},
  {slot:19,time:'16:00–16:20',stage:'3·4위전',match:'챔피언십 준결승 패자 2팀',rest:'나머지 6팀'},
  {slot:20,time:'16:20–16:40',stage:'결승',match:'챔피언십 준결승 승자 2팀',rest:'나머지 6팀'}
-].map((row) => ({
+];
+export const courtMatches = applyEventScheduleOverrides(baseCourtMatches).map((row) => ({
  ...row,
   reportTime: matchReportTime(row.time.slice(0, 5)),
   seedMatch: row.match,
