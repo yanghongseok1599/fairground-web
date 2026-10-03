@@ -33,13 +33,13 @@ async function addProfile({ id = randomUUID(), role = 'player', approved = true,
   return id;
 }
 
-async function fixture({ last = false, unapprovedAway = false } = {}) {
-  const f = { tournament: randomUUID(), current: randomUUID(), next: last ? null : randomUUID(), later: last ? null : randomUUID(), teams: Array.from({ length: 6 }, () => randomUUID()), recipients: [], excluded: [] };
+async function fixture({ last = false, nextOnly = false, venueWait = false, unapprovedAway = false, unapprovedLaterAway = false } = {}) {
+  const f = { tournament: randomUUID(), current: randomUUID(), next: last ? null : randomUUID(), later: last || nextOnly ? null : randomUUID(), teams: Array.from({ length: 6 }, () => randomUUID()), recipients: [], excluded: [], venueRecipients: [], venueExcluded: [] };
   await db.query('begin');
   try {
     await db.query("select set_config('app.in_end_match','1',true)");
     for (const [index, team] of f.teams.entries()) {
-      await db.query('insert into public.teams(id,name,is_approved,season_stats) values($1,$2,$3,$4)', [team, `${label} 팀 ${team}`, !(unapprovedAway && index === 3), {}]);
+      await db.query('insert into public.teams(id,name,is_approved,season_stats) values($1,$2,$3,$4)', [team, `${label} 팀 ${team}`, !(unapprovedAway && index === 3) && !(unapprovedLaterAway && index === 5), {}]);
     }
     await db.query('insert into public.tournaments(id,name) values($1,$2)', [f.tournament, label]);
     for (const [index, match] of [f.current, f.next, f.later].filter(Boolean).entries()) {
@@ -61,6 +61,17 @@ async function fixture({ last = false, unapprovedAway = false } = {}) {
         && !(unapprovedAway && team === f.teams[3])) f.recipients.push(id);
       else f.excluded.push(id);
     }
+    if (venueWait && f.later) {
+      for (const [role, team, approved] of [
+        ['player', f.teams[4], true], ['player', f.teams[4], true], ['captain', f.teams[4], true],
+        ['player', f.teams[5], true], ['player', f.teams[5], true], ['captain', f.teams[5], true],
+        ['referee', f.teams[4], true], ['admin', f.teams[5], true], ['player', f.teams[4], false],
+      ]) {
+        const id = await addProfile({ role, team, approved });
+        if (approved && ['player', 'captain'].includes(role) && !(unapprovedLaterAway && team === f.teams[5])) f.venueRecipients.push(id);
+        else f.venueExcluded.push(id);
+      }
+    }
     await db.query('commit');
     return f;
   } catch (error) {
@@ -72,13 +83,15 @@ async function fixture({ last = false, unapprovedAway = false } = {}) {
 const start = (actor, f) => actor.query('select public.start_match($1)', [f.current]);
 const timer = (actor, f, seconds) => actor.query('select public.update_match_timer($1,$2,1)', [f.current, seconds]);
 const dispatch = actor => actor.query('select public.dispatch_due_next_match_ready()');
-const noticeRows = async f => (await db.query(`select user_id,ready_stage,title,snippet,match_id,team_id
-  from public.notifications where kind='match_ready' and match_id=$1 order by user_id,ready_stage`, [f.next])).rows;
-async function assertStage(f, stage, expected = f.recipients.length) {
-  const rows = (await noticeRows(f)).filter(row => row.ready_stage === stage);
+const noticeRows = async (f, match = f.next) => (await db.query(`select user_id,ready_stage,title,snippet,match_id,team_id
+  from public.notifications where kind='match_ready' and match_id=$1 order by user_id,ready_stage`, [match])).rows;
+async function assertStage(f, stage, expected = (stage === 'venue_wait' ? f.venueRecipients : f.recipients).length) {
+  const recipients = stage === 'venue_wait' ? f.venueRecipients : f.recipients;
+  const match = stage === 'venue_wait' ? f.later : f.next;
+  const rows = (await noticeRows(f, match)).filter(row => row.ready_stage === stage);
   assert.equal(rows.length, expected);
-  if (expected === f.recipients.length) assert.deepEqual(rows.map(row => row.user_id).sort(), [...f.recipients].sort());
-  assert.ok(rows.every(row => row.match_id === f.next && !f.excluded.includes(row.user_id)));
+  if (expected === recipients.length) assert.deepEqual(rows.map(row => row.user_id).sort(), [...recipients].sort());
+  assert.ok(rows.every(row => row.match_id === match && ![...f.excluded, ...f.venueExcluded].includes(row.user_id)));
   return rows;
 }
 async function ageClock(f, seconds) {
@@ -113,11 +126,12 @@ try {
   const cronRetry = await connect();
 
   await test('kickoff sends one start notice only to approved next-team players/captains', async () => {
-    const f = await fixture();
+    const f = await fixture({ venueWait: true });
     await start(referee, f);
     const rows = await assertStage(f, 'start');
     assert.ok(rows.every(row => row.title === '다음 경기 준비 안내' && row.snippet.includes('현재 경기가 시작되었습니다.') && row.snippet.includes('홈 1') && row.snippet.includes('원정 1')));
     await assertStage(f, 'five_minutes', 0);
+    await assertStage(f, 'venue_wait', 0);
     assert.equal((await referee.query('select public.notify_next_match_ready($1) n', [f.current])).rows[0].n, 0);
     await start(refereeRetry, f);
     await assertStage(f, 'start');
@@ -125,27 +139,34 @@ try {
   });
 
   await test('419 seconds does not notify; 420 and skipped/repeated timer saves send exactly one reminder', async () => {
-    const f = await fixture();
+    const f = await fixture({ venueWait: true });
     await start(referee, f);
     await timer(referee, f, 419);
     await assertStage(f, 'five_minutes', 0);
+    await assertStage(f, 'venue_wait', 0);
     await timer(referee, f, 420);
     const rows = await assertStage(f, 'five_minutes');
     assert.ok(rows.every(row => row.title === '경기 종료 5분 전 · 다음 팀 준비' && row.snippet.includes('5분 이내')));
+    const venueRows = await assertStage(f, 'venue_wait');
+    assert.equal(venueRows.length, 6);
+    assert.ok(venueRows.every(row => row.title === '다다음 경기 팀 · 구장 대기'
+      && row.snippet === `현재 경기 종료까지 5분 이내입니다. 다다음 경기 ${label} 홈 2 vs ${label} 원정 2 선수들은 지금 구장 앞으로 이동해 대기해주세요.`));
     await timer(referee, f, 421);
     await dispatch(cron);
     await assertStage(f, 'five_minutes');
+    await assertStage(f, 'venue_wait');
     await quiesce(f);
-    const jumped = await fixture();
+    const jumped = await fixture({ venueWait: true });
     await start(referee, jumped);
     await timer(referee, jumped, 419);
-    await timer(referee, jumped, 450);
+    await timer(referee, jumped, 425);
     await assertStage(jumped, 'five_minutes');
+    await assertStage(jumped, 'venue_wait');
     await quiesce(jumped);
   });
 
   await test('paused 399 seconds does not advance; resumed server clock sends a browser-independent reminder', async () => {
-    const f = await fixture();
+    const f = await fixture({ venueWait: true });
     await start(referee, f);
     await timer(referee, f, 399);
     await referee.query('select public.pause_match($1)', [f.current]);
@@ -154,30 +175,34 @@ try {
     await dispatch(cron);
     assert.deepEqual(await captured(f), before);
     await assertStage(f, 'five_minutes', 0);
+    await assertStage(f, 'venue_wait', 0);
     await referee.query('select public.resume_match($1)', [f.current]);
     await ageClock(f, 22);
     const resumed = await captured(f);
     await dispatch(cron);
     await assertStage(f, 'five_minutes');
+    await assertStage(f, 'venue_wait');
     assert.deepEqual(await captured(f), resumed, 'notice dispatch must not mutate the score, clock, events or receipts');
     await quiesce(f);
-    const pausedAtThreshold = await fixture();
+    const pausedAtThreshold = await fixture({ venueWait: true });
     await start(referee, pausedAtThreshold);
     await timer(referee, pausedAtThreshold, 399);
     // A pause may save the final observed second before changing is_running.
     await db.query('update public.matches set elapsed_seconds=420,is_running=false where id=$1', [pausedAtThreshold.current]);
     await assertStage(pausedAtThreshold, 'five_minutes');
+    await assertStage(pausedAtThreshold, 'venue_wait');
     await quiesce(pausedAtThreshold);
   });
 
   await test('concurrent timer and scheduled checks never duplicate either stage', async () => {
-    const f = await fixture();
+    const f = await fixture({ venueWait: true });
     await start(referee, f);
     await timer(referee, f, 419);
     await ageClock(f, 2);
     await Promise.all([timer(referee, f, 421), dispatch(cron), dispatch(cronRetry), refereeRetry.query('select public.notify_next_match_ready($1)', [f.current])]);
     await assertStage(f, 'start');
     await assertStage(f, 'five_minutes');
+    await assertStage(f, 'venue_wait');
     await quiesce(f);
   });
 
@@ -202,7 +227,7 @@ try {
   });
 
   await test('legacy NULL-stage readiness is preserved and counts as the first stage', async () => {
-    const f = await fixture();
+    const f = await fixture({ venueWait: true });
     await db.query(`insert into public.notifications(user_id,kind,title,snippet,match_id,ready_stage)
       values($1,'match_ready','기존 안내','기존 문구',$2,null)`, [f.recipients[0], f.next]);
     await start(referee, f);
@@ -213,6 +238,7 @@ try {
     });
     await timer(referee, f, 420);
     await assertStage(f, 'five_minutes');
+    await assertStage(f, 'venue_wait');
     await quiesce(f);
   });
 
@@ -229,6 +255,7 @@ try {
     }
     await assert.rejects(referee.query('select public.dispatch_due_next_match_ready()'), error => error.code === '42501');
     await assert.rejects(referee.query("select public.emit_next_match_ready($1,'five_minutes')", [f.current]), error => error.code === '42501');
+    await assert.rejects(referee.query("select public.emit_next_match_ready($1,'venue_wait')", [f.current]), error => error.code === '42501');
     await start(admin, f);
     await assertStage(f, 'start');
     await quiesce(f);
@@ -268,7 +295,7 @@ try {
 
   await test('finished, cancelled, saved 720 and server-estimated 720 clocks do not send reminders', async () => {
     for (const state of ['finished', 'cancelled', 'saved_limit', 'estimated_limit']) {
-      const f = await fixture();
+      const f = await fixture({ venueWait: true });
       await start(referee, f);
       if (state === 'finished' || state === 'cancelled') {
         await db.query('update public.matches set status=$2,is_running=false where id=$1', [f.current, state]);
@@ -281,6 +308,7 @@ try {
       }
       await dispatch(cron);
       await assertStage(f, 'five_minutes', 0);
+      await assertStage(f, 'venue_wait', 0);
       await quiesce(f);
     }
   });
@@ -300,7 +328,7 @@ try {
 
   await test('shared end saves 420/719 observed seconds without notifying after finalization', async () => {
     for (const seconds of [420, 719]) {
-      const f = await fixture();
+      const f = await fixture({ venueWait: true });
       const started = (await referee.query("select public.apply_match_recording_operation($1,$2,'start',$3) result", [
         randomUUID(), f.current, { _clockVersion: 0, _deviceId: 'synthetic-finalization-device' },
       ])).rows[0].result;
@@ -312,13 +340,15 @@ try {
       assert.equal(result.match.status, 'finished');
       assert.equal(result.match.elapsed_seconds, seconds);
       await assertStage(f, 'five_minutes', 0);
+      await assertStage(f, 'venue_wait', 0);
       await dispatch(cron);
       await assertStage(f, 'five_minutes', 0);
+      await assertStage(f, 'venue_wait', 0);
     }
   });
 
   await test('start/end in one transaction produce no notification for a match already finished at commit', async () => {
-    const f = await fixture();
+    const f = await fixture({ venueWait: true });
     const trigger = (await db.query(`select tgdeferrable,tginitdeferred from pg_trigger
       where tgrelid='public.matches'::regclass and tgname='next_match_ready_after_clock'`)).rows[0];
     assert.deepEqual(trigger, { tgdeferrable: true, tginitdeferred: true });
@@ -338,6 +368,7 @@ try {
     }
     assert.equal((await captured(f)).match.status, 'finished');
     assert.deepEqual(await noticeRows(f), []);
+    assert.deepEqual(await noticeRows(f, f.later), []);
   });
 
   await test('temporary notice failure cannot reject kickoff and scheduled retry restores the missing notice', async () => {
@@ -381,6 +412,122 @@ try {
     assert.equal((await cron.query('select public.dispatch_due_next_match_ready() n')).rows[0].n, f.recipients.length * 2);
     await assertStage(f, 'start');
     await assertStage(f, 'five_minutes');
+    await quiesce(f);
+  });
+
+  await test('one remaining scheduled fixture still receives its reminder without inventing a venue-wait target', async () => {
+    const f = await fixture({ nextOnly: true, venueWait: true });
+    await start(referee, f);
+    await timer(referee, f, 420);
+    await dispatch(cron);
+    await assertStage(f, 'start');
+    await assertStage(f, 'five_minutes');
+    await assertStage(f, 'venue_wait', 0);
+    assert.equal((await db.query(`select count(*)::integer n from public.notifications
+      where ready_stage='venue_wait' and user_id=any($1::uuid[])`, [[...f.recipients, ...f.excluded]])).rows[0].n, 0);
+    await quiesce(f);
+  });
+
+  await test('venue-wait selects the second later scheduled fixture after excluding other statuses and tournaments', async () => {
+    const f = await fixture({ venueWait: true });
+    const excludedMatches = [];
+    for (const [status, minutes] of [['scheduled', -1], ['cancelled', 10], ['finished', 25], ['live', 30]]) {
+      const match = randomUUID();
+      excludedMatches.push(match);
+      await db.query(`insert into public.matches(id,tournament_id,home_team_id,away_team_id,
+        home_team_name,away_team_name,status,scheduled_at,round,elapsed_seconds,is_running)
+        values($1,$2,$3,$4,'제외 홈','제외 원정',$5,$6,1,$7,false)`, [
+        match, f.tournament, f.teams[0], f.teams[1], status,
+        new Date(Date.UTC(2030, 0, 1, 0, minutes)), status === 'live' ? 720 : 0,
+      ]);
+    }
+    const otherTournament = randomUUID();
+    const otherMatch = randomUUID();
+    excludedMatches.push(otherMatch);
+    await db.query('insert into public.tournaments(id,name) values($1,$2)', [otherTournament, `${label} 별도 대회`]);
+    await db.query(`insert into public.matches(id,tournament_id,home_team_id,away_team_id,
+      home_team_name,away_team_name,status,scheduled_at,round)
+      values($1,$2,$3,$4,'다른 대회 홈','다른 대회 원정','scheduled','2030-01-01T00:25:00Z',1)`, [
+      otherMatch, otherTournament, f.teams[4], f.teams[5],
+    ]);
+    await start(referee, f);
+    await timer(referee, f, 420);
+    await dispatch(cron);
+    await assertStage(f, 'five_minutes');
+    const venueRows = await assertStage(f, 'venue_wait');
+    assert.ok(venueRows.every(row => row.snippet.includes(`${label} 홈 2 vs ${label} 원정 2`)));
+    assert.equal((await db.query(`select count(*)::integer n from public.notifications
+      where kind='match_ready' and match_id=any($1::uuid[])`, [excludedMatches])).rows[0].n, 0);
+    await quiesce(f);
+  });
+
+  await test('unapproved teams and players and non-participant roles are excluded from venue-wait delivery', async () => {
+    const f = await fixture({ venueWait: true, unapprovedLaterAway: true });
+    await start(referee, f);
+    await timer(referee, f, 420);
+    await assertStage(f, 'five_minutes');
+    const rows = await assertStage(f, 'venue_wait');
+    assert.equal(rows.length, 3);
+    assert.ok(rows.every(row => row.team_id === f.teams[4]));
+    await quiesce(f);
+  });
+
+  await test('a team appearing in both future fixtures receives distinct match-specific preparation and venue messages', async () => {
+    const f = await fixture({ venueWait: true });
+    await db.query("update public.matches set home_team_id=$2,home_team_name='합성 공유팀' where id=$1", [f.later, f.teams[2]]);
+    f.venueRecipients = (await db.query(`select id from public.profiles where is_approved=true
+      and role in ('player','captain') and team_id=any($1::uuid[])`, [[f.teams[2], f.teams[5]]])).rows.map(row => row.id);
+    await start(referee, f);
+    await timer(referee, f, 420);
+    const readyRows = await assertStage(f, 'five_minutes');
+    const venueRows = await assertStage(f, 'venue_wait');
+    const sharedPlayers = f.recipients.filter(id => f.venueRecipients.includes(id));
+    assert.equal(sharedPlayers.length, 2);
+    assert.equal(venueRows.length, 5);
+    assert.ok(readyRows.every(row => row.snippet.includes(`${label} 홈 1 vs ${label} 원정 1`)));
+    assert.ok(venueRows.every(row => row.snippet.includes(`합성 공유팀 vs ${label} 원정 2`)));
+    for (const user of sharedPlayers) {
+      assert.equal(readyRows.filter(row => row.user_id === user && row.match_id === f.next).length, 1);
+      assert.equal(venueRows.filter(row => row.user_id === user && row.match_id === f.later).length, 1);
+    }
+    assert.equal((await cron.query('select public.dispatch_due_next_match_ready() n')).rows[0].n, 0);
+    await quiesce(f);
+  });
+
+  await test('venue-wait insertion failure preserves the clock and retries the entire three-stage batch atomically', async () => {
+    const f = await fixture({ venueWait: true });
+    await start(referee, f);
+    await timer(referee, f, 419);
+    const functionName = `synthetic_venue_fail_${randomUUID().replaceAll('-', '')}`;
+    await db.query(`create function public.${functionName}() returns trigger language plpgsql as $$
+      begin if new.match_id='${f.later}'::uuid and new.ready_stage='venue_wait' then raise exception 'synthetic venue outage'; end if; return new; end $$`);
+    await db.query(`create trigger ${functionName} before insert on public.notifications for each row execute function public.${functionName}()`);
+    const beforeRecovery = async () => {
+      assert.deepEqual(await noticeRows(f), []);
+      assert.deepEqual(await noticeRows(f, f.later), []);
+    };
+    let saved;
+    try {
+      await timer(referee, f, 420);
+      assert.equal((await captured(f)).match.elapsed_seconds, 420, 'notice errors must not reject a valid clock save');
+      await assertStage(f, 'start');
+      await assertStage(f, 'five_minutes', 0);
+      await assertStage(f, 'venue_wait', 0);
+      await db.query("delete from public.notifications where match_id=any($1::uuid[]) and kind='match_ready'", [[f.next, f.later]]);
+      saved = await captured(f);
+      assert.equal((await cron.query('select public.dispatch_due_next_match_ready() n')).rows[0].n, 0);
+      await beforeRecovery();
+      assert.deepEqual(await captured(f), saved);
+    } finally {
+      await db.query(`drop trigger ${functionName} on public.notifications`);
+      await db.query(`drop function public.${functionName}()`);
+    }
+    assert.equal((await cron.query('select public.dispatch_due_next_match_ready() n')).rows[0].n, f.recipients.length * 2 + f.venueRecipients.length);
+    await assertStage(f, 'start');
+    await assertStage(f, 'five_minutes');
+    await assertStage(f, 'venue_wait');
+    assert.deepEqual(await captured(f), saved);
+    assert.equal((await cron.query('select public.dispatch_due_next_match_ready() n')).rows[0].n, 0);
     await quiesce(f);
   });
 } finally {
