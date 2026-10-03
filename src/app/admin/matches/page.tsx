@@ -39,6 +39,10 @@ import { setTournamentGroups } from "@/lib/admin-actions";
 import { hasOpenEditor } from "@/features/app-updates/safe-refresh";
 import { resolveMatchTrack } from "@/lib/match-operation-access";
 import { ShootoutResultBadge } from "@/features/match-shootout/result-badge";
+import { useMatchResults } from "@/features/match-results/use-match-results";
+import { supabase } from "@/config/supabase";
+import { rowToMatch } from "@/lib/mappers";
+import { KNOCKOUT_TOURNAMENT_ID, resolveKnockoutFixtures } from "@/features/knockout-schedule/resolve-knockout-fixtures";
 
 type MatchFilter = "all" | "scheduled" | "live" | "finished";
 
@@ -98,6 +102,23 @@ function AdminMatches() {
     ReturnType<typeof buildRestOptimizedMatches>["assignments"] | null
   >(null);
 
+  // Refresh only list data, preserving open dialogs and their unfinished form input.
+  useMatchResults<Match[] | undefined>({
+    key: "admin-match-list", finalOnly: false, enabled: !loading,
+    load: async () => {
+      if (hasOpenEditor(document)) return;
+      const { data, error } = await supabase.from("matches").select("*").retry(false);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((row) => rowToMatch(row));
+    },
+    publish: (latest) => {
+      if (!latest || hasOpenEditor(document)) return;
+      const matchMap: Record<string, Match[]> = {};
+      for (const match of latest) (matchMap[match.tournamentId] ??= []).push(match);
+      setMatchesByTournament(matchMap);
+    },
+  });
+
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     if (query.get("tournament")) {
@@ -114,7 +135,6 @@ function AdminMatches() {
     const load = async () => {
       if (inFlight) return;
       inFlight = true;
-      setLoading(true);
       try {
         const [tournamentList, teamList] = await Promise.all([
           store.fetchAllTournaments(),
@@ -335,6 +355,9 @@ function AdminMatches() {
     resolvedTournamentTeams.length > 0 ? resolvedTournamentTeams : approvedTeamList;
   const selectedAutoTournament = tournaments.find((t) => t.id === autoTournamentId);
   const recommendedAutoGroupCount = recommendGroupCount(approvedTeamList.length);
+  const knockoutByMatchId = new Map(resolveKnockoutFixtures(matchesByTournament[KNOCKOUT_TOURNAMENT_ID] ?? [])
+    .filter((fixture) => fixture.matchId)
+    .map((fixture) => [fixture.matchId, fixture]));
 
   const handleAutoGenerate = async () => {
     if (!autoTournamentId || autoGenerating) return;
@@ -502,10 +525,10 @@ function AdminMatches() {
                               <Circle className="h-2 w-2 animate-pulse fill-red-500 text-red-500" />
                             )}
                             <span className="text-sm font-medium">
-                              {match.homeTeamName}
+                              {knockoutByMatchId.get(match.id)?.homeLabel ?? match.homeTeamName}
                             </span>
                             <span className="text-sm font-black tabular-nums">
-                              {match.homeScore}
+                              {knockoutByMatchId.get(match.id)?.note ? "—" : match.homeScore}
                             </span>
                             <span
                               className="text-xs"
@@ -514,10 +537,10 @@ function AdminMatches() {
                               :
                             </span>
                             <span className="text-sm font-black tabular-nums">
-                              {match.awayScore}
+                              {knockoutByMatchId.get(match.id)?.note ? "—" : match.awayScore}
                             </span>
                             <span className="text-sm font-medium">
-                              {match.awayTeamName}
+                              {knockoutByMatchId.get(match.id)?.awayLabel ?? match.awayTeamName}
                             </span>
                           </div>
                           <ShootoutResultBadge match={match} className="mt-1" />
@@ -534,7 +557,7 @@ function AdminMatches() {
                           <Badge
                             className={`text-[10px] ${statusColor(match.status)}`}
                           >
-                            {statusLabel(match.status)}
+                            {knockoutByMatchId.get(match.id)?.note ?? statusLabel(match.status)}
                           </Badge>
                           <span className="text-[10px] font-medium" style={{ color: "var(--muted-foreground)" }}>
                             {resolveMatchTrack(player, match) === "referee" ? "경기 운영" : "관리"}

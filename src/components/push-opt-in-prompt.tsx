@@ -97,7 +97,8 @@ export function PushOptInPrompt() {
   };
 
   // These pages already contain a persistent, actionable readiness checklist.
-  if (!show || !player?.id || pathname === "/my" || pathname.startsWith("/my/")) return null;
+  if (!show || !player?.id || pathname === "/my" || pathname.startsWith("/my/") ||
+    /^\/(admin|referee)\/match\//.test(pathname)) return null;
 
   return (
     <div

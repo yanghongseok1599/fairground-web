@@ -8,6 +8,7 @@ const adminMatchPage = readFileSync(
   join(root, "src/features/match-control/match-control-screen.tsx"),
   "utf8",
 );
+const assistReview = readFileSync(join(root, "src/features/match-control/end-assist-review.tsx"), "utf8");
 
 test("경기 종료 모달은 심판 MOM 선택 또는 MOM 없음 명시 후 종료할 수 있다", () => {
   assert.match(adminMatchPage, /const NO_MOM_VALUE = "__no_mom__"/);
@@ -41,8 +42,9 @@ test("종료 확인에는 어시스트 누락 가능성을 경고한다", () => 
   assert.match(adminMatchPage, /const goalEventCount = /);
   assert.match(adminMatchPage, /const assistEventCount = /);
   assert.match(adminMatchPage, /const missingAssistCount = /);
-  assert.match(adminMatchPage, /골 \{goalEventCount\}개, 어시스트 \{assistEventCount\}개입니다/);
-  assert.match(adminMatchPage, /어시스트 누락이 있으면 종료 전에 관리자 기록을 확인하세요/);
+  assert.match(assistReview, /골 \{goalCount\}개, 어시스트 \{assistCount\}개입니다/);
+  assert.match(assistReview, /어시스트 누락이 있으면 종료 전에 관리자 기록을 확인하세요/);
+  assert.match(assistReview, /어시스트가 없는 골은 그대로 종료할 수 있습니다/);
 });
 
 console.log("match-end-mom-confirmation tests passed");

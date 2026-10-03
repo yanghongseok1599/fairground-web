@@ -1,4 +1,5 @@
 import { knockoutSchedule } from './knockout-fixtures.js?v=20261003-knockout-v1';
+import { startCupFixtureRefresh } from './live-fixtures.js?v=20261003-live-fixtures-v1';
 import { teamSeeds } from './team-seeds.js?v=20261003-knockout-v1';
 import {timeline,courtMatches,eventScheduleNotice,roles,contentPromises,sponsorReelGuides,countdown,promotionTiers,cupAwards} from './data.js?v=20261003-knockout-v1';
 import {guaranteedTeamCoverage,captureWindows,knockoutCoverage} from './shooting-schedule.js?v=20261003-knockout-v1';
@@ -20,10 +21,10 @@ ${heading('02','MATCH FORMAT','한 구장에서 20경기.<br>모든 팀이 5경�
  <article class="route-card"><span class="tag">조별 3·4위 진출</span><h3>챌린지</h3><p>최종 5~8위를 결정합니다.</p><div class="route-steps"><div><span>01 · 교차 준결승</span><strong>A조 3위 vs B조 4위<br>A조 4위 vs B조 3위</strong></div><div><span>02 · 최종 순위전</span><strong>승자 → 5·6위전 / 패자 → 7·8위전</strong><small>5·6위전 승리 팀은 골드로 승급</small></div></div></article>
 </div>
 <div class="section-subheading"><h3>20경기 전체 시간표</h3><p>10:00–16:40 · A구장 단일 코트 · 경기당 20분 슬롯</p></div>
-<div class="table-wrap"><table class="group-table single-court-table"><caption>A구장 단일 코트 20경기 시간표와 쉬는 팀</caption><thead><tr><th scope="col">슬롯 · 시간</th><th scope="col">단계 · 경기</th><th scope="col">쉬는 팀</th></tr></thead><tbody>${courtMatches.map(m=>`<tr class="${m.slot>12?'ranking-match':''}"><td><span class="slot-number">${String(m.slot).padStart(2,'0')}</span><time class="court-match-time">${m.time}</time><small class="round">${m.reportTime}까지 집합</small></td><td><span class="court-match-stage">${m.stage}</span><strong>${esc(m.match)}</strong>${m.seedMatch!==m.match?`<small class="fixture-seeds">${esc(m.seedMatch)}</small>`:''}</td><td>${esc(m.rest)}</td></tr>`).join('')}</tbody></table></div>
+<div class="table-wrap"><table class="group-table single-court-table"><caption>A구장 단일 코트 20경기 시간표와 쉬는 팀</caption><thead><tr><th scope="col">슬롯 · 시간</th><th scope="col">단계 · 경기</th><th scope="col">쉬는 팀</th></tr></thead><tbody>${courtMatches.map(m=>`<tr class="${m.slot>12?'ranking-match':''}"${m.slot>12?` data-knockout-slot="${m.slot}"`:""}><td><span class="slot-number">${String(m.slot).padStart(2,'0')}</span><time class="court-match-time">${m.time}</time><small class="round">${m.reportTime}까지 집합</small></td><td><span class="court-match-stage">${m.stage}</span><strong${m.slot>12?' data-fixture-match':''}>${esc(m.match)}</strong>${m.slot>12?'<small data-fixture-status>등록 상태 확인 중</small>':''}${m.seedMatch!==m.match?`<small class="fixture-seeds">${esc(m.seedMatch)}</small>`:''}</td><td${m.slot>12?' data-fixture-rest':''}>${esc(m.rest)}</td></tr>`).join('')}</tbody></table></div>
 <p class="footnote">A1~A4 / B1~B4는 위 확정 조 편성의 시드 번호입니다. 한 슬롯은 경기 12분 + 교대 3분 + 장비 점검·준비 5분입니다. 두 출전팀 모두 경기 시작 5분 전까지 A구장 앞에 집합해 감독관의 장비 점검을 받습니다. 조별리그는 팀별 3경기, 순위전은 팀별 2경기로 총 5경기입니다.</p>
 <div class="rest-note"><div><strong>경기 없는 팀 6팀</strong><p>실내구장에서 시맥 MC 그라운드 챌린지를 병행합니다. 다음 경기팀은 챌린지에 호출하지 않으며, 자기 경기 시작 5분 전까지 A구장 앞에 집합합니다.</p></div><div><strong>점심시간 별도 슬롯 없음</strong><p>경기가 연속으로 진행되므로 별도 점심 슬롯은 없습니다. 선수·운영진 교대 식사 방법을 별도로 안내해야 합니다.</p></div></div>
-<p class="match-notice">조별리그 12경기 종료. 위 확정 순위에 따라 13~16경기 교차 준결승을 진행합니다. 17~20경기의 출전팀은 준결승 결과로 결정됩니다. 시작 시각은 예정이며 실제 진행은 현장 안내를 따릅니다.</p>
+<p class="match-notice">조별리그 12경기 종료. 위 확정 순위에 따라 13~16경기 교차 준결승을 진행합니다. 17~20경기의 출전팀은 준결승 종료 결과와 승부차기로 자동 확정되며, 이 시간표는 5초마다 갱신됩니다. 시작 시각은 예정이며 실제 진행은 현장 안내를 따릅니다.</p>
 </div></section>
 <section class="section tint" id="roles" aria-label="운영진 역할 분담"><div class="wrap">
 ${heading('03','OUR TEAM','누가, 어디에서,<br>무엇을 맡는지.','담당 구역과 집중해야 할 시간을 함께 확인합니다. 세부 역할과 촬영 완료 기준은 운영 회의에서 최종 확정합니다.')}
@@ -56,6 +57,23 @@ ${heading('05','COUNTDOWN CHECKLIST','대회 전까지,<br>함께 확인할 것.
 <aside class="confirmation-panel"><h3>운영 회의에서 최종 확인</h3><div class="confirmation-grid"><article><h4>참가팀·경기 규정</h4><p>8팀 조 추첨·대진, 조별 동률·순위전 동점 처리, 단일 코트 심판 배정과 전환 운영.</p></article><article><h4>입장·현장 준비</h4><p>07:40 사전 세팅 장소, 08:00 입장, 접수·부스 배치, A구장·실내구장 동선을 확인합니다.</p></article><article><h4>촬영·협찬 이행</h4><p>영상작가 가로·지민 세로 담당, 촬영 완료 기준, 인증 해시태그와 게시 일정.</p></article></div><p class="booking-note">대관 시간: A구장·실내구장 08:00–18:00<br>경기는 A구장 한 면에서 10:00–16:40 진행합니다. 시상 16:40–17:05 · 클로징 17:05–17:10 · 정리 17:10–18:00. 별도 점심 슬롯은 편성되지 않았습니다.</p></aside>
 </div></section>`;
 
+let visibleCourtMatches = courtMatches;
+const cupTeamNames = Object.values(knockoutSchedule.groups).flat().map(team => team.name);
+startCupFixtureRefresh({
+ teamNames: cupTeamNames,
+ onFixtures(fixtures) {
+  const bySlot = new Map(fixtures.map(fixture => [fixture.slot, fixture]));
+  visibleCourtMatches = courtMatches.map(row => {
+   const fixture = bySlot.get(row.slot);
+   return fixture ? {
+    ...row, ...fixture, match: `${fixture.homeLabel} vs ${fixture.awayLabel}`,
+    rest: fixture.homeTeamId && fixture.awayTeamId
+     ? cupTeamNames.filter(name => name !== fixture.home && name !== fixture.away).join(', ') : row.rest,
+   } : row;
+  });
+ },
+});
+
 let toastTimer;
 function toast(message){const el=document.querySelector('#share-status');el.textContent=message;el.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('visible'),3200);}
 document.querySelector('[data-share]').addEventListener('click',async()=>{
@@ -72,4 +90,4 @@ let ticking=false;addEventListener('scroll',()=>{if(!ticking){requestAnimationFr
 // Resolve shared section links after data-driven sections have rendered.
 if(location.hash){const initialHash=location.hash;let target;try{target=document.getElementById(decodeURIComponent(initialHash.slice(1)));}catch{}if(target)document.fonts.ready.then(()=>{if(location.hash===initialHash)requestAnimationFrame(()=>{target.scrollIntoView({behavior:'instant'});updateNavigation();});});}
 // Read-only WebMCP access uses the same data shown in the page.
-if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_event_briefing',title:'운영 안내 확인',description:'Read the visible FairGround Cup schedule, fixtures, promotion rules, roles or preparation checklist.',inputSchema:{type:'object',properties:{section:{type:'string',enum:['timeline','matches','promotion','roles','checklist']}},required:['section'],additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:false},execute(input){const data={timeline,matches:courtMatches,promotion:promotionTiers.map(({rank,label,count})=>({rank,tier:label,count})),roles,checklist:countdown};if(!input||typeof input.section!=='string'||!Object.hasOwn(data,input.section))throw new Error('지원하지 않는 안내 항목입니다.');return {section:input.section,data:data[input.section]};}})).catch(()=>{});}catch{}}
+if(document.modelContext?.registerTool){try{Promise.resolve(document.modelContext.registerTool({name:'read_event_briefing',title:'운영 안내 확인',description:'Read the visible FairGround Cup schedule, fixtures, promotion rules, roles or preparation checklist.',inputSchema:{type:'object',properties:{section:{type:'string',enum:['timeline','matches','promotion','roles','checklist']}},required:['section'],additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:false},execute(input){const data={timeline,matches:visibleCourtMatches,promotion:promotionTiers.map(({rank,label,count})=>({rank,tier:label,count})),roles,checklist:countdown};if(!input||typeof input.section!=='string'||!Object.hasOwn(data,input.section))throw new Error('지원하지 않는 안내 항목입니다.');return {section:input.section,data:data[input.section]};}})).catch(()=>{});}catch{}}

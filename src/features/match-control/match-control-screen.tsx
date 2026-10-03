@@ -13,6 +13,7 @@ import { benchRoster } from "./bench-roster";
 import { FullscreenMatchHeader } from "./fullscreen-match-header";
 import { MatchDialogContent } from "./match-dialog-content";
 import { MomPlayerPicker } from "./mom-player-picker";
+import { EndAssistReview } from "./end-assist-review";
 import { getSubstitutionChoices } from "./substitution-choices";
 import { RosterEventBoard } from "./roster-event-board";
 import { RefereeRecordingFullscreen } from "./referee-recording-fullscreen";
@@ -777,6 +778,8 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
         return "이벤트 취소";
       case "mom":
         return "MOM 선정";
+      case "shootout":
+        return "승부차기 저장";
       default:
         return "작업";
     }
@@ -1155,33 +1158,25 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                   <span>MOM 선수 또는 MOM 없음 중 하나를 선택해야 경기를 종료할 수 있습니다.</span>
                 </div>
               )}
-              {missingAssistCount > 0 && (
-                <div
-                  role="status"
-                  className="flex items-start gap-2 rounded-lg border p-3 text-sm"
-                  style={{
-                    borderColor: "rgba(245,158,11,0.38)",
-                    background: "rgba(245,158,11,0.10)",
-                    color: "rgb(146,64,14)",
-                  }}
-                >
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>
-                    골 {goalEventCount}개, 어시스트 {assistEventCount}개입니다. 어시스트 누락이 있으면 종료 전에 관리자 기록을 확인하세요.
-                  </span>
-                </div>
-              )}
-              {mc.actionError && mc.actionError.scope === "end" && (
+              {missingAssistCount > 0 && <EndAssistReview
+                matchId={matchId} goalIds={[...uncheckedAssistGoalIds]}
+                goalCount={goalEventCount} assistCount={assistEventCount}
+                disabled={mc.pendingAction !== null}
+              />}
+              {mc.actionError && (
                 <div
                   role="alert"
                   className="flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm"
                 >
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
                   <span className="text-red-700">
-                    {mc.actionError.message} 다시 시도해주세요.
+                    {scopeLabel(mc.actionError.scope)}: {mc.actionError.message} 다시 시도해주세요.
                   </span>
                 </div>
               )}
+              {blockingPendingElsewhere > 0 && <p role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                다른 기기에 아직 전송되지 않은 경기 기록 {blockingPendingElsewhere}건이 있습니다. 해당 기기의 동기화가 완료되면 종료 버튼이 활성화됩니다. 어시스트 0회는 종료를 막지 않습니다.
+              </p>}
               <Separator />
               <div className="flex gap-2">
                 <Button
