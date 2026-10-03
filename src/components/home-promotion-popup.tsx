@@ -93,14 +93,14 @@ function writeDailyDismissed(storage: Storage | undefined, key: string): void {
   }
 }
 
-export function HomePromotionPopup() {
+export function HomePromotionPopup({ hideMixedFutsal = false, defer = false }: { hideMixedFutsal?: boolean; defer?: boolean } = {}) {
   const [open, setOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [popup, setPopup] = useState<SitePopup | null>(null);
   const [dismissToday, setDismissToday] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || defer) return;
     const params = new URLSearchParams(window.location.search);
     // Admin preview: bypass the dismissal storage so operators always see the
     // currently active popup.
@@ -112,6 +112,7 @@ export function HomePromotionPopup() {
 
     void fetchActiveSitePopup("home").then((nextPopup) => {
       if (cancelled || !nextPopup) return;
+      if (hideMixedFutsal && isMixedFutsalPromotion(nextPopup)) return;
 
       const storageKey = popupDismissStorageKey(nextPopup);
       const sessionKey = popupSessionStorageKey(nextPopup);
@@ -132,7 +133,7 @@ export function HomePromotionPopup() {
       cancelled = true;
       if (timer) window.clearTimeout(timer);
     };
-  }, []);
+  }, [defer, hideMixedFutsal]);
 
   const closeForSession = () => {
     if (typeof window !== "undefined" && popup) {
@@ -153,7 +154,7 @@ export function HomePromotionPopup() {
     setOpen(false);
   };
 
-  if (!ready || !popup) return null;
+  if (!ready || !popup || defer || (hideMixedFutsal && isMixedFutsalPromotion(popup))) return null;
 
   const [titleLineOne, titleLineTwo] = splitPopupTitle(popup.title);
   const primaryHref = popup.ctaHref;

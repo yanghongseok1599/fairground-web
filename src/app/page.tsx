@@ -305,6 +305,7 @@ export default function HomePage() {
   const prefersReducedMotion = useReducedMotion();
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamsLoaded, setTeamsLoaded] = useState(false);
+  const [cupCompleted, setCupCompleted] = useState<boolean | null>(null);
   const showcasePlayers = SHOWCASE_SAMPLE_PLAYERS;
   const teamGalleryItems = useMemo<TeamGalleryItem[]>(
     () =>
@@ -368,8 +369,8 @@ export default function HomePage() {
 
   return (
     <div>
-      <HomePromotionPopup />
-      <HomeCupResults />
+      <HomePromotionPopup hideMixedFutsal={cupCompleted === true} defer={cupCompleted === null} />
+      <HomeCupResults onResolved={setCupCompleted} />
 
       {/* ============================================================
           HERO — Scroll-Scrubbed Stadium Entrance (video + reveals)

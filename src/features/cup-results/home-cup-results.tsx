@@ -9,14 +9,17 @@ import { CUP_RESULTS_TOURNAMENT_ID } from "./data";
 import { buildCupResults } from "./model";
 import { CupResultsSection } from "./cup-results-section";
 
-export function HomeCupResults() {
+export function HomeCupResults({ onResolved }: { onResolved?: (completed: boolean) => void }) {
   const [snapshot, setSnapshot] = useState<Awaited<ReturnType<typeof fetchCupResultSnapshot>> | null>(null);
   const [failed, setFailed] = useState(false);
   useMatchResults({
     key: "home-cup-results", tournamentId: CUP_RESULTS_TOURNAMENT_ID, finalOnly: false,
     load: fetchCupResultSnapshot,
-    publish: next => { setSnapshot(next); setFailed(false); },
-    onError: () => setFailed(true),
+    publish: next => {
+      setSnapshot(next); setFailed(false);
+      onResolved?.(Boolean(next.tournament && buildCupResults(next.tournament, next.matches, next.players)));
+    },
+    onError: () => { setFailed(true); if (!snapshot) onResolved?.(false); },
   });
   const results = snapshot?.tournament ? buildCupResults(snapshot.tournament, snapshot.matches, snapshot.players) : null;
   if (results) return <CupResultsSection results={results} home />;
