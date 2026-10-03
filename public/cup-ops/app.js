@@ -1,7 +1,8 @@
-import { teamSeeds } from './team-seeds.js?v=20261003-live-fixtures-1115-v1';
-import {timeline,courtMatches,eventScheduleNotice,roles,contentPromises,sponsorReelGuides,countdown,promotionTiers,cupAwards} from './data.js?v=20261003-live-fixtures-1115-v1';
-import {guaranteedTeamCoverage,captureWindows,knockoutCoverage} from './shooting-schedule.js?v=20261003-live-fixtures-1115-v1';
-import {renderShootingSchedule} from './shooting-schedule-view.js?v=20261003-live-fixtures-1115-v1';
+import { knockoutSchedule } from './knockout-fixtures.js?v=20261003-knockout-v1';
+import { teamSeeds } from './team-seeds.js?v=20261003-knockout-v1';
+import {timeline,courtMatches,eventScheduleNotice,roles,contentPromises,sponsorReelGuides,countdown,promotionTiers,cupAwards} from './data.js?v=20261003-knockout-v1';
+import {guaranteedTeamCoverage,captureWindows,knockoutCoverage} from './shooting-schedule.js?v=20261003-knockout-v1';
+import {renderShootingSchedule} from './shooting-schedule-view.js?v=20261003-knockout-v1';
 const esc = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const heading = (number,en,title,description) => `<div class="section-heading"><div><p class="eyebrow">${number} / ${en}</p><h2>${title}</h2></div><p>${description}</p></div>`;
 document.querySelector('#timeline-content').innerHTML=timeline.map(group=>`<article class="timeline-group"><header><h3>${group.label}</h3><span>${group.period}</span></header>${group.rows.map(([time,title,description,type=''])=>`<div class="schedule-row ${type}"><time>${time}</time><h4>${title}</h4><p>${description}</p></div>`).join('')}</article>`).join('');
@@ -10,6 +11,9 @@ document.querySelector('#guide-sections').innerHTML=`
 <section class="section" id="matches" aria-label="경기 방식과 대진"><div class="wrap">
 ${heading('02','MATCH FORMAT','한 구장에서 20경기.<br>모든 팀이 5경기.','A구장 한 면에서 20분 슬롯으로 한 경기씩 진행합니다. 조별리그 3경기와 순위결정전 2경기, 총 20경기입니다.')}
 <p class="notice"><span>현장 확정</span>${esc(eventScheduleNotice)}</p>
+<div class="two-columns" aria-label="조별리그 최종 순위">${Object.entries(knockoutSchedule.groups).map(([group,teams])=>`<article class="route-card"><h3>${esc(group)} 최종 순위</h3><ol>${teams.map((t,i)=>`<li><strong>${i+1}위 · ${esc(t.name)}</strong> — 승점 ${t.points} / 득실 ${t.gd} / 득점 ${t.gf} / 파울 ${t.fouls}</li>`).join('')}</ol></article>`).join('')}</div>
+<p class="footnote">조별 12경기 종료 결과 · 동률 기준: ${esc(knockoutSchedule.rule)}. A조 네 팀 모두 승점 4점·득실차 0입니다.</p>
+<p class="notice"><a href="/cup-ops/assets/knockout-schedule-20261003.png" download>대표자 공유용 순위결정전 대진표 이미지 다운로드</a></p>
 <div class="seed-groups" aria-label="확정 조 편성과 시드">${['A','B'].map(group=>`<article><h3>${group}조</h3><ol>${Object.entries(teamSeeds).filter(([seed])=>seed.startsWith(group)).map(([seed,name])=>`<li><b>${esc(seed)}</b><span>${esc(name)}</span></li>`).join('')}</ol></article>`).join('')}</div>
 <div class="two-columns">
  <article class="route-card"><span class="tag">조별 1·2위 진출</span><h3>챔피언십</h3><p>최종 1~4위를 결정합니다.</p><div class="route-steps"><div><span>01 · 교차 준결승</span><strong>A조 1위 vs B조 2위<br>A조 2위 vs B조 1위</strong></div><div><span>02 · 최종 순위전</span><strong>승자 → 결승 / 패자 → 3·4위전</strong><small>결승 승리 팀은 플래티넘으로 승급</small></div></div></article>
@@ -19,7 +23,7 @@ ${heading('02','MATCH FORMAT','한 구장에서 20경기.<br>모든 팀이 5경�
 <div class="table-wrap"><table class="group-table single-court-table"><caption>A구장 단일 코트 20경기 시간표와 쉬는 팀</caption><thead><tr><th scope="col">슬롯 · 시간</th><th scope="col">단계 · 경기</th><th scope="col">쉬는 팀</th></tr></thead><tbody>${courtMatches.map(m=>`<tr class="${m.slot>12?'ranking-match':''}"><td><span class="slot-number">${String(m.slot).padStart(2,'0')}</span><time class="court-match-time">${m.time}</time><small class="round">${m.reportTime}까지 집합</small></td><td><span class="court-match-stage">${m.stage}</span><strong>${esc(m.match)}</strong>${m.seedMatch!==m.match?`<small class="fixture-seeds">${esc(m.seedMatch)}</small>`:''}</td><td>${esc(m.rest)}</td></tr>`).join('')}</tbody></table></div>
 <p class="footnote">A1~A4 / B1~B4는 위 확정 조 편성의 시드 번호입니다. 한 슬롯은 경기 12분 + 교대 3분 + 장비 점검·준비 5분입니다. 두 출전팀 모두 경기 시작 5분 전까지 A구장 앞에 집합해 감독관의 장비 점검을 받습니다. 조별리그는 팀별 3경기, 순위전은 팀별 2경기로 총 5경기입니다.</p>
 <div class="rest-note"><div><strong>경기 없는 팀 6팀</strong><p>실내구장에서 시맥 MC 그라운드 챌린지를 병행합니다. 다음 경기팀은 챌린지에 호출하지 않으며, 자기 경기 시작 5분 전까지 A구장 앞에 집합합니다.</p></div><div><strong>점심시간 별도 슬롯 없음</strong><p>경기가 연속으로 진행되므로 별도 점심 슬롯은 없습니다. 선수·운영진 교대 식사 방법을 별도로 안내해야 합니다.</p></div></div>
-<p class="match-notice">조별리그 종료 후 14:00부터 조별 순위에 따라 교차 준결승을 진행합니다. 동률·경기 동점 처리 기준은 대회 전 확정합니다.</p>
+<p class="match-notice">조별리그 12경기 종료. 위 확정 순위에 따라 13~16경기 교차 준결승을 진행합니다. 17~20경기의 출전팀은 준결승 결과로 결정됩니다. 시작 시각은 예정이며 실제 진행은 현장 안내를 따릅니다.</p>
 </div></section>
 <section class="section tint" id="roles" aria-label="운영진 역할 분담"><div class="wrap">
 ${heading('03','OUR TEAM','누가, 어디에서,<br>무엇을 맡는지.','담당 구역과 집중해야 할 시간을 함께 확인합니다. 세부 역할과 촬영 완료 기준은 운영 회의에서 최종 확정합니다.')}

@@ -1,5 +1,5 @@
 // 2026.10.03 현장 확정 일정. 기본 편성과 분리해 당일 변경 범위를 좁힙니다.
-export const EVENT_SCHEDULE_VERSION = '20261003-live-fixtures-1115-v1';
+export const EVENT_SCHEDULE_VERSION = '20261003-knockout-v1';
 
 export const eventScheduleNotice = '2026.10.03 현장 변경 · 5경기 11:15 시작. 6·7경기와 10·11경기 순서를 교환했습니다. 1~4경기 시각은 당초 예정이며, 실제 진행·완료 시각은 현장 기록을 따릅니다. 5~12경기는 아래 확정 순서와 시각을 적용하고, 13경기 이후 순위전은 14:00부터 기존 일정대로 진행합니다.';
 

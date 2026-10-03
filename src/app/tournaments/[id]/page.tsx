@@ -1,5 +1,6 @@
 "use client";
 
+import { HomeKnockoutSchedule } from "@/features/knockout-schedule/home-knockout-schedule";
 import { TournamentActions } from "@/features/kakao-tools/components/tournament-actions";
 import { EventShareButton } from "@/features/kakao-tools/components/share-button";
 import { getMatchShareLinks } from "@/features/match-share/links";
@@ -174,6 +175,8 @@ export default function TournamentDetailPage() {
               </div>
             </div>
           )}
+
+          {tournament.id === "5ff73034-1747-4b9e-874a-6fe19fa68ac1" && <HomeKnockoutSchedule />}
 
           {/* 대회 승점표 — 종료 경기 기준 실시간 집계 */}
           {(tournamentStandings.length > 0 || finalRanks.length > 0) && (

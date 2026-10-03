@@ -1,6 +1,7 @@
-import { resolveSeedNames } from './team-seeds.js?v=20261003-live-fixtures-1115-v1';
-import { matchReportTime } from './match-report-time.js?v=20261003-live-fixtures-1115-v1';
-import { applyEventScheduleOverrides, eventScheduleNotice } from './event-schedule.js?v=20261003-live-fixtures-1115-v1';
+import { knockoutSchedule } from './knockout-fixtures.js?v=20261003-knockout-v1';
+import { resolveSeedNames } from './team-seeds.js?v=20261003-knockout-v1';
+import { matchReportTime } from './match-report-time.js?v=20261003-knockout-v1';
+import { applyEventScheduleOverrides, eventScheduleNotice } from './event-schedule.js?v=20261003-knockout-v1';
 export { eventScheduleNotice };
 // 운영 내용은 이 파일에서 수정합니다. 8팀·단일 경기 구장 기준입니다.
 export const timeline = [
@@ -47,11 +48,14 @@ export const baseCourtMatches = [
  {slot:19,time:'16:00–16:20',stage:'3·4위전',match:'챔피언십 준결승 패자 2팀',rest:'나머지 6팀'},
  {slot:20,time:'16:20–16:40',stage:'결승',match:'챔피언십 준결승 승자 2팀',rest:'나머지 6팀'}
 ];
-export const courtMatches = applyEventScheduleOverrides(baseCourtMatches).map((row) => ({
+export const courtMatches = applyEventScheduleOverrides(baseCourtMatches).map(row => {
+ const fixture = knockoutSchedule.fixtures.find(f => f.slot === row.slot);
+ return fixture ? { ...row, ...fixture, rest: row.slot <= 16 ? Object.values(knockoutSchedule.groups).flat().map(t => t.name).filter(name => name !== fixture.home && name !== fixture.away).join(", ") : row.rest } : row;
+}).map((row) => ({
  ...row,
   reportTime: matchReportTime(row.time.slice(0, 5)),
   seedMatch: row.match,
-  match: resolveSeedNames(row.match),
+  match: row.homeRank ? `${row.homeRank} · ${row.home} vs ${row.awayRank} · ${row.away}` : resolveSeedNames(row.match),
   rest: resolveSeedNames(row.rest),
 }));
 
