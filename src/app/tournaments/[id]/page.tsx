@@ -27,7 +27,6 @@ import { getTournamentDisplayName, isTournamentFixturesPublic } from "@/features
  *  - 실시간 경기 스코어: 대회 범위 직렬 서버 조회 + 1초 타이머 틱
  *  - 경기 결과 / 예정: 이 대회 matches
  *  - 대회 승점표: 이 대회의 종료 경기로 클라이언트 집계(경기 종료 시 자동 갱신)
- *  - 리그 순위: store.standings(시즌 전체) — 경기 종료 시 재조회로 실시간 반영
  */
 
 export default function TournamentDetailPage() {
@@ -214,18 +213,6 @@ export default function TournamentDetailPage() {
             </div>
           )}
 
-          {/* 리그 순위 — 시즌 전체 (실시간 반영) */}
-          {store.standings.length > 0 && (
-            <div>
-              <div className="mb-4 flex items-baseline justify-between gap-3">
-                <h2 className="text-lg font-bold" style={{ fontFamily: "var(--font-outfit)", color: "#0D1B2A" }}>리그 순위</h2>
-                {store.currentSeason && (
-                  <span className="text-xs" style={{ color: "#627D98" }}>{store.currentSeason.name}</span>
-                )}
-              </div>
-              <GroupedStandingsTable key={tournament.id} standings={store.standings} groups={tournament.groups} finalRanks={finalRanks} groupSourceName={getTournamentDisplayName(tournament)} />
-            </div>
-          )}
         </div>
       </div>
     </div>
