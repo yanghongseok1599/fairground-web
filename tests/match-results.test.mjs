@@ -138,3 +138,14 @@ test('bursts serialize reads, retain the last good result on failure, and discar
   assert.deepEqual(published, ['saved']);
   assert.equal(calls, 3);
 });
+
+test('tournament ties prefer fewer valid fouls after points, goal difference and goals scored', () => {
+  const event = (id, teamId, type = 'foul', isCancelled = false) => ({ id, teamId, type, isCancelled });
+  const match = { homeTeamId: 'a', awayTeamId: 'b', homeTeamName: 'A', awayTeamName: 'B', homeScore: 1, awayScore: 1, status: 'finished', events: [event('1', 'a'), event('2', 'a'), event('3', 'b'), event('4', 'b', 'foul', true), event('5', 'b', 'yellow_card'), event('6', 'other')] };
+  const rows = tournamentResultStandings([match, { ...match, status: 'live' }, { ...match, status: 'cancelled' }]);
+  assert.deepEqual(rows.map(row => [row.teamId, row.fouls, row.rank]), [['b', 1, 1], ['a', 2, 2]]);
+  assert.equal(rows[0].gamesPlayed, 1);
+  const winner = tournamentResultStandings([{ ...match, homeScore: 2 }]);
+  assert.equal(winner[0].teamId, 'a', 'points take priority over foul count');
+  assert.deepEqual(tournamentResultStandings([{ ...match, events: [] }]).map(row => row.fouls), [0, 0]);
+});

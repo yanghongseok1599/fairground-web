@@ -221,6 +221,8 @@ export interface TeamStanding {
   goalsAgainst: number;
   goalDifference: number;
   gamesPlayed: number;
+  /** 종료 경기의 취소되지 않은 반칙 기록. 미집계 시 undefined. */
+  fouls?: number;
 }
 
 // ===== Badge =====

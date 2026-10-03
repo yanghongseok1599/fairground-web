@@ -87,6 +87,7 @@ export function tournamentResultStandings(matches: Match[]): TeamStanding[] {
         goalsAgainst: 0,
         goalDifference: 0,
         gamesPlayed: 0,
+        fouls: 0,
       };
       acc.set(teamId, s);
     } else if (teamName && s.teamName !== teamName) {
@@ -99,6 +100,11 @@ export function tournamentResultStandings(matches: Match[]): TeamStanding[] {
     if (m.status !== "finished") continue;
     const home = ensure(m.homeTeamId, m.homeTeamName);
     const away = ensure(m.awayTeamId, m.awayTeamName);
+    for (const event of m.events ?? []) {
+      if (event.type !== "foul" || event.isCancelled) continue;
+      if (event.teamId === home.teamId) home.fouls = (home.fouls ?? 0) + 1;
+      else if (event.teamId === away.teamId) away.fouls = (away.fouls ?? 0) + 1;
+    }
     home.gamesPlayed += 1;
     away.gamesPlayed += 1;
     home.goalsFor += m.homeScore;
@@ -124,6 +130,7 @@ export function tournamentResultStandings(matches: Match[]): TeamStanding[] {
       b.points - a.points ||
       b.goalDifference - a.goalDifference ||
       b.goalsFor - a.goalsFor ||
+      (a.fouls ?? 0) - (b.fouls ?? 0) ||
       a.teamName.localeCompare(b.teamName),
   );
   rows.forEach((s, i) => { s.rank = i + 1; });

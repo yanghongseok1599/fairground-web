@@ -74,6 +74,10 @@ export function StandingsTable({
   showPromotionSplit = false,
 }: StandingsTableProps) {
   const rows = limit ? standings.slice(0, limit) : standings;
+  const showFouls = rows.length > 0 && rows.every(team => team.fouls !== undefined);
+  const rankingDescription = showFouls
+    ? "승점 → 득실차 → 다득점 → 반칙 적은 순"
+    : "승점 → 득실차 → 다득점";
   const upperCount =
     showPromotionSplit && rows.length > 1 ? Math.ceil(rows.length / 2) : -1;
 
@@ -87,7 +91,7 @@ export function StandingsTable({
         }}
       >
         <div
-          className="grid grid-cols-[30px_minmax(104px,1fr)_30px_24px_24px_24px_36px_34px] items-center gap-1 px-2 py-3 text-[11px] font-black"
+          className={`grid ${showFouls ? "grid-cols-[30px_minmax(72px,1fr)_30px_24px_24px_24px_36px_30px_34px]" : "grid-cols-[30px_minmax(104px,1fr)_30px_24px_24px_24px_36px_34px]"} items-center gap-1 px-2 py-3 text-[11px] font-black`}
           style={{
             color: "var(--color-fg-ink-dim)",
             borderBottom: "1px solid var(--color-fg-paper-3)",
@@ -100,6 +104,7 @@ export function StandingsTable({
           <span className="text-center">무</span>
           <span className="text-center">패</span>
           <span className="text-center">득실</span>
+          {showFouls && <span className="text-center">반칙</span>}
           <span className="text-center">승점</span>
         </div>
         {rows.map((team, index) => {
@@ -116,7 +121,7 @@ export function StandingsTable({
               }}
             >
               <div style={{ background: railColor }} aria-hidden />
-              <div className="grid min-w-0 grid-cols-[27px_minmax(104px,1fr)_30px_24px_24px_24px_36px_34px] items-center gap-1 px-2 py-3">
+              <div className={`grid min-w-0 ${showFouls ? "grid-cols-[27px_minmax(72px,1fr)_30px_24px_24px_24px_36px_30px_34px]" : "grid-cols-[27px_minmax(104px,1fr)_30px_24px_24px_24px_36px_34px]"} items-center gap-1 px-2 py-3`}>
                 <span
                   className="text-center text-[16px] font-bold leading-none tabular-nums"
                   style={{ color: getRankColor(index, upperCount) }}
@@ -147,6 +152,7 @@ export function StandingsTable({
                 <span className="text-center text-[13px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
                   {team.goalDifference}
                 </span>
+                {showFouls && <span className="text-center text-[13px] font-semibold tabular-nums">{team.fouls}</span>}
                 <span className="text-center text-[14px] font-bold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
                   {team.points}
                 </span>
@@ -165,12 +171,12 @@ export function StandingsTable({
       >
         <table className="min-w-[820px] w-full border-collapse text-base" style={{ fontFamily: "var(--font-body)" }}>
         <caption className="sr-only">
-          리그 순위표. 정렬 기준: 승점 내림차순.
+          리그 순위표. 정렬 기준: {rankingDescription}.
           {upperCount > 0 && " 왼쪽 색상 막대는 상위 리그와 하위 리그 구간을 구분합니다."}
         </caption>
         <thead>
           <tr style={{ borderBottom: "1px solid var(--color-fg-paper-3)" }}>
-            {COLUMNS.map((column) => (
+            {(showFouls ? [...COLUMNS.slice(0, -1), { key: "fouls", label: "반칙", align: "center" }, COLUMNS[COLUMNS.length - 1]] : COLUMNS).map((column) => (
               <th
                 key={column.key}
                 scope="col"
@@ -238,6 +244,7 @@ export function StandingsTable({
                 <td className="px-4 py-4 text-center text-[17px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
                   {team.goalDifference}
                 </td>
+                {showFouls && <td className="px-4 py-4 text-center text-[17px] font-semibold tabular-nums">{team.fouls}</td>}
                 <td className="px-4 py-4 text-center text-[17px] font-semibold tabular-nums" style={{ color: "var(--color-fg-ink)" }}>
                   {team.points}
                 </td>
@@ -247,6 +254,7 @@ export function StandingsTable({
         </tbody>
       </table>
       </div>
+      {showFouls && <p className="mt-2 text-xs text-muted-foreground">순위 기준: {rankingDescription}. 반칙은 종료된 경기의 유효 기록만 합산합니다.</p>}
     </>
   );
 }
