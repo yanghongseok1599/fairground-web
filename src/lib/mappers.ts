@@ -1,6 +1,7 @@
 // Supabase profiles row(snake_case, flat) <-> 앱 Player(camelCase, nested) 매퍼.
 // Firebase RTDB → Supabase 마이그레이션의 경계 어댑터.
 // 단일 출처: authStore/dataStore가 공통 사용 (드리프트 D-E 방지).
+import { readShootoutAttempts } from "@/features/match-shootout/recording-contract";
 import type {
   Player,
   Team,
@@ -364,6 +365,7 @@ export function eventToInsert(
 
 // ===== Match (events 는 별도 조회해 주입) =====
 export function rowToMatch(r: MatchRow, events: MatchEvent[] = []): Match {
+  const attempts = readShootoutAttempts(r.home_shootout_attempts, r.away_shootout_attempts);
   return {
     id: r.id,
     tournamentId: r.tournament_id ?? "",
@@ -377,6 +379,8 @@ export function rowToMatch(r: MatchRow, events: MatchEvent[] = []): Match {
     awayScore: r.away_score,
     homeShootoutScore: r.home_shootout_score ?? undefined,
     awayShootoutScore: r.away_shootout_score ?? undefined,
+    homeShootoutAttempts: attempts?.home,
+    awayShootoutAttempts: attempts?.away,
     status: r.status,
     scheduledAt: ts(r.scheduled_at),
     events,

@@ -144,6 +144,9 @@ export interface Match {
   /** 승부차기 성공 합계. 정규 득점·선수 득점 통계와 분리한다. */
   homeShootoutScore?: number;
   awayShootoutScore?: number;
+  /** 회차별 승부차기 O(성공)/X(실패). 기존 합계만 저장된 경기는 undefined. */
+  homeShootoutAttempts?: boolean[];
+  awayShootoutAttempts?: boolean[];
   status: MatchStatus;
   scheduledAt: number;
   events: MatchEvent[];

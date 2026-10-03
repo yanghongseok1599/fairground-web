@@ -3,11 +3,12 @@ import { useDataStore } from "@/stores/dataStore";
 import { useAuthStore } from "@/stores/authStore";
 import type { MatchControlOperations } from "@/features/match-control/store-context";
 import type { LiveMatch } from "@/types";
-import { projectRoom, type CommandKind, type RecordingRoom } from "./model";
+import { projectRoom, type CommandKind, type RecordingRoom, type RecordingPayload } from "./model";
 import { recordingDeviceId } from "./device";
 import { updateRoom } from "./storage";
 import { createObservedClock, finalizationWaitMessage, otherPendingCount } from "./control-safety";
-import { hasShootoutResult, requiresShootout, shootoutScoreError } from "@/features/match-shootout/model";
+import { hasShootoutResult, requiresShootout } from "@/features/match-shootout/model";
+import { shootoutRecordingError, shootoutRecordingPayload, readShootoutAttempts } from "@/features/match-shootout/recording-contract";
 
 export function createRecordingAdapter(initial: RecordingRoom, isActive: () => boolean = () => true) {
   const deviceId = recordingDeviceId();
@@ -16,7 +17,7 @@ export function createRecordingAdapter(initial: RecordingRoom, isActive: () => b
   const match = () => projectRoom(room);
   const ownsClock = () => { const clock = match().clock; return clock?.ownerId === room.actorId && clock.deviceId === deviceId; };
   const assertActive = () => { if (!isActive()) throw new Error("이 화면의 기록 준비가 해제되었습니다. 다시 준비한 뒤 기록해주세요."); };
-  const enqueue = async (kind: CommandKind, payload: Record<string, string | number> = {}) => {
+  const enqueue = async (kind: CommandKind, payload: RecordingPayload = {}) => {
     assertActive();
     if (useAuthStore.getState().user?.uid !== room.actorId) throw new Error("기록 계정이 변경되었습니다. 원래 계정으로 로그인해주세요.");
     const command = { id: crypto.randomUUID(), kind, payload, at: Date.now() };
@@ -31,11 +32,14 @@ export function createRecordingAdapter(initial: RecordingRoom, isActive: () => b
       if (!allowed) throw new Error("경기 상태가 변경되었습니다. 기록을 확인해주세요.");
       if (kind === "end" && requiresShootout(state) && !hasShootoutResult(state)) throw new Error("동점 순위결정전은 승부차기 결과를 먼저 기록해주세요.");
       if (kind === "shootout") {
-        const error = shootoutScoreError(Number(payload.homeScore), Number(payload.awayScore));
+        const attempts = readShootoutAttempts(payload.homeAttempts, payload.awayAttempts);
+        if ((payload.homeAttempts !== undefined || payload.awayAttempts !== undefined) && !attempts) throw new Error("회차별 O/X 기록을 확인해주세요.");
+        const error = shootoutRecordingError(Number(payload.homeScore), Number(payload.awayScore), attempts, state.status);
         if (error) throw new Error(error);
+        if (!attempts && state.homeShootoutAttempts) throw new Error("저장된 회차별 O/X 기록에서 정정해주세요.");
         if (!requiresShootout(state)) throw new Error("정규시간 동점인 순위결정전에서만 승부차기를 기록할 수 있습니다.");
         if (state.isRunning) throw new Error("정규시간 타이머를 멈춘 후 승부차기를 기록해주세요.");
-        payload = { ...payload, _shootoutHomeBefore: state.homeShootoutScore ?? -1, _shootoutAwayBefore: state.awayShootoutScore ?? -1 };
+        payload = { ...payload, ...shootoutRecordingPayload(state, Number(payload.homeScore), Number(payload.awayScore), attempts) };
       }
       if (kind === "timer" && (state.clock?.ownerId !== room.actorId || state.clock.deviceId !== deviceId)) return current;
       command.payload = { ...payload, ...(kind === "pause" || kind === "end" ? observedClock.payload(state) : {}), _deviceId: deviceId, _clockVersion: state.clock?.version ?? 0, _actorName: useAuthStore.getState().player?.name ?? "기록자" };
@@ -65,7 +69,7 @@ export function createRecordingAdapter(initial: RecordingRoom, isActive: () => b
       await enqueue("cancel", eventId.startsWith("local:") ? { eventOperationId: eventId.slice(6) } : { eventId });
     },
     setMatchMom: async (_t, _m, playerId) => enqueue("mom", { playerId }),
-    setMatchShootout: async (_t, _m, homeScore, awayScore) => enqueue("shootout", { homeScore, awayScore }),
+    setMatchShootout: async (_t, _m, homeScore, awayScore, attempts) => enqueue("shootout", { homeScore, awayScore, ...(attempts ? { homeAttempts: attempts.home, awayAttempts: attempts.away } : {}) }),
     substitutePlayer: async (_m, teamId, outId, inId, inName, minute, half) => enqueue("substitute", { teamId, outId, inId, inName, minute, half }),
     notifyNextMatchReady: async id => navigator.onLine ? useDataStore.getState().notifyNextMatchReady(id).catch(() => 0) : 0,
   }));

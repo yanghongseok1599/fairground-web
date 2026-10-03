@@ -9,6 +9,7 @@ import {
 } from "@/lib/match-config";
 import { reconcileClock, type ClockSnapshot } from "@/features/match-control/clock-sync";
 import type { Match, LiveMatch, Player, MatchEventType, MatchEvent } from "@/types";
+import type { RecordedShootoutAttempts } from "@/features/match-shootout/recording-contract";
 
 // §3 여정E / §6 A10 — 실패 위치별 식별 (에러를 1줄로 뭉뚱그리지 않음)
 export type MatchActionScope =
@@ -68,7 +69,7 @@ interface MatchControlActions {
   }) => Promise<boolean>;
   cancelEvent: (eventId: string) => Promise<boolean>;
   setMom: (playerId: string) => Promise<boolean>;
-  setShootout: (homeScore: number, awayScore: number) => Promise<boolean>;
+  setShootout: (homeScore: number, awayScore: number, attempts?: RecordedShootoutAttempts) => Promise<boolean>;
   reload: () => Promise<void>;
   /** 에러 배너의 재시도/닫기 후 상태 해제 */
   clearError: () => void;
@@ -397,10 +398,10 @@ export function useMatchControl({
   );
 
   const setShootout = useCallback(
-    (homeScore: number, awayScore: number) =>
+    (homeScore: number, awayScore: number, attempts?: RecordedShootoutAttempts) =>
       runAction("shootout", "승부차기 저장에 실패했습니다", async () => {
         if (!store.setMatchShootout) throw new Error("이 화면에서는 승부차기를 기록할 수 없습니다.");
-        await store.setMatchShootout(tournamentId, matchId, homeScore, awayScore);
+        await store.setMatchShootout(tournamentId, matchId, homeScore, awayScore, attempts);
         const latest = await store.fetchMatch(tournamentId, matchId);
         if (latest) setMatch(latest);
       }),

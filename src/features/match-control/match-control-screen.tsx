@@ -21,6 +21,8 @@ import { RecordingCorrectionsDialog } from "./recording-corrections-dialog";
 import { useRecordingFullscreen } from "./use-recording-fullscreen";
 import { MatchBroadcastView } from "./match-broadcast-view";
 import { ShootoutInput, parseShootoutScores } from "@/features/match-shootout/shootout-input";
+import { normalizeShootoutAttempts, shootoutAttemptTotals, sameShootoutAttempts, type ShootoutAttempts } from "@/features/match-shootout/attempts";
+import { readShootoutAttempts, shootoutRecordingError } from "@/features/match-shootout/recording-contract";
 import type { RosterEventType } from "./roster-stats";
 import { AdminHeader } from "@/components/admin-header";
 import { AdminLoading } from "@/components/admin-loading";
@@ -235,7 +237,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
   const [endDialogOpen, setEndDialogOpen] = useState(false);
   const [endMomChoice, setEndMomChoice] = useState("");
   const [shootoutDialogOpen, setShootoutDialogOpen] = useState(false);
-  const [shootoutDraft, setShootoutDraft] = useState<{ matchId: string; home: string; away: string } | null>(null);
+  const [shootoutDraft, setShootoutDraft] = useState<{ matchId: string; home: string; away: string; attempts?: ShootoutAttempts } | null>(null);
 
   useEffect(() => {
     if (!lastActionNotice) return;
@@ -348,8 +350,15 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
   const requiresShootout = !matchData.groupId && matchData.round >= 13 && homeScore === awayScore;
   const homeShootoutValue = shootoutDraft?.matchId === matchId ? shootoutDraft.home : String(matchData.homeShootoutScore ?? "");
   const awayShootoutValue = shootoutDraft?.matchId === matchId ? shootoutDraft.away : String(matchData.awayShootoutScore ?? "");
-  const shootoutScores = parseShootoutScores(homeShootoutValue, awayShootoutValue);
-  const endShootoutReady = !requiresShootout || shootoutScores !== null;
+  const savedShootoutAttempts = readShootoutAttempts(matchData.homeShootoutAttempts, matchData.awayShootoutAttempts);
+  const shootoutAttempts = shootoutDraft?.matchId === matchId && shootoutDraft.attempts
+    ? shootoutDraft.attempts : savedShootoutAttempts ??
+      (matchData.homeShootoutScore === undefined && matchData.awayShootoutScore === undefined ? { home: [null], away: [null] } : undefined);
+  const normalizedShootoutAttempts = shootoutAttempts ? normalizeShootoutAttempts(shootoutAttempts) : undefined;
+  const shootoutScores = shootoutAttempts ? normalizedShootoutAttempts &&
+    (normalizedShootoutAttempts.home.length + normalizedShootoutAttempts.away.length > 0)
+    ? shootoutAttemptTotals(shootoutAttempts) : null : parseShootoutScores(homeShootoutValue, awayShootoutValue);
+  const endShootoutReady = !requiresShootout || (shootoutScores !== null && shootoutScores[0] !== shootoutScores[1]);
 
   // Lineup-by-team 분리 (메모)
   const homeLineup = lineup.filter((e) => e.teamId === matchData.homeTeamId);
@@ -724,24 +733,34 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
   const canEditShootout = requiresShootout && (isLive || (isFinished && isAdmin));
   const saveShootout = async () => {
     if (!shootoutScores || !canEditShootout || !mc.canRecord || mc.pendingAction !== null || blockingPendingElsewhere > 0) return false;
-    if (shootoutScores[0] === matchData.homeShootoutScore && shootoutScores[1] === matchData.awayShootoutScore) return true;
+    const attempts = normalizedShootoutAttempts ?? undefined;
+    if (shootoutRecordingError(shootoutScores[0], shootoutScores[1], attempts, matchData.status)) return false;
+    if (shootoutScores[0] === matchData.homeShootoutScore && shootoutScores[1] === matchData.awayShootoutScore &&
+      (!attempts || sameShootoutAttempts(attempts, savedShootoutAttempts))) return true;
     if (isLive && mc.isRunning && !(await mc.pauseMatch())) return false;
-    return mc.setShootout(shootoutScores[0], shootoutScores[1]);
+    return mc.setShootout(shootoutScores[0], shootoutScores[1], attempts);
   };
   const renderShootoutInput = () => <ShootoutInput
     homeName={matchData.homeTeamName} awayName={matchData.awayTeamName}
     homeValue={homeShootoutValue} awayValue={awayShootoutValue}
-    onChange={(home, away) => setShootoutDraft({ matchId, home, away })}
+    onChange={(home, away) => setShootoutDraft(current => ({ matchId, home, away, ...(current?.matchId === matchId ? { attempts: current.attempts } : {}) }))}
+    attempts={shootoutAttempts}
+    savedAttempts={savedShootoutAttempts}
+    onAttemptsChange={attempts => {
+      const [home, away] = shootoutAttemptTotals(attempts);
+      setShootoutDraft({ matchId, home: String(home), away: String(away), attempts });
+    }}
     onSave={() => { void saveShootout(); }}
     disabled={mc.pendingAction !== null || !mc.canRecord || blockingPendingElsewhere > 0}
     saving={mc.pendingAction === "shootout"}
     savedHome={matchData.homeShootoutScore} savedAway={matchData.awayShootoutScore}
-    error={mc.actionError?.scope === "shootout" || mc.actionError?.scope === "pause" ? mc.actionError.message : undefined}
+    error={mc.actionError?.scope === "shootout" || mc.actionError?.scope === "pause" ? mc.actionError.message :
+      shootoutScores ? shootoutRecordingError(shootoutScores[0], shootoutScores[1], normalizedShootoutAttempts ?? undefined, matchData.status) : undefined}
   />;
   const renderShootoutEntry = (dark = false) => canEditShootout && <Button type="button" variant="outline" className={`min-h-11 font-semibold ${dark ? "border-white/30 bg-white/10 text-white hover:bg-white/20" : ""}`} onClick={() => setShootoutDialogOpen(true)}>승부차기 기록</Button>;
   const renderShootoutDialog = () => <Dialog open={shootoutDialogOpen} onOpenChange={open => { if (mc.pendingAction === null) setShootoutDialogOpen(open); }}>
     <MatchDialogContent landscapeFallback={isFullscreen && forceLandscapeStage}>
-      <DialogHeader><DialogTitle>승부차기 결과 입력</DialogTitle><DialogDescription>승부차기 성공 횟수로 최종 승자를 기록합니다.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>승부차기 기록</DialogTitle><DialogDescription>회차별 O(골) / X(노골)를 선택하고 저장하세요. 승부차기가 끝나면 경기 종료를 눌러주세요.</DialogDescription></DialogHeader>
       {renderShootoutInput()}
     </MatchDialogContent>
   </Dialog>;

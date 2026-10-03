@@ -8,7 +8,8 @@ import { notifyInspectionChange } from "@/lib/inspection-sync";
 
 import { requireSavedRow, registrationError } from "@/lib/registration/reliability";
 import { createMatchLiveRefresh } from "@/lib/match-live-refresh";
-import { requiresShootout, shootoutScoreError } from "@/features/match-shootout/model";
+import { requiresShootout } from "@/features/match-shootout/model";
+import { shootoutRecordingError, shootoutRecordingPayload, type RecordedShootoutAttempts } from "@/features/match-shootout/recording-contract";
 import { create } from "zustand";
 import { supabase, isDemoMode } from "@/config/supabase";
 import {
@@ -215,7 +216,7 @@ interface DataState {
   updateMatchTimer: (matchId: string, elapsedSeconds: number, currentHalf: 1 | 2) => Promise<void>;
   notifyNextMatchReady: (matchId: string) => Promise<number>;
   setMatchMom: (tournamentId: string, matchId: string, playerId: string) => Promise<void>;
-  setMatchShootout: (tournamentId: string, matchId: string, homeScore: number, awayScore: number) => Promise<void>;
+  setMatchShootout: (tournamentId: string, matchId: string, homeScore: number, awayScore: number, attempts?: RecordedShootoutAttempts) => Promise<void>;
 
   // --- Notices (운영 → 회원 일방향, RLS: 누구나 read / is_referee_or_admin 만 write) ---
   // teamId 옵션: null 명시 = 글로벌만(team_id IS NULL),
@@ -1265,20 +1266,21 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     if (error) { console.error("[dataStore] setMatchMom RPC:", error.message); throw new Error(error.message); }
   },
 
-  setMatchShootout: async (tournamentId, matchId, homeScore, awayScore) => {
-    const errorMessage = shootoutScoreError(homeScore, awayScore);
-    if (errorMessage) throw new Error(errorMessage);
+  setMatchShootout: async (tournamentId, matchId, homeScore, awayScore, attempts) => {
     const current = await getState().fetchMatch(tournamentId, matchId);
     if (!current || !requiresShootout(current)) throw new Error("정규시간 동점인 순위결정전에서만 승부차기를 기록할 수 있습니다.");
+    const errorMessage = shootoutRecordingError(homeScore, awayScore, attempts, current.status);
+    if (errorMessage) throw new Error(errorMessage);
+    if (!attempts && current.homeShootoutAttempts) throw new Error("저장된 회차별 O/X 기록에서 정정해주세요.");
     if (isDemoMode) {
       const all = getLocalMatches();
       if (all[tournamentId]?.[matchId]) {
-        all[tournamentId][matchId] = { ...all[tournamentId][matchId], homeShootoutScore: homeScore, awayShootoutScore: awayScore };
+        all[tournamentId][matchId] = { ...all[tournamentId][matchId], homeShootoutScore: homeScore, awayShootoutScore: awayScore, ...(attempts ? { homeShootoutAttempts: [...attempts.home], awayShootoutAttempts: [...attempts.away] } : {}) };
         saveLocalMatches(all);
       }
       const live = getLocalLive();
       if (live[matchId]) {
-        live[matchId] = { ...live[matchId], homeShootoutScore: homeScore, awayShootoutScore: awayScore };
+        live[matchId] = { ...live[matchId], homeShootoutScore: homeScore, awayShootoutScore: awayScore, ...(attempts ? { homeShootoutAttempts: [...attempts.home], awayShootoutAttempts: [...attempts.away] } : {}) };
         saveLocalLive(live);
         setState({ liveMatches: Object.entries(live).map(([id, v]) => ({ ...v, id })) });
       }
@@ -1286,7 +1288,7 @@ export const useDataStore = create<DataState>((setState, getState) => ({
     }
     const { error } = await supabase.rpc("apply_match_recording_operation", {
       p_operation_id: crypto.randomUUID(), p_match_id: matchId, p_kind: "shootout",
-      p_payload: { homeScore, awayScore, _shootoutHomeBefore: current.homeShootoutScore ?? -1, _shootoutAwayBefore: current.awayShootoutScore ?? -1 },
+      p_payload: shootoutRecordingPayload(current, homeScore, awayScore, attempts),
     }).retry(false);
     if (error) throw new Error(error.message);
   },
