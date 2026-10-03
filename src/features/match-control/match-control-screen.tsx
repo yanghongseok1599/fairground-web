@@ -12,7 +12,7 @@ import { useMatchControlStore } from "@/features/match-control/store-context";
 import { benchRoster } from "./bench-roster";
 import { FullscreenMatchHeader } from "./fullscreen-match-header";
 import { MatchDialogContent } from "./match-dialog-content";
-import { LandscapeMomChoices } from "./landscape-mom-choices";
+import { MomPlayerPicker } from "./mom-player-picker";
 import { getSubstitutionChoices } from "./substitution-choices";
 import { RosterEventBoard } from "./roster-event-board";
 import { RefereeRecordingFullscreen } from "./referee-recording-fullscreen";
@@ -1123,41 +1123,23 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                     <Badge variant="secondary">현재 선택: {selectedEndMom.name}</Badge>
                   )}
                 </div>
-                {isFullscreen && forceLandscapeStage ? (
-                  <LandscapeMomChoices
-                    value={endMomValue}
-                    onValueChange={setEndMomChoice}
-                    disabled={mc.pendingAction !== null}
-                    options={[
-                      ...(!matchData.momPlayerId ? [{ value: NO_MOM_VALUE, label: "MOM 없음" }] : []),
-                      ...allPlayers.map((p) => ({
-                        value: p.id,
-                        label: `#${jerseyNumberText(p)} ${p.name} (${p.position}) - ${p.teamId === matchData.homeTeamId ? matchData.homeTeamName : matchData.awayTeamName}`,
-                      })),
-                    ]}
-                  />
-                ) : <Select
+                <MomPlayerPicker
                   value={endMomValue}
                   onValueChange={setEndMomChoice}
                   disabled={mc.pendingAction !== null}
-                >
-                  <SelectTrigger className="min-h-[44px] w-full">
-                    <SelectValue placeholder="MOM 선수 또는 MOM 없음 선택" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {!matchData.momPlayerId && (
-                      <SelectItem value={NO_MOM_VALUE}>MOM 없음</SelectItem>
-                    )}
-                    {allPlayers.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        #{jerseyNumberText(p)} {p.name} ({p.position}) -{" "}
-                        {p.teamId === matchData.homeTeamId
-                          ? matchData.homeTeamName
-                          : matchData.awayTeamName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>}
+                  teams={[
+                    { id: matchData.homeTeamId, name: matchData.homeTeamName },
+                    { id: matchData.awayTeamId, name: matchData.awayTeamName },
+                  ]}
+                  options={[
+                    ...(!matchData.momPlayerId ? [{ value: NO_MOM_VALUE, label: "MOM 없음" }] : []),
+                    ...allPlayers.map((p) => ({
+                      value: p.id,
+                      teamId: p.teamId,
+                      label: `#${jerseyNumberText(p)} ${p.name} (${p.position}) - ${p.teamId === matchData.homeTeamId ? matchData.homeTeamName : matchData.awayTeamName}`,
+                    })),
+                  ]}
+                />
               </div>
               {!endMomReady && (
                 <div
