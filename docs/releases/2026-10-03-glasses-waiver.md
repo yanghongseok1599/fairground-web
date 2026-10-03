@@ -11,3 +11,11 @@ SQL `20261003070000_glasses_waiver.sql`만 개발·운영 각각 최신 스키�
 두 격리 복원 DB에서 서약 테스트 6개씩 모두 통과했다. 비로그인 접근, 동의 누락, 이름 불일치, 서버 시각·원문 일치, 동시/재제출, 직접 조회·변조·삭제 차단, 이름 변경 후 기존 영수증 보존을 확인했다. Supabase 안전 테스트 4개, TypeScript, lint(기존 경고 16개·오류 0개)를 통과했다.
 
 백업·diff·적용 영수증은 작업폴더 `output/ops/2026-10-03-glasses-waiver/`에 제한 권한으로 보관한다. 웹 빌드·배포 결과는 이 기록의 최종 상태에 추가한다.
+
+## 운영 웹 배포 완료
+
+사용자의 2026-10-03 “배포해” 승인 후 앱 커밋 `1edd21781c02c90493dd64c9dbe0d58b6b941256`을 기존 GitHub 브랜치에 푸시했다. 해당 커밋의 자동 [Preview](https://fairground-qzp0rdfqy-milestones-projects-d52c4dda.vercel.app)는 `dpl_DmcbksE9oXKJAP9ScgpJGMcZTSwm`, **Ready**로 확인했다.
+
+운영 카탈로그 정합성 게이트·TypeScript·정상 Vercel 빌드를 통과한 동일 앱 소스를 배포했다. 운영 배포는 [fairground-1n4ibtsdy](https://fairground-1n4ibtsdy-milestones-projects-d52c4dda.vercel.app), `dpl_3jTPRg5uW5ZWjgfyYZwPLsg3mSs4`, **Production Ready**이며 공식 도메인 [마이페이지](https://fairground-kor.com/my)에 연결됐다. 개발 인증 파일을 배포 패키지에서 제외했고 DB 비밀 값의 산출물 포함 여부를 검사했다.
+
+개발·운영 각각 타입 컬럼 366개·조회 컬럼 100개를 실제 카탈로그와 대조했다. Ego 브라우저에서 합성 개발 회원의 동의·이름 입력·서명 저장·새로고침 후 영수증 유지를 검수했다. 운영 `/my`의 HTTP 200과 서약서 제목·저장 RPC가 들어간 클라이언트 번들 제공을 확인했으며 실제 운영 회원의 시험 서명은 생성하지 않았다. 상세 배포 좌표·검증 결과는 제한 권한 작업 기록 `output/ops/2026-10-03-glasses-waiver/`에 보관한다.
