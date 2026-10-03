@@ -10,11 +10,12 @@ import { filterGroupStandings } from "./group-filter";
 interface Props {
   standings: TeamStanding[];
   finalRanks?: FinalPlacement[];
+  finalWithdrawnTeamNames?: string[];
   groups?: TournamentGroup[];
   groupSourceName?: string;
 }
 
-export function GroupedStandingsTable({ standings, groups = [], groupSourceName, finalRanks = [] }: Props) {
+export function GroupedStandingsTable({ standings, groups = [], groupSourceName, finalRanks = [], finalWithdrawnTeamNames = [] }: Props) {
   const [selected, setSelected] = useState<string | null>(groups[0]?.id ?? null);
   const active = groups.some(group => group.id === selected) ? selected : groups[0]?.id ?? null;
   const rows = active ? filterGroupStandings(standings, groups, active) : [];
@@ -23,7 +24,7 @@ export function GroupedStandingsTable({ standings, groups = [], groupSourceName,
     count: standings.filter(team => group.teamIds.includes(team.teamId)).length,
   }));
 
-  if (finalRanks.length > 0) return <FinalStandingsTable rows={finalRanks} />;
+  if (finalRanks.length > 0) return <FinalStandingsTable rows={finalRanks} withdrawnTeamNames={finalWithdrawnTeamNames} />;
 
   return (
     <div className="min-w-0 space-y-3">

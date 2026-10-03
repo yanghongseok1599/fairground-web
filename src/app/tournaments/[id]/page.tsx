@@ -1,6 +1,11 @@
 "use client";
 
 import { HomeKnockoutSchedule } from "@/features/knockout-schedule/home-knockout-schedule";
+import { CupResultsSection } from "@/features/cup-results/cup-results-section";
+import { buildCupResults } from "@/features/cup-results/model";
+import { fetchCupResultSnapshot } from "@/features/cup-results/api";
+import { CUP_RESULTS_TOURNAMENT_ID } from "@/features/cup-results/data";
+import type { PublicCupPlayer } from "@/features/cup-results/types";
 import { TournamentActions } from "@/features/kakao-tools/components/tournament-actions";
 import { EventShareButton } from "@/features/kakao-tools/components/share-button";
 import { getMatchShareLinks } from "@/features/match-share/links";
@@ -38,14 +43,25 @@ export default function TournamentDetailPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [elapsed, setElapsed] = useState<Record<string, number>>({});
+  const [cupPlayers, setCupPlayers] = useState<PublicCupPlayer[]>([]);
+  const [cupSnapshotReady, setCupSnapshotReady] = useState(false);
 
   useMatchResults({
     key: `tournament:${id}`, tournamentId: id, finalOnly: false, enabled: !loading,
-    load: () => Promise.all([fetchResultTournaments(id), fetchResultMatches({ tournamentId: id }), fetchTeamResults()]),
-    publish: ([tournaments, latest, teams]) => {
+    load: async () => {
+      if (id === CUP_RESULTS_TOURNAMENT_ID) {
+        const [snapshot, teams] = await Promise.all([fetchCupResultSnapshot(), fetchTeamResults()]);
+        return [snapshot.tournament ? [snapshot.tournament] : [], snapshot.matches, teams, snapshot.players] as const;
+      }
+      const [tournaments, latest, teams] = await Promise.all([fetchResultTournaments(id), fetchResultMatches({ tournamentId: id }), fetchTeamResults()]);
+      return [tournaments, latest, teams, [] as PublicCupPlayer[]] as const;
+    },
+    publish: ([tournaments, latest, teams, players]) => {
       if (tournaments[0]) setTournament(tournaments[0]);
       setMatches(latest.sort(compareScheduledMatches));
       setElapsed({});
+      setCupPlayers(players);
+      setCupSnapshotReady(id === CUP_RESULTS_TOURNAMENT_ID);
       useDataStore.setState(state => ({ standings: resultStandings(teams, state.standings) }));
     },
   });
@@ -95,7 +111,8 @@ export default function TournamentDetailPage() {
   const scheduledMatches = matches.filter((m) => m.status === "scheduled");
   const tournamentStandings = tournamentResultStandings(matches.filter(m => m.groupId && tournament.groups.some(g => g.id === m.groupId) && m.round <= 12));
   const finalRanks = finalPlacements(tournament, matches);
-  const isOngoing = tournament.status === "ongoing" || liveMatches.length > 0;
+  const cupResults = cupSnapshotReady ? buildCupResults(tournament, matches, cupPlayers) : null;
+  const isOngoing = !cupResults && (tournament.status === "ongoing" || liveMatches.length > 0);
 
   return (
     <div className="pt-[60px]">
@@ -108,6 +125,7 @@ export default function TournamentDetailPage() {
                 <Radio className="h-3 w-3" /> LIVE
               </span>
             )}
+            {cupResults && <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white">대회 종료</span>}
             <p className="text-[11px] uppercase tracking-[3px]" style={{ fontFamily: "var(--font-space-mono)", color: "#00C853" }}>
               Tournament
             </p>
@@ -118,8 +136,8 @@ export default function TournamentDetailPage() {
           <div className="flex flex-wrap gap-4 text-sm" style={{ color: "#627D98" }}>
             <div className="flex items-center gap-1.5"><Calendar className="h-4 w-4" />{tournament.date}</div>
             <div className="flex items-center gap-1.5"><MapPin className="h-4 w-4" />{tournament.location}</div>
-            {tournament.winningTeamName && (
-              <div className="flex items-center gap-1.5"><Trophy className="h-4 w-4 text-fg-gold" /><span className="text-fg-gold font-semibold">{tournament.winningTeamName}</span></div>
+            {(cupResults?.placements[0]?.teamName || tournament.winningTeamName) && (
+              <div className="flex items-center gap-1.5"><Trophy className="h-4 w-4 text-fg-gold" /><span className="text-fg-gold font-semibold">우승 · {cupResults?.placements[0]?.teamName || tournament.winningTeamName}</span></div>
             )}
           </div>
           <TournamentActions tournament={tournament} />
@@ -178,10 +196,11 @@ export default function TournamentDetailPage() {
             </div>
           )}
 
-          {tournament.id === "5ff73034-1747-4b9e-874a-6fe19fa68ac1" && <HomeKnockoutSchedule />}
+          {cupResults && <CupResultsSection results={cupResults} />}
+          {tournament.id === CUP_RESULTS_TOURNAMENT_ID && !cupResults && <HomeKnockoutSchedule />}
 
           {/* 대회 승점표 — 종료 경기 기준 실시간 집계 */}
-          {(tournamentStandings.length > 0 || finalRanks.length > 0) && (
+          {!cupResults && (tournamentStandings.length > 0 || finalRanks.length > 0) && (
             <div>
               <h2 className="text-lg font-bold mb-4" style={{ fontFamily: "var(--font-outfit)", color: "#0D1B2A" }}>{finalRanks.length ? "최종 순위" : "조별 순위"}</h2>
               <GroupedStandingsTable key={tournament.id} standings={tournamentStandings} groups={tournament.groups} finalRanks={finalRanks} />

@@ -2,7 +2,19 @@ import Link from "next/link";
 import { finalRankCardType } from "./final-placements";
 import type { FinalPlacement } from "./final-placements";
 
-export function FinalStandingsTable({ rows }: { rows: FinalPlacement[] }) {
+interface Props {
+  rows: FinalPlacement[];
+  /** Names from a verified double withdrawal, supplied by the tournament result source. */
+  withdrawnTeamNames?: string[];
+}
+
+export function FinalStandingsTable({ rows, withdrawnTeamNames = [] }: Props) {
+  const showWithdrawal = rows.length === 6 &&
+    rows.every((row, index) => row.rank === index + 1) &&
+    withdrawnTeamNames.length === 2 &&
+    new Set(withdrawnTeamNames).size === 2 &&
+    withdrawnTeamNames.every(name => name.trim().length > 0);
+
   return <div className="overflow-hidden rounded-xl border border-border">
     <table className="w-full text-sm">
       <caption className="border-b bg-muted px-4 py-3 text-left font-bold">대회 최종 순위 · 순위결정전 결과</caption>
@@ -13,5 +25,9 @@ export function FinalStandingsTable({ rows }: { rows: FinalPlacement[] }) {
         <td className="px-4 py-3">{({ premium: "플래티넘", gold: "골드", silver: "실버", bronze: "브론즈" })[finalRankCardType(row.rank)!]}</td>
       </tr>)}</tbody>
     </table>
+    {showWithdrawal && <p className="border-t bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+      <span className="font-semibold text-foreground">{withdrawnTeamNames.join(" / ")}</span>
+      <br />양팀 기권으로 7·8위전 미실시 · 순위 구분 없음
+    </p>}
   </div>;
 }

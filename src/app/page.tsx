@@ -18,7 +18,7 @@ import { FICTIONAL_PLAYER_CARD_POSE_SOURCES } from "@/lib/player-card-pose-templ
 import type { Team, Player } from "@/types";
 import { ArrowRight, MapPin, ShieldCheck, Ticket, Trophy, Users } from "lucide-react";
 import { TeamMarquee } from "@/components/team-marquee";
-import { HomeKnockoutSchedule } from "@/features/knockout-schedule/home-knockout-schedule";
+import { HomeCupResults } from "@/features/cup-results/home-cup-results";
 import { HomePromotionPopup } from "@/components/home-promotion-popup";
 import { MIXED_FUTSAL_COVER_IMAGE_PATH } from "@/lib/mixed-futsal-assets";
 import { SPONSOR_PROPOSAL_PATH } from "@/lib/site-config";
@@ -369,7 +369,7 @@ export default function HomePage() {
   return (
     <div>
       <HomePromotionPopup />
-      <HomeKnockoutSchedule />
+      <HomeCupResults />
 
       {/* ============================================================
           HERO — Scroll-Scrubbed Stadium Entrance (video + reveals)
