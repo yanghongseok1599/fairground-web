@@ -10,12 +10,6 @@ import {
 import { reconcileClock, type ClockSnapshot } from "@/features/match-control/clock-sync";
 import type { Match, LiveMatch, Player, MatchEventType, MatchEvent } from "@/types";
 
-const NEXT_MATCH_READY_NOTICE_SECONDS_BEFORE_END = 10 * 60;
-const NEXT_MATCH_READY_NOTICE_AT_SECONDS = Math.max(
-  0,
-  MATCH_DURATION_SECONDS - NEXT_MATCH_READY_NOTICE_SECONDS_BEFORE_END
-);
-
 // §3 여정E / §6 A10 — 실패 위치별 식별 (에러를 1줄로 뭉뚱그리지 않음)
 export type MatchActionScope =
   | "load"
@@ -111,7 +105,6 @@ export function useMatchControl({
     timerWritesRef.current = write;
     return write;
   }, [matchId, updateTimer]);
-  const nextMatchReadyNoticeSentRef = useRef(false);
 
   // Find matching live match from store subscription
   const liveMatch = store.liveMatches.find((m) => m.id === matchId) || null;
@@ -177,7 +170,6 @@ export function useMatchControl({
   }, [loadData]);
 
   useEffect(() => {
-    nextMatchReadyNoticeSentRef.current = false;
     serverClockRef.current = null;
     elapsedRef.current = 0;
     syncCounterRef.current = 0;
@@ -235,20 +227,11 @@ export function useMatchControl({
 
       const reachedRegulationTime = next >= MATCH_DURATION_SECONDS;
       const nextElapsedForSync = next;
-      const shouldNotifyNextMatchReady = !nextMatchReadyNoticeSentRef.current &&
-        next >= NEXT_MATCH_READY_NOTICE_AT_SECONDS && next < MATCH_DURATION_SECONDS;
       syncCounterRef.current += 1;
       if (syncCounterRef.current >= 5 && !reachedRegulationTime) {
         syncCounterRef.current = 0;
         void saveClock(next, localHalf).catch(() => {
           setActionError({ scope: "pause", message: "경기 시간 저장에 실패했습니다. 연결 상태를 확인해주세요." });
-        });
-      }
-
-      if (shouldNotifyNextMatchReady) {
-        nextMatchReadyNoticeSentRef.current = true;
-        void store.notifyNextMatchReady(matchId).catch((error) => {
-          console.error("[useMatchControl] next match readiness notify failed:", error);
         });
       }
 
@@ -316,7 +299,6 @@ export function useMatchControl({
     () =>
       runAction("start", "경기 시작에 실패했습니다", async () => {
         await store.startMatch(tournamentId, matchId);
-        nextMatchReadyNoticeSentRef.current = false;
         elapsedRef.current = 0;
         serverClockRef.current = null;
         syncCounterRef.current = 0;
