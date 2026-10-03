@@ -19,6 +19,7 @@ import { RefereeRecordingFullscreen } from "./referee-recording-fullscreen";
 import { RecordingCorrectionsDialog } from "./recording-corrections-dialog";
 import { useRecordingFullscreen } from "./use-recording-fullscreen";
 import { MatchBroadcastView } from "./match-broadcast-view";
+import { ShootoutInput, parseShootoutScores } from "@/features/match-shootout/shootout-input";
 import type { RosterEventType } from "./roster-stats";
 import { AdminHeader } from "@/components/admin-header";
 import { AdminLoading } from "@/components/admin-loading";
@@ -232,6 +233,8 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
   // End match dialog
   const [endDialogOpen, setEndDialogOpen] = useState(false);
   const [endMomChoice, setEndMomChoice] = useState("");
+  const [shootoutDialogOpen, setShootoutDialogOpen] = useState(false);
+  const [shootoutDraft, setShootoutDraft] = useState<{ matchId: string; home: string; away: string } | null>(null);
 
   useEffect(() => {
     if (!lastActionNotice) return;
@@ -341,6 +344,11 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
 
   const homeScore = mc.liveMatch?.homeScore ?? matchData.homeScore;
   const awayScore = mc.liveMatch?.awayScore ?? matchData.awayScore;
+  const requiresShootout = !matchData.groupId && matchData.round >= 13 && homeScore === awayScore;
+  const homeShootoutValue = shootoutDraft?.matchId === matchId ? shootoutDraft.home : String(matchData.homeShootoutScore ?? "");
+  const awayShootoutValue = shootoutDraft?.matchId === matchId ? shootoutDraft.away : String(matchData.awayShootoutScore ?? "");
+  const shootoutScores = parseShootoutScores(homeShootoutValue, awayShootoutValue);
+  const endShootoutReady = !requiresShootout || shootoutScores !== null;
 
   // Lineup-by-team 분리 (메모)
   const homeLineup = lineup.filter((e) => e.teamId === matchData.homeTeamId);
@@ -688,7 +696,9 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
 
   const handleEndMatch = async () => {
     const momChoice = endMomChoice || matchData.momPlayerId || "";
-    if (!endDialogOpen || !momChoice || mc.pendingAction !== null || blockingPendingElsewhere > 0) return;
+    if (!endDialogOpen || !momChoice || !endShootoutReady || mc.pendingAction !== null || blockingPendingElsewhere > 0) return;
+
+    if (requiresShootout && !(await saveShootout())) return;
 
     if (
       momChoice !== NO_MOM_VALUE &&
@@ -710,6 +720,30 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
 
   // 몰수패 처리(관리자 전용) — 지목 팀이 패(0), 상대 승(3). 성공 시 경기 종료·재로드.
   const isAdmin = practice || player?.role === "admin";
+  const canEditShootout = requiresShootout && (isLive || (isFinished && isAdmin));
+  const saveShootout = async () => {
+    if (!shootoutScores || !canEditShootout || !mc.canRecord || mc.pendingAction !== null || blockingPendingElsewhere > 0) return false;
+    if (shootoutScores[0] === matchData.homeShootoutScore && shootoutScores[1] === matchData.awayShootoutScore) return true;
+    if (isLive && mc.isRunning && !(await mc.pauseMatch())) return false;
+    return mc.setShootout(shootoutScores[0], shootoutScores[1]);
+  };
+  const renderShootoutInput = () => <ShootoutInput
+    homeName={matchData.homeTeamName} awayName={matchData.awayTeamName}
+    homeValue={homeShootoutValue} awayValue={awayShootoutValue}
+    onChange={(home, away) => setShootoutDraft({ matchId, home, away })}
+    onSave={() => { void saveShootout(); }}
+    disabled={mc.pendingAction !== null || !mc.canRecord || blockingPendingElsewhere > 0}
+    saving={mc.pendingAction === "shootout"}
+    savedHome={matchData.homeShootoutScore} savedAway={matchData.awayShootoutScore}
+    error={mc.actionError?.scope === "shootout" || mc.actionError?.scope === "pause" ? mc.actionError.message : undefined}
+  />;
+  const renderShootoutEntry = (dark = false) => canEditShootout && <Button type="button" variant="outline" className={`min-h-11 font-semibold ${dark ? "border-white/30 bg-white/10 text-white hover:bg-white/20" : ""}`} onClick={() => setShootoutDialogOpen(true)}>승부차기 기록</Button>;
+  const renderShootoutDialog = () => <Dialog open={shootoutDialogOpen} onOpenChange={open => { if (mc.pendingAction === null) setShootoutDialogOpen(open); }}>
+    <MatchDialogContent landscapeFallback={isFullscreen && forceLandscapeStage}>
+      <DialogHeader><DialogTitle>승부차기 결과 입력</DialogTitle><DialogDescription>승부차기 성공 횟수로 최종 승자를 기록합니다.</DialogDescription></DialogHeader>
+      {renderShootoutInput()}
+    </MatchDialogContent>
+  </Dialog>;
   const handleForfeit = async (forfeitTeamId: string) => {
     setForfeiting(true);
     setForfeitErr("");
@@ -1060,7 +1094,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
             <div className="space-y-4 pt-2">
               <div className="rounded-lg border p-4 text-center">
                 <div className="mb-2 text-sm" style={{ color: "var(--muted-foreground)" }}>
-                  최종 스코어
+                  정규 경기 스코어
                 </div>
                 <div className="flex items-center justify-center gap-3">
                   <div>
@@ -1076,6 +1110,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                   </div>
                 </div>
               </div>
+              {requiresShootout && renderShootoutInput()}
               <div className="rounded-lg border p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div>
@@ -1179,10 +1214,12 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
                   variant="destructive"
                   className="min-h-[44px] flex-1"
                   onClick={handleEndMatch}
-                  disabled={mc.pendingAction !== null || !endMomReady || blockingPendingElsewhere > 0}
+                  disabled={mc.pendingAction !== null || !endMomReady || !endShootoutReady || blockingPendingElsewhere > 0}
                   aria-busy={endPending}
                 >
-                  {mc.pendingAction === "mom" ? (
+                  {mc.pendingAction === "shootout" ? (
+                    <><Loader2 className="mr-1 h-4 w-4 animate-spin" />승부차기 저장 중…</>
+                  ) : mc.pendingAction === "mom" ? (
                     <>
                       <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                       MOM 저장중…
@@ -1225,7 +1262,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
     <RefereeRecordingFullscreen
       home={{ name: homeSide.name, score: homeScore }} away={{ name: awaySide.name, score: awayScore }}
       elapsed={mc.elapsedSeconds} status={isScheduled ? "시작 대기" : isFinished ? "경기 종료" : isRegulationComplete ? "종료 대기" : mc.isRunning ? "진행 중" : "일시정지"}
-      practice={practice} online={mc.canRecord} controls={<div className="flex flex-wrap items-center gap-2">{renderProgressButtons()}{renderCorrectionEntry(true)}</div>} onClose={recordingFullscreen.close}
+      practice={practice} online={mc.canRecord} controls={<div className="flex flex-wrap items-center gap-2">{renderProgressButtons()}{renderCorrectionEntry(true)}{renderShootoutEntry(true)}</div>} onClose={recordingFullscreen.close}
       syncStatus={<RecordingStatus />}
       roster={<>
         {lineupLoading ? <p role="status" className="p-4 text-sm">선수 명단을 불러오고 있습니다…</p> : <RosterEventBoard compact
@@ -1241,6 +1278,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
     />
     {renderAssistDialog()}
     {renderEndDialog()}
+    {renderShootoutDialog()}
     {renderCorrectionsDialog()}
   </>;
 
@@ -1333,7 +1371,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
 
         {practice && <div className="bg-blue-700 px-3 py-1 text-center text-xs font-bold text-white">테스트 경기 · 실제 기록에 반영되지 않습니다</div>}
         <FullscreenMatchHeader
-          controls={<div className="flex flex-wrap items-center gap-2">{renderProgressButtons()}{renderCorrectionEntry(true)}</div>}
+          controls={<div className="flex flex-wrap items-center gap-2">{renderProgressButtons()}{renderCorrectionEntry(true)}{renderShootoutEntry(true)}</div>}
           scoreboard={renderScoreboardRow(true)}
           homeBench={renderGrassBenchTeam(homeSide, "left", openActionMenu, true)}
           awayBench={renderGrassBenchTeam(awaySide, "right", openActionMenu, true)}
@@ -1508,6 +1546,7 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
         {renderAssistDialog()}
 
         {renderEndDialog()}
+        {renderShootoutDialog()}
         {renderCorrectionsDialog()}
         </div>
       </div>
@@ -1586,6 +1625,8 @@ export function MatchControlScreen({ matchId, tournamentId, practice = false, sp
             )}
           </CardContent>
         </Card>
+
+        {canEditShootout && renderShootoutInput()}
 
         {isRegulationComplete && (
           <div

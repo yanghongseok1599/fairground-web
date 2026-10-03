@@ -13,7 +13,17 @@ test("경기 종료 모달은 심판 MOM 선택 또는 MOM 없음 명시 후 종
   assert.match(adminMatchPage, /const NO_MOM_VALUE = "__no_mom__"/);
   assert.match(adminMatchPage, /const \[endMomChoice, setEndMomChoice\] = useState\(""\)/);
   assert.match(adminMatchPage, /MOM 선수 또는 MOM 없음 중 하나를 선택해야 경기를 종료할 수 있습니다\./);
-  assert.match(adminMatchPage, /disabled=\{mc\.pendingAction !== null \|\| !endMomReady \|\| blockingPendingElsewhere > 0\}/);
+  assert.match(adminMatchPage, /disabled=\{mc\.pendingAction !== null \|\| !endMomReady \|\| !endShootoutReady \|\| blockingPendingElsewhere > 0\}/);
+});
+
+test("동점 순위전은 승부차기 결과를 먼저 저장하며 진행 시계를 일시정지한다", () => {
+  assert.match(adminMatchPage, /const requiresShootout = !matchData\.groupId && matchData\.round >= 13 && homeScore === awayScore/);
+  assert.match(adminMatchPage, /if \(requiresShootout && !\(await saveShootout\(\)\)\) return/);
+  assert.match(adminMatchPage, /if \(isLive && mc\.isRunning && !\(await mc\.pauseMatch\(\)\)\) return false/);
+  assert.match(adminMatchPage, /return mc\.setShootout\(shootoutScores\[0\], shootoutScores\[1\]\)/);
+  const saveIndex = adminMatchPage.indexOf("if (requiresShootout && !(await saveShootout())) return;");
+  const finishIndex = adminMatchPage.indexOf("await mc.endMatch();", saveIndex);
+  assert.ok(saveIndex >= 0 && finishIndex > saveIndex);
 });
 
 test("선택한 MOM은 경기 종료 전에 먼저 저장한다", () => {

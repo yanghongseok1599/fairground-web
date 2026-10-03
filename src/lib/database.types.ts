@@ -465,6 +465,7 @@ export type Database = {
       matches: {
         Row: {
           away_score: number
+          away_shootout_score: number | null
           away_team_id: string | null
           away_team_name: string
           created_at: string
@@ -472,6 +473,7 @@ export type Database = {
           elapsed_seconds: number
           group_id: string | null
           home_score: number
+          home_shootout_score: number | null
           home_team_id: string | null
           home_team_name: string
           id: string
@@ -485,6 +487,7 @@ export type Database = {
         }
         Insert: {
           away_score?: number
+          away_shootout_score?: number | null
           away_team_id?: string | null
           away_team_name?: string
           created_at?: string
@@ -492,6 +495,7 @@ export type Database = {
           elapsed_seconds?: number
           group_id?: string | null
           home_score?: number
+          home_shootout_score?: number | null
           home_team_id?: string | null
           home_team_name?: string
           id?: string
@@ -505,6 +509,7 @@ export type Database = {
         }
         Update: {
           away_score?: number
+          away_shootout_score?: number | null
           away_team_id?: string | null
           away_team_name?: string
           created_at?: string
@@ -512,6 +517,7 @@ export type Database = {
           elapsed_seconds?: number
           group_id?: string | null
           home_score?: number
+          home_shootout_score?: number | null
           home_team_id?: string | null
           home_team_name?: string
           id?: string

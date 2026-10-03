@@ -14,6 +14,7 @@ import { recordingDeviceId } from "./device";
 import { joinRecordingChannel, type SharedRecordingState } from "./shared-channel";
 import { blockingPendingCount, observeOtherPending } from "./control-safety";
 import { canReleaseRejectedEnd, releaseRejectedEnd } from "./control-recovery";
+import { canReleaseRejectedShootout, releaseRejectedShootout } from "./shootout-recovery";
 import { startRoomSession, type RoomSessionGuard } from "./room-session";
 import { createRoomPublication, prepareRecordingRoom } from "./room-bootstrap";
 import { createJerseyRefresh } from "./jersey-sync";
@@ -31,8 +32,9 @@ export function RecordingStatus() {
   if (!room) return null;
   const pending = room.pending.length;
   const recoverableEnd = canReleaseRejectedEnd(room);
+  const recoverableShootout = canReleaseRejectedShootout(room);
   const needsAttention = pending > 0 || room.blocked || !!room.error || !!notice ||
-    !!room.notice || recovering || recoverableEnd || !shared.connected ||
+    !!room.notice || recovering || recoverableEnd || recoverableShootout || !shared.connected ||
     shared.pendingElsewhere > 0 || shared.blockingPendingElsewhere > 0;
   const releaseEnd = async () => {
     if (!recoverableEnd || recovering) return;
@@ -50,6 +52,9 @@ export function RecordingStatus() {
     finally { setRecovering(false); }
   };
   const retry = async () => {
+    // An old shootout comparison can never become current by retrying it.
+    // Require an explicit fresh-state review rather than replaying that payload.
+    if (recoverableShootout || recovering) return;
     try {
       await updateRoom(room.key, current => {
         if (!current) throw new Error("저장 기록을 찾을 수 없습니다.");
@@ -57,6 +62,24 @@ export function RecordingStatus() {
       });
       await syncRecordings(room.actorId, true);
     } catch { setNotice(canBackup ? "기기 저장소를 확인하지 못했습니다. 창을 유지하고 연결·기기 저장 상태를 확인해주세요." : "기기 저장소를 확인하지 못했습니다. 창을 유지하고 관리자에게 알려주세요."); }
+  };
+  const reviewShootout = async () => {
+    if (!recoverableShootout || recovering) return;
+    const operationId = room.pending[0].id;
+    const actorId = room.actorId;
+    setRecovering(true);
+    setNotice("");
+    try {
+      if (useAuthStore.getState().user?.uid !== actorId) throw new Error("기록 계정이 변경되었습니다. 원래 계정으로 로그인해주세요.");
+      const latest = await readSnapshot(room.matchId);
+      if (useAuthStore.getState().user?.uid !== actorId) throw new Error("기록 계정이 변경되었습니다. 원래 계정으로 로그인해주세요.");
+      await updateRoom(room.key, current => {
+        if (!current) throw new Error("기기 저장 기록이 없습니다.");
+        if (useAuthStore.getState().user?.uid !== actorId) throw new Error("기록 계정이 변경되었습니다. 원래 계정으로 로그인해주세요.");
+        return releaseRejectedShootout(current, latest, operationId, actorId);
+      });
+    } catch (error) { setNotice(error instanceof Error ? error.message : "최신 경기 상태를 확인하지 못했습니다. 기존 기록을 보관하고 있습니다."); }
+    finally { setRecovering(false); }
   };
   const backup = async () => {
     const rooms = await readRooms(room.actorId);
@@ -66,11 +89,12 @@ export function RecordingStatus() {
   return <div className={`${needsAttention ? "" : "hidden md:block"} shrink-0 border-b px-3 py-2 text-xs ${pending ? "bg-amber-50 text-amber-950" : "bg-emerald-50 text-emerald-950"}`} data-slot="recording-sync-status">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <p role="status" aria-live="polite"><strong>{pending ? `이 기기에 저장됨 · 서버 전송 대기 ${pending}건` : "동기화 완료 · 서버 저장 확인"}</strong>{pending > 0 && <span className="ml-2">연결되면 자동 전송</span>}</p>
-      <div className="flex flex-wrap gap-2">{recoverableEnd && <button type="button" onClick={() => void releaseEnd()} disabled={recovering} className="min-h-9 rounded border px-2">{recovering ? "최신 경기 확인 중…" : "이전 종료 요청 해제"}</button>}{pending > 0 && <button type="button" onClick={() => void retry()} disabled={recovering} className="min-h-9 rounded border px-2">동기화 재시도</button>}{canBackup && <button type="button" onClick={() => void backup().catch(() => setNotice("백업 저장에 실패했습니다. 다시 시도해주세요."))} className="hidden min-h-9 rounded border px-2 md:inline-flex md:items-center">기록 백업</button>}</div>
+      <div className="flex flex-wrap gap-2">{recoverableEnd && <button type="button" onClick={() => void releaseEnd()} disabled={recovering} className="min-h-9 rounded border px-2">{recovering ? "최신 경기 확인 중…" : "이전 종료 요청 해제"}</button>}{recoverableShootout && <button type="button" onClick={() => void reviewShootout()} disabled={recovering} className="min-h-11 rounded border px-3">{recovering ? "최신 경기 확인 중…" : "승부차기 충돌 확인"}</button>}{pending > 0 && <button type="button" onClick={() => void retry()} disabled={recovering || recoverableShootout} className="min-h-9 rounded border px-2">동기화 재시도</button>}{canBackup && <button type="button" onClick={() => void backup().catch(() => setNotice("백업 저장에 실패했습니다. 다시 시도해주세요."))} className="hidden min-h-9 rounded border px-2 md:inline-flex md:items-center">기록 백업</button>}</div>
     </div>
     <p className="mt-1">{shared.connected ? "실시간 공유 연결됨" : "공유 연결 확인 중 · 미전송 기록은 이 기기에 보관"}{shared.names.length > 0 && ` · ${shared.names.join(", ")}`}{projectRoom(room).clock?.ownerName && ` · 시간 관리: ${projectRoom(room).clock?.ownerName}`}</p>
     {shared.pendingElsewhere > 0 && <p role="status" className="mt-1">다른 기기에 전송 대기 {shared.pendingElsewhere}건이 있습니다.{shared.blockingPendingElsewhere > 0 && ` 기록 ${shared.blockingPendingElsewhere}건의 동기화가 완료될 때까지 경기 종료를 기다립니다.`}</p>}
     {room.notice && <p role="status" className="mt-1">{room.notice}</p>}
+    {recoverableShootout && <p role="status" className="mt-1">다른 기기에서 승부차기 결과를 변경했습니다. ‘승부차기 충돌 확인’을 누르면 최신 결과를 불러와 반영되지 않은 승부차기와 전송 전 종료 요청만 해제합니다. 기존 기록은 보관됩니다.</p>}
     {(room.error || notice) && <p role="alert" className="mt-1">{notice || room.error}</p>}
   </div>;
 }

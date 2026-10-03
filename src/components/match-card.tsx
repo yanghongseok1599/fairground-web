@@ -2,6 +2,7 @@
 
 import type { Match, LiveMatch } from "@/types";
 import { formatTime } from "@/utils/formatters";
+import { ShootoutResultBadge } from "@/features/match-shootout/result-badge";
 
 interface MatchCardProps {
   match: Match | LiveMatch;
@@ -138,6 +139,8 @@ export function MatchCard({ match, showTimer }: MatchCardProps) {
             </p>
           </div>
         </div>
+
+        <ShootoutResultBadge match={match} className="mt-3 text-center" />
 
         {live && (
           <div

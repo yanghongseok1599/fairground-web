@@ -1,4 +1,4 @@
-export type ResultImageData = { home: string; away: string; homeScore: number; awayScore: number; tournamentName: string; round: number };
+export type ResultImageData = { home: string; away: string; homeScore: number; awayScore: number; tournamentName: string; round: number; shootoutText?: string };
 
 export function ResultImage({ result }: { result: ResultImageData }) {
   const teamStyle = { display: "flex", width: 320, justifyContent: "center", textAlign: "center" as const, fontSize: 42, lineHeight: 1.35, wordBreak: "break-all" as const };
@@ -10,6 +10,7 @@ export function ResultImage({ result }: { result: ResultImageData }) {
       <div style={{ display: "flex", alignItems: "center", gap: 20, fontSize: 116, color: "#FFFFFF" }}><span>{result.homeScore}</span><span style={{ fontSize: 62, color: "#6B8AA9" }}>:</span><span>{result.awayScore}</span></div>
       <div style={teamStyle}>{result.away.slice(0, 32)}</div>
     </div>
+    {result.shootoutText && <div style={{ display: "flex", justifyContent: "center", marginBottom: 22, fontSize: 28, color: "#B9D4F4" }}>{result.shootoutText}</div>}
     <div style={{ display: "flex", justifyContent: "center", fontSize: 22, color: "#B9D4F4" }}>최종 경기 결과 · fairground-kor.com</div>
   </div>;
 }

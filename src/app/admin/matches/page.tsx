@@ -38,6 +38,7 @@ import { buildTournamentDraft, isValidTournamentDraft } from "@/lib/tournament-a
 import { setTournamentGroups } from "@/lib/admin-actions";
 import { hasOpenEditor } from "@/features/app-updates/safe-refresh";
 import { resolveMatchTrack } from "@/lib/match-operation-access";
+import { ShootoutResultBadge } from "@/features/match-shootout/result-badge";
 
 type MatchFilter = "all" | "scheduled" | "live" | "finished";
 
@@ -519,6 +520,7 @@ function AdminMatches() {
                               {match.awayTeamName}
                             </span>
                           </div>
+                          <ShootoutResultBadge match={match} className="mt-1" />
                           <div
                             className="mt-0.5 flex flex-wrap items-center gap-2 text-xs"
                             style={{ color: "var(--muted-foreground)" }}

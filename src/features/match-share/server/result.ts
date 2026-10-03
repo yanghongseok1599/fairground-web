@@ -3,6 +3,7 @@ import { cache } from "react";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 import { getTournamentDisplayName } from "@/features/tournaments/public-fixtures";
+import { shootoutResultText } from "@/features/match-shootout/model";
 
 // Anonymous RLS reads only; crawler requests never inherit a member session or service key.
 export const getSharedMatchResult = cache(async (id: string) => {
@@ -12,7 +13,7 @@ export const getSharedMatchResult = cache(async (id: string) => {
     global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store", signal: AbortSignal.timeout(10_000) }) },
   });
   const { data: match, error } = await client.from("matches")
-    .select("id,tournament_id,home_team_name,away_team_name,home_score,away_score,round,status")
+    .select("id,tournament_id,home_team_name,away_team_name,home_score,away_score,home_shootout_score,away_shootout_score,round,status")
     .eq("id", id).eq("status", "finished").maybeSingle();
   if (error) throw new Error("경기 결과를 불러오지 못했습니다.");
   if (!match?.tournament_id) return null;
@@ -20,10 +21,17 @@ export const getSharedMatchResult = cache(async (id: string) => {
     .select("id,name").eq("id", match.tournament_id).maybeSingle();
   if (tournamentError) throw new Error("대회 정보를 불러오지 못했습니다.");
   if (!tournament) return null;
+  const shootout = {
+    homeScore: match.home_score, awayScore: match.away_score,
+    homeShootoutScore: match.home_shootout_score ?? undefined, awayShootoutScore: match.away_shootout_score ?? undefined,
+    homeTeamName: match.home_team_name, awayTeamName: match.away_team_name,
+  };
+  const shootoutText = shootoutResultText(shootout);
   return {
     id: match.id, tournamentId: tournament.id, tournamentName: getTournamentDisplayName(tournament),
     home: match.home_team_name, away: match.away_team_name,
     homeScore: match.home_score, awayScore: match.away_score, round: match.round,
-    title: `${match.home_team_name} ${match.home_score} : ${match.away_score} ${match.away_team_name}`,
+    homeShootoutScore: shootout.homeShootoutScore, awayShootoutScore: shootout.awayShootoutScore, shootoutText,
+    title: `${match.home_team_name} ${match.home_score} : ${match.away_score} ${match.away_team_name}${shootoutText ? ` · ${shootoutText}` : ""}`,
   };
 });

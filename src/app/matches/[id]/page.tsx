@@ -16,6 +16,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { resolveMatchTrack } from "@/lib/match-operation-access";
+import { ShootoutResultBadge } from "@/features/match-shootout/result-badge";
 import type { Match, MatchStatus } from "@/types";
 
 /**
@@ -226,6 +227,7 @@ export default function MatchDetailPage() {
             </p>
           </div>
         </div>
+        <ShootoutResultBadge match={match} className="mt-4 text-center" />
       </div>
 
       {/* CTA 버튼 영역 */}

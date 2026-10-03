@@ -5,7 +5,7 @@ export type RecordingMatch = Match & {
   serverRevision?: number; appliedOperationIds?: string[]; supersededOperationIds?: string[];
   clock?: { version: number; ownerId: string | null; deviceId: string | null; ownerName: string };
 };
-export type CommandKind = "start" | "pause" | "resume" | "timer" | "event" | "cancel" | "mom" | "end" | "forfeit" | "substitute";
+export type CommandKind = "start" | "pause" | "resume" | "timer" | "event" | "cancel" | "mom" | "end" | "forfeit" | "substitute" | "shootout";
 export interface RecordingCommand {
   id: string;
   kind: CommandKind;
@@ -53,6 +53,7 @@ export function projectRoom(room: RecordingRoom): RecordingMatch {
       case "resume": m.isRunning = true; break;
       case "timer": m.elapsedSeconds = Math.min(720, Math.max(m.elapsedSeconds, Number(p.seconds))); m.currentHalf = Number(p.half) === 2 ? 2 : 1; break;
       case "mom": m.momPlayerId = String(p.playerId); break;
+      case "shootout": m.homeShootoutScore = Number(p.homeScore); m.awayShootoutScore = Number(p.awayScore); break;
       case "end": m.status = "finished"; m.isRunning = false; break;
       case "forfeit": m.status = "finished"; m.isRunning = false; m.homeScore = p.teamId === m.homeTeamId ? 0 : 3; m.awayScore = p.teamId === m.awayTeamId ? 0 : 3; break;
       case "event": {

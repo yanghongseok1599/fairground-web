@@ -7,6 +7,7 @@ import { projectRoom, type CommandKind, type RecordingRoom } from "./model";
 import { recordingDeviceId } from "./device";
 import { updateRoom } from "./storage";
 import { createObservedClock, finalizationWaitMessage, otherPendingCount } from "./control-safety";
+import { hasShootoutResult, requiresShootout, shootoutScoreError } from "@/features/match-shootout/model";
 
 export function createRecordingAdapter(initial: RecordingRoom, isActive: () => boolean = () => true) {
   const deviceId = recordingDeviceId();
@@ -26,7 +27,16 @@ export function createRecordingAdapter(initial: RecordingRoom, isActive: () => b
       const wait = finalizationWaitMessage(kind, otherPendingCount(current.matchId));
       if (wait) throw new Error(wait);
       const state = projectRoom(current);
-      if (kind === "start" ? state.status !== "scheduled" : state.status !== "live") throw new Error("경기 상태가 변경되었습니다. 기록을 확인해주세요.");
+      const allowed = kind === "start" ? state.status === "scheduled" : kind === "shootout" ? state.status === "live" || state.status === "finished" : state.status === "live";
+      if (!allowed) throw new Error("경기 상태가 변경되었습니다. 기록을 확인해주세요.");
+      if (kind === "end" && requiresShootout(state) && !hasShootoutResult(state)) throw new Error("동점 순위결정전은 승부차기 결과를 먼저 기록해주세요.");
+      if (kind === "shootout") {
+        const error = shootoutScoreError(Number(payload.homeScore), Number(payload.awayScore));
+        if (error) throw new Error(error);
+        if (!requiresShootout(state)) throw new Error("정규시간 동점인 순위결정전에서만 승부차기를 기록할 수 있습니다.");
+        if (state.isRunning) throw new Error("정규시간 타이머를 멈춘 후 승부차기를 기록해주세요.");
+        payload = { ...payload, _shootoutHomeBefore: state.homeShootoutScore ?? -1, _shootoutAwayBefore: state.awayShootoutScore ?? -1 };
+      }
       if (kind === "timer" && (state.clock?.ownerId !== room.actorId || state.clock.deviceId !== deviceId)) return current;
       command.payload = { ...payload, ...(kind === "pause" || kind === "end" ? observedClock.payload(state) : {}), _deviceId: deviceId, _clockVersion: state.clock?.version ?? 0, _actorName: useAuthStore.getState().player?.name ?? "기록자" };
       return { ...current, pending: [...current.pending, command], journal: [...current.journal, command], savedAt: command.at };
@@ -55,6 +65,7 @@ export function createRecordingAdapter(initial: RecordingRoom, isActive: () => b
       await enqueue("cancel", eventId.startsWith("local:") ? { eventOperationId: eventId.slice(6) } : { eventId });
     },
     setMatchMom: async (_t, _m, playerId) => enqueue("mom", { playerId }),
+    setMatchShootout: async (_t, _m, homeScore, awayScore) => enqueue("shootout", { homeScore, awayScore }),
     substitutePlayer: async (_m, teamId, outId, inId, inName, minute, half) => enqueue("substitute", { teamId, outId, inId, inName, minute, half }),
     notifyNextMatchReady: async id => navigator.onLine ? useDataStore.getState().notifyNextMatchReady(id).catch(() => 0) : 0,
   }));

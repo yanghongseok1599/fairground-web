@@ -8,6 +8,7 @@ import type { LiveMatch, MatchLineupEntry, Tournament } from "@/types";
 import { formatTime } from "@/utils/formatters";
 import { LiveLineupPanel } from "./live-lineup-panel";
 import { getTournamentDisplayName } from "@/features/tournaments/public-fixtures";
+import { ShootoutResultBadge } from "@/features/match-shootout/result-badge";
 
 export function LiveMatchCard({ match, tournament }: { match: LiveMatch; tournament?: Tournament }) {
   const [elapsed, setElapsed] = useState(match.elapsedSeconds);
@@ -54,6 +55,7 @@ export function LiveMatchCard({ match, tournament }: { match: LiveMatch; tournam
         </div>
         <p className="min-w-0 break-words text-center text-base font-bold sm:text-lg">{match.awayTeamName}</p>
       </div>
+      <ShootoutResultBadge match={match} className="px-4 pb-4 text-center" />
       <div className="grid grid-cols-2 gap-2 px-4 pb-4">
         <Link href={`/matches/${match.id}/watch`} className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-sm font-bold text-primary-foreground"><Radio className="h-4 w-4" />중계 보기</Link>
         <Link href={`/matches/${match.id}`} className="flex min-h-11 items-center justify-center rounded-lg border border-border px-3 text-sm font-bold">경기 상세</Link>

@@ -19,6 +19,7 @@ export type MatchActionScope =
   | "end"
   | "event"
   | "cancelEvent"
+  | "shootout"
   | "mom";
 
 export interface MatchActionError {
@@ -67,6 +68,7 @@ interface MatchControlActions {
   }) => Promise<boolean>;
   cancelEvent: (eventId: string) => Promise<boolean>;
   setMom: (playerId: string) => Promise<boolean>;
+  setShootout: (homeScore: number, awayScore: number) => Promise<boolean>;
   reload: () => Promise<void>;
   /** 에러 배너의 재시도/닫기 후 상태 해제 */
   clearError: () => void;
@@ -394,6 +396,17 @@ export function useMatchControl({
     [tournamentId, matchId, runAction]
   );
 
+  const setShootout = useCallback(
+    (homeScore: number, awayScore: number) =>
+      runAction("shootout", "승부차기 저장에 실패했습니다", async () => {
+        if (!store.setMatchShootout) throw new Error("이 화면에서는 승부차기를 기록할 수 없습니다.");
+        await store.setMatchShootout(tournamentId, matchId, homeScore, awayScore);
+        const latest = await store.fetchMatch(tournamentId, matchId);
+        if (latest) setMatch(latest);
+      }),
+    [store, tournamentId, matchId, runAction]
+  );
+
   return {
     match,
     liveMatch,
@@ -416,6 +429,7 @@ export function useMatchControl({
     addEvent,
     cancelEvent,
     setMom,
+    setShootout,
     reload: loadData,
     clearError,
   };

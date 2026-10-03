@@ -16,6 +16,8 @@ import { fetchResultMatches, fetchResultTournaments, fetchTeamResults } from "@/
 import { resultStandings, tournamentResultStandings } from "@/features/match-results/model";
 import { MatchCard } from "@/components/match-card";
 import { finalPlacements } from "@/features/standings/final-placements";
+import { ShootoutResultBadge } from "@/features/match-shootout/result-badge";
+import { shootoutResultText } from "@/features/match-shootout/model";
 import { GroupedStandingsTable } from "@/features/standings/grouped-standings-table";
 import type { Tournament, Match, LiveMatch } from "@/types";
 import { Calendar, MapPin, Trophy, Radio } from "lucide-react";
@@ -168,6 +170,7 @@ export default function TournamentDetailPage() {
                           <p className="truncate text-lg font-bold" style={{ color: "var(--color-fg-ink)", fontFamily: "var(--font-body)" }}>{m.awayTeamName}</p>
                         </div>
                       </div>
+                      <ShootoutResultBadge match={m} className="px-6 pb-5 text-center" />
                     </div>
                   );
                 })}
@@ -194,8 +197,8 @@ export default function TournamentDetailPage() {
                   <MatchCard match={m} />
                   <EventShareButton label="결과 공유" content={{
                     title: `${m.homeTeamName} ${m.homeScore} : ${m.awayScore} ${m.awayTeamName}`,
-                    description: `${getTournamentDisplayName(tournament)} · R${m.round} · 경기 종료`,
-                    ...getMatchShareLinks(SITE_URL, m.id, m.homeScore, m.awayScore),
+                    description: `${getTournamentDisplayName(tournament)} · R${m.round} · 경기 종료${shootoutResultText(m) ? ` · ${shootoutResultText(m)}` : ""}`,
+                    ...getMatchShareLinks(SITE_URL, m.id, m.homeScore, m.awayScore, m.homeShootoutScore, m.awayShootoutScore),
                   }} />
                 </div>)}
               </div>

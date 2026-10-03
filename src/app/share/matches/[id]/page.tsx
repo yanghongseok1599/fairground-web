@@ -12,7 +12,7 @@ type Props = { params: Promise<{ id: string }> };
 export async function generateMetadata({ params }: Props) {
   const result = await getSharedMatchResult((await params).id);
   if (!result) notFound();
-  const links = getMatchShareLinks(SITE_URL, result.id, result.homeScore, result.awayScore);
+  const links = getMatchShareLinks(SITE_URL, result.id, result.homeScore, result.awayScore, result.homeShootoutScore, result.awayShootoutScore);
   return createSeoMetadata({ title: result.title, description: `${result.tournamentName} · R${result.round} · 경기 종료`, path: new URL(links.url).pathname, image: links.imageUrl, imageAlt: result.title });
 }
 
@@ -28,6 +28,7 @@ export default async function MatchResultSharePage({ params }: Props) {
         <strong className="whitespace-nowrap text-5xl">{result.homeScore} : {result.awayScore}</strong>
         <span className="break-all text-xl font-bold">{result.away}</span>
       </div>
+      {result.shootoutText && <p className="mt-5 break-words text-lg font-bold text-blue-200">{result.shootoutText}</p>}
       <Link className="mt-10 inline-flex min-h-11 items-center rounded-lg bg-white px-5 font-bold text-[#0D1B2A]" href={getTournamentShareUrl(SITE_URL, result.tournamentId, result.id)}>대회·경기 보기</Link>
     </section>
   </main>;

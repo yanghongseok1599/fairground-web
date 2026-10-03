@@ -8,6 +8,7 @@ import { notifyInspectionChange } from "@/lib/inspection-sync";
 
 import { requireSavedRow, registrationError } from "@/lib/registration/reliability";
 import { createMatchLiveRefresh } from "@/lib/match-live-refresh";
+import { requiresShootout, shootoutScoreError } from "@/features/match-shootout/model";
 import { create } from "zustand";
 import { supabase, isDemoMode } from "@/config/supabase";
 import {
@@ -214,6 +215,7 @@ interface DataState {
   updateMatchTimer: (matchId: string, elapsedSeconds: number, currentHalf: 1 | 2) => Promise<void>;
   notifyNextMatchReady: (matchId: string) => Promise<number>;
   setMatchMom: (tournamentId: string, matchId: string, playerId: string) => Promise<void>;
+  setMatchShootout: (tournamentId: string, matchId: string, homeScore: number, awayScore: number) => Promise<void>;
 
   // --- Notices (운영 → 회원 일방향, RLS: 누구나 read / is_referee_or_admin 만 write) ---
   // teamId 옵션: null 명시 = 글로벌만(team_id IS NULL),
@@ -1261,6 +1263,32 @@ export const useDataStore = create<DataState>((setState, getState) => ({
       p_player_id: playerId,
     });
     if (error) { console.error("[dataStore] setMatchMom RPC:", error.message); throw new Error(error.message); }
+  },
+
+  setMatchShootout: async (tournamentId, matchId, homeScore, awayScore) => {
+    const errorMessage = shootoutScoreError(homeScore, awayScore);
+    if (errorMessage) throw new Error(errorMessage);
+    const current = await getState().fetchMatch(tournamentId, matchId);
+    if (!current || !requiresShootout(current)) throw new Error("정규시간 동점인 순위결정전에서만 승부차기를 기록할 수 있습니다.");
+    if (isDemoMode) {
+      const all = getLocalMatches();
+      if (all[tournamentId]?.[matchId]) {
+        all[tournamentId][matchId] = { ...all[tournamentId][matchId], homeShootoutScore: homeScore, awayShootoutScore: awayScore };
+        saveLocalMatches(all);
+      }
+      const live = getLocalLive();
+      if (live[matchId]) {
+        live[matchId] = { ...live[matchId], homeShootoutScore: homeScore, awayShootoutScore: awayScore };
+        saveLocalLive(live);
+        setState({ liveMatches: Object.entries(live).map(([id, v]) => ({ ...v, id })) });
+      }
+      return;
+    }
+    const { error } = await supabase.rpc("apply_match_recording_operation", {
+      p_operation_id: crypto.randomUUID(), p_match_id: matchId, p_kind: "shootout",
+      p_payload: { homeScore, awayScore, _shootoutHomeBefore: current.homeShootoutScore ?? -1, _shootoutAwayBefore: current.awayShootoutScore ?? -1 },
+    }).retry(false);
+    if (error) throw new Error(error.message);
   },
 
   // ===== Notices =====

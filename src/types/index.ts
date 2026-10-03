@@ -141,6 +141,9 @@ export interface Match {
   awayTeamName: string;
   homeScore: number;
   awayScore: number;
+  /** 승부차기 성공 합계. 정규 득점·선수 득점 통계와 분리한다. */
+  homeShootoutScore?: number;
+  awayShootoutScore?: number;
   status: MatchStatus;
   scheduledAt: number;
   events: MatchEvent[];

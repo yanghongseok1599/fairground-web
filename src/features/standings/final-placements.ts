@@ -1,4 +1,5 @@
 import type { CardType, Match, Tournament } from "@/types";
+import { shootoutWinner } from "@/features/match-shootout/model";
 
 export interface FinalPlacement { rank: number; teamId: string; teamName: string }
 
@@ -14,11 +15,13 @@ export function finalPlacements(tournament: Tournament, matches: Match[]): Final
   };
   const result = (round: number) => {
     const m = slot(round);
-    if (!m || m.status !== "finished" || m.homeScore === m.awayScore ||
+    if (!m || m.status !== "finished" ||
         m.homeTeamId === m.awayTeamId || !teamIds.has(m.homeTeamId) || !teamIds.has(m.awayTeamId)) return undefined;
+    const winner = m.homeScore === m.awayScore ? shootoutWinner(m) : m.homeScore > m.awayScore ? "home" : "away";
+    if (!winner) return undefined;
     const home = { teamId: m.homeTeamId, teamName: m.homeTeamName };
     const away = { teamId: m.awayTeamId, teamName: m.awayTeamName };
-    return m.homeScore > m.awayScore ? { winner: home, loser: away } : { winner: away, loser: home };
+    return winner === "home" ? { winner: home, loser: away } : { winner: away, loser: home };
   };
   const challenge = [result(13), result(14)];
   const championship = [result(15), result(16)];

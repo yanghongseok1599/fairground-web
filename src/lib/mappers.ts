@@ -375,6 +375,8 @@ export function rowToMatch(r: MatchRow, events: MatchEvent[] = []): Match {
     awayTeamName: r.away_team_name,
     homeScore: r.home_score,
     awayScore: r.away_score,
+    homeShootoutScore: r.home_shootout_score ?? undefined,
+    awayShootoutScore: r.away_shootout_score ?? undefined,
     status: r.status,
     scheduledAt: ts(r.scheduled_at),
     events,
