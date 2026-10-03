@@ -41,6 +41,8 @@ import { resolveMatchTrack } from "@/lib/match-operation-access";
 
 type MatchFilter = "all" | "scheduled" | "live" | "finished";
 
+const MATCH_NUMBER_OPTIONS = Array.from({ length: 20 }, (_, index) => index + 1);
+
 export default function AdminMatchesPage() {
   return (
     <AdminGuard>
@@ -818,15 +820,15 @@ function AdminMatches() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">라운드</label>
+                  <label className="text-sm font-medium">경기 번호</label>
                   <Select value={newRound} onValueChange={setNewRound}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map((r) => (
+                      {MATCH_NUMBER_OPTIONS.map((r) => (
                         <SelectItem key={r} value={r.toString()}>
-                          {r}라운드
+                          {r}경기
                         </SelectItem>
                       ))}
                     </SelectContent>
