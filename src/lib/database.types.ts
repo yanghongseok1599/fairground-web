@@ -1697,6 +1697,8 @@ export type Database = {
       }
     }
     Functions: {
+      get_my_glasses_waiver: { Args: never; Returns: Json }
+      sign_glasses_waiver: { Args: { p_signer_name: string; p_agreed: boolean }; Returns: Json }
       get_match_recording_snapshot: { Args: { p_match_id: string }; Returns: Json }
       apply_match_recording_operation: { Args: { p_operation_id: string; p_match_id: string; p_kind: string; p_payload: Json }; Returns: Json }
       can_manage_player_inspections: { Args: never; Returns: boolean }

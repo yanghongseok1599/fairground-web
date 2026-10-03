@@ -44,6 +44,7 @@ import { PlayerProfilePhoto } from "@/components/player-profile-photo";
 import { MyParticipantReadiness } from "@/features/tournament-readiness/components/participant-readiness";
 import { MyInspectionCard } from "@/features/player-inspection/components/my-inspection-card";
 import { hasPortraitConsent } from "@/features/portrait-consent/policy";
+import { GlassesWaiverCard } from "@/features/glasses-waiver/components/waiver-card";
 import { compressImageBlob, removeBackgroundAndCompress } from "@/lib/image-compression";
 import { getPlayerProfilePhotoUrl } from "@/lib/player-profile-photo";
 import { getPlayerCardShareUrls } from "@/lib/player-card-share-links";
@@ -808,6 +809,7 @@ export default function MyPage() {
         <div className={`${MY_PAGE_SECTION_SHELL} mt-5 sm:mt-8`}><MyInspectionCard key={user.uid} /></div>
       )}
       {user && <div className={`${MY_PAGE_SECTION_SHELL} mt-5 sm:mt-8`}><MyParticipantReadiness key={user.uid} /></div>}
+      {user && player && <div className={`${MY_PAGE_SECTION_SHELL} mt-5 sm:mt-8`}><GlassesWaiverCard key={user.uid} /></div>}
 
       {/* ── Card + Stats Row ── */}
       {player ? (
