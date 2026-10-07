@@ -1,0 +1,165 @@
+{
+  "status": "PASS",
+  "source": {
+    "source_path": "/Users/seok/Desktop/가로 메인.mp4",
+    "source_bytes": 152796194,
+    "source_mtime_ns": 1791392641868775189,
+    "source_sha256": "8d41623f95a855fd0a31c023ca4e630f86a64a0b2976d44ce2d47997f9f138c2"
+  },
+  "source_video_duration_seconds": 79.15,
+  "source_container_duration_seconds": 79.226485,
+  "source_preserved": "PASS",
+  "source_visual_review_times": [
+    1,
+    39.575,
+    78.4
+  ],
+  "source_dimensions": [
+    1920,
+    1080
+  ],
+  "source_codec": "HEVC Main10",
+  "source_fps": 60,
+  "source_pixel_format": "yuv420p10le",
+  "outputs": [
+    {
+      "path": "public/videos/fairground-home-main-20261008.mp4",
+      "bytes": 18299993,
+      "megabytes_decimal": 18.3,
+      "sha256": "4a0c5d3a88217740875276386cec4c3c51096e686ed1afe77238b5f8f1431159",
+      "metadata": {
+        "codec_name": "h264",
+        "profile": "High",
+        "codec_type": "video",
+        "width": 1920,
+        "height": 1080,
+        "sample_aspect_ratio": "1:1",
+        "pix_fmt": "yuv420p",
+        "color_space": "bt709",
+        "color_transfer": "bt709",
+        "color_primaries": "bt709",
+        "avg_frame_rate": "30/1",
+        "duration": "79.166667",
+        "bit_rate": "1846512",
+        "nb_read_frames": "2375"
+      },
+      "duration_seconds": 79.166667,
+      "frame_count": 2375,
+      "source_frames": 4749,
+      "fps_conversion": "60 to 30 fps, deliberate cadence reduction; expected output ceil(4749/2)",
+      "unexpected_frame_loss": "PASS",
+      "continuous_timestamps": "PASS",
+      "audio_tracks": 0,
+      "full_decode": "PASS",
+      "faststart": "PASS",
+      "top_level_atoms": [
+        {
+          "type": "ftyp",
+          "offset": 0,
+          "size": 32
+        },
+        {
+          "type": "moov",
+          "offset": 32,
+          "size": 27163
+        },
+        {
+          "type": "free",
+          "offset": 27195,
+          "size": 8
+        },
+        {
+          "type": "mdat",
+          "offset": 27203,
+          "size": 18272790
+        }
+      ],
+      "visual_review": "PASS",
+      "visual_review_times": [
+        1.0,
+        39.575,
+        78.4
+      ],
+      "encoding_method": "two-pass ABR 1850k; maxrate 4000k; bufsize 8000k; preset slow"
+    },
+    {
+      "path": "public/videos/fairground-home-main-20261008-mobile.mp4",
+      "bytes": 9698986,
+      "megabytes_decimal": 9.699,
+      "sha256": "6d94bfed396e4ce522e38acd3dd5596b75f9e50bf20ee40f4532ec3165ab2718",
+      "metadata": {
+        "codec_name": "h264",
+        "profile": "Main",
+        "codec_type": "video",
+        "width": 960,
+        "height": 540,
+        "sample_aspect_ratio": "1:1",
+        "pix_fmt": "yuv420p",
+        "color_space": "bt709",
+        "color_transfer": "bt709",
+        "color_primaries": "bt709",
+        "avg_frame_rate": "30/1",
+        "duration": "79.166667",
+        "bit_rate": "977343",
+        "nb_read_frames": "2375"
+      },
+      "duration_seconds": 79.166667,
+      "frame_count": 2375,
+      "source_frames": 4749,
+      "fps_conversion": "60 to 30 fps, deliberate cadence reduction; expected output ceil(4749/2)",
+      "unexpected_frame_loss": "PASS",
+      "continuous_timestamps": "PASS",
+      "audio_tracks": 0,
+      "full_decode": "PASS",
+      "faststart": "PASS",
+      "top_level_atoms": [
+        {
+          "type": "ftyp",
+          "offset": 0,
+          "size": 32
+        },
+        {
+          "type": "moov",
+          "offset": 32,
+          "size": 27309
+        },
+        {
+          "type": "free",
+          "offset": 27341,
+          "size": 8
+        },
+        {
+          "type": "mdat",
+          "offset": 27349,
+          "size": 9671637
+        }
+      ]
+    }
+  ],
+  "posters": [
+    {
+      "path": "public/videos/fairground-home-main-20261008.webp",
+      "width": 1280,
+      "height": 720,
+      "bytes": 167552,
+      "sha256": "b66f1889996b0cdb76771fce8ad409ec5ab732f1eef5503fd2e7db3867e4a95d",
+      "source_time_seconds": 2.7,
+      "colors_edited": false
+    },
+    {
+      "path": "public/videos/fairground-home-main-20261008-mobile.webp",
+      "width": 640,
+      "height": 360,
+      "bytes": 59950,
+      "sha256": "a88527d9f4cd9af1f1f94d5d832ba1c94af9731a783e221a04e08ab9ee899b6b",
+      "source_time_seconds": 2.7,
+      "colors_edited": false
+    }
+  ],
+  "content_or_color_edits": false,
+  "aspect_ratio": "16:9",
+  "duration_rounding_seconds": 0.01666666666666572,
+  "visual_review": "PASS",
+  "visual_inspection_notes": "Actual source and encoded intro, football action, ending, and both original-frame WebP posters inspected. Desktop two-pass action frame has fewer compression artifacts than initial capped CRF encode. Entire landscape framing preserved, no crop or color edits.",
+  "intermediates_cleaned": "PASS"
+}

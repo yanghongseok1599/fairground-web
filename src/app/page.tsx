@@ -9,7 +9,7 @@ import { supabase } from "@/config/supabase";
 import { useAuth } from "@/hooks/useAuth";
 import { PlayerCard, getCardTypeFromRating } from "@/components/player-card";
 import { EmptyState } from "@/components/empty-state";
-import { ScrollVideoHero, type HeroReveal } from "@/components/scroll-video-hero";
+import { HomeVideoHero } from "@/components/home-video-hero";
 import type { TeamGalleryItem } from "@/components/team-circular-gallery";
 import { getClubLogoPreset } from "@/components/club-emblem";
 import { TeamCardLink } from "@/components/team-card-link";
@@ -37,99 +37,6 @@ import {
   MIXED_FUTSAL_TEAM_COUNT_LABEL,
 } from "@/lib/mixed-futsal-event";
 import { TOURNAMENT_WARNING_DISCIPLINE_SUMMARY } from "@/lib/discipline-policy";
-
-// ─── HERO REVEAL SEQUENCE ───────────────────────────────────────────────
-// Five fade-in/fade-out overlays that play across the scroll-scrubbed hero.
-// Shared styles for the Korean display lines.
-const KR_STYLE: React.CSSProperties = {
-  fontFamily: "var(--font-body), sans-serif",
-  fontWeight: 800,
-  color: "var(--color-fg-paper)",
-  fontSize: "clamp(64px, 13vw, 180px)",
-  lineHeight: 1,
-  letterSpacing: "-0.03em",
-  textShadow: "0 6px 30px rgba(0,0,0,0.45), 0 0 80px rgba(0,0,0,0.25)",
-};
-
-const HERO_REVEALS: HeroReveal[] = [
-  { range: [0.0, 0.2], fadeIn: 0, content: <div style={KR_STYLE}>모두가</div> },
-  { range: [0.2, 0.4], content: <div style={KR_STYLE}>승리하는</div> },
-  {
-    range: [0.4, 0.6],
-    content: <div style={{ ...KR_STYLE, color: "var(--primary)" }}>그라운드</div>,
-  },
-  {
-    range: [0.6, 0.8],
-    content: (
-      <div
-        className="text-center"
-        style={{
-          fontFamily: "var(--font-body), sans-serif",
-          fontWeight: 800,
-          color: "var(--color-fg-paper)",
-          fontSize: "clamp(28px, 5.5vw, 86px)",
-          lineHeight: 1.05,
-          letterSpacing: "-0.01em",
-          textShadow: "0 6px 30px rgba(0,0,0,0.45), 0 0 80px rgba(0,0,0,0.25)",
-        }}
-      >
-        EVERYONE WINS
-        <br />
-        ON THIS GROUND
-      </div>
-    ),
-  },
-  {
-    range: [0.8, 1.0],
-    fadeOut: 0, // logo holds at full opacity through the end of the hero
-    content: (
-      <div
-        role="img"
-        aria-label="FairGround"
-        style={{
-          width: "clamp(260px, 46vw, 620px)",
-          aspectRatio: "3603 / 767",
-          background: "var(--color-fg-paper)",
-          WebkitMaskImage: "url(/images/logo-horizontal.png)",
-          WebkitMaskRepeat: "no-repeat",
-          WebkitMaskSize: "contain",
-          WebkitMaskPosition: "center",
-          maskImage: "url(/images/logo-horizontal.png)",
-          maskRepeat: "no-repeat",
-          maskSize: "contain",
-          maskPosition: "center",
-          filter: "drop-shadow(0 10px 30px rgba(0,0,0,0.35))",
-        }}
-      />
-    ),
-  },
-];
-
-const HERO_STATIC_FALLBACK = (
-  <div className="text-center">
-    <div
-      className="fg-display"
-      style={{
-        color: "var(--primary)",
-        fontSize: "clamp(36px, 10vw, 92px)",
-        lineHeight: 0.9,
-        textShadow: "0 4px 18px rgba(255,255,255,0.78), 0 10px 30px rgba(0,0,0,0.28)",
-      }}
-    >
-      FAIRGROUND
-    </div>
-    <p
-      className="mt-3 text-[15px] font-black tracking-[0.18em] md:text-[18px]"
-      style={{
-        color: "var(--color-fg-paper)",
-        fontFamily: "var(--font-body)",
-        textShadow: "0 4px 14px rgba(0,0,0,0.58)",
-      }}
-    >
-      모두가 승리하는 그라운드
-    </p>
-  </div>
-);
 
 // 홈페이지 샘플은 특정 실존 인물을 참조하지 않은 한국인 남자 가상 선수만 사용한다.
 const SHOWCASE_SAMPLE_PLAYERS: Player[] = [
@@ -373,34 +280,23 @@ export default function HomePage() {
       <HomeCupResults onResolved={setCupCompleted} />
 
       {/* ============================================================
-          HERO — Scroll-Scrubbed Stadium Entrance (video + reveals)
+          HERO — Muted, looping event highlights
           ============================================================ */}
       <section
         className="relative"
         style={{ background: "var(--color-fg-paper)" }}
         aria-label="FairGround — 모두가 승리하는 그라운드"
       >
-        {/* Brand copy in real DOM exactly once: the scroll reveals are
-            aria-hidden canvas overlays, so this sr-only H1 restores the
-            page heading for screen readers and search crawlers (A1, Q4). */}
+        {/* Keep the page heading accessible independently of the video. */}
         <h1 className="sr-only">
           FairGround — 모두가 승리하는 그라운드. EVERYONE WINS ON THIS GROUND.
         </h1>
-        <ScrollVideoHero
-          scrollLength={1.6}
-          fit="cover"
-          background="#ffffff"
-          stickyTop={60}
-          reveals={HERO_REVEALS}
-          mobileVideoSrc="/videos/hero1-mobile-muted.mp4"
-          staticFallback={HERO_STATIC_FALLBACK}
-          showMobileStaticFallback={false}
-        />
+        <HomeVideoHero />
       </section>
 
       {/* ============================================================
           UPCOMING TOURNAMENT — 홈에서 대회로 가는 유일한 상시 경로.
-          히어로(흰 배경 풀뷰포트 영상) 바로 다음이라 딥블루 바탕으로 끊어
+          가로 히어로 영상 바로 다음이라 딥블루 바탕으로 끊어
           "여기부터 다른 이야기" 라는 신호를 준다. 날짜·장소·포맷은 모두
           mixed-futsal-event 상수에서 온다.
           ============================================================ */}
