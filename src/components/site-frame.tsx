@@ -10,8 +10,10 @@ import { SwRegister } from "./sw-register";
 
 export function SiteFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  // Event output has its own chrome: no site navigation, install prompts or auth popups on air.
+  // Public event pages have their own chrome and do not initialize member services.
   if (
+    pathname === "/survey" ||
+    pathname.startsWith("/survey/") ||
     pathname === "/events/alliance" ||
     pathname.startsWith("/events/alliance/")
   )

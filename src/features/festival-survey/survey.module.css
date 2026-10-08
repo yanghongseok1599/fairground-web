@@ -1,0 +1,85 @@
+.page { background: #f6f8fb; color: #142336; min-height: 100dvh; font-family: var(--font-pretendard), sans-serif; }
+.header { position: sticky; top: 0; z-index: 20; background: #fff; }
+.headerInner { max-width: 1080px; height: 76px; padding: 0 32px; margin: auto; display: flex; align-items: center; gap: 24px; }
+.wordmark { display: block; width: 150px; height: 32px; background: #0047ab; mask: url('/images/logo-horizontal.png') left center / contain no-repeat; }
+.headerLabel { margin-left: auto; color: #65758b; font: 10px var(--font-jetbrains), monospace; letter-spacing: 1.8px; }
+.homeLink { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #53637a; border-left: 1px solid #e1e7f0; padding-left: 24px; }
+.homeLink:hover { color: #0047ab; }
+.progressTrack { height: 3px; background: #e7edf6; }
+.progressTrack > div { height: 100%; background: #0047ab; transition: width .3s ease; }
+.hero { position: relative; max-width: 1016px; margin: 32px auto 0; padding: 48px 50px; background: #0047ab; overflow: hidden; border-radius: 20px; display: grid; grid-template-columns: 1fr 260px; gap: 24px; }
+.heroContent { position: relative; z-index: 1; }
+.heroEyebrow { display: flex; gap: 12px; align-items: center; color: #d2e1fc; font: 9px var(--font-jetbrains), monospace; letter-spacing: .9px; }
+.edition { border: 1px solid #8eb2e3; padding: 4px 9px; border-radius: 4px; font: 11px var(--font-pretendard), sans-serif; color: white; }
+.hero h1 { color: #fff; font-size: clamp(28px, 3.3vw, 38px); line-height: 1.42; letter-spacing: -1.5px; margin: 22px 0 18px; font-weight: 800; }
+.hero h1 > span { color: #aacbff; }
+.heroMessage { color: #eef4ff; font-size: 15px; line-height: 1.8; letter-spacing: -.3px; }
+.heroTags { margin-top: 28px; display: flex; gap: 19px; color: #e4efff; }
+.heroTags > span { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+.mobileBreak { display: none; }
+.heroArt { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 24px; opacity: .8; }
+.court { position: relative; width: 250px; height: 160px; border: 1px solid #77a6e8; border-radius: 7px; }
+.centerLine { position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1px solid #77a6e8; }
+.centerCircle { position: absolute; width: 58px; height: 58px; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 1px solid #77a6e8; border-radius: 50%; }
+.goalLeft, .goalRight { position: absolute; top: 25%; bottom: 25%; width: 35px; border: 1px solid #77a6e8; }
+.goalLeft { left: -1px; border-radius: 0 5px 5px 0; }
+.goalRight { right: -1px; border-radius: 5px 0 0 5px; }
+.courtDot { position: absolute; width: 11px; height: 11px; background: white; border-radius: 50%; left: 64%; top: 32%; box-shadow: 0 0 0 7px #ffffff18; }
+.artCaption { color: #ccddf7; font: 11px/1.8 var(--font-jetbrains), monospace; letter-spacing: 1.5px; }
+.artNumber { position: absolute; font: 800 100px/1 var(--font-oswald), sans-serif; color: #ffffff0d; right: 0; bottom: -18px; }
+.content { max-width: 1016px; margin: 40px auto 0; padding-bottom: 64px; display: grid; grid-template-columns: 228px minmax(0, 1fr); gap: 40px; align-items: start; }
+.sidebarSticky { position: sticky; top: 108px; }
+.sidebar { align-self: stretch; }
+.eyebrow { color: #0047ab; font: 9px var(--font-jetbrains), monospace; letter-spacing: 1.5px; }
+.sidebar h2 { font-size: 24px; line-height: 1.5; letter-spacing: -.9px; margin: 14px 0; }
+.sidebar > div > p { font-size: 13px; line-height: 1.95; color: #657187; word-break: keep-all; }
+.progressCard { padding: 19px 0 22px; margin-top: 26px; border-block: 1px solid #dde4ee; }
+.progressCard > div { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #596a80; }
+.progressCard strong { color: #0047ab; font-size: 23px; font-weight: 750; }
+.progressCard small { font-size: 12px; font-weight: 400; color: #7e899c; }
+.progressCard progress { display: block; appearance: none; width: 100%; height: 5px; overflow: hidden; border: none; border-radius: 3px; margin-top: 13px; background: #e1e7f0; }
+.progressCard progress::-webkit-progress-bar { background: #e1e7f0; }
+.progressCard progress::-webkit-progress-value { background: #0047ab; border-radius: 3px; }
+.progressCard progress::-moz-progress-bar { background: #0047ab; }
+.progressCard > p { font-size: 11px; color: #788498; margin-top: 10px; }
+.sectionNav { display: grid; gap: 6px; margin-top: 22px; }
+.sectionNav a { display: flex; gap: 13px; padding: 10px 0; color: #4e6078; font-size: 13px; }
+.sectionNav a:hover { color: #0047ab; }
+.sectionNav span { color: #8a9bb0; font: 11px var(--font-jetbrains), monospace; }
+.privacy { display: flex; align-items: center; gap: 9px; margin-top: 30px; font-size: 11px; color: #708097; line-height: 1.6; }
+.privacy svg { color: #0047ab; flex-shrink: 0; }
+.formIntro { display: flex; justify-content: space-between; color: #657187; font-size: 11px; margin-bottom: 16px; }
+.requiredDot { color: #0047ab; font-weight: 800; margin-right: 4px; }
+.mobileProgress { display: none; }
+.formFields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.section { background: white; border: 1px solid #e1e7ef; border-radius: 16px; padding: 28px 30px 10px; margin-bottom: 24px; scroll-margin-top: 104px; }
+.section > fieldset { margin-bottom: 32px; }
+.sectionHeading { display: flex; align-items: center; gap: 13px; padding-bottom: 25px; border-bottom: 1px solid #e6ebf2; margin-bottom: 26px; }
+.sectionHeading > span { display: grid; place-items: center; width: 34px; height: 34px; background: #edf3fe; color: #0047ab; border-radius: 9px; font: 12px var(--font-jetbrains), monospace; flex-shrink: 0; }
+.sectionHeading h2 { font-size: 18px; line-height: 1.5; letter-spacing: -.55px; }
+.sectionHeading p { font-size: 12px; color: #768297; margin-top: 4px; line-height: 1.6; }
+.submitArea { padding: 5px 0 0; text-align: center; }
+.submitButton, .primaryLink { min-height: 56px; width: 100%; border: 0; border-radius: 12px; background: #0047ab; color: white; font-size: 16px; font-weight: 650; display: flex; justify-content: center; align-items: center; gap: 13px; padding: 16px 24px; cursor: pointer; transition: background .15s; }
+.submitButton:hover, .primaryLink:hover { background: #003b90; }
+.submitButton:disabled { opacity: .6; cursor: wait; }
+.submitButton:focus-visible, .primaryLink:focus-visible, .header a:focus-visible, .sectionNav a:focus-visible { outline: 3px solid #5f9bff; outline-offset: 4px; }
+.submitArea > p:last-child { color: #788498; font-size: 11px; line-height: 1.7; margin-top: 15px; }
+.formError { background: #fff1ef; border: 1px solid #f3c5c1; border-radius: 10px; color: #ad3028; font-size: 13px; padding: 14px; margin-bottom: 16px; line-height: 1.7; }
+.retryNotice { font-size: 12px; color: #657187; line-height: 1.8; margin: 0 0 16px; }
+.spinner { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.footer { max-width: 1016px; margin: auto; border-top: 1px solid #dde4ee; padding: 28px 0 32px; display: flex; align-items: center; gap: 22px; color: #8390a3; }
+.footer > span:first-child { color: #526581; font: 600 12px var(--font-jetbrains), monospace; letter-spacing: 1px; }
+.footer p { font-size: 11px; }
+.footer > span:last-child { margin-left: auto; font: 8px var(--font-jetbrains), monospace; letter-spacing: .5px; }
+.success { padding: 90px 24px 100px; min-height: calc(100dvh - 180px); text-align: center; display: flex; flex-direction: column; align-items: center; }
+.successIcon { width: 82px; height: 82px; display: grid; place-items: center; border-radius: 50%; background: #e5eefc; color: #0047ab; margin-bottom: 32px; }
+.success h1 { margin-top: 17px; font-size: clamp(25px, 3vw, 36px); line-height: 1.55; letter-spacing: -1px; outline: 0; }
+.success > p { color: #657187; font-size: 14px; line-height: 1.9; margin-top: 22px; }
+.receipt { color: #0047ab; display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 30px 0; }
+.primaryLink { width: auto; min-width: 260px; font-size: 14px; }
+@media (max-width: 1100px) { .hero, .content, .footer { margin-left: 32px; margin-right: 32px; } .content { gap: 28px; grid-template-columns: 210px minmax(0, 1fr); } .section { padding-inline: 24px; } }
+@media (max-width: 820px) { .content { grid-template-columns: minmax(0, 1fr); gap: 26px; } .sidebarSticky { position: static; } .sidebar h2, .sidebar .eyebrow, .progressCard, .sectionNav, .privacy { display: none; } .sidebar > div > p { font-size: 13px; line-height: 1.85; } .mobileProgress { display: inline; color: #0047ab; } .hero { padding: 36px; grid-template-columns: 1fr; } .heroArt { display: none; } }
+@media (max-width: 540px) { .headerInner { height: 62px; padding: 0 20px; } .wordmark { width: 130px; height: 29px; } .headerLabel { display: none; } .homeLink { margin-left: auto; padding-left: 0; border: 0; font-size: 11px; } .hero { margin: 20px 16px 0; padding: 28px 24px 30px; border-radius: 16px; } .heroEyebrow { gap: 8px; font-size: 7px; letter-spacing: .3px; } .edition { font-size: 10px; padding: 3px 7px; } .hero h1 { font-size: 29px; line-height: 1.42; letter-spacing: -1.2px; margin-top: 20px; } .heroMessage { font-size: 13px; } .mobileBreak { display: initial; } .heroTags { gap: 16px; margin-top: 22px; } .heroTags > span { gap: 5px; font-size: 11px; } .heroTags svg { width: 13px; } .content { margin: 24px 16px 0; gap: 20px; padding-bottom: 38px; } .sidebar { padding-inline: 6px; } .section { padding: 22px 18px 0; border-radius: 14px; margin-bottom: 18px; scroll-margin-top: 85px; } .sectionHeading { gap: 11px; padding-bottom: 20px; margin-bottom: 22px; } .sectionHeading h2 { font-size: 16px; } .sectionHeading p { font-size: 11px; } .sectionHeading > span { width: 30px; height: 30px; border-radius: 8px; font-size: 11px; } .formIntro { padding-inline: 5px; } .submitButton { min-height: 54px; font-size: 15px; } .footer { margin-inline: 22px; padding: 22px 0 28px; display: flex; flex-wrap: wrap; gap: 12px; } .footer p { flex-basis: 100%; order: 3; font-size: 10px; } .footer > span:last-child { font-size: 7px; } .success { padding-top: 64px; } .success > p { font-size: 13px; } }
+@media (max-width: 359px) { .hero h1 { font-size: 26px; } .heroEyebrow { font-size: 6px; } .heroTags { gap: 11px; } .section { padding-inline: 13px; } }
+@media (prefers-reduced-motion: reduce) { .progressTrack > div { transition: none; } .spinner { animation: none; } }

@@ -26,6 +26,8 @@ module.exports = {
           "/proposal/*",
           "/pulsenine",
           "/pulsenine/*",
+          "/survey",
+          "/survey/*",
         ],
       },
     ],
@@ -48,6 +50,8 @@ module.exports = {
     "/pulsenine/*",
     "/offline",
     "/onboarding",
+    "/survey",
+    "/survey/*",
   ],
   transform: async (config, path) => {
     const highIntentPaths = new Set([
