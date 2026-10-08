@@ -8,37 +8,12 @@ import { TeamCardLink } from "@/components/team-card-link";
 import { useReducedMotion } from "framer-motion";
 import { TeamMarquee } from "@/components/team-marquee";
 import type { Team } from "@/types";
-import { leagueTierCardIndex } from "@/lib/team-home";
-
-const TEAM_CARD_VARIANTS = [
-  {
-    name: "bronze",
-    image: "/images/team-cards/team-card-bronze.webp?v=26",
-    glow: "#D9825D",
-    text: "#071523",
-  },
-  {
-    name: "silver",
-    image: "/images/team-cards/team-card-silver.webp?v=26",
-    glow: "#BFD1DF",
-    text: "#071523",
-  },
-  {
-    name: "gold",
-    image: "/images/team-cards/team-card-gold.webp?v=26",
-    glow: "#F2C85D",
-    text: "#071523",
-  },
-  {
-    name: "emerald",
-    image: "/images/team-cards/team-card-emerald.webp?v=26",
-    glow: "#25E0B0",
-    text: "#07322D",
-  },
-];
+import { getTeamCardAppearance, resolveTeamCardTier } from "@/lib/team-card-appearance";
+import { useFinalCardTiers } from "@/features/standings/use-final-card-tier";
 
 export default function TeamsPage() {
   const store = useDataStore();
+  const finalCardTiers = useFinalCardTiers();
   const prefersReducedMotion = useReducedMotion();
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,19 +38,18 @@ export default function TeamsPage() {
   const galleryItems: TeamGalleryItem[] = useMemo(
     () =>
       teams.map((team, index) => {
-        // 카드 프레임 = 리그 등급(브론즈/실버/골드/플래티넘). 팀 상세의
-        // TeamEmblem 과 동일 매핑이라 같은 팀이 두 surface 에서 같은 프레임.
-        // logo preset 은 캐러셀 fallback 용이라 정렬 index 그대로 유지.
-        const cardIndex = leagueTierCardIndex(team.leagueTier);
+        const tier = resolveTeamCardTier(team, finalCardTiers);
+        const appearance = getTeamCardAppearance(tier);
         return {
           id: team.id,
           name: team.name,
           logo: team.logo || getClubLogoPreset(team.name, index).asset,
-          frame: TEAM_CARD_VARIANTS[cardIndex].image,
-          colorIndex: cardIndex,
+          frame: appearance.frame,
+          colorIndex: appearance.colorIndex,
+          tier,
         };
       }),
-    [teams],
+    [teams, finalCardTiers],
   );
 
   return (
@@ -103,7 +77,7 @@ export default function TeamsPage() {
               reducedMotion={!!prefersReducedMotion}
               edgeClassName="-mx-6 px-6 md:-mx-10 md:px-10"
               ariaLabel="참가 팀 카드 슬라이더"
-              renderItem={(item, key) => <TeamCardLink key={key} item={item} width={180} />}
+              renderItem={(item, key) => <TeamCardLink key={key} item={item} width={210} />}
             />
           )}
         </div>

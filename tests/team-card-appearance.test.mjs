@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { moduleLoader } from './helpers/load-ts-module.mjs';
 
 const { createTeamCardCanvas } = moduleLoader()('src/lib/team-card-canvas.ts');
+const { getTeamCardAppearance, TEAM_CARD_TIER_ORDER } = moduleLoader()('src/lib/team-card-appearance.ts');
 
 test('모든 팀 카드 등급·해상도에서 순위와 과거 우승 플래그가 추가 테두리를 만들지 않는다', async t => {
   const originalDocument = globalThis.document;
@@ -26,7 +27,7 @@ test('모든 팀 카드 등급·해상도에서 순위와 과거 우승 플래�
     }),
   };
   for (const colorIndex of [0, 1, 2, 3]) {
-    for (const width of [540, 1080]) {
+    for (const width of [540, 1024]) {
       const item = { name: 'BOB FS', frame: `frame-${colorIndex}`, logo: 'bob-logo', colorIndex };
       operations = [];
       const normal = await createTeamCardCanvas(item, { width });
@@ -36,6 +37,11 @@ test('모든 팀 카드 등급·해상도에서 순위와 과거 우승 플래�
       assert.deepEqual(operations, expected, '순위 때문에 카드 그림이 달라지면 안 된다');
       assert.equal(ranked.width, normal.width);
       assert.equal(ranked.height, normal.height);
+      assert.equal(normal.width, width);
+      assert.equal(normal.height, width * 1.5);
+      assert.ok(operations.some(([op, image, x, y, w, h]) => op === 'drawImage' && image === `frame-${colorIndex}` && x === 0 && y === 0 && w === 1024 && h === 1536), '등급별 확대/잘림 없이 전체 프레임을 그린다');
+      const plate = getTeamCardAppearance(TEAM_CARD_TIER_ORDER[colorIndex]).nameplate;
+      assert.ok(operations.some(([op, text, x, y, maxWidth]) => op === 'fillText' && text === 'BOB FS' && x === plate.x && y === plate.y && maxWidth === plate.maxWidth));
       assert.ok(operations.some(([op, image]) => op === 'drawImage' && image === `frame-${colorIndex}`));
       assert.ok(operations.some(([op, text]) => op === 'fillText' && text === 'BOB FS'));
       assert.ok(!operations.some(([op]) => ['stroke', 'strokeRect', 'strokeText'].includes(op)), '원본 프레임 밖의 윤곽선 금지');

@@ -11,11 +11,13 @@ import { mergePlayerResult, mergeTeamResult } from "@/features/match-results/mod
 import { PlayerCard } from "@/components/player-card";
 import { getClubLogoPreset } from "@/components/club-emblem";
 import { createTeamCardCanvas } from "@/lib/team-card-canvas";
-import type { Team, Player, Notice, BoardPost, TeamPhoto } from "@/types";
+import { getTeamCardAppearance, TEAM_CARD_ASPECT_RATIO } from "@/lib/team-card-appearance";
+import { useFinalCardTier } from "@/features/standings/use-final-card-tier";
+import type { Team, Player, Notice, BoardPost, TeamPhoto, CardType } from "@/types";
 import { buildRosterInsights } from "@/lib/team-finance";
 import { canManageTeam as canManageTeamHelper } from "@/lib/team-permissions";
 import { normalizeTeamRole, TEAM_ROLE_LABELS } from "@/lib/team-role-policy";
-import { buildTeamRecordLine, getRosterFilterCount, leagueTierCardIndex, LEAGUE_TIER_LABEL, nextLeagueTier, type RosterFilter } from "@/lib/team-home";
+import { buildTeamRecordLine, getRosterFilterCount, LEAGUE_TIER_LABEL, nextLeagueTier, type RosterFilter } from "@/lib/team-home";
 import {
   ArrowLeft,
   ArrowRight,
@@ -40,16 +42,6 @@ const POSITION_LABELS: Record<RosterFilter, string> = {
 
 const defaultTeamIntro = "선수카드, 경기 기록, 공지, 회비 장부를 한 곳에서 관리하는 FairGround 팀 홈페이지입니다.";
 
-const TEAM_CARD_VARIANTS = [
-  "/images/team-cards/team-card-bronze.webp?v=26",
-  "/images/team-cards/team-card-silver.webp?v=26",
-  "/images/team-cards/team-card-gold.webp?v=26",
-  "/images/team-cards/team-card-emerald.webp?v=26",
-];
-
-// 카드 인덱스 결정은 lib/team-home.ts의 stableTeamCardIndex로 통일했다 —
-// 랜딩 캐러셀과 동일한 매핑을 써 같은 팀이 두 surface에서 동일 프레임으로 보임.
-
 function StatBlock({ index, label, value }: { index: string; label: string; value: string | number }) {
   return (
     <div className="border p-3 md:p-4" style={{ background: "rgba(255,255,255,0.84)", borderColor: "rgba(0,71,171,0.14)", boxShadow: "var(--shadow-sm)" }}>
@@ -60,9 +52,9 @@ function StatBlock({ index, label, value }: { index: string; label: string; valu
   );
 }
 
-function TeamEmblem({ team }: { team: Team }) {
-  // 카드 프레임 = 리그 등급(브론즈/실버/골드/플래티넘). 등급이 곧 카드 비주얼.
-  const cardIndex = leagueTierCardIndex(team.leagueTier);
+function TeamEmblem({ team, cardTier }: { team: Team; cardTier: CardType }) {
+  const appearance = getTeamCardAppearance(cardTier);
+  const cardIndex = appearance.colorIndex;
   const [src, setSrc] = useState<string | null>(null);
 
   // 랜딩 캐러셀과 동일한 createTeamCardCanvas 함수로 카드 텍스처를 만들어
@@ -88,8 +80,9 @@ function TeamEmblem({ team }: { team: Team }) {
       id: team.id,
       name: team.name,
       logo: resolvedLogo,
-      frame: TEAM_CARD_VARIANTS[cardIndex],
+      frame: appearance.frame,
       colorIndex: cardIndex,
+      tier: cardTier,
     })
       .then((canvas) => {
         if (cancelled) return;
@@ -101,12 +94,13 @@ function TeamEmblem({ team }: { team: Team }) {
     return () => {
       cancelled = true;
     };
-  }, [team.id, team.name, team.logo, cardIndex]);
+  }, [team.id, team.name, team.logo, cardIndex, cardTier, appearance.frame]);
 
   return (
     <div
-      className="relative aspect-[1080/1240] w-full max-w-[240px] sm:max-w-[300px] lg:max-w-[360px] mx-auto"
+      className="relative w-full max-w-[240px] sm:max-w-[300px] lg:max-w-[360px] mx-auto"
       style={{
+        aspectRatio: TEAM_CARD_ASPECT_RATIO,
         filter: "drop-shadow(0 34px 70px rgba(0,0,0,0.24))",
       }}
     >
@@ -114,7 +108,7 @@ function TeamEmblem({ team }: { team: Team }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
-          alt={`${team.name} 카드`}
+          alt={`${team.name} ${appearance.label} 팀 카드`}
           className="absolute inset-0 h-full w-full select-none object-contain"
           draggable={false}
         />
@@ -122,7 +116,7 @@ function TeamEmblem({ team }: { team: Team }) {
         // 캔버스 준비 전 placeholder — 프레임만 우선 노출해 layout shift 방지.
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={TEAM_CARD_VARIANTS[cardIndex]}
+          src={appearance.frame}
           alt=""
           className="absolute inset-0 h-full w-full select-none object-contain opacity-70"
           draggable={false}
@@ -134,6 +128,7 @@ function TeamEmblem({ team }: { team: Team }) {
 
 export default function TeamDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const finalCardTier = useFinalCardTier(id);
   const store = useDataStore();
   const { player: currentPlayer } = useAuth();
   const [team, setTeam] = useState<Team | null>(null);
@@ -213,6 +208,7 @@ export default function TeamDetailPage() {
   const canManageTeam = canManageTeamHelper(currentPlayer, team);
   const topAssist = players.find((player) => player.id === rosterInsights.topAssistId);
   const recordLine = team ? buildTeamRecordLine(team.seasonStats) : "0W 0D 0L";
+  const cardAppearance = getTeamCardAppearance(finalCardTier ?? team?.leagueTier);
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -319,6 +315,13 @@ export default function TeamDetailPage() {
                   aria-label={`현재 리그: ${LEAGUE_TIER_LABEL[team.leagueTier]}`}
                 >
                   {LEAGUE_TIER_LABEL[team.leagueTier]}
+                </span>
+                <span
+                  className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-bold"
+                  style={{ background: "var(--color-fg-blue-deep)", color: cardAppearance.color }}
+                  aria-label={`카드 등급: ${cardAppearance.label}`}
+                >
+                  카드 등급 · {cardAppearance.label}
                 </span>
               </div>
               <h1 className="fg-display font-black" style={{ fontSize: "clamp(56px, 10vw, 132px)", lineHeight: 0.86, letterSpacing: "-0.045em", color: "var(--color-fg-blue-deep)", textShadow: "0 8px 22px rgba(0,71,171,0.10)" }}>
@@ -438,7 +441,7 @@ export default function TeamDetailPage() {
             </div>
 
             <div className="flex justify-center lg:justify-end">
-              <TeamEmblem team={team} />
+              <TeamEmblem team={team} cardTier={cardAppearance.tier} />
             </div>
           </div>
 

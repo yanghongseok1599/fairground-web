@@ -1,4 +1,6 @@
 import { prepareTeamCardLogo } from "@/lib/team-card-logo";
+import { getTeamCardAppearance, TEAM_CARD_SIZE, TEAM_CARD_TIER_ORDER } from "@/lib/team-card-appearance";
+import type { CardType } from "@/types";
 
 // 팀 카드(브론즈/실버/골드/플래티넘) 렌더링을 단일 캔버스 함수로 통일.
 // 랜딩 캐러셀(team-circular-gallery) 과 팀 상세 헤더(TeamEmblem) 가 같은
@@ -12,6 +14,7 @@ export interface TeamCardItem {
   logo?: string;
   frame: string;
   colorIndex: number;
+  tier?: CardType;
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -98,19 +101,20 @@ function drawContain(
   );
 }
 
-// 원본 프레임만 사용한다. 순위·우승 여부로 윤곽선/광채를 덧그리지 않는다.
+// 반짝임은 승인된 플래티넘 원본에만 들어 있다. 합성 시 효과를 덧그리지 않는다.
 function fitFont(
   ctx: CanvasRenderingContext2D,
   text: string,
   maxWidth: number,
   startSize: number,
+  minSize: number,
 ) {
   let size = startSize;
-  do {
+  while (true) {
     ctx.font = `900 ${size}px Pretendard, Arial, sans-serif`;
-    if (ctx.measureText(text).width <= maxWidth) break;
-    size -= 3;
-  } while (size > 42);
+    if (ctx.measureText(text).width <= maxWidth || size <= minSize) break;
+    size = Math.max(minSize, size - 1);
+  }
   return size;
 }
 
@@ -119,13 +123,10 @@ export async function createTeamCardCanvas(
   opts?: { width?: number },
 ): Promise<HTMLCanvasElement> {
   const canvas = document.createElement("canvas");
-  // 모든 드로잉 좌표는 1080×1240 논리 공간 기준이고, ctx.scale 로 실제 출력
-  // 해상도를 맞춘다. 호출처가 표시 크기에 맞는 width 를 주면(예: 랜딩 마퀴
-  // 200px 카드 → 540px) 캔버스 픽셀 수가 줄어 합성·메모리가 크게 감소한다.
-  // 미지정 시 1080(상세 페이지/고DPR 대응).
-  const scale = (opts?.width ?? 1080) / 1080;
-  canvas.width = Math.round(1080 * scale);
-  canvas.height = Math.round(1240 * scale);
+  // 1024×1536 원본 좌표를 모든 화면·내보내기에서 함께 사용한다.
+  const scale = (opts?.width ?? TEAM_CARD_SIZE.width) / TEAM_CARD_SIZE.width;
+  canvas.width = Math.round(TEAM_CARD_SIZE.width * scale);
+  canvas.height = Math.round(TEAM_CARD_SIZE.height * scale);
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.scale(scale, scale);
@@ -135,58 +136,34 @@ export async function createTeamCardCanvas(
   const [frame, logo] = await Promise.all([
     loadImage(item.frame),
     item.logo ? loadImage(item.logo).catch(() => null) : Promise.resolve(null),
+    document.fonts?.ready,
   ]);
 
-  // emerald(variant 3) PNG 는 본체 안쪽 콘텐츠가 다른 카드보다 캔버스에서
-  // 작은 비율로 그려져 풀-사이즈로 그려도 시각적으로 작아 보인다. 캔버스 밖
-  // 으로 ~9% over-draw 해서 다른 카드와 가시 크기를 맞춘다(잘리는 부분은
-  // 장식 외곽 여백이라 시각적 손실 없음). 다른 variant 는 원본 좌표 유지.
-  const isEmerald = item.colorIndex % 4 === 3;
-  if (isEmerald) {
-    const over = 0.04; // 4% over-draw (다른 카드와 가시 크기 정렬)
-    const dx = -1080 * over * 0.5;
-    const dy = -1240 * over * 0.5;
-    const dw = 1080 * (1 + over);
-    const dh = 1240 * (1 + over);
-    ctx.drawImage(frame, dx, dy, dw, dh);
-  } else {
-    ctx.drawImage(frame, 0, 0, 1080, 1240);
-  }
+  const appearance = getTeamCardAppearance(item.tier ?? TEAM_CARD_TIER_ORDER[item.colorIndex]);
+  ctx.drawImage(frame, 0, 0, TEAM_CARD_SIZE.width, TEAM_CARD_SIZE.height);
 
   if (logo) {
     const cardLogo = prepareTeamCardLogo(logo, item.id);
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,0.34)";
-    ctx.shadowBlur = 34;
-    ctx.shadowOffsetY = 18;
-    if (
-      item.name.includes("마포 레인저스") ||
-      item.name.includes("관악 드리머스")
-    ) {
-      drawContain(ctx, cardLogo, 314, 305, 453, 377);
-    } else {
-      drawContain(ctx, cardLogo, 289, 284, 503, 419);
-    }
+    ctx.shadowBlur = 16;
+    ctx.shadowOffsetY = 8;
+    const { x, y, width, height } = appearance.logo;
+    drawContain(ctx, cardLogo, x, y, width, height);
     ctx.restore();
   }
 
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const fontSize = fitFont(ctx, item.name, 560, 54);
+  const plate = appearance.nameplate;
+  const fontSize = fitFont(ctx, item.name, plate.maxWidth, plate.fontSize, plate.minFontSize);
   ctx.font = `900 ${fontSize}px Pretendard, Arial, sans-serif`;
   ctx.fillStyle = "#FFFFFF";
   ctx.shadowColor = "rgba(0,0,0,0.72)";
   ctx.shadowBlur = 12;
   ctx.shadowOffsetY = 4;
-  // emerald(variant 3) plate-bottom 정렬을 위해 nameY 만 945, 마포는 로고 위치
-  // 보정 920, 그 외 기본 850. (isEmerald 는 위에서 이미 선언.)
-  const nameY = item.name.includes("마포 레인저스")
-    ? 920
-    : isEmerald
-      ? 945
-      : 850;
-  ctx.fillText(item.name, 540, nameY);
+  ctx.fillText(item.name, plate.x, plate.y, plate.maxWidth);
   ctx.restore();
 
   return canvas;

@@ -13,7 +13,8 @@ import { HomeVideoHero } from "@/components/home-video-hero";
 import type { TeamGalleryItem } from "@/components/team-circular-gallery";
 import { getClubLogoPreset } from "@/components/club-emblem";
 import { TeamCardLink } from "@/components/team-card-link";
-import { leagueTierCardIndex } from "@/lib/team-home";
+import { getTeamCardAppearance, resolveTeamCardTier } from "@/lib/team-card-appearance";
+import { useFinalCardTiers } from "@/features/standings/use-final-card-tier";
 import { FICTIONAL_PLAYER_CARD_POSE_SOURCES } from "@/lib/player-card-pose-templates";
 import type { Team, Player } from "@/types";
 import { ArrowRight, MapPin, ShieldCheck, Ticket, Trophy, Users } from "lucide-react";
@@ -125,13 +126,6 @@ const SHOWCASE_TEAM_LOGOS = [
   "/images/team-logos/ref-orion.webp",
 ];
 
-const TEAM_CARD_VARIANTS = [
-  "/images/team-cards/team-card-bronze.webp?v=26",
-  "/images/team-cards/team-card-silver.webp?v=26",
-  "/images/team-cards/team-card-gold.webp?v=26",
-  "/images/team-cards/team-card-emerald.webp?v=26",
-];
-
 const CARD_TIER_BADGE = {
   bronze: {
     label: "브론즈",
@@ -208,6 +202,7 @@ const TOURNAMENT_FACTS = [
 
 export default function HomePage() {
   const store = useDataStore();
+  const finalCardTiers = useFinalCardTiers();
   const { user } = useAuth();
   const prefersReducedMotion = useReducedMotion();
   const [teams, setTeams] = useState<Team[]>([]);
@@ -217,19 +212,18 @@ export default function HomePage() {
   const teamGalleryItems = useMemo<TeamGalleryItem[]>(
     () =>
       teams.map((team, index) => {
-        // 카드 등급은 팀의 리그 등급(leagueTier)으로 결정 — 목록/상세 페이지와
-        // 동일한 leagueTierCardIndex 를 써서 모든 화면에서 등급이 일치하도록 통일.
-        // (기존: 배열 위치(index)로 배정해 페이지마다 등급이 달랐음)
-        const cardIndex = leagueTierCardIndex(team.leagueTier);
+        const tier = resolveTeamCardTier(team, finalCardTiers);
+        const appearance = getTeamCardAppearance(tier);
         return {
           id: team.id,
           name: team.name,
           logo: team.logo || getClubLogoPreset(team.name, index).asset,
-          frame: TEAM_CARD_VARIANTS[cardIndex],
-          colorIndex: cardIndex,
+          frame: appearance.frame,
+          colorIndex: appearance.colorIndex,
+          tier,
         };
       }),
-    [teams],
+    [teams, finalCardTiers],
   );
   const mobileShowcase = useMemo(() => {
     return showcasePlayers;

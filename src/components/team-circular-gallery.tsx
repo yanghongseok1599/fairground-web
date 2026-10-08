@@ -3,6 +3,7 @@
 import { Camera, Mesh, Plane, Program, Renderer, Texture, Transform } from "ogl";
 import { useEffect, useRef } from "react";
 import { createTeamCardCanvas, type TeamCardItem } from "@/lib/team-card-canvas";
+import { TEAM_CARD_SIZE } from "@/lib/team-card-appearance";
 
 const cn = (...classes: Array<string | undefined | null | false>) => classes.filter(Boolean).join(" ");
 
@@ -147,12 +148,6 @@ class Media {
       this.plane.position.y = this.bend > 0 ? -arc : arc;
       this.plane.rotation.z = (this.bend > 0 ? -1 : 1) * Math.sign(x) * Math.asin(effectiveX / radius);
     }
-    // emerald(variant 3) 만 살짝 위로 올려 다른 카드의 본체 baseline 과
-    // 시각적으로 맞춘다. 과거 5.5% 는 과해서 솟구쳐 보였고, 0% 는 약간 처져
-    // 보였다. 2% 가 절충점.
-    if (this.item.colorIndex % 4 === 3) {
-      this.plane.position.y += this.plane.scale.y * 0.02;
-    }
 
     const planeOffset = this.plane.scale.x / 2;
     const viewportOffset = this.viewport.width / 2;
@@ -174,7 +169,7 @@ class Media {
     if (viewport) this.viewport = viewport;
 
     const cardHeight = this.viewport.height * (this.screen.width < 768 ? 0.78 : 0.94);
-    const cardWidth = cardHeight * (1080 / 1240);
+    const cardWidth = cardHeight * (TEAM_CARD_SIZE.width / TEAM_CARD_SIZE.height);
     this.plane.scale.y = cardHeight;
     this.plane.scale.x = cardWidth;
     this.width = this.plane.scale.x + this.padding;

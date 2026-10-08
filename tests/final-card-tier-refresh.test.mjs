@@ -18,6 +18,7 @@ test('final card tier refresh batches tournament scores without event/photo quer
   assert.deepEqual(f.requests.map(row => row.table), ['tournaments', 'matches']);
   assert.deepEqual(f.requests[1].steps.find(([method]) => method === 'in'), ['in', 'tournament_id', ['cup', 'earlier']]);
   assert.ok(!f.requests[1].steps.find(([method]) => method === 'select')[1].includes('photo'));
+  assert.ok(f.requests.every(request => request.steps.every(([method]) => !['insert', 'update', 'upsert', 'delete'].includes(method))), '카드 등급 조회는 저장된 리그/경기 기록을 수정하지 않는다');
   f.responses.push({ data: [tournament], error: null }, { data: null, error: { message: 'score request failed' } });
   await assert.rejects(fetchFinalCardTiers(), /score request failed/);
 });
