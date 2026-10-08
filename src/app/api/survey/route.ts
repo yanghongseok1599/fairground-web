@@ -3,7 +3,8 @@ import { saveSurveyResponse } from "@/features/festival-survey/server";
 
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store, max-age=0" };
-const MAX_REQUEST_BYTES = 65_536;
+// Four legal 3,000-character answers can exceed 72 KiB when JSON escapes controls.
+const MAX_REQUEST_BYTES = 96 * 1024;
 
 export async function POST(request: Request) {
   if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get("content-type") ?? "")) {

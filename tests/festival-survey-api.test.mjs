@@ -38,8 +38,22 @@ test("malformed, incomplete or excessive inputs never reach the database", async
   assert.equal((await route.POST(request(submission, { "Content-Type": "text/plain" }))).status, 415);
   assert.equal((await route.POST(request({ ...submission, answers: { ...submission.answers, recommendation: null } }))).status, 422);
   assert.equal((await route.POST(request({ ...submission, answers: { ...submission.answers, ip: "192.0.2.1" } }))).status, 422);
-  assert.equal((await route.POST(request({ ...submission, answers: { ...submission.answers, bestMoment: "a".repeat(70_000) } }))).status, 413);
+  assert.equal((await route.POST(request({ ...submission, answers: { ...submission.answers, bestMoment: "a".repeat(100_000) } }))).status, 413);
   assert.equal(requests.length, 0);
+});
+
+test("four legal maximum-length free answers survive JSON escaping without a false payload rejection", async () => {
+  const { route, requests } = fixture();
+  const text = "a" + "\u0001".repeat(2998) + "a";
+  const answers = { ...submission.answers, bestMoment: text, improvement: text, safetyIncident: text, suggestions: text };
+  const input = { ...submission, answers };
+  assert.equal(text.length, 3000);
+  assert.ok(Buffer.byteLength(JSON.stringify(input)) > 65_536);
+  const reply = await route.POST(request(input));
+  assert.equal(reply.status, 200);
+  assert.deepEqual(await reply.json(), { success: true });
+  assert.equal(requests.length, 1);
+  assert.deepEqual(requests[0].answers, answers);
 });
 
 test("failed persistence never returns a success receipt and keeps retries identifiable", async () => {

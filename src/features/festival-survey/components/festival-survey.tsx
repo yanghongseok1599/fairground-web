@@ -21,7 +21,7 @@ function SectionHeading({ number, title, detail }: { number: string; title: stri
 }
 
 export function FestivalSurvey() {
-  const { answers, errors, update, submit, pending, submitting, submitted, message, ready } = useSurvey();
+  const { answers, errors, update, submit, pending, submitting, submitted, message, ready, storageWarning } = useSurvey();
   const completed = countAnsweredQuestions(answers) - Number(Boolean(answers.safetyIncident.trim())) - Number(Boolean(answers.suggestions.trim()));
   const progress = Math.round(completed / 10 * 100);
   const choices = <K extends "role" | "returnIntent" | "rulesOpinion" | "matchDuration" | "entryFee">(name: K, options: readonly { value: string; label: string }[], compact = false) => (
@@ -101,8 +101,9 @@ export function FestivalSurvey() {
               </fieldset>
 
               <div className={styles.submitArea}>
+                {storageWarning && <p className={styles.retryNotice} role="status">{storageWarning}</p>}
                 {message && <p className={styles.formError} role="alert">{message}</p>}
-                {pending && !submitting && <p className={styles.retryNotice}>중복 제출을 방지하기 위해 전송한 답변은 그대로 보관됩니다. 다시 전송하면 제출 결과를 확인할 수 있습니다.</p>}
+                {pending && !submitting && <p className={styles.retryNotice}>같은 응답을 다시 전송해 제출 결과를 확인할 수 있습니다. 중복 제출을 방지하기 위해 접수가 확인되기 전까지 답변을 변경하지 않습니다.</p>}
                 <button type="submit" className={styles.submitButton} disabled={submitting || !ready}>{submitting ? <><LoaderCircle className={styles.spinner} size={20} /> 응답 전송 중</> : <>{pending ? "응답 다시 전송" : "설문 제출하기"}<ArrowRight size={20} /></>}</button>
                 <p>보내주신 의견은 다음 대회를 준비하는 데 소중히 활용됩니다.</p>
               </div>
