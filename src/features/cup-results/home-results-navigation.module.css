@@ -1,0 +1,97 @@
+.rail {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 0.5rem 1.25rem 0.75rem;
+  scroll-padding-inline: 1.25rem;
+  scrollbar-width: none;
+}
+
+.rail::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  display: inline-flex;
+  min-height: 48px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.1rem;
+  border: 1px solid rgb(255 255 255 / 36%);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgb(47 64 87 / 78%), rgb(13 27 42 / 76%));
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgb(0 16 44 / 14%), inset 0 1px 0 rgb(255 255 255 / 20%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.tab:hover {
+  background: rgb(0 71 171 / 88%);
+}
+
+.tab[aria-selected="true"] {
+  border-color: rgb(255 255 255 / 88%);
+  background: linear-gradient(180deg, rgb(255 255 255 / 97%), rgb(232 242 255 / 92%));
+  color: #0047ab;
+  box-shadow: 0 8px 24px rgb(0 28 80 / 18%), inset 0 1px 0 #fff;
+}
+
+.tab:focus-visible {
+  outline: 3px solid #75b9ff;
+  outline-offset: 3px;
+}
+
+@media (min-width: 768px) {
+  .rail {
+    gap: 0.625rem;
+  }
+
+  .tab {
+    min-height: 52px;
+    padding-inline: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .rail {
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .tab {
+    background: #243c59;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .tab[aria-selected="true"] {
+    background: #f4f8ff;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tab {
+    background: #243c59;
+  }
+
+  .tab[aria-selected="true"] {
+    background: #f4f8ff;
+  }
+}

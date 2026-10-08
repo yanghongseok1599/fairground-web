@@ -278,22 +278,19 @@ export default function HomePage() {
     <div>
       <HomePromotionPopup hideMixedFutsal={cupCompleted === true} defer={cupCompleted === null} />
 
-      {/* ============================================================
-          HERO — Muted, looping event highlights
-          ============================================================ */}
-      <section
-        className="relative"
-        style={{ background: "var(--color-fg-paper)" }}
-        aria-label="FairGround — 모두가 승리하는 그라운드"
-      >
-        {/* Keep the page heading accessible independently of the video. */}
-        <h1 className="sr-only">
-          FairGround — 모두가 승리하는 그라운드. EVERYONE WINS ON THIS GROUND.
-        </h1>
-        <HomeVideoHero />
-      </section>
-
-      <HomeCupResults onResolved={setCupCompleted} />
+      <HomeCupResults onResolved={setCupCompleted}>
+        <section
+          className="relative"
+          style={{ background: "var(--color-fg-paper)" }}
+          aria-label="FairGround — 모두가 승리하는 그라운드"
+        >
+          {/* Keep the page heading accessible independently of the video. */}
+          <h1 className="sr-only">
+            FairGround — 모두가 승리하는 그라운드. EVERYONE WINS ON THIS GROUND.
+          </h1>
+          <HomeVideoHero />
+        </section>
+      </HomeCupResults>
 
       {/* ============================================================
           UPCOMING TOURNAMENT — 홈에서 대회로 가는 유일한 상시 경로.
