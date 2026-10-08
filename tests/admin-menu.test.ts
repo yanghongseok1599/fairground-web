@@ -5,6 +5,7 @@ const adminItems = getAdminMenuItems("admin");
 assert.deepEqual(
   adminItems.map((item) => item.href),
   [
+    "/admin/survey",
     "/admin/inspections",
     "/admin/matches",
     "/admin/tournaments",

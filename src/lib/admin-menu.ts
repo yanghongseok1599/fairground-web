@@ -1,5 +1,5 @@
 import type { PlayerRole } from "@/types";
-import { TOURNAMENT_WARNING_DISCIPLINE_SUMMARY } from "@/lib/discipline-policy";
+import { TOURNAMENT_WARNING_DISCIPLINE_SUMMARY } from "./discipline-policy.ts";
 
 export interface AdminMenuItem {
   title: string;
@@ -20,10 +20,19 @@ export interface AdminMenuItem {
     | "popups"
     | "push"
     | "groups"
-    | "entryFees";
+    | "entryFees"
+    | "surveyResults";
 }
 
 export const ADMIN_MENU_ITEMS: AdminMenuItem[] = [
+  {
+    title: "설문 결과",
+    description: "페스티벌 만족도 통계, 항목별 평가와 익명 의견을 한눈에 확인합니다",
+    href: "/admin/survey",
+    accent: "#0047AB",
+    roles: ["admin"],
+    metricKey: "surveyResults",
+  },
   {
     title: "현장 선수검인",
     description: "대회별 선수 본인 확인, 검인 완료·미완료 명단과 현황",

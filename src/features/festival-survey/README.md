@@ -11,6 +11,11 @@
 - `use-survey.ts`: 탭 내 초안 보관, 제출, 연결 실패 후 동일 응답 재전송.
 - `server.ts`, `src/app/api/survey/route.ts`: 익명 제출 API와 전용 RPC.
 - `supabase/migrations/20261008010000_festival_survey.sql`: 응답 저장과 DB 검증.
+- `results/model.ts`, `results/client.ts`: 결과 응답 검증·통계 계산과 로그인 세션을 쓰는 조회.
+- `results/components/`, `results/use-survey-results.ts`: 관리자 요약·분포·의견·개별 응답 화면과 새로고침.
+- `results/export-csv.ts`: 한국어 CSV, 엑셀용 UTF-8 BOM과 수식 실행 방지.
+- `src/app/admin/survey/`: 승인 관리자 전용 결과 페이지.
+- `supabase/migrations/20261008020000_festival_survey_results.sql`: 관리자 조회 RPC.
 
 ## 익명성과 저장
 
@@ -19,7 +24,16 @@
 답변에 직접 적은 내용은 그대로 저장되며, 호스팅 서비스의 기본 접근 로그와는 별개다.
 `festival_survey_responses`에는 무작위 응답 UUID, 답변 JSON, 서버 제출 시각만 있다.
 공개/회원/서비스 API 역할의 직접 조회·수정·삭제·삽입을 차단하고, 공개 조회 API는 두지 않는다.
-운영자는 Supabase SQL Editor 등 DB 소유자 권한으로 응답을 확인할 수 있다.
+승인된 관리자는 운영 콘솔의 **설문 결과**(`/admin/survey`)에서 모든 응답을 확인한다.
+조회 RPC `get_festival_survey_results`가 서버에서 로그인 회원의 `admin` 역할과 승인 상태를
+확인한다. 일반 회원·심판·검인 담당·미승인 관리자는 조회할 수 없으며 테이블 직접 권한은 유지한다.
+요약·분포·자유 의견·12문항 개별 응답과 CSV가 전체/주장/선수 필터에 함께 맞춰진다.
+추천 NPS는 `(9~10점 응답 수 - 0~6점 응답 수) / 전체 응답 수 × 100`이며,
+재참가 의향은 ‘꼭’과 ‘아마도’의 합계 비율이다. 응답이 없으면 평균·비율은 0 대신 표시하지 않는다.
+전체 응답은 단일 JSON 값으로 반환해 PostgREST의 기본 행 제한 때문에 통계가 잘리지 않는다.
+결과는 브라우저 영구 저장소에 보관하지 않는다. CSV에는 회원 정보와 응답 UUID를 넣지 않는다.
+
+DB 소유자는 필요한 경우 다음 읽기 전용 SQL로 확인할 수 있다.
 
 ```sql
 select created_at, answers
@@ -41,6 +55,7 @@ order by created_at desc;
 ```sh
 node --experimental-strip-types --test tests/festival-survey.test.ts
 node --test tests/festival-survey-api.test.mjs
+node --experimental-strip-types --test tests/festival-survey-results.test.ts tests/festival-survey-csv.test.ts
 # 별도 localhost DB에서만 실행; 테스트가 요구하는 환경변수는 파일 상단 참조
 node --test tests/festival-survey-database.test.mjs
 node scripts/survey/verify-migration.mjs

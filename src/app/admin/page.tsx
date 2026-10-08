@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, Bell, ClipboardCheck, Flag, Gamepad2, Layers, Megaphone, Wallet, Shield, ShieldCheck, Sparkles, Target, UserCheck, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, Bell, ClipboardCheck, Flag, Gamepad2, Layers, Megaphone, Wallet, Shield, ShieldCheck, Sparkles, Target, UserCheck, Users } from "lucide-react";
 import { useInspectionAccess } from "@/features/player-inspection/use-inspection-access";
 import { useAuth } from "@/hooks/useAuth";
 import { AdminGuard } from "@/components/admin-guard";
@@ -9,6 +9,7 @@ import { AdminShell, AdminTile } from "@/components/admin-shell";
 import { getAdminMenuItems } from "@/lib/admin-menu";
 
 const ICONS = {
+  surveyResults: BarChart3,
   inspections: ClipboardCheck,
   matches: Gamepad2,
   groups: Layers,

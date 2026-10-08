@@ -50,3 +50,10 @@ export function differences(before, after) {
     changed: before.filter(row => next.has(row.kind + ":" + row.identity) && JSON.stringify(row) !== JSON.stringify(next.get(row.kind + ":" + row.identity))).map(row => ({ before: row, after: next.get(row.kind + ":" + row.identity) })),
   };
 }
+
+export async function publicRowHashes(client, tableNames) {
+  const names = tableNames ?? (await client.query("select tablename from pg_tables where schemaname='public' order by tablename")).rows.map(row => row.tablename);
+  const result = {};
+  for (const table of names) result[table] = (await client.query(`select count(*)::int count,md5(coalesce(string_agg(h,'' order by h),'')) hash from (select md5(to_jsonb(r)::text) h from public.${quote(table)} r) q`)).rows[0];
+  return result;
+}

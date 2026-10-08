@@ -10,18 +10,20 @@ import { rootCertificates } from "node:tls";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { verifiedDatabaseClient } from "../supabase/verified-db-client.mjs";
-import { catalog, differences, hash, quote } from "./catalog.mjs";
+import { catalog, differences, hash, quote, publicRowHashes } from "./catalog.mjs";
+import { taskConfig, assertAdditivePlan } from "./task-config.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const args = process.argv.slice(2);
+const task = taskConfig(args);
 const option = (name, fallback) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
 const target = option("--environment", "development");
 const refs = { development: "fhytkbjadhnmozppolrv", production: "ovtnmslyjzvghirdvife" };
 assert.ok(refs[target], "Only FairGround development or production may be inspected.");
-const output = path.resolve(option("--output", path.join(root, "../output/ops/2026-10-08-festival-survey", target)));
+const output = path.resolve(option("--output", path.join(root, "../output/ops/" + task.evidenceDirectory, target)));
 assert.ok(!output.startsWith(root + path.sep), "Keep private backup evidence outside the Git checkout.");
-const migration = path.join(root, "supabase/migrations/20261008010000_festival_survey.sql");
-const testFile = path.join(root, "tests/festival-survey-database.test.mjs");
+const migration = path.join(root, "supabase/migrations", task.migrationFile);
+const testFile = path.join(root, "tests", task.testFile);
 const pgBin = "/opt/homebrew/opt/postgresql@17/bin";
 const save = (name, data) => fs.writeFileSync(path.join(output, name), JSON.stringify(data, null, 2), { mode: 0o600 });
 const parseEnvText = source => Object.fromEntries(source.split(/\r?\n/).flatMap(line => {
@@ -74,9 +76,7 @@ try {
   const before = await catalog(remote);
   const roles = (await remote.query("select rolname,rolsuper,rolinherit,rolcreaterole,rolcreatedb,rolcanlogin,rolreplication,rolbypassrls from pg_roles where rolname !~ '^pg_' order by rolname")).rows;
   const history = (await remote.query("select * from supabase_migrations.schema_migrations order by version")).rows;
-  const protectedRows = {};
-  const tables = (await remote.query("select tablename from pg_tables where schemaname='public' order by tablename")).rows;
-  for (const {tablename} of tables) protectedRows[tablename] = (await remote.query(`select count(*)::int count,md5(coalesce(string_agg(h,'' order by h),'')) hash from (select md5(to_jsonb(r)::text) h from public.${quote(tablename)} r) q`)).rows[0];
+  const protectedRows = await publicRowHashes(remote);
   await remote.query("rollback");
   save("before.json",{target,schemaHash:hash(before),objects:before,history});
   save("protected-before.json",protectedRows);
@@ -100,6 +100,16 @@ try {
   await local.query('create schema extensions; create extension if not exists pgcrypto with schema extensions; create extension if not exists "uuid-ossp" with schema extensions; create extension if not exists pg_trgm with schema extensions');
   const restoreEnvironment = { ...process.env,PGHOST:"127.0.0.1",PGPORT:String(port),PGUSER:"postgres",PGDATABASE:"postgres",PGPASSWORD:"",PGSSLMODE:"disable" };
   run(path.join(pgBin,"pg_restore"),["--exit-on-error","--use-list",tocFile,"--dbname","postgres",archive],restoreEnvironment);
+  // pg_dump omits an explicit owner-only ALL grant that equals its implicit default.
+  // Recreate only that known representation in the isolated shadow; remote ACLs stay untouched.
+  const initialRestore = await catalog(local);
+  for (const row of before) {
+    const restoredRow = initialRestore.find(candidate => candidate.kind === row.kind && candidate.identity === row.identity);
+    if (row.kind === "relation" && row.definition.kind === "r" && row.definition.owner === "postgres" &&
+        JSON.stringify(row.definition.acl) === '["postgres=arwdDxtm/postgres"]' && restoredRow?.definition.acl === null) {
+      await local.query(`grant all on table ${row.identity} to postgres`);
+    }
+  }
   const restored = await catalog(local);
   const restoreDiff = differences(before,restored);
   save("restore-diff.json",restoreDiff);
@@ -112,15 +122,15 @@ try {
   const planned = await catalog(local);
   const diff = differences(restored,planned);
   save("plan.json",{target,file:path.basename(migration),sqlHash,beforeHash:hash(restored),afterHash:hash(planned),...diff});
-  assert.equal(diff.removed.length,0,"Additive survey migration removes existing objects.");
-  assert.equal(diff.changed.length,0,"Additive survey migration modifies existing definitions/grants.");
-  assert.ok(diff.added.length>0,"Migration added no objects.");
-  assert.ok(diff.added.every(row=>row.identity.includes("festival_survey")||row.identity.includes("submit_festival_survey")),"Migration unexpectedly adds objects outside survey scope.");
+  assertAdditivePlan(task, diff);
   await local.query("rollback"); assert.deepEqual(await catalog(local),restored,"Transaction rollback did not restore exact catalog.");
   await local.query(sql);
-  const testOutput = run(process.execPath,[testFile],{...process.env,FESTIVAL_SURVEY_TEST_DATABASE_URL:localUrl,FESTIVAL_SURVEY_TEST_MIGRATION_APPLIED:"1"});
+  const testRows = await publicRowHashes(local);
+  const testOutput = run(process.execPath,[testFile],{...process.env,[task.databaseEnvironment]:localUrl,[task.appliedEnvironment]:"1"});
+  assert.deepEqual(await catalog(local),planned,"DB tests altered the applied catalog.");
+  assert.deepEqual(await publicRowHashes(local),testRows,"Synthetic DB tests did not roll back their fixtures.");
   fs.writeFileSync(path.join(output,"database-tests.txt"),testOutput,{mode:0o600});
-  const report = {target,checkedAt:new Date().toISOString(),hostedMutation:false,archiveBytes:fs.statSync(archive).size,archiveHash:hash(fs.readFileSync(archive)),restoredObjects:restored.length,exactDefinitionAndGrantMatch:true,existingObjectsChanged:0,addedObjects:diff.added.length,sqlHash,rollbackVerified:true,databaseTestsPassed:true,historyPreserved:true};
+  const report = {task:task.name,version:task.version,target,checkedAt:new Date().toISOString(),hostedMutation:false,archiveBytes:fs.statSync(archive).size,archiveHash:hash(fs.readFileSync(archive)),restoredObjects:restored.length,exactDefinitionAndGrantMatch:true,existingObjectsChanged:0,addedObjects:diff.added.length,sqlHash,rollbackVerified:true,databaseTestsPassed:true,historyPreserved:true,syntheticFixtureRollbackVerified:true};
   save("rehearsal.json",report); fs.rmSync(path.join(output,"failed.json"),{force:true}); console.log(JSON.stringify(report));
 } catch (error) {
   save("failed.json",{target,time:new Date().toISOString(),message:error.message,code:error.code,position:error.position,internalPosition:error.internalPosition,where:error.where,stderr:error.stderr ? String(error.stderr).slice(0,3000) : undefined,hostedMutation:false});
