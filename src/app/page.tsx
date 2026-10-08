@@ -277,7 +277,6 @@ export default function HomePage() {
   return (
     <div>
       <HomePromotionPopup hideMixedFutsal={cupCompleted === true} defer={cupCompleted === null} />
-      <HomeCupResults onResolved={setCupCompleted} />
 
       {/* ============================================================
           HERO — Muted, looping event highlights
@@ -294,10 +293,11 @@ export default function HomePage() {
         <HomeVideoHero />
       </section>
 
+      <HomeCupResults onResolved={setCupCompleted} />
+
       {/* ============================================================
           UPCOMING TOURNAMENT — 홈에서 대회로 가는 유일한 상시 경로.
-          가로 히어로 영상 바로 다음이라 딥블루 바탕으로 끊어
-          "여기부터 다른 이야기" 라는 신호를 준다. 날짜·장소·포맷은 모두
+          히어로와 대회 결과 다음에 딥블루 바탕으로 구분한다. 날짜·장소·포맷은 모두
           mixed-futsal-event 상수에서 온다.
           ============================================================ */}
       <section

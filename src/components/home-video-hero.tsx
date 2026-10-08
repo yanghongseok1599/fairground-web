@@ -90,13 +90,13 @@ export function HomeVideoHero() {
   }
 
   return (
-    <div className="relative aspect-video w-full overflow-hidden bg-black">
+    <div className="relative aspect-video w-full overflow-hidden bg-black md:aspect-[21/9]">
       <video
         ref={videoRef}
         id="home-hero-video"
         width={1920}
         height={1080}
-        className="block h-full w-full object-contain"
+        className="block h-full w-full object-cover object-center"
         poster={HERO_MEDIA.poster}
         autoPlay
         muted
@@ -124,4 +124,3 @@ export function HomeVideoHero() {
     </div>
   );
 }
-

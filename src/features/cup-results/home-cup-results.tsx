@@ -23,7 +23,7 @@ export function HomeCupResults({ onResolved }: { onResolved?: (completed: boolea
   });
   const results = snapshot?.tournament ? buildCupResults(snapshot.tournament, snapshot.matches, snapshot.players) : null;
   if (results) return <CupResultsSection results={results} home />;
-  if (failed) return <div className="bg-[#F4F7FC] px-5 pb-6 pt-24 text-center text-sm text-[#486581]">대회 결과를 다시 불러오는 중입니다. <Link className="font-bold text-[#0047AB] underline" href={`/tournaments/${CUP_RESULTS_TOURNAMENT_ID}`}>대회 상세 보기</Link></div>;
+  if (failed) return <div className="bg-[#F4F7FC] px-5 py-6 text-center text-sm text-[#486581]">대회 결과를 다시 불러오는 중입니다. <Link className="font-bold text-[#0047AB] underline" href={`/tournaments/${CUP_RESULTS_TOURNAMENT_ID}`}>대회 상세 보기</Link></div>;
   if (snapshot?.tournament) return <HomeKnockoutSchedule />;
   return null;
 }

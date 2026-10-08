@@ -26,7 +26,7 @@ function AwardCard({ award }: { award: CupAward }) {
 
 export function CupResultsSection({ results, home = false }: { results: CupResults; home?: boolean }) {
   const champion = results.placements[0];
-  return <section id="cup-results" aria-labelledby="cup-results-title" className={home ? "border-b bg-[#F4F7FC] px-5 pb-12 pt-24 md:pt-28" : "rounded-2xl bg-[#F4F7FC] p-5 md:p-8"}>
+  return <section id="cup-results" aria-labelledby="cup-results-title" className={home ? "border-b bg-[#F4F7FC] px-5 py-10 md:py-12" : "rounded-2xl bg-[#F4F7FC] p-5 md:p-8"}>
     <div className="mx-auto max-w-6xl space-y-7">
       <div className="rounded-2xl bg-[#0D1B2A] p-6 text-white md:p-8">
         <p className="text-xs font-bold tracking-widest text-[#B9CDF0]">FAIRGROUND CUP 1ST · 2026.10.03 · 대회 종료</p>
