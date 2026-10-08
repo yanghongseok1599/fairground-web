@@ -5,6 +5,7 @@ import { HOME_RESULTS_PANEL_ID, homeResultTabId, type HomeResultTab } from "./ho
 import { HomeResultsNavigation } from "./home-results-navigation";
 import { HomeResultsPanel } from "./home-results-panel";
 import type { CupResults } from "./types";
+import styles from "./home-results-navigation.module.css";
 
 export function HomeResultsExplorer({ results, children, fallback }: {
   results: CupResults | null;
@@ -26,11 +27,11 @@ export function HomeResultsExplorer({ results, children, fallback }: {
 
   return (
     <div className="relative isolate">
-      {/* Zero-height sticky navigation overlays the video without changing its aspect ratio. */}
-      {results && <div className="sticky top-[68px] z-20 h-0 md:top-[76px]">
+      {children}
+      {/* Overlap the video's lower edge, then keep the result tabs available while scrolling. */}
+      {results && <div className={styles.overlay}>
         <HomeResultsNavigation selected={selected} onSelect={selectResult} />
       </div>}
-      {children}
       {results ? (
         <section id="cup-results" ref={panelRef} className="scroll-mt-36 border-b bg-[#F4F7FC] px-5 py-8 md:scroll-mt-40 md:py-10" aria-labelledby="cup-results-title">
           <div

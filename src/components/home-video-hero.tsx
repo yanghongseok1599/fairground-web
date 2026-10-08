@@ -113,7 +113,7 @@ export function HomeVideoHero() {
       </video>
       <button
         type="button"
-        className="absolute right-3 bottom-3 flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white transition-colors hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:right-5 md:bottom-5"
+        className="absolute left-3 bottom-3 flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/60 text-white transition-colors hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:left-5 md:bottom-5"
         onClick={togglePlayback}
         aria-label={isPlaying ? "영상 일시정지" : "영상 재생"}
         aria-controls="home-hero-video"
