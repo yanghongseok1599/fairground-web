@@ -7,7 +7,7 @@
     "predev": "node scripts/supabase/check-safety.mjs dev",
     "dev": "next dev",
     "dev:event": "FAIRGROUND_EVENT_LOCAL=1 npm run dev -- --hostname 0.0.0.0 --port 3100",
-    "prebuild": "node scripts/supabase/check-schema-parity.mjs",
+    "prebuild": "node scripts/supabase/check-schema-parity.mjs && node scripts/proposals/check-media-assets.mjs",
     "build": "next build && next-sitemap",
     "start": "next start",
     "start:event": "FAIRGROUND_EVENT_LOCAL=1 next start --hostname 0.0.0.0 --port 3100",
