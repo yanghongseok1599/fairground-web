@@ -1,0 +1,1317 @@
+{
+  "date": "2026-10-12",
+  "policy": "단체·시상 장면은 같은 인원·구도별 3~5장. 이미 3장 미만인 장면은 보존. 얼굴 가림, 표정, 선명도, 전체 구도를 시각 검수. Drive 원본은 변경하지 않음.",
+  "beforeCount": 2331,
+  "afterCount": 2215,
+  "groups": [
+    {
+      "label": "수박 FC 사전 기념사진",
+      "range": [
+        678,
+        698
+      ],
+      "keep": [
+        682,
+        690,
+        697
+      ],
+      "retainedIds": [
+        "1vOAQRuXyf1n7aULVlU2iwnC8O2PI2-2s",
+        "1RToMBIP-Sivk_f2iYGU5HdKnZRKwFXCs",
+        "1AZZBiay6KX-1BIt2AtVq5XfSn2kU0ccK"
+      ]
+    },
+    {
+      "label": "혼합 참가팀 사전 기념사진",
+      "range": [
+        700,
+        708
+      ],
+      "keep": [
+        700,
+        702,
+        708
+      ],
+      "retainedIds": [
+        "1KF2oYdaK4Nb246IN5HJq3TXbofPZvoaI",
+        "14SZbC08JVE0rJqjfihgY0y5Su08UzT8k",
+        "1L9J29olFS34L6xjr8qBFVXBKC-A_3y_l"
+      ]
+    },
+    {
+      "label": "개회 전체 단체사진",
+      "range": [
+        947,
+        964
+      ],
+      "keep": [
+        948,
+        951,
+        953,
+        961,
+        964
+      ],
+      "retainedIds": [
+        "1Ga8hqAz91rZp-xGg6le2wsVnWxywUZS4",
+        "1AWaR0Ytj504TDe5124nowHZRfl3MUmZt",
+        "1U9xj2nYyC-5G8HScMg8UXWOS4ehOMjUz",
+        "1jvjNWNfoyqKEP7G3KNOMxJGQc76RTCnr",
+        "1W3kqZqnbevcVgkOfoH0MguP7P5gcZPrf"
+      ]
+    },
+    {
+      "label": "심판 단체사진",
+      "range": [
+        974,
+        984
+      ],
+      "keep": [
+        974,
+        977,
+        981,
+        984
+      ],
+      "retainedIds": [
+        "14vHbv3wqZrbHmKlFX1nSjXdNNPeoEjVu",
+        "1ikgl9Tzxg3tCJIDRoH9lRrCyXHxiU7Or",
+        "16jh8xyE-CPihnKbLqUvoxVIXRKMjgSjs",
+        "1Y2Me0thC7NPYbRXgXBPUqD3tEvcjVS5z"
+      ]
+    },
+    {
+      "label": "실내 단체 시상 1",
+      "range": [
+        1704,
+        1716
+      ],
+      "keep": [
+        1706,
+        1710,
+        1715
+      ],
+      "retainedIds": [
+        "1w22pVTfB36tETVdvxkI7zhTYpvggjn2S",
+        "1isbjiW64i-dmIsOZUrK7zIji-PHw62f4",
+        "1M0GY7V1jWjBZbyrmmVaRowUAaoisb6EC"
+      ]
+    },
+    {
+      "label": "실내 단체 시상 2",
+      "range": [
+        1723,
+        1727
+      ],
+      "keep": [
+        1724,
+        1726,
+        1727
+      ],
+      "retainedIds": [
+        "1FZx9-4HhvECTrbmywdqbMPKXOJMhetZO",
+        "1LFGuGgs45DLoPXbiQl0I6eFLYy0PWvg3",
+        "1TyjjutP22LBCiul1XI5Yoc2mX7gMiItG"
+      ]
+    },
+    {
+      "label": "두 팀 합동 기념사진",
+      "range": [
+        2151,
+        2172
+      ],
+      "keep": [
+        2159,
+        2161,
+        2172
+      ],
+      "retainedIds": [
+        "1LHLsLdOUasNKrE24o8mg5kS7g6HgIkFd",
+        "1BBFnENpfcXS4uToftlOnPD5rvE4Wge0j",
+        "1DYLmgKO3sDuNRAwLpFy-iJrQQG46XQOJ"
+      ]
+    },
+    {
+      "label": "흰색 유니폼 팀 기념사진",
+      "range": [
+        2174,
+        2179
+      ],
+      "keep": [
+        2174,
+        2177
+      ],
+      "retainedIds": [
+        "18IcGEBzE_L6f-MaUApZt6ZnZWpeE7A8E",
+        "1kf8Nqyg5T87erEuSzwUHZXXTqg9rQ_5F"
+      ],
+      "note": "이전 선별 후 2장만 남아 있던 장면은 추가 제외하지 않음."
+    },
+    {
+      "label": "파란색 유니폼 팀 기념사진",
+      "range": [
+        2180,
+        2193
+      ],
+      "keep": [
+        2183,
+        2186,
+        2193
+      ],
+      "retainedIds": [
+        "1puAimJb88M7T4ZQHLa5A7dw41lLl9gVq",
+        "1Spulkw1v3QArnAWhGQ35011OXoYLFPBH",
+        "1JrdKHvfed41ATESYngEvfl2EoCYtLhVW"
+      ]
+    },
+    {
+      "label": "수박 FC 경기 전 단체사진",
+      "range": [
+        2423,
+        2427
+      ],
+      "keep": [
+        2423,
+        2425,
+        2427
+      ],
+      "retainedIds": [
+        "1foCmfnaAGUzhz7HV16WmNV_3w34onN5z",
+        "19xnLbFD25_MOLEKj1zwezhtSIUsxdsB2",
+        "1y59ACEbJ9KZ1DEYn-DWzUa8yi8RMfKlC"
+      ]
+    },
+    {
+      "label": "결승 전 남색 팀 정렬",
+      "range": [
+        2489,
+        2493
+      ],
+      "keep": [
+        2490,
+        2491,
+        2493
+      ],
+      "retainedIds": [
+        "1R79Mr3Zg9RLx41oREZt8fP_yMum5bxKp",
+        "1dIiRUjhVkRvTiAG1GCJJiFe-m7r0_giv",
+        "1Xu86IVtjC82-JDCpuP4BFHhY77cExPyU"
+      ]
+    },
+    {
+      "label": "결승 전 흰색 팀 정렬",
+      "range": [
+        2494,
+        2499
+      ],
+      "keep": [
+        2495,
+        2496,
+        2498
+      ],
+      "retainedIds": [
+        "1AnzoECy0to6Ay-uIZkyLuKhb7RI2saqx",
+        "1t0QD0JVkyV2xM2dxw80IaycoHNDu_GwN",
+        "1wRVLFzXeCA6Z1HwgRRptLUD_f7vZIevq"
+      ]
+    },
+    {
+      "label": "데카트론 합동 기념사진",
+      "range": [
+        2590,
+        2604
+      ],
+      "keep": [
+        2590,
+        2597,
+        2599
+      ],
+      "retainedIds": [
+        "17Md9gN_ukCFJtUZ9cVTNOYsgATHZ0F0p",
+        "1k56oRMMMwIUp9JG8Aiti1aF-lPsKLfWE",
+        "1f0-bef6VkHvPz1CNZl0TxNNE1aL1dU3R"
+      ]
+    },
+    {
+      "label": "데카트론 관심점 팀 기념사진",
+      "range": [
+        2605,
+        2621
+      ],
+      "keep": [
+        2605,
+        2613,
+        2617
+      ],
+      "retainedIds": [
+        "19mX_fWseZR6eWy3xV7sblB7BSz5t0ZzV",
+        "1GwnYYwJjTb8UHoS0b2OJ0H-SotBXV5ge",
+        "1MjDKdIxyliEgs7VmwkrT5314zIKDimzo"
+      ]
+    },
+    {
+      "label": "데카트론 시흥점 팀 기념사진",
+      "range": [
+        2622,
+        2634
+      ],
+      "keep": [
+        2625,
+        2627,
+        2631
+      ],
+      "retainedIds": [
+        "19NlP-yU4x0NNg5bTp1N0VWKDowsaui5z",
+        "1cN-7VQBSffHAG1nSMZ0QnLcffcXy85WG",
+        "1clOdxU78Tj84amK-_zsksYVcndskdd3e"
+      ]
+    },
+    {
+      "label": "BOB FS 팀 기념사진",
+      "range": [
+        2635,
+        2650
+      ],
+      "keep": [
+        2644,
+        2647,
+        2649
+      ],
+      "retainedIds": [
+        "1mxya4FO4BDlDTYnA7H4iZ6orACh2z0aK",
+        "1uZgL5CP9Z_CKpj98jXR_b6Qnil-3X-IO",
+        "1nTCZhzs9OElM7Ut36ePOjfILOfdRNcWC"
+      ]
+    },
+    {
+      "label": "FC 흰둥이 팀 기념사진",
+      "range": [
+        2651,
+        2661
+      ],
+      "keep": [
+        2654,
+        2657,
+        2659
+      ],
+      "retainedIds": [
+        "1tzr839nHDkusxL7_3wDN11s--wbG1bSS",
+        "1U36EQSHnSIMorQdfFE2BXHsJH0bUdXNn",
+        "1UfP7AsYaT4HQ4WvqDLeR-7vV4hIzEkzV"
+      ]
+    },
+    {
+      "label": "남자 MOM 시상",
+      "range": [
+        2669,
+        2675
+      ],
+      "keep": [
+        2671,
+        2672,
+        2674
+      ],
+      "retainedIds": [
+        "1RH4gHNbCjMy9ZGFlKjopaQV6MWOVa-1G",
+        "1bbhQcbkQWvGNMRundB2047ne_H4z5tLD",
+        "1cqTyreA-fP9GRysxn7g0gwJkPsz48GZc"
+      ]
+    },
+    {
+      "label": "여자 MOM 시상",
+      "range": [
+        2685,
+        2694
+      ],
+      "keep": [
+        2686,
+        2687,
+        2690
+      ],
+      "retainedIds": [
+        "1JldJ71we2uR9g_MqzQpb3Aoi7cdJ8Pct",
+        "1eXZd8Wz_j31mdw1I4_CKZybtebpecXXk",
+        "1uYSx3XspG_YyUmqqgABuh39ST-HlEoc4"
+      ]
+    },
+    {
+      "label": "득점상 시상",
+      "range": [
+        2703,
+        2710
+      ],
+      "keep": [
+        2704,
+        2706,
+        2709
+      ],
+      "retainedIds": [
+        "1ulTezDFkgPuK21TEU4eo6CY8Kmc3vnee",
+        "1OqZH1Xr1MN1L1gRaPqkmHatFr9DivAci",
+        "18tBi2Q8y34WZav3MlVxMfROBzjNW3Jty"
+      ]
+    },
+    {
+      "label": "골키퍼상 시상",
+      "range": [
+        2723,
+        2730
+      ],
+      "keep": [
+        2724,
+        2726,
+        2728
+      ],
+      "retainedIds": [
+        "1vHS3EFWEbV7jrqR5XLQBBnKbFSJNt-8z",
+        "1e1LeBsUST-cMGZg8QnFblvDxzvX3qChU",
+        "1TxPQoMvgo4O3zlKt0akBWhDifVYflNzF"
+      ]
+    },
+    {
+      "label": "FC 흰둥이 시상",
+      "range": [
+        2731,
+        2735
+      ],
+      "keep": [
+        2731,
+        2732,
+        2734
+      ],
+      "retainedIds": [
+        "1TuDhhsuUSN5PC_QTx4fDHREFXOe3jDBI",
+        "1CdBeCjlBw-kz7zPDdzKfkqruCCMnzddC",
+        "1G8KTrHOiUX8nTk62oYK8Ig0dLTQ4MelC"
+      ]
+    },
+    {
+      "label": "FC LEGACY 시상",
+      "range": [
+        2736,
+        2743
+      ],
+      "keep": [
+        2736,
+        2738,
+        2741
+      ],
+      "retainedIds": [
+        "17RQ6_3aZqLhrNi8inpIYnXhA8XXmpchT",
+        "1Xw9v6k_eevanVVar6auLHgPeX1Q_exZ8",
+        "1RLiOZ5RFz03OCkyuG7kxxGy4HrbMEv_J"
+      ]
+    },
+    {
+      "label": "데카트론 관심점 시상",
+      "range": [
+        2744,
+        2747
+      ],
+      "keep": [
+        2744,
+        2745,
+        2746
+      ],
+      "retainedIds": [
+        "16MUHtk8ULjLxmH06_NpFYC9ysgYE7_a7",
+        "1lXfmTQLtB0HeJNjdNwcnTkCNv9lS7ntP",
+        "1D9oSfwbLlSXmi0c5KKsGaikZPCuDvnXl"
+      ]
+    },
+    {
+      "label": "수박 FC 시상",
+      "range": [
+        2748,
+        2755
+      ],
+      "keep": [
+        2748,
+        2749,
+        2750,
+        2753
+      ],
+      "retainedIds": [
+        "1I46r9O_7qqxmSh0uTEJArkJMySx0gI_b",
+        "1X2fMK34NN5jUf317ITBbfA8BfGUXzJMR",
+        "1OI608kYqdHdBHBj9FsRbBpQAvL2UrKQo",
+        "1At9cq7G5zjX_HkY0BS-z1e6WKWEq9jUR"
+      ]
+    },
+    {
+      "label": "준우승 시상·트로피 세리머니",
+      "range": [
+        2756,
+        2772
+      ],
+      "keep": [
+        2757,
+        2761,
+        2765,
+        2767,
+        2770
+      ],
+      "retainedIds": [
+        "1HD3unT3s75iMYvUKnHDFJveRvtwliCMB",
+        "1G8R0eQb0nd4Wja7TKdgvoB08hA1XvGQn",
+        "1y8VkOSi2SAG7wh7OS0d6n9OlQRsvRH4I",
+        "1ZvVqtDvul0qH_ZC0g46gcpoamSNh6xFJ",
+        "1nlWcYUoAhsAsoNXIkhuZPdiPAaUcsa6_"
+      ]
+    },
+    {
+      "label": "우승 시상·트로피 세리머니",
+      "range": [
+        2779,
+        2791
+      ],
+      "keep": [
+        2779,
+        2781,
+        2787,
+        2788,
+        2790
+      ],
+      "retainedIds": [
+        "1C59vpEiL-uTUP5h01oBJMNndi-6mFNAk",
+        "1f1nWig6q1PyWrK6u1zUdYmil_0nrYn6H",
+        "1oXbiZVZM7swK0nG1TQqvrkfPf1jekX2a",
+        "1Lle9qiForsHOSQDvSEp38yjalwe9IitR",
+        "1ntxVCEnn9kK-j5B1ORkKq_VoLcQa0JjQ"
+      ]
+    },
+    {
+      "label": "폐회 전체 단체사진",
+      "range": [
+        2792,
+        2839
+      ],
+      "keep": [
+        2807,
+        2810,
+        2816,
+        2818,
+        2820
+      ],
+      "retainedIds": [
+        "1RP-EVY_sG0Q3ZiMeERG-esiowLyiXM93",
+        "1kL42kDMHI4FBRUlvCEtELRhWtTmXRnjc",
+        "1gcg6BtF233LJvwURPhe0x8B6SN4_2XhH",
+        "1Tfqy2dubAij15H1yzvxQgnaJyxjAh7aZ",
+        "1HPp5reThUBnJkortEjBYYN_darzuX_-O"
+      ]
+    }
+  ],
+  "excluded": [
+    {
+      "id": "1Zfq8s7GMJk3HkH11HVzYNSdzmxAyW8Wd",
+      "name": "20261003_페어그라운드 678.jpg",
+      "size": 37798353,
+      "group": "수박 FC 사전 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1bvwcFlMnSMaokuRS6acFJNDpI0Om_KqY",
+      "name": "20261003_페어그라운드 679.jpg",
+      "size": 37770361,
+      "group": "수박 FC 사전 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "10ZCTumXoFIZfmNt2wnjp_6jYHsrzR5cj",
+      "name": "20261003_페어그라운드 680.jpg",
+      "size": 37591565,
+      "group": "수박 FC 사전 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1j2i2Ri3W2r8gtXZyUWTunrqNwgKj0YUL",
+      "name": "20261003_페어그라운드 685.jpg",
+      "size": 37736503,
+      "group": "수박 FC 사전 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1uOU4jg9Vn6JLo7NSeM6LQAKtqtRj5cOs",
+      "name": "20261003_페어그라운드 688.jpg",
+      "size": 37168605,
+      "group": "수박 FC 사전 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "11vBsA5DVYujUfPYUgxjs2UJUBcfxocPs",
+      "name": "20261003_페어그라운드 691.jpg",
+      "size": 41062861,
+      "group": "수박 FC 사전 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1qgl4jioFgvhCIFBXaLnQA8W2YYyShsr-",
+      "name": "20261003_페어그라운드 693.jpg",
+      "size": 41258532,
+      "group": "수박 FC 사전 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "155JsHlNyfu5IIjKWGa7rsUqKiXjUnC-K",
+      "name": "20261003_페어그라운드 694.jpg",
+      "size": 40247880,
+      "group": "수박 FC 사전 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1y4yfvTB_TpuSLmpgBeiPbhGzFm48eGHR",
+      "name": "20261003_페어그라운드 695.jpg",
+      "size": 39806663,
+      "group": "수박 FC 사전 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1uT84YxHEnMUrN9qO7nxCzJncxtRUkWiM",
+      "name": "20261003_페어그라운드 701.jpg",
+      "size": 40501269,
+      "group": "혼합 참가팀 사전 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1_ES5MCR0Xr5oLuqcZ9HTGcfyKUt8Intt",
+      "name": "20261003_페어그라운드 705.jpg",
+      "size": 41331702,
+      "group": "혼합 참가팀 사전 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1_4CxKMEY26t08yORwk52YGPbjbQurnWB",
+      "name": "20261003_페어그라운드 947.jpg",
+      "size": 44392140,
+      "group": "개회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1QqLCMXBEsUr6RlmMWatFA_997oiY_DE-",
+      "name": "20261003_페어그라운드 950.jpg",
+      "size": 60680165,
+      "group": "개회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "13tjAUMRpJu2PFcu2BZ42HANMXx-jlSRA",
+      "name": "20261003_페어그라운드 952.jpg",
+      "size": 51618463,
+      "group": "개회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1HqNf98qUhwTzpJ-Hcg_dc8iwlmt-fVZR",
+      "name": "20261003_페어그라운드 956.jpg",
+      "size": 58667946,
+      "group": "개회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1mp0z01tQUse-g2kRF3tYgLFM1z3pgjEy",
+      "name": "20261003_페어그라운드 963.jpg",
+      "size": 59910497,
+      "group": "개회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1_UTkH6nT3hCB1BR07GPEBlgjapMbV2Lt",
+      "name": "20261003_페어그라운드 975.jpg",
+      "size": 43424518,
+      "group": "심판 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1qUDxsGQwySYhz59xo5btTYoUKvnGMIh2",
+      "name": "20261003_페어그라운드 979.jpg",
+      "size": 42870245,
+      "group": "심판 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1Epd_5BEfwWP3F43TVjU7lbmDHrZdJfpc",
+      "name": "20261003_페어그라운드 982.jpg",
+      "size": 43240229,
+      "group": "심판 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1ZlIjCJyEX5ssTL0ivajarEWWVhqR4N1A",
+      "name": "20261003_페어그라운드 983.jpg",
+      "size": 42199739,
+      "group": "심판 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1WPqmt-CR1Xb5gqbZO54Yr_3-7vFKwDF5",
+      "name": "20261003_페어그라운드 1704.jpg",
+      "size": 38325649,
+      "group": "실내 단체 시상 1",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1Qzk-1tSazcL57SjQNj-NVsFLAoXOA9k5",
+      "name": "20261003_페어그라운드 1708.jpg",
+      "size": 39210008,
+      "group": "실내 단체 시상 1",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "107mpO_F6foTDWBDpSmsv5DzB0L2L0IwO",
+      "name": "20261003_페어그라운드 1712.jpg",
+      "size": 39850461,
+      "group": "실내 단체 시상 1",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1B6x48FLjpoV5mTHjg-KvRrJ_V-WyUaD2",
+      "name": "20261003_페어그라운드 1714.jpg",
+      "size": 39602515,
+      "group": "실내 단체 시상 1",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1Cn7R5-IUDEDxPgJoPRrveNWXwZJoQiUv",
+      "name": "20261003_페어그라운드 1716.jpg",
+      "size": 40224490,
+      "group": "실내 단체 시상 1",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1epl85LIZQA9GfQFMYAkbysKq3_qYo-i8",
+      "name": "20261003_페어그라운드 1723.jpg",
+      "size": 32863409,
+      "group": "실내 단체 시상 2",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "15dWLgKtvBJy91-BZbvNLFQMjurZtvn3c",
+      "name": "20261003_페어그라운드 2151.jpg",
+      "size": 38175534,
+      "group": "두 팀 합동 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "11PwJiwsYjj3G84caKAbWyVi50I8y0rUX",
+      "name": "20261003_페어그라운드 2164.jpg",
+      "size": 37885435,
+      "group": "두 팀 합동 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1odaNZJIJOe3Vgivem7Ayl6nRUQ11tblR",
+      "name": "20261003_페어그라운드 2166.jpg",
+      "size": 38814897,
+      "group": "두 팀 합동 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1kuji-M-D1_aEpR0QfA9rUYhkDTiJozj7",
+      "name": "20261003_페어그라운드 2168.jpg",
+      "size": 38801296,
+      "group": "두 팀 합동 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "18RExcNP-JNDJMzjaCFjzbntii2EKl0m_",
+      "name": "20261003_페어그라운드 2180.jpg",
+      "size": 37570246,
+      "group": "파란색 유니폼 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "13BLwv9_J8HqeVhQtll-SV9TJwD8mrStD",
+      "name": "20261003_페어그라운드 2190.jpg",
+      "size": 37630463,
+      "group": "파란색 유니폼 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1SGgLvy-uO7tUgAxPcjE-gaEfMfXDV9EN",
+      "name": "20261003_페어그라운드 2424.jpg",
+      "size": 38879298,
+      "group": "수박 FC 경기 전 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1I0A6JbevAiaK9QIo3Cfx8yPEOQuHe9lb",
+      "name": "20261003_페어그라운드 2426.jpg",
+      "size": 38905419,
+      "group": "수박 FC 경기 전 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "15kXyq62d43LTWD-3BMZns0r_h4zL1tK9",
+      "name": "20261003_페어그라운드 2489.jpg",
+      "size": 39127140,
+      "group": "결승 전 남색 팀 정렬",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1z7H_qVXcgU4ELR7bbrccevRS2AeFiKV9",
+      "name": "20261003_페어그라운드 2492.jpg",
+      "size": 39194341,
+      "group": "결승 전 남색 팀 정렬",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1z6lFc_7kJ6CVgvcTcMUKfB0o-5e8RTSM",
+      "name": "20261003_페어그라운드 2494.jpg",
+      "size": 41101841,
+      "group": "결승 전 흰색 팀 정렬",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1KltH8rYpquCyL9Zkg9CLAoDGFYIaG0G8",
+      "name": "20261003_페어그라운드 2497.jpg",
+      "size": 41187911,
+      "group": "결승 전 흰색 팀 정렬",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1leVuMI3Rz8VLQfy43JwQVKzNyhtMUVwW",
+      "name": "20261003_페어그라운드 2499.jpg",
+      "size": 41182152,
+      "group": "결승 전 흰색 팀 정렬",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "13e0O_TIkNidqdoqtYfhvPQ2NGtsmzZqe",
+      "name": "20261003_페어그라운드 2592.jpg",
+      "size": 40287251,
+      "group": "데카트론 합동 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1F04p6WKsm6hbA1RjNYR_oi0cYXJ3CwAo",
+      "name": "20261003_페어그라운드 2595.jpg",
+      "size": 38863099,
+      "group": "데카트론 합동 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1ab4BuXYHgdUDY4voAeuHSJharvYGHx96",
+      "name": "20261003_페어그라운드 2601.jpg",
+      "size": 39961784,
+      "group": "데카트론 합동 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1Gz5sCR33nPukvldCjQS_FU4A2uBcPHyR",
+      "name": "20261003_페어그라운드 2609.jpg",
+      "size": 39090384,
+      "group": "데카트론 관심점 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "19SNtWOXJatyNa5MiVULlIbgaGnHO9Vgz",
+      "name": "20261003_페어그라운드 2611.jpg",
+      "size": 38936374,
+      "group": "데카트론 관심점 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1cNYxKX7DtQUvKXqnBqXt2wtnek8FkLlV",
+      "name": "20261003_페어그라운드 2614.jpg",
+      "size": 39113714,
+      "group": "데카트론 관심점 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1uBXGuE89dyvQd-KKnOAJIz9ewVNghXyX",
+      "name": "20261003_페어그라운드 2616.jpg",
+      "size": 39423514,
+      "group": "데카트론 관심점 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1c4u8SxcgSW4I0oGMTufKwcfYRe4hot5Y",
+      "name": "20261003_페어그라운드 2618.jpg",
+      "size": 38562975,
+      "group": "데카트론 관심점 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "113Uk5ehl5ZeX6UABtaF-SE_uVa9ysn3c",
+      "name": "20261003_페어그라운드 2620.jpg",
+      "size": 37294464,
+      "group": "데카트론 관심점 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1ui2jK8WZpImMFjMou1nN0Pa4q1RTEo9r",
+      "name": "20261003_페어그라운드 2622.jpg",
+      "size": 39411991,
+      "group": "데카트론 시흥점 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1JPVLpu3850D2VWcFIh1SNii8OXEXuq2m",
+      "name": "20261003_페어그라운드 2629.jpg",
+      "size": 39008374,
+      "group": "데카트론 시흥점 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1jL1M6-d5MVBagNzR7jiiP_19pGt0OUHw",
+      "name": "20261003_페어그라운드 2630.jpg",
+      "size": 38432220,
+      "group": "데카트론 시흥점 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1mniC45SxKVT7DnK2rqKG_XwXTzuo86Tc",
+      "name": "20261003_페어그라운드 2635.jpg",
+      "size": 36744192,
+      "group": "BOB FS 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1-bOYYVWC1nN0lttrGjIn8sIY9-fmhhdr",
+      "name": "20261003_페어그라운드 2636.jpg",
+      "size": 36847189,
+      "group": "BOB FS 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1R58WrR5FbW0FIxdmwtzguRdOfjhUgLVc",
+      "name": "20261003_페어그라운드 2637.jpg",
+      "size": 37136173,
+      "group": "BOB FS 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "18IbNBeE46nsvWcAJpjoVNDOjWQG1koVO",
+      "name": "20261003_페어그라운드 2638.jpg",
+      "size": 37643111,
+      "group": "BOB FS 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1q8VFUyfyfjTCtV8-ws6ZCsJ5nBgk883r",
+      "name": "20261003_페어그라운드 2640.jpg",
+      "size": 37122420,
+      "group": "BOB FS 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1yDLTaJ2Sh7tpytw9hl7ItB26ImWoxM6T",
+      "name": "20261003_페어그라운드 2642.jpg",
+      "size": 37382863,
+      "group": "BOB FS 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1uyXreSNCOmoKcrSpdcYasdVKZ0nMlzOk",
+      "name": "20261003_페어그라운드 2646.jpg",
+      "size": 36848102,
+      "group": "BOB FS 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1Ylr99dXwqZryVQVCgv2qIWZxFVvwOs1T",
+      "name": "20261003_페어그라운드 2648.jpg",
+      "size": 37195220,
+      "group": "BOB FS 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1uMCee1-VJx4lIbgzGOKH01C2vPYLsRN9",
+      "name": "20261003_페어그라운드 2651.jpg",
+      "size": 36689100,
+      "group": "FC 흰둥이 팀 기념사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1jkL-O0AnznLhUhxHok5izUf6KxkW9eS9",
+      "name": "20261003_페어그라운드 2669.jpg",
+      "size": 35779548,
+      "group": "남자 MOM 시상",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1LWnlDoU-jfJ52mvbAjp25KvYLvzXsheU",
+      "name": "20261003_페어그라운드 2685.jpg",
+      "size": 35907817,
+      "group": "여자 MOM 시상",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1EHUEX602-q5IdzVmHTdqzBT1IXf6O-e1",
+      "name": "20261003_페어그라운드 2688.jpg",
+      "size": 37014752,
+      "group": "여자 MOM 시상",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1BAS7fdxVTqboe2USHIieWOCgZWT8uXmK",
+      "name": "20261003_페어그라운드 2689.jpg",
+      "size": 37161709,
+      "group": "여자 MOM 시상",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1zMQzX170akGIHMD5fe4Dr9SCb3JKhnMJ",
+      "name": "20261003_페어그라운드 2693.jpg",
+      "size": 36420599,
+      "group": "여자 MOM 시상",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1qBxHiS1NiDhy5xJKt0Un0sWtIdk-lnO4",
+      "name": "20261003_페어그라운드 2694.jpg",
+      "size": 36311132,
+      "group": "여자 MOM 시상",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1hoC_PyfhnL9KQ2L6sUL3Lk577jUyCkb0",
+      "name": "20261003_페어그라운드 2703.jpg",
+      "size": 34967092,
+      "group": "득점상 시상",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1wl6zsU3dovYPiEjVjYl2hetFev-cms27",
+      "name": "20261003_페어그라운드 2723.jpg",
+      "size": 35736082,
+      "group": "골키퍼상 시상",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1LI6LSg6nufM5PDEZ3nTpWRqhCZYYstwC",
+      "name": "20261003_페어그라운드 2733.jpg",
+      "size": 39793280,
+      "group": "FC 흰둥이 시상",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1EfRd-9LGprY2QCsnXTPq7Ix_6j_strqh",
+      "name": "20261003_페어그라운드 2737.jpg",
+      "size": 42217075,
+      "group": "FC LEGACY 시상",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1lNzfNbK_bYd57us2ukbYa6huZS3oIDe_",
+      "name": "20261003_페어그라운드 2756.jpg",
+      "size": 44528591,
+      "group": "준우승 시상·트로피 세리머니",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1nuQ0GJ0qSd5kbUznGUM_WACjV1aszLZf",
+      "name": "20261003_페어그라운드 2759.jpg",
+      "size": 44144833,
+      "group": "준우승 시상·트로피 세리머니",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1hhMFR5CDi46sDHm_gOjEXvBykywPM4Fe",
+      "name": "20261003_페어그라운드 2763.jpg",
+      "size": 42212468,
+      "group": "준우승 시상·트로피 세리머니",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1GjENuGlVsn4NlwF2SMlvZvq6esuvdP8J",
+      "name": "20261003_페어그라운드 2764.jpg",
+      "size": 42232379,
+      "group": "준우승 시상·트로피 세리머니",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1Cd_SPnHutES20G6iUjv705wkGJ-D-kH6",
+      "name": "20261003_페어그라운드 2766.jpg",
+      "size": 41934587,
+      "group": "준우승 시상·트로피 세리머니",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1i_9sBofLmYW5271ndbLRlEMfUB7FHS9j",
+      "name": "20261003_페어그라운드 2768.jpg",
+      "size": 41714192,
+      "group": "준우승 시상·트로피 세리머니",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1Ro2Ci-_2zg8YUBQDYqhkq5xNA_L3ZlnC",
+      "name": "20261003_페어그라운드 2769.jpg",
+      "size": 41585097,
+      "group": "준우승 시상·트로피 세리머니",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1npUA4U-gZYPNy0z2HTz0P3Jf3yn-c3iK",
+      "name": "20261003_페어그라운드 2771.jpg",
+      "size": 41743563,
+      "group": "준우승 시상·트로피 세리머니",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "19jahljj-5KZVBgUKeFlbyCZWp1cAmZjf",
+      "name": "20261003_페어그라운드 2772.jpg",
+      "size": 41890828,
+      "group": "준우승 시상·트로피 세리머니",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1MHWHuNr38X2suUijrX05v44D95Pj8CFL",
+      "name": "20261003_페어그라운드 2780.jpg",
+      "size": 40105694,
+      "group": "우승 시상·트로피 세리머니",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1Y_fhV8qkfHAT3mKJosRpHPWynu_-21jI",
+      "name": "20261003_페어그라운드 2782.jpg",
+      "size": 41028503,
+      "group": "우승 시상·트로피 세리머니",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1nK1yETbfcPpSpKPNC_zsZSGRHgjEHGkv",
+      "name": "20261003_페어그라운드 2783.jpg",
+      "size": 42404806,
+      "group": "우승 시상·트로피 세리머니",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "166cRP5YWbYwe_jGd7ml_QGnWy2Ph3RME",
+      "name": "20261003_페어그라운드 2784.jpg",
+      "size": 42407693,
+      "group": "우승 시상·트로피 세리머니",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1nY3lct__WSr1d8FAMjKRSFKxLgAkfLq_",
+      "name": "20261003_페어그라운드 2785.jpg",
+      "size": 44829400,
+      "group": "우승 시상·트로피 세리머니",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1vvGsJm1YFF8_FOmyr2293bLSW2IuZDO9",
+      "name": "20261003_페어그라운드 2791.jpg",
+      "size": 44824680,
+      "group": "우승 시상·트로피 세리머니",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1MC8vHjODaTU-Jrr4gokgb0G9hNfwkfGx",
+      "name": "20261003_페어그라운드 2792.jpg",
+      "size": 46668520,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1G6LRO4hUZC-28LFJAFcqfVUZP0UcByZX",
+      "name": "20261003_페어그라운드 2793.jpg",
+      "size": 47549710,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1NeV-tVj2C6c_ITxAQDkBukcy0IJNsnTu",
+      "name": "20261003_페어그라운드 2794.jpg",
+      "size": 46978952,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1_k_UHBkeYQC4VZjRNsCCdxpZ2BzEzm0F",
+      "name": "20261003_페어그라운드 2795.jpg",
+      "size": 47495558,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1BwJYMaIAI5m8p4tQRoMbBa70n-_eA3dv",
+      "name": "20261003_페어그라운드 2796.jpg",
+      "size": 48214584,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1iFhhk-S2jQVacGD9fDH_-ZFju5TZdvjP",
+      "name": "20261003_페어그라운드 2797.jpg",
+      "size": 46005003,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1rpOaOnCvcKHm-DVABDmWGejS2SW4O54t",
+      "name": "20261003_페어그라운드 2798.jpg",
+      "size": 47554873,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "12zft0VWaTvaaYkStpiR9dPjjClRfryry",
+      "name": "20261003_페어그라운드 2799.jpg",
+      "size": 48782167,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1o7POwEooCzxfycIELfyJcqCP39iAJhPq",
+      "name": "20261003_페어그라운드 2800.jpg",
+      "size": 48686031,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1AGdccQAubvznnWcvG9CiXV4GqPtEqMbO",
+      "name": "20261003_페어그라운드 2801.jpg",
+      "size": 49951878,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1LMBt5DtSnO9jVVVvV_t5rTNGZKGvCG_J",
+      "name": "20261003_페어그라운드 2802.jpg",
+      "size": 49894602,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1L-clQu_KAlw3S2oyJfPW2VGYRhWDomYV",
+      "name": "20261003_페어그라운드 2803.jpg",
+      "size": 51180191,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1KfXgnAHtwD9hpdVFuAvhBqBuqKj82I5u",
+      "name": "20261003_페어그라운드 2805.jpg",
+      "size": 51255469,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1I1Jce65t7KkgPnbfvrCkLgMAjU53eZA9",
+      "name": "20261003_페어그라운드 2811.jpg",
+      "size": 50282254,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1Ba2yuYSyV85M5cm7KaauDyfJnPGOr74M",
+      "name": "20261003_페어그라운드 2812.jpg",
+      "size": 49949551,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "12Tj8DZC6nWW7OHsiaXmF3SjnKfpdIDgh",
+      "name": "20261003_페어그라운드 2813.jpg",
+      "size": 49484311,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1RSwAsTBfH-a_uJwXaq5IRRmW-tM6jaKU",
+      "name": "20261003_페어그라운드 2814.jpg",
+      "size": 49458357,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1tSsqM9ULq78P1BUj6kaBA1q4WCS7NHt6",
+      "name": "20261003_페어그라운드 2815.jpg",
+      "size": 49758778,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1vT82JEGLd3tgG40ueO-KAeGGbb4bUoG9",
+      "name": "20261003_페어그라운드 2819.jpg",
+      "size": 51255577,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1TtxYKpL82rl_0MKGNMG6VMC3dxrF_tA4",
+      "name": "20261003_페어그라운드 2825.jpg",
+      "size": 53025289,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "15hnVwOhdVAXIfDn0yzZRv6LAohvlh5ug",
+      "name": "20261003_페어그라운드 2826.jpg",
+      "size": 51940102,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "13AFYiA9MpoJS7Y9RFnbvuV1dJlrWkOjb",
+      "name": "20261003_페어그라운드 2827.jpg",
+      "size": 52474005,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1dzcjMOmTxbZIUXXYDqJ19CoRZjzNKVz5",
+      "name": "20261003_페어그라운드 2828.jpg",
+      "size": 53382780,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "17E74aQ4DpCpvniXR8xwODUEXJBZdSPI4",
+      "name": "20261003_페어그라운드 2829.jpg",
+      "size": 53620126,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1ypo1HZfvf1v_yNslwxwci1uVk4itl_Z2",
+      "name": "20261003_페어그라운드 2830.jpg",
+      "size": 54180670,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1JY9u4BmyTevE3mpKQxqPRV7klyWIrcaa",
+      "name": "20261003_페어그라운드 2831.jpg",
+      "size": 54661563,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1NoCXvcV3IWrALxe-3jX6bIThAhMZTQx1",
+      "name": "20261003_페어그라운드 2832.jpg",
+      "size": 54390909,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1UhAmxKjCtLzkAjxdXWEgT5QpDOLCvawL",
+      "name": "20261003_페어그라운드 2835.jpg",
+      "size": 54773450,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1MBTVbzjlNVVKWRTppoPzWW0B9ksxGqq2",
+      "name": "20261003_페어그라운드 2836.jpg",
+      "size": 54503913,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1STIALrrS2v9ZTCNYWdP3Dau0QqjJ_L2e",
+      "name": "20261003_페어그라운드 2838.jpg",
+      "size": 54283340,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    },
+    {
+      "id": "1lxruU3ndzaXRjx6g4xLgQXRol8NwGZdc",
+      "name": "20261003_페어그라운드 2839.jpg",
+      "size": 53582241,
+      "group": "폐회 전체 단체사진",
+      "reason": "같은 인원·구도의 단체/시상 장면 대표 컷 선별"
+    }
+  ]
+}
