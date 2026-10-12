@@ -2,7 +2,7 @@
   position: sticky;
   top: 68px;
   z-index: 20;
-  display: flex;
+  display: none;
   height: 68px;
   margin-top: -68px;
   justify-content: flex-end;
@@ -71,6 +71,7 @@
 
 @media (min-width: 768px) {
   .overlay {
+    display: flex;
     top: 76px;
     height: 80px;
     margin-top: -80px;
