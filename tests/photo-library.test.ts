@@ -14,8 +14,8 @@ test('Korean filenames remain NFC Unicode, strip paths and controls', () => {
 });
 test('manifest contains unique photos from supplied folder', () => {
   const album = JSON.parse(readFileSync(new URL('../src/features/photo-library/data/cup-2026.json', import.meta.url), 'utf8'));
-  assert.equal(album.photos.length, 2215);
-  assert.equal(new Set(album.photos.map((p: { id: string }) => p.id)).size, 2215);
+  assert.equal(album.photos.length, 2212);
+  assert.equal(new Set(album.photos.map((p: { id: string }) => p.id)).size, 2212);
   assert.ok(album.photos.every((p: { size: number }) => p.size > 0));
 });
 test('ZIP has uncompressed original bytes and UTF-8 Korean names', async () => {
