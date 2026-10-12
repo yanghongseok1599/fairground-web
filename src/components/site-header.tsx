@@ -49,6 +49,7 @@ const NAV_ITEMS: readonly NavEntry[] = [
     label: "커뮤니티",
     items: [
       { href: "/notices", label: "공지사항" },
+      { href: "/photos", label: "사진 자료실" },
       { href: "/feed", label: "피드" },
       { href: "/board", label: "자유게시판" },
     ],

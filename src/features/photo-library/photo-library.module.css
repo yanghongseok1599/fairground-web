@@ -1,0 +1,55 @@
+.library { --blue: #0047ab; color: #13243a; padding-bottom: 180px; background: #fafbf9; min-height: 100vh; }
+.hero { padding: 64px max(24px, calc((100vw - 1320px)/2)); background: #edf2f8; border-bottom: 1px solid #c8d5e5; }
+.eyebrow { color: var(--blue); font-size: 12px; letter-spacing: .16em; font-weight: 800; margin-bottom: 32px; }
+.headingRow { display: flex; justify-content: space-between; align-items: flex-end; gap: 30px; }
+.hero h1 { font-size: clamp(36px, 5vw, 68px); line-height: 1.2; letter-spacing: -.055em; font-weight: 850; }
+.hero h1 span { color: var(--blue); }
+.hero p { font-size: 15px; line-height: 1.8; margin-top: 24px; color: #4a5e75; }
+.albumStamp { border-left: 3px solid var(--blue); padding: 4px 0 4px 20px; font-size: 12px; line-height: 2; color: #45617f; }
+.albumStamp strong { font-size: 23px; color: var(--blue); }
+.collection { max-width: 1368px; margin: auto; padding: 38px 24px; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.toolbar h2 { display: flex; align-items: center; gap: 8px; font-size: 21px; font-weight: 800; }
+.toolbar p { font-size: 12px; margin-top: 5px; color: #617187; }
+.search { display: flex; align-items: center; gap: 10px; border: 1px solid #c6d1df; padding: 12px 16px; background: white; }
+.search input { min-width: 240px; width: 100%; font-size: 14px; background: transparent; }
+.filterbar { display: flex; justify-content: space-between; align-items: center; margin: 26px 0 16px; font-size: 13px; color: #45617f; }
+.filterbar button { padding: 10px 12px; border: 1px solid #c6d1df; }
+.filterbar button[aria-pressed=true] { background: var(--blue); color: white; }
+.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px 16px; }
+.card { position: relative; min-width: 0; border: 2px solid transparent; }
+.selected { border-color: var(--blue); background: #e8effa; }
+.imageButton { display: block; position: relative; width: 100%; aspect-ratio: 3/2; overflow: hidden; background: #e2e7ed; }
+.imageButton img { width: 100%; height: 100%; object-fit: cover; }
+.viewLabel { position: absolute; bottom: 8px; right: 8px; color: white; background: #13243acc; padding: 5px 9px; font-size: 11px; }
+.checkbox { position: absolute; top: 10px; left: 10px; cursor: pointer; padding: 4px; }
+.checkbox input { position: absolute; opacity: 0; width: 30px; height: 30px; }
+.checkbox span { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: #fff; color: transparent; border: 1px solid #6c7c8e; }
+.checkbox input:checked + span { background: var(--blue); color: white; border-color: white; }
+.checkbox input:focus-visible + span { outline: 3px solid #ffb600; outline-offset: 3px; }
+.caption { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 10px 5px; font-size: 12px; }
+.caption span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.caption small { color: #526680; white-space: nowrap; }
+.pagination { display: flex; justify-content: center; gap: 24px; align-items: center; padding: 40px 0 20px; }
+.pagination button, .pagination select { padding: 12px; font-size: 14px; }
+.library button { cursor: pointer; }
+.library button:disabled { opacity: .45; cursor: not-allowed; }
+.library button:focus-visible { outline: 3px solid #df9900; outline-offset: 3px; }
+.empty { text-align: center; padding: 80px 20px; color: #526680; }
+.downloadBar { position: fixed; z-index: 40; bottom: 0; left: 0; right: 0; padding: 18px max(24px, calc((100vw - 1320px)/2)); background: white; border-top: 1px solid #b8cbe1; box-shadow: 0 -6px 25px #142b4610; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: max(18px, env(safe-area-inset-bottom)); }
+.downloadBar strong { font-size: 16px; }
+.downloadBar strong span { font-size: 13px; font-weight: 500; color: #526680; }
+.downloadBar p { font-size: 12px; color: #526680; margin-top: 4px; }
+.downloadActions { display: flex; align-items: center; gap: 12px; }
+.downloadActions button { padding: 13px 15px; font-size: 13px; }
+.downloadActions .primary { background: var(--blue); color: white; display: flex; gap: 8px; align-items: center; font-weight: 750; }
+.status { width: 100%; font-size: 13px; color: var(--blue); }
+.status progress { display: block; width: 100%; height: 4px; margin-top: 8px; accent-color: var(--blue); }
+.viewerImage { flex: 1; min-height: 0; overflow: auto; background: #101a27; display: grid; place-items: center; color: white; }
+.fitted { width: 100%; height: 100%; min-height: 0; object-fit: contain; }
+.zoomed { max-width: none; width: auto; height: auto; justify-self: start; align-self: start; }
+.viewerActions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+.viewerActions button { background: #0047ab; color: white; padding: 12px 18px; font-size: 13px; }
+.viewerActions button:disabled { opacity: .4; }
+@media (max-width: 900px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .albumStamp { display: none; } }
+@media (max-width: 600px) { .hero { padding: 36px 20px; } .eyebrow { margin-bottom: 22px; font-size: 10px; } .toolbar { align-items: stretch; flex-direction: column; } .collection { padding: 28px 14px; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 8px; } .caption { font-size: 10px; } .caption small { font-size: 9px; } .downloadBar { padding: 12px 16px max(14px, env(safe-area-inset-bottom)); } .downloadActions { width: 100%; justify-content: flex-end; } .downloadActions .primary { flex: 1; justify-content: center; } .library { padding-bottom: 220px; } }
