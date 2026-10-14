@@ -12,10 +12,15 @@ const actor=async(id)=>{const db=new pg.Client({connectionString});await db.conn
 let ownerDb, nextDb;
 try {
   // Synthetic records only; this script deliberately refuses hosted databases.
+  await admin.query('begin');
+  await admin.query("select set_config('app.in_end_match','1',true)");
   for(const id of [owner,nextOwner,rival,failing]){
-    await admin.query('insert into auth.users(id,email) values($1,$2)',[id,`${id}@synthetic.invalid`]);
-    await admin.query('insert into public.profiles(id,name,number,position,is_approved) values($1,$2,7,\'ALA\',$3)',[id,'검증용 선수',id!==owner]);
+    // The current Auth trigger creates the profile and records explicit signup consent.
+    await admin.query('insert into auth.users(id,email,raw_user_meta_data) values($1,$2,$3)',[id,`${id}@synthetic.invalid`,{name:'검증용 선수',portrait_consent:true}]);
+    const profile=await admin.query('update public.profiles set number=7,position=\'ALA\',is_approved=$2 where id=$1 returning portrait_consent_at',[id,id!==owner]);
+    assert.equal(profile.rowCount,1);assert.ok(profile.rows[0].portrait_consent_at);
   }
+  await admin.query('commit');
   ownerDb=await actor(owner);nextDb=await actor(nextOwner);
   await test('team creation commits team, membership and mandatory history together',async()=>{
     const result=await ownerDb.query("select (public.register_team($1,'검증용 팀','',2026,'community',now())).*",[teamId]);
@@ -91,9 +96,10 @@ try {
     await assert.rejects(ownerDb.query('delete from registration_history'),/permission denied/);
   });
   await test('initial consent evidence is preserved across subsequent profile edits',async()=>{
+    const original=(await admin.query('select portrait_consent_at from profiles where id=$1',[owner])).rows[0].portrait_consent_at;
     await ownerDb.query("update profiles set portrait_consent_at='2026-01-02T00:00:00Z' where id=$1",[owner]);
     await ownerDb.query("update profiles set portrait_consent_at='2026-09-08T00:00:00Z',name='변경 이름' where id=$1",[owner]);
     const p=(await admin.query('select portrait_consent_at,name from profiles where id=$1',[owner])).rows[0];
-    assert.equal(p.portrait_consent_at.toISOString(),'2026-01-02T00:00:00.000Z');assert.equal(p.name,'변경 이름');
+    assert.equal(p.portrait_consent_at.getTime(),original.getTime());assert.equal(p.name,'변경 이름');
   });
 } finally {await ownerDb?.end();await nextDb?.end();await admin.end();}

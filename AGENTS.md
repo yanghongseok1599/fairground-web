@@ -24,7 +24,8 @@ Supabase MCP 커넥터는 **계정 단위**라 이 리포 전용이 아니다. �
 
 | ref | 이름 | 이 리포에서 |
 |---|---|---|
-| `ovtnmslyjzvghirdvife` | **Fairground** | 유일한 허용 대상 |
+| `ovtnmslyjzvghirdvife` | **Fairground** | 운영 전용 — 운영 보호 규칙 적용 |
+| `fhytkbjadhnmozppolrv` | **fairground-dev** | 로컬·Vercel Preview 전용 |
 | `yhlyrchmnchcvqzrfcsp` | autoceo-brand-radar | 금지 |
 | `sftsvmiceuxybukjbywu` | gym-dashboard | 금지 |
 | `cpxalgolpsebmctzeabo` | trainermilestone-blogbooster, saju | 금지 |
@@ -33,8 +34,9 @@ Supabase MCP 커넥터는 **계정 단위**라 이 리포 전용이 아니다. �
 
 규칙:
 
-- 이 리포에서 실행하는 모든 Supabase 호출의 `project_id` 는 `ovtnmslyjzvghirdvife`
-  여야 한다. 다른 ref가 나오면 즉시 중단하고 사용자에게 알린다.
+- Supabase 호출의 대상은 위 두 FairGround 프로젝트 중 작업 환경과 일치해야 한다.
+  로컬·Vercel Preview는 `fhytkbjadhnmozppolrv`, 운영은 `ovtnmslyjzvghirdvife`를 사용한다.
+  다른 서비스의 ref가 나오면 즉시 중단하고 사용자에게 알린다.
 - 진단 쿼리를 보내기 **전에** 대상 ref를 확인한다. 커넥터가 둘 이상 붙어 있으면
   기본 커넥터가 다른 프로젝트를 가리키고 있을 수 있다 — 실제로 그런 사고가 날 뻔했다.
 - `supabase/.temp/project-ref` 가 `ovtnmslyjzvghirdvife` 인지 확인한다.
@@ -206,3 +208,13 @@ Supabase 내장 pg_cron의 10초 작업은 저장된 경기 시간·서버 시�
 
 사용자는 앞으로 들어오는 설문 정보를 놓치지 않고 저장하도록 지시했다. 실제 운영 설문 응답을 초기화·삭제·덮어쓰거나 개발 DB로 복사하지 않는다. 미확인 제출은 UUID별 브라우저 저장소에 보관하고 같은 UUID와 원문으로 재전송하며, 저장 성공 영수증을 받은 해당 패킷만 제거한다. 초안은 탭 저장소에 유지하고 저장 불가 시 복구 제한을 명시한다. 탭을 다시 열면 보관 중인 응답을 복구하며 재전송 버튼으로 접수를 확인한다. DB 구조·권한·이력 변경은 없다.
 [보존 보완 기록](docs/releases/2026-10-08-festival-survey-durability.md).
+
+## 2026-10-14 개발 함수 스냅샷 접근 차단
+
+`20261014010000_dev_function_snapshot_access.sql`은 개발 전용이다. `public._fnsnap_before`의 91행·소유자·권한을 백업하고 격리 복원·동일 정의/행 해시·롤백을 검증한 뒤 PUBLIC/anon/authenticated 권한을 회수하고 RLS를 활성화했다. 기존 25개 개발 이력을 보존하고 1건만 추가했다. 공개 키 REST 조회는 401/42501, 실제 anon/authenticated DB 역할 조회는 권한 거부이며 Security Advisor의 해당 RLS 오류는 사라졌다. postgres/service_role 권한과 91행은 보존했다. 운영은 조회·변경하지 않았다. 이 SQL은 검증된 개발 연결에서 transaction-local 대상 가드를 설정한 경우에만 실행한다. 전체 이력 복구 및 linked push/reset/repair 금지는 유지한다.
+
+## 2026-10-14 개발 전체 테스트·퀴즈 복구
+
+개발 스키마 백업·정확한 격리 복원·diff·롤백·전체 DB 회귀 후 `20260911000000` 퀴즈 SQL, 누락된 `20261003010000` 사진 바이트 축소 SQL, 개발 전용 `20261014020000` 프로필 조회 권한 SQL만 적용했다. 기존 36개 공개 테이블의 데이터와 이전 이력은 보존했고 개발 이력은 26→29건이다. 새 권한 SQL은 개발 대상 가드를 요구하며 공개 32열과 본인·관리자 RPC를 유지한다. 기존 스냅샷 RLS 차단·준비 알림 중지는 유지한다.
+
+전체 148개 테스트 파일(비DB 669개·DB 178개), TypeScript, lint 오류 0, 전체 작업 소스의 정상 개발 빌드를 확인했다. 운영 DB와 웹 배포는 조회·변경하지 않았다. 기존 전체 이력 불일치와 linked push/reset/repair 금지는 유지한다. [상세 기록](docs/releases/2026-10-14-development-tests-quiz.md).
