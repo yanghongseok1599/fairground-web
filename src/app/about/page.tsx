@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowRight,
   Award,
@@ -268,8 +269,13 @@ export default function AboutPage() {
           HERO INTRO
           ============================================================ */}
       <section className="relative min-h-[calc(100vh-60px)] overflow-hidden bg-white pt-[60px]">
-        <img
+        <Image
           src="/image.png"
+          width={1774}
+          height={887}
+          unoptimized
+          loading="eager"
+          decoding="auto"
           alt=""
           aria-hidden="true"
           className="absolute inset-y-0 right-0 h-full w-[62%] object-cover object-[58%_center] md:w-[78%] md:object-[42%_center] lg:w-[74%]"
@@ -802,8 +808,13 @@ export default function AboutPage() {
                           }}
                         >
                           <div className="flex h-12 w-12 items-center justify-center sm:h-14 sm:w-14">
-                            <img
+                            <Image
                               src={badge.imageUrl}
+                              width={56}
+                              height={56}
+                              unoptimized
+                              loading="eager"
+                              decoding="auto"
                               alt=""
                               className="h-12 w-12 object-contain sm:h-14 sm:w-14"
                               style={{ filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.35))" }}

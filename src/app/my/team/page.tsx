@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import NextImage from "next/image";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -501,8 +502,13 @@ export default function MyTeamPage() {
                       />
                       {editLogo && (
                         <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border">
-                          <img
+                          <NextImage
                             src={editLogo}
+                            width={48}
+                            height={48}
+                            unoptimized
+                            loading="eager"
+                            decoding="auto"
                             alt="로고 미리보기"
                             className="h-full w-full object-contain bg-[var(--color-fg-paper)]"
                           />
@@ -883,8 +889,13 @@ export default function MyTeamPage() {
                   />
                   {logo && (
                     <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border">
-                      <img
+                      <NextImage
                         src={logo}
+                        width={48}
+                        height={48}
+                        unoptimized
+                        loading="eager"
+                        decoding="auto"
                         alt="로고 미리보기"
                         className="h-full w-full object-cover"
                       />

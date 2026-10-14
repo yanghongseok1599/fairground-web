@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { FAIRGROUND_OPS_TEAM_LOGO } from "@/lib/team-logo-assets";
 
 type ClubLogoPreset = {
@@ -76,8 +77,13 @@ export function ClubEmblem({
 
   if (resolvedAsset) {
     return (
-      <img
+      <Image
         src={resolvedAsset}
+        width={160}
+        height={160}
+        unoptimized
+        loading="eager"
+        decoding="auto"
         alt={`${name} 엠블럼`}
         className={`${className} object-contain`}
         draggable={false}
