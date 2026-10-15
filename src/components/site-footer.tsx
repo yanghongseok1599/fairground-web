@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BusinessFooter } from "@/components/business-footer";
 import {
   SITE_CONTACT_EMAIL,
   SITE_CONTACT_MAILTO,
@@ -142,8 +143,10 @@ export function SiteFooter() {
             </div>
           </div>
 
+          <BusinessFooter className="mt-14 pt-6 border-t border-[color:var(--color-fg-line-soft)]" />
+
           <div
-            className="mt-14 pt-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+            className="mt-6 pt-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
             style={{ borderTop: "1px solid var(--color-fg-line-soft)" }}
           >
             <span

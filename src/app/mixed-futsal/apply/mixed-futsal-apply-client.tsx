@@ -241,7 +241,10 @@ function MixedFutsalApplyForm() {
                 <li>{MIXED_FUTSAL_ELIGIBILITY_NOTE}</li>
                 <li>교대 인원을 고려해 {MIXED_FUTSAL_ROSTER_LABEL}합니다.</li>
                 <li>{MIXED_FUTSAL_WEATHER_NOTE} 우천에 대비한 준비물을 함께 챙겨주세요.</li>
-                <li>{MIXED_FUTSAL_REFUND_NOTE}</li>
+                <li>
+                  {MIXED_FUTSAL_REFUND_NOTE}{" "}
+                  <Link href="/refund" className="font-black text-[#0047AB] underline underline-offset-2">환불정책</Link>
+                </li>
                 <li>팀 대표는 선수카드 등록 후 참가 신청을 제출합니다.</li>
                 <li>팀은 승인 대기 상태로 생성되며, 운영진 확인 후 참가 안내를 받습니다.</li>
                 <li>팀원은 회원가입 후 해당 팀에 가입 신청하면 됩니다.</li>
@@ -283,7 +286,9 @@ function MixedFutsalApplyForm() {
               </ul>
               <p className="mt-3 border-l-2 border-[#0047AB] bg-[#EEF3FF] px-3 py-2.5 text-[13px] leading-[1.7] text-[#526277]">
                 이 화면에서는 결제하지 않습니다. 참가비 납부 방법과 기한은 신청
-                접수 후 운영진이 별도로 안내합니다.
+                접수 후 운영진이 별도로 안내합니다. 취소·환불 기준은{" "}
+                <Link href="/refund" className="font-black text-[#0047AB] underline underline-offset-2">환불정책</Link>
+                을 따릅니다.
               </p>
             </div>
 

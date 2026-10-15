@@ -361,7 +361,8 @@ export default function MixedFutsalPage() {
               <ReceiptText className="mt-0.5 h-[18px] w-[18px] shrink-0 text-[#0047AB]" aria-hidden />
               <span>
                 <strong className="font-black text-[#0D1B2A]">{MIXED_FUTSAL_REFUND_LABEL}.</strong>{" "}
-                {MIXED_FUTSAL_REFUND_NOTE}
+                {MIXED_FUTSAL_REFUND_NOTE}{" "}
+                <Link href="/refund" className="font-black text-[#0047AB] underline underline-offset-2">환불정책 전문</Link>
               </span>
             </p>
           </div>
