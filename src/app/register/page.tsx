@@ -17,6 +17,8 @@ import {
   rememberPendingCardSkin,
 } from "@/lib/player-card-skin";
 import { PortraitConsentField } from "@/features/portrait-consent/components/consent-field";
+import { PasswordField } from "@/components/password-field";
+import { PASSWORD_MIN_LENGTH, passwordPolicyError } from "@/lib/password-policy";
 import type { Gender } from "@/types";
 
 /* ===========================================================
@@ -40,7 +42,6 @@ const labelStyle: React.CSSProperties = {
   color: "var(--color-fg-ink-muted)",
   fontFamily: "var(--font-space-mono)",
 };
-const PASSWORD_POLICY = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]).{8,}$/;
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -111,8 +112,9 @@ export default function RegisterPage() {
       setFormError("비밀번호가 일치하지 않습니다");
       return;
     }
-    if (!PASSWORD_POLICY.test(normalizedPassword)) {
-      setFormError("비밀번호는 8자 이상, 영문/숫자/특수문자를 포함해야 합니다");
+    const passwordError = passwordPolicyError(normalizedPassword, { email: email.trim().includes("@") ? email.trim() : `${email.trim()}@id` });
+    if (passwordError) {
+      setFormError(passwordError);
       return;
     }
 
@@ -449,41 +451,36 @@ export default function RegisterPage() {
           {/* MBTI / 성향 / 추구하는 가치관 / 자기소개(FA) 필드는 회원가입에서
               제거됨. 가입 후 /my 마이페이지에서 채울 수 있다. */}
 
-          <div className="space-y-1.5">
-            <label htmlFor="register-password" className={labelClass} style={labelStyle}>
-              비밀번호
-            </label>
-            <input
-              id="register-password"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              placeholder="8자 이상, 영문/숫자/특수문자"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
-              style={inputStyle}
-            />
-          </div>
+          <PasswordField
+            id="register-password"
+            label="비밀번호"
+            autoComplete="new-password"
+            minLength={PASSWORD_MIN_LENGTH}
+            hint={`${PASSWORD_MIN_LENGTH}자 이상. 영문·숫자·특수문자 조합은 필요 없고, 문장처럼 길게 쓰면 기억하기 쉽고 안전합니다.`}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="space-y-1.5"
+            labelClassName={labelClass}
+            labelStyle={labelStyle}
+            inputClassName="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
+            inputStyle={inputStyle}
+          />
 
-          <div className="space-y-1.5">
-            <label htmlFor="register-password2" className={labelClass} style={labelStyle}>
-              비밀번호 확인
-            </label>
-            <input
-              id="register-password2"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              placeholder="비밀번호 다시 입력"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              className="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
-              style={inputStyle}
-            />
-          </div>
+          <PasswordField
+            id="register-password2"
+            label="비밀번호 확인"
+            autoComplete="new-password"
+            placeholder="비밀번호 다시 입력"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            className="space-y-1.5"
+            labelClassName={labelClass}
+            labelStyle={labelStyle}
+            inputClassName="w-full px-4 py-3 rounded-2xl text-sm outline-none transition-all"
+            inputStyle={inputStyle}
+          />
 
           <PortraitConsentField checked={portraitConsent} onChange={setPortraitConsent} disabled={loading || submission.submitting} />
 

@@ -5,6 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { PasswordField } from "@/components/password-field";
+import { supabase } from "@/config/supabase";
+import { isRecentEmailLinkSession } from "@/lib/recovery-session";
+import { PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
+
+const labelClass = "text-[10px] uppercase tracking-wider";
+const labelStyle = { color: "var(--color-fg-ink-muted)" };
+const inputClass = "w-full rounded-2xl px-4 py-3 text-sm outline-none";
+const inputStyle = { background: "var(--color-fg-paper)", border: "1px solid var(--color-fg-line-soft)", color: "var(--color-fg-ink)" };
 
 /**
  * 비밀번호 재설정 — 메일 링크로 진입한다.
@@ -16,13 +25,24 @@ import { useAuth } from "@/hooks/useAuth";
  */
 function ResetPasswordInner() {
   const router = useRouter();
-  const { user, initialized, updatePassword } = useAuth();
+  const { user, initialized, completePasswordReset } = useAuth();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [waited, setWaited] = useState(false);
+  // 로그인만 된 세션으로 이 화면을 열면 현재 비밀번호 확인 없이 바꿀 수 있게 된다. 메일 링크 세션만 받는다.
+  const [linkSession, setLinkSession] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (active) setLinkSession(isRecentEmailLinkSession(data.session?.access_token));
+    });
+    return () => { active = false; };
+  }, [user]);
 
   useEffect(() => {
     // hash 파싱이 onAuthStateChange 보다 늦을 수 있어 잠시 유예한다.
@@ -39,7 +59,7 @@ function ResetPasswordInner() {
     }
     setSubmitting(true);
     try {
-      await updatePassword(password);
+      await completePasswordReset(password);
       setDone(true);
       setTimeout(() => router.replace("/my"), 1800);
     } catch (err) {
@@ -52,7 +72,7 @@ function ResetPasswordInner() {
   const shell = "min-h-screen px-5 pt-[92px] pb-16";
   const box = { background: "var(--color-fg-paper-2)", border: "1px solid var(--color-fg-line-soft)" };
 
-  if (initialized && !user && waited) {
+  if ((initialized && !user && waited) || (user && linkSession === false && !done)) {
     return (
       <div className={shell} style={{ background: "var(--color-fg-paper)" }}>
         <div className="mx-auto w-full max-w-[420px] rounded-2xl p-5" style={box}>
@@ -94,8 +114,13 @@ function ResetPasswordInner() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            <PasswordField id="reset-pw" label="새 비밀번호" value={password} onChange={setPassword} placeholder="8자 이상" />
-            <PasswordField id="reset-pw2" label="새 비밀번호 확인" value={confirm} onChange={setConfirm} placeholder="다시 입력" />
+            <PasswordField id="reset-pw" label="새 비밀번호" autoComplete="new-password" value={password}
+              onChange={(e) => setPassword(e.target.value)} required minLength={PASSWORD_MIN_LENGTH}
+              hint={`${PASSWORD_MIN_LENGTH}자 이상. 문장처럼 길게 쓰면 기억하기 쉽고 안전합니다.`}
+              className="space-y-1.5" labelClassName={labelClass} labelStyle={labelStyle} inputClassName={inputClass} inputStyle={inputStyle} />
+            <PasswordField id="reset-pw2" label="새 비밀번호 확인" autoComplete="new-password" value={confirm}
+              onChange={(e) => setConfirm(e.target.value)} required placeholder="다시 입력"
+              className="space-y-1.5" labelClassName={labelClass} labelStyle={labelStyle} inputClassName={inputClass} inputStyle={inputStyle} />
 
             {error && (
               <p
@@ -118,33 +143,6 @@ function ResetPasswordInner() {
           </form>
         )}
       </div>
-    </div>
-  );
-}
-
-function PasswordField({
-  id, label, value, onChange, placeholder,
-}: {
-  id: string; label: string; value: string;
-  onChange: (v: string) => void; placeholder?: string;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="text-[10px] uppercase tracking-wider" style={{ color: "var(--color-fg-ink-muted)" }}>
-        {label}
-      </label>
-      <input
-        id={id}
-        type="password"
-        autoComplete="new-password"
-        placeholder={placeholder}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        required
-        minLength={8}
-        className="w-full rounded-2xl px-4 py-3 text-sm outline-none"
-        style={{ background: "var(--color-fg-paper)", border: "1px solid var(--color-fg-line-soft)", color: "var(--color-fg-ink)" }}
-      />
     </div>
   );
 }

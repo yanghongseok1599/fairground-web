@@ -5,7 +5,11 @@ import { notifyInspectionChange } from "@/lib/inspection-sync";
 import { internalReturnPath } from "@/lib/internal-return-path";
 import { hasPortraitConsent, requirePortraitConsent } from "@/features/portrait-consent/policy";
 import { create } from "zustand";
+import { createClient } from "@supabase/supabase-js";
 import { supabase, isDemoMode } from "@/config/supabase";
+import { AUTH_COPY, passwordErrorMessage, signupErrorMessage } from "@/lib/auth-messages";
+import { passwordPolicyError } from "@/lib/password-policy";
+import { isRecentEmailLinkSession } from "@/lib/recovery-session";
 import { SITE_URL } from "@/lib/site-config";
 import {
   rowToPlayer,
@@ -304,8 +308,15 @@ interface AuthState {
   loginWithKakao: (returnTo?: string) => Promise<void>;
   /** 비밀번호 재설정 메일 발송. 짧은 ID(@fairground.local) 계정은 거부한다. */
   requestPasswordReset: (loginId: string) => Promise<void>;
-  /** 로그인/복구 세션 상태에서 새 비밀번호 저장. */
+  /**
+   * 로그인 세션으로 새 비밀번호 저장 (현재 비밀번호 확인 없음).
+   * @deprecated src/app/my/page.tsx 의 변경 폼이 changePassword 로 옮기면 지운다 — 그 파일은 다른 작업이 수정 중이다.
+   */
   updatePassword: (newPassword: string) => Promise<void>;
+  /** 재설정 메일 링크로 만든 세션(30분 이내)에서만 새 비밀번호 저장. 저장 후 다른 기기 세션을 끊는다. */
+  completePasswordReset: (newPassword: string) => Promise<void>;
+  /** 로그인 상태에서 비밀번호 변경. 현재 비밀번호를 다시 확인한다. */
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshPlayer: () => Promise<Player | null>;
   updatePlayer: (data: Partial<Player>) => Promise<void>;
@@ -415,8 +426,15 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
           },
         },
       });
-      if (error) throw new Error(error.message);
-      if (!signUp.user) throw new Error("가입에 실패했습니다");
+      if (error) {
+        const message = signupErrorMessage(error);
+        if (message) throw new Error(message);
+        // 이미 가입된 아이디는 알려야 다른 아이디를 고를 수 있다. 이메일은 신규 가입과 같은 화면으로 끝낸다(계정 열거 방지).
+        if (normalizedEmail.endsWith(`@${SHORT_ID_DOMAIN}`)) throw new Error(AUTH_COPY.loginIdTaken);
+        setState({ user: null, player: null, loading: false });
+        return;
+      }
+      if (!signUp.user) throw new Error(AUTH_COPY.generic);
       notifyInspectionChange();
       const uid = signUp.user.id;
       if (!signUp.session) {
@@ -576,23 +594,75 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
   },
 
   updatePassword: async (newPassword) => {
+    // 로그인 비교와 같은 기준으로 앞뒤 공백을 뗀다 (login 도 trim 한다).
     const password = newPassword.trim();
-    if (password.length < 8) throw new Error("비밀번호는 8자 이상이어야 합니다.");
+    const policy = passwordPolicyError(password, { email: getState().user?.email ?? undefined });
+    if (policy) throw new Error(policy);
     if (isDemoMode) {
       throw new Error("데모 모드에서는 비밀번호를 변경할 수 없습니다.");
     }
     const { error } = await supabase.auth.updateUser({ password });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(passwordErrorMessage(error));
+  },
+
+  completePasswordReset: async (newPassword) => {
+    const password = newPassword.trim();
+    const policy = passwordPolicyError(password, { email: getState().user?.email ?? undefined });
+    if (policy) throw new Error(policy);
+    if (isDemoMode) {
+      throw new Error("데모 모드에서는 비밀번호를 변경할 수 없습니다.");
+    }
+    // 현재 비밀번호 없이 바꾸는 길은 메일 링크로 방금 만든 세션뿐이다. 로그인 세션은 changePassword 를 쓴다.
+    const { data: current } = await supabase.auth.getSession();
+    if (!isRecentEmailLinkSession(current.session?.access_token)) throw new Error(AUTH_COPY.linkExpired);
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw new Error(passwordErrorMessage(error));
+    // 재설정 후 다른 기기의 세션을 끊는다 (OWASP Forgot Password). 실패해도 비밀번호는 이미 바뀌었다.
+    await supabase.auth.signOut({ scope: "others" }).catch(() => undefined);
+  },
+
+  // 현재 비밀번호 확인은 세션을 저장하지 않는 일회용 클라이언트로 한다 (키트 password/change 의 verifier).
+  // 이 앱은 세션을 브라우저에만 두므로 서버 라우트를 거쳐도 막을 수 있는 것이 늘지 않는다 — 탈취된 토큰으로
+  // GoTrue 를 직접 부르는 경우는 Supabase 의 Secure password change 설정만 막는다.
+  // 새 비밀번호는 방금 현재 비밀번호로 연 그 세션으로 저장한다(최근 로그인 요건 충족), 끝나면 그 세션만 닫는다.
+  changePassword: async (currentPassword, newPassword) => {
+    const user = getState().user;
+    if (!user?.email) throw new Error(AUTH_COPY.reauthNeeded);
+    const current = currentPassword.trim();
+    const password = newPassword.trim();
+    if (!current) throw new Error("현재 비밀번호를 입력해주세요.");
+    if (current === password) throw new Error(AUTH_COPY.samePassword);
+    const policy = passwordPolicyError(password, { email: user.email });
+    if (policy) throw new Error(policy);
+    if (isDemoMode) throw new Error("데모 모드에서는 비밀번호를 변경할 수 없습니다.");
+    const verifier = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "", process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "", {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: "fg-password-verifier" },
+    });
+    try {
+      const checked = await verifier.auth.signInWithPassword({ email: user.email, password: current });
+      if (checked.error) throw new Error(checked.error.status === 429 ? AUTH_COPY.rateLimited : AUTH_COPY.currentPasswordWrong);
+      if (checked.data.user?.id !== user.uid) throw new Error(AUTH_COPY.reauthNeeded);
+      const { error } = await verifier.auth.updateUser({ password, current_password: current });
+      if (error) throw new Error(passwordErrorMessage(error));
+    } finally {
+      await verifier.auth.signOut({ scope: "local" }).catch(() => undefined);
+    }
   },
 
   logout: async () => {
-    clearLocalAdminSession();
     if (isDemoMode) {
+      clearLocalAdminSession();
       clearSession();
       setState({ user: null, player: null });
       return;
     }
-    await supabase.auth.signOut();
+    // 실패하면 Supabase 가 세션을 지우지 않는다. 화면만 로그아웃으로 바꾸면 새로고침 때 다시 로그인돼 있다.
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      setState({ error: AUTH_COPY.logoutFailed });
+      throw new Error(AUTH_COPY.logoutFailed);
+    }
+    clearLocalAdminSession();
     setState({ user: null, player: null });
   },
 

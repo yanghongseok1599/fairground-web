@@ -58,7 +58,8 @@ export function AdminShell({
             <button
               type="button"
               onClick={async () => {
-                await logout();
+                // 로그아웃이 실패하면 세션이 남아 있다. 이동하지 않고 알린다.
+                try { await logout(); } catch (e) { window.alert(e instanceof Error ? e.message : "로그아웃하지 못했습니다."); return; }
                 router.push("/");
               }}
               className="inline-flex min-h-[36px] items-center gap-1.5 border px-3 text-xs font-bold transition-transform hover:-translate-y-0.5 md:min-h-[44px] md:gap-2 md:px-4 md:text-sm"

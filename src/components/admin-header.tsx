@@ -61,7 +61,8 @@ export function AdminHeader({ title = "운영", showBack = true }: AdminHeaderPr
               color: "var(--destructive)",
             }}
             onClick={async () => {
-              await logout();
+              // 로그아웃이 실패하면 세션이 남아 있다. 이동하지 않고 알린다.
+              try { await logout(); } catch (e) { window.alert(e instanceof Error ? e.message : "로그아웃하지 못했습니다."); return; }
               router.push("/");
             }}
           >

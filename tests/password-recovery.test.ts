@@ -22,14 +22,16 @@ test("재설정 링크는 정식 도메인의 /auth/reset-password 로 돌아온
   assert.match(store, /new URL\("\/auth\/reset-password", getAuthRedirectOrigin\(\)\)/);
 });
 
-test("비밀번호는 8자 이상만 저장된다", () => {
-  assert.match(store, /if \(password\.length < 8\) throw new Error/);
+test("비밀번호는 공통 정책(src/lib/password-policy.ts)으로만 저장된다", () => {
+  // 2026-10-15: 가입·재설정·변경이 같은 길이 기준(10자, 조합 규칙 없음)을 쓴다. tests/site-essentials.test.mjs 참고.
+  assert.match(store, /const policy = passwordPolicyError\(password/);
+  assert.doesNotMatch(store, /password\.length < 8/);
 });
 
 test("찾기·재설정·변경 진입점이 모두 존재한다", () => {
   assert.match(read("src/app/login/page.tsx"), /href="\/auth\/forgot-password"/);
   assert.match(read("src/app/auth/forgot-password/page.tsx"), /requestPasswordReset\(/);
-  assert.match(read("src/app/auth/reset-password/page.tsx"), /updatePassword\(/);
+  assert.match(read("src/app/auth/reset-password/page.tsx"), /completePasswordReset\(/);
   assert.match(read("src/app/my/page.tsx"), /비밀번호 변경하기/);
 });
 

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { SocialAuthButtons } from "@/components/auth/social-auth-buttons";
+import { PasswordField } from "@/components/password-field";
 import { useAuth } from "@/hooks/useAuth";
 
 import { internalReturnPath } from "@/lib/internal-return-path";
@@ -94,21 +95,21 @@ function LoginForm() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">비밀번호</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="비밀번호 입력"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  aria-invalid={!!error}
-                  aria-describedby={error ? "login-error" : undefined}
-                />
-              </div>
+              <PasswordField
+                id="password"
+                name="password"
+                label="비밀번호"
+                autoComplete="current-password"
+                placeholder="비밀번호 입력"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                aria-invalid={!!error}
+                aria-describedby={error ? "login-error" : undefined}
+                className="space-y-2"
+                labelClassName="flex items-center gap-2 text-sm leading-none font-medium select-none"
+                inputClassName="border-input h-11 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:border-destructive md:text-sm"
+              />
 
               {error && (
                 <p

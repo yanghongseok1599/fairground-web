@@ -18,6 +18,8 @@ export function useAuth() {
     loginWithKakao: store.loginWithKakao,
     requestPasswordReset: store.requestPasswordReset,
     updatePassword: store.updatePassword,
+    changePassword: store.changePassword,
+    completePasswordReset: store.completePasswordReset,
     logout: store.logout,
     updatePlayer: store.updatePlayer,
     leaveTeam: store.leaveTeam,
