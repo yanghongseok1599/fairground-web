@@ -86,7 +86,7 @@ export function MixedFutsalApplyClient() {
 
 function MixedFutsalApplyForm() {
   const router = useRouter();
-  const { user, player, initialized, updatePlayer } = useAuth();
+  const { user, player, initialized, updatePlayer, setPortraitConsent } = useAuth();
   const createTeam = useDataStore((state) => state.createTeam);
 
   const [teamName, setTeamName] = useState("");
@@ -94,7 +94,6 @@ function MixedFutsalApplyForm() {
   const [captainPhone, setCaptainPhone] = useState("");
   const [mixConfirmed, setMixConfirmed] = useState(false);
   const [personalConsent, setPersonalConsent] = useState(false);
-  const [portraitConsent, setPortraitConsent] = useState(false);
   const submission = useSubmission();
   const { submitting } = submission;
   const [error, setError] = useState("");
@@ -140,23 +139,11 @@ function MixedFutsalApplyForm() {
       return;
     }
 
-    if (!hasPortraitConsent(player) && !personalConsent) {
-      setError("신청자 본인의 초상권 동의를 먼저 확인해주세요.");
-      return;
-    }
-
-    if (!portraitConsent) {
-      setError("현장 촬영물의 홍보 활용 동의에 체크해야 참가 신청을 제출할 수 있습니다.");
-      return;
-    }
-
     if (!draft.ready || !submission.begin()) return;
     try {
       // Save contact corrections first. Team creation below commits membership
       // atomically, so no fallible follow-up can mislabel a created team as failed.
-      await updatePlayer({ name: trimmedCaptainName, phone: trimmedCaptainPhone,
-        ...(!hasPortraitConsent(player) ? { portraitConsentAt: Date.now() } : {}),
-      });
+      await updatePlayer({ name: trimmedCaptainName, phone: trimmedCaptainPhone });
       const createdId = await createTeam({
         name: trimmedTeamName,
         logo: "",
@@ -174,10 +161,12 @@ function MixedFutsalApplyForm() {
         teamType: "community",
         leagueTier: "bronze",
         participationStreak: 0,
-        // 체크박스는 위 검증을 통과해야만 여기 도달하므로, 제출 시각을 그대로
-        // 동의 시각으로 남긴다. 분쟁 시 "언제 동의했는가"의 근거가 된다.
-        portraitConsentAt: Date.now(),
+        // 팀 대표가 팀원 대신 초상 홍보 이용에 동의하는 방식은 쓰지 않는다 (본인 동의만 유효).
       });
+      // [선택] 신청자 본인의 홍보 이용 동의. 신청은 이미 저장됐으므로 실패해도 신청 결과는 유지한다.
+      if (personalConsent && !hasPortraitConsent(player)) {
+        try { await setPortraitConsent(true); } catch { /* 마이페이지에서 다시 동의할 수 있다. */ }
+      }
 
       draft.clear();
       setCreatedTeamId(createdId);
@@ -470,7 +459,7 @@ function MixedFutsalApplyForm() {
                   </div>
 
                   {hasPortraitConsent(player) ? (
-                    <p className="text-sm font-bold text-primary">신청자 본인 초상권 동의 완료</p>
+                    <p className="text-sm font-bold text-primary">신청자 본인 초상권 홍보 이용 동의함 (선택)</p>
                   ) : <PortraitConsentField checked={personalConsent} onChange={setPersonalConsent} disabled={submitting} />}
                   <label className="flex min-h-12 items-start gap-3 rounded-[var(--radius-md)] border border-[#D0D8E8] bg-[#F5F7FF] px-4 py-3.5">
                     <input
@@ -492,25 +481,12 @@ function MixedFutsalApplyForm() {
                     </span>
                   </label>
 
-                  <p className="text-sm font-bold text-foreground">팀원 촬영 동의 확인</p>
-                  <label className="flex min-h-12 items-start gap-3 rounded-[var(--radius-md)] border border-[#D0D8E8] bg-[#F5F7FF] px-4 py-3.5">
-                    <input
-                      type="checkbox"
-                      checked={portraitConsent}
-                      onChange={(event) => setPortraitConsent(event.target.checked)}
-                      className="mt-0.5 h-5 w-5 shrink-0 accent-[#0047AB]"
-                      required
-                    />
-                    <span className="text-[14px] leading-[1.7] text-[#526277]">
-                      대회 현장에서 촬영되는 사진·영상이{" "}
-                      <strong className="font-black text-[#0D1B2A]">
-                        FairGround의 홍보·마케팅 목적(온라인 채널·광고·인쇄물 등 상업적 이용 포함)
-                      </strong>
-                      으로 기간과 횟수의 제한 없이 사용되는 것에 동의하며, 이에
-                      대해 별도의 대가나 초상권을 주장하지 않습니다. 팀 대표로서
-                      팀원 전원에게 이 내용을 고지하고 동의를 받았습니다.
-                    </span>
-                  </label>
+                  <p className="text-sm font-bold text-foreground">현장 촬영 안내</p>
+                  <p className="rounded-[var(--radius-md)] border border-[#D0D8E8] bg-[#F5F7FF] px-4 py-3.5 text-[14px] leading-[1.7] text-[#526277]">
+                    대회 기록을 위해 현장에서 사진·영상을 촬영합니다. 촬영물을 서비스 밖 홍보에 쓰는 것은
+                    선수 본인이 [선택] 홍보 이용에 동의한 경우에만 하며, 동의하지 않아도 참가할 수 있습니다.
+                    팀원에게 이 내용을 알려주세요.
+                  </p>
 
                   <p className="text-[13px] leading-[1.7] text-[#526277]">
                     경기 방식 · 팀 구성 · 안전 규정 · 우천 운영 등 전체 내용은{" "}
@@ -535,7 +511,7 @@ function MixedFutsalApplyForm() {
 
                 <button
                   type="submit"
-                  disabled={submitting || !portraitConsent || (!hasPortraitConsent(player) && !personalConsent)}
+                  disabled={submitting}
                   className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[#0047AB] px-5 text-[15px] font-black text-white transition hover:bg-[#003080] disabled:cursor-not-allowed disabled:opacity-55"
                 >
                   {submitting ? "신청 제출 중..." : "참가 신청 제출"}

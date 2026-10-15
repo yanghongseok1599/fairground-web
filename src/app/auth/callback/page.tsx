@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
-import { hasPortraitConsent, PORTRAIT_CONSENT_PATH } from "@/features/portrait-consent/policy";
+import { ACCOUNT_CONSENT_PATH, loadMissingConsents } from "@/features/account-consent/use-missing-consents";
 
 import { internalReturnPath } from "@/lib/internal-return-path";
 
@@ -22,21 +22,27 @@ import { internalReturnPath } from "@/lib/internal-return-path";
 function CallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, player, initialized } = useAuth();
+  const { user, initialized } = useAuth();
   const [timedOut, setTimedOut] = useState(false);
   const returnTo = internalReturnPath(searchParams.get("returnTo"), "/onboarding");
 
   useEffect(() => {
     if (initialized && user) {
-      router.replace(hasPortraitConsent(player) ? returnTo : `${PORTRAIT_CONSENT_PATH}?returnTo=${encodeURIComponent(returnTo)}`);
-      return;
+      // 소셜 가입은 가입 동의 화면을 거치지 않았다. 필수 동의 기록이 없으면 먼저 받는다.
+      // 확인할 수 없으면(null) 막지 않는다 — 화면 상단 안내가 다시 묻는다.
+      let active = true;
+      void loadMissingConsents(user.uid).then((missing) => {
+        if (!active) return;
+        router.replace(missing?.length ? `${ACCOUNT_CONSENT_PATH}?returnTo=${encodeURIComponent(returnTo)}` : returnTo);
+      });
+      return () => { active = false; };
     }
     if (initialized && !user) {
       // 세션 파싱 직후 onAuthStateChange 가 잠깐 늦을 수 있어 유예.
       const t = setTimeout(() => setTimedOut(true), 4000);
       return () => clearTimeout(t);
     }
-  }, [initialized, user, player, returnTo, router]);
+  }, [initialized, user, returnTo, router]);
 
   if (timedOut) {
     return (

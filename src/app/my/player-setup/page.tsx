@@ -97,7 +97,7 @@ function PlayerSetupFallback() {
 function PlayerSetupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, player, loading, error, clearError, createPlayer, uploadPlayerPhoto, initialized } = useAuth();
+  const { user, player, loading, error, clearError, createPlayer, uploadPlayerPhoto, initialized, setPortraitConsent: savePortraitConsent } = useAuth();
   const { teams, fetchTeams } = useDataStore();
   const playerSetupSearch = searchParams?.toString() ?? "";
 
@@ -304,7 +304,6 @@ function PlayerSetupContent() {
     if (!name.trim() || !position || !parseJerseyNumber(number)) {
       setFormError("이름, 포지션, 등번호(숫자 1~3자리)를 확인해주세요."); return;
     }
-    if (!hasPortraitConsent(player) && !portraitConsent) { setFormError("촬영물 활용 동의 항목을 확인해주세요."); return; }
     if (bgProcessing || !draft.ready || !submission.begin()) return;
     try {
       let photoUrl = "";
@@ -328,8 +327,15 @@ function PlayerSetupContent() {
         profilePhotoLocked: false,
         photoScale,
         cardSkin,
-        portraitConsentAt: player?.portraitConsentAt ?? Date.now(),
       });
+      // [선택] 홍보 이용 동의는 선수카드와 별개로 기록한다. 실패해도 카드는 저장된 상태다.
+      if (portraitConsent && !hasPortraitConsent(player)) {
+        try { await savePortraitConsent(true); }
+        catch (e) {
+          setFormError(`선수 정보는 저장되었습니다. 홍보 이용 동의는 저장하지 못했습니다. ${registrationError(e)}`);
+          return;
+        }
+      }
       // Membership is a separate, recoverable request; profile writes never move a player.
       if (teamId && teamId !== player?.teamId) {
         try { await useDataStore.getState().requestJoinTeam(teamId); }
@@ -807,11 +813,11 @@ function PlayerSetupContent() {
 
           <ParticipantReadiness push={push} consentComplete={hasPortraitConsent(player) || portraitConsent} consent={
             hasPortraitConsent(player) ? (
-              <p className="rounded-2xl border border-border bg-background p-5 text-sm text-primary">초상권 동의 완료 · 기존 본인 동의 기록이 적용됩니다.</p>
+              <p className="rounded-2xl border border-border bg-background p-5 text-sm text-primary">홍보 이용 동의함 · 마이페이지에서 언제든 철회할 수 있습니다.</p>
             ) : <div className="rounded-2xl border border-border bg-background p-5">
-              <h3 className="mb-3 text-base font-bold">초상권·촬영물 활용 동의</h3>
+              <h3 className="mb-3 text-base font-bold">초상권 홍보 이용 동의 (선택)</h3>
               <PortraitConsentField checked={portraitConsent} onChange={setPortraitConsent} disabled={submission.submitting} />
-              {portraitConsent && <p className="mt-2 text-xs text-muted-foreground">선수카드 생성 시 동의가 함께 저장됩니다.</p>}
+              <p className="mt-2 text-xs text-muted-foreground">동의하지 않아도 선수카드를 만들 수 있습니다.</p>
             </div>
           } />
 
@@ -828,7 +834,7 @@ function PlayerSetupContent() {
 
           <button
             type="submit"
-            disabled={loading || submission.submitting || bgProcessing || !!photoError || !draft.ready || (!hasPortraitConsent(player) && !portraitConsent)}
+            disabled={loading || submission.submitting || bgProcessing || !!photoError || !draft.ready}
             className="w-full py-4 rounded-2xl text-sm font-black transition-all hover:opacity-90 disabled:opacity-30"
             style={{
               background: "var(--primary)",

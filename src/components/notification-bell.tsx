@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { needsPortraitConsent } from "@/features/portrait-consent/policy";
+import { useMissingConsents } from "@/features/account-consent/use-missing-consents";
 import { Bell } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useDataStore } from "@/stores/dataStore";
@@ -10,6 +10,7 @@ import { NOTIFICATION_INBOX_CHANGED } from "@/lib/notifications/inbox-events";
 
 export function NotificationBell() {
   const { player } = useAuth();
+  const missingConsents = useMissingConsents();
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const countRequestSeq = useRef(0);
@@ -41,7 +42,7 @@ export function NotificationBell() {
     };
   }, [player?.id, fetchCount, open]);
 
-  const totalUnread = unread + (needsPortraitConsent(player) ? 1 : 0);
+  const totalUnread = unread + (missingConsents?.length ? 1 : 0);
   if (!player?.id) return null;
   return (
     <div className="relative">

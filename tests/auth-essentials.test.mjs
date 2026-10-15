@@ -31,12 +31,12 @@ test('signup and login errors never leak raw Supabase text or account existence'
 test('duplicate signup: email ends on the neutral screen, a taken short ID is reported, raw text never shown', async () => {
   const f = storeFixture();
   f.supabase.auth.signUp = async () => ({ data: { user: null, session: null }, error: { code: 'user_already_exists', message: 'User already registered', status: 422 } });
-  await f.auth.getState().register({ email: 'someone@synthetic.invalid', password: 'x'.repeat(12), name: '선수', consents: [], portraitConsent: true });
+  await f.auth.getState().register({ email: 'someone@synthetic.invalid', password: 'x'.repeat(12), name: '선수', consents: [] });
   assert.equal(f.auth.getState().user, null);
   assert.equal(f.auth.getState().error, null);
-  await assert.rejects(f.auth.getState().register({ email: 'shortid', password: 'x'.repeat(12), name: '선수', consents: [], portraitConsent: true }), (e) => e.message === AUTH_COPY.loginIdTaken);
+  await assert.rejects(f.auth.getState().register({ email: 'shortid', password: 'x'.repeat(12), name: '선수', consents: [] }), (e) => e.message === AUTH_COPY.loginIdTaken);
   f.supabase.auth.signUp = async () => ({ data: { user: null, session: null }, error: { message: 'Database error saving new user', status: 500 } });
-  await assert.rejects(f.auth.getState().register({ email: 'a@synthetic.invalid', password: 'x'.repeat(12), name: '선수', consents: [], portraitConsent: true }), (e) => e.message === AUTH_COPY.generic);
+  await assert.rejects(f.auth.getState().register({ email: 'a@synthetic.invalid', password: 'x'.repeat(12), name: '선수', consents: [] }), (e) => e.message === AUTH_COPY.generic);
 });
 
 test('a failed sign-out keeps the signed-in state and reports it', async () => {

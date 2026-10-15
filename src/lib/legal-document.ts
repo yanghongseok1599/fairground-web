@@ -9,6 +9,8 @@
  * version 은 날짜 문자열로 쓴다. **문구를 한 글자라도 고치면 version 을 올린다.**
  * 같은 version 에 다른 본문이 들어오면 DB 가 거부한다 (sql/consent-records.sql).
  */
+import type { ConsentItem } from "@/components/consent-checklist";
+
 export type LegalKind = "terms" | "privacy" | "refund" | "marketing" | "marketing_night" | "portrait" | "age14";
 
 export interface LegalSection {
@@ -42,3 +44,11 @@ export function markPendingSections(doc: LegalDocument): LegalDocument {
   return { ...doc, sections: doc.sections.map((s) => (s.body.some((b) => b.includes("[확정 필요]")) ? { ...s, pending: true } : s)) };
 }
 
+/** 동의 항목의 고지 문구 자체를 문서로 만든다. 스냅샷에 화면에 보인 그 문구가 남는다 (키트 record-consents.ts 에서 옮김). */
+export function consentDocument(kind: LegalKind, version: string, item: ConsentItem): LegalDocument {
+  const n = item.notice;
+  return {
+    kind, version, title: item.label, effectiveAt: version,
+    sections: [{ heading: item.label, body: n ? [`목적: ${n.purpose}`, `항목: ${n.items}`, `보유기간: ${n.retention}`, `거부권: ${n.refusal}`] : [item.label] }],
+  };
+}

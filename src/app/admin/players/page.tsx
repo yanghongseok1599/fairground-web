@@ -99,10 +99,10 @@ function AdminPlayers() {
       <AdminPanel>
         <div className="border-b px-5 py-4" style={{ borderColor: "rgba(0,71,171,0.14)" }}>
           <div className="fg-label" style={{ color: "var(--primary)" }}>PLAYERS · {loading ? "불러오는 중" : loadError ? "확인 필요" : players.length}</div>
-          {/* 촬영물을 실제로 홍보에 쓸 때 "몇 명에게 동의를 받았는가"를 한눈에.
-              미동의자는 마이페이지 동의 카드로 회수된다. */}
+          {/* 촬영물·선수카드를 서비스 밖 홍보에 쓰기 전에 확인한다. [선택] 동의라 미동의·철회 회원도 정상 회원이다.
+              철회하면 표시가 사라진다 — 그 회원이 나온 기존 홍보 게시물은 내리거나 가린다. */}
           {!loading && !loadError && <div className="mt-1 text-xs" style={{ color: "var(--color-fg-ink-muted)" }}>
-            촬영물 활용 동의 {consentedCount} / {players.length}
+            홍보 이용 동의 {consentedCount} / {players.length}
             {players.length > consentedCount && ` · 미동의 ${players.length - consentedCount}명`}
           </div>}
           {message && (
@@ -147,10 +147,10 @@ function AdminPlayers() {
                     )}
                     {player.portraitConsentAt ? (
                       <AdminStatusPill tone="blue">
-                        촬영동의 {formatConsentDate(player.portraitConsentAt)}
+                        홍보동의 {formatConsentDate(player.portraitConsentAt)}
                       </AdminStatusPill>
                     ) : (
-                      <AdminStatusPill tone="muted">촬영 미동의</AdminStatusPill>
+                      <AdminStatusPill tone="muted">홍보 미동의</AdminStatusPill>
                     )}
                     <button
                       type="button"

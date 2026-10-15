@@ -20,6 +20,7 @@ export function useAuth() {
     updatePassword: store.updatePassword,
     changePassword: store.changePassword,
     completePasswordReset: store.completePasswordReset,
+    setPortraitConsent: store.setPortraitConsent,
     logout: store.logout,
     updatePlayer: store.updatePlayer,
     leaveTeam: store.leaveTeam,

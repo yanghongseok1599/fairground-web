@@ -3,8 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useDataStore } from "@/stores/dataStore";
-import { useAuth } from "@/hooks/useAuth";
-import { needsPortraitConsent, PORTRAIT_CONSENT_PATH } from "@/features/portrait-consent/policy";
+import { ACCOUNT_CONSENT_PATH, useMissingConsents } from "@/features/account-consent/use-missing-consents";
 import type { NotificationItem } from "@/types";
 import { notificationTarget } from "@/lib/notifications/notification-target";
 import { NOTIFICATION_INBOX_CHANGED } from "@/lib/notifications/inbox-events";
@@ -27,8 +26,8 @@ function relTime(ts: number): string {
 }
 
 export function NotificationPanel({ open, onClose, onAllRead }: Props) {
-  const { player } = useAuth();
-  const pendingConsent = needsPortraitConsent(player);
+  const missingConsents = useMissingConsents();
+  const pendingConsent = Boolean(missingConsents?.length);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
   const fetchN = useDataStore((s) => s.fetchNotifications);
@@ -93,10 +92,10 @@ export function NotificationPanel({ open, onClose, onAllRead }: Props) {
       <ul className="max-h-[60vh] overflow-auto py-1">
         {pendingConsent && (
           <li>
-            <Link href={PORTRAIT_CONSENT_PATH} onClick={onClose}
+            <Link href={ACCOUNT_CONSENT_PATH} onClick={onClose}
               className="block border-b border-border bg-muted px-4 py-4 text-foreground">
-              <p className="text-sm font-semibold">초상권 동의를 완료해주세요</p>
-              <p className="mt-1 text-xs text-muted-foreground">선수카드 생성·수정과 대회 신청 전에 필요합니다. 동의하면 이 알림이 해제됩니다.</p>
+              <p className="text-sm font-semibold">이용약관·개인정보 수집 동의를 완료해주세요</p>
+              <p className="mt-1 text-xs text-muted-foreground">동의 기록이 아직 없습니다. 동의하면 이 알림이 해제됩니다.</p>
               <span className="mt-2 inline-block text-xs font-bold text-primary">동의 내용 확인 →</span>
             </Link>
           </li>

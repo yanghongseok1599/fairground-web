@@ -1,3 +1,5 @@
+// 2026-09-15 마이그레이션 단독 동작(역사 기록)만 확인한다. 20261015020000 이후 현재 규칙은
+// tests/site-consent-database.test.mjs 가 확인한다 (선수카드는 동의와 무관, 철회 가능).
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';

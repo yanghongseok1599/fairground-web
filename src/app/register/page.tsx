@@ -16,10 +16,15 @@ import {
   GROUND_CHALLENGE_PLAYER_CARD_SKIN,
   rememberPendingCardSkin,
 } from "@/lib/player-card-skin";
-import { PortraitConsentField } from "@/features/portrait-consent/components/consent-field";
+import { ConsentChecklist, requiredConsentsGiven } from "@/components/consent-checklist";
 import { PasswordField } from "@/components/password-field";
+import { EMAIL_SIGNUP_CONSENTS } from "@/content/signup-consents";
+import { isAtLeastAge, MIN_SIGNUP_AGE } from "@/lib/age";
 import { PASSWORD_MIN_LENGTH, passwordPolicyError } from "@/lib/password-policy";
+import { consentPayload, missingRequiredConsent } from "@/lib/record-consents";
 import type { Gender } from "@/types";
+
+const CONSENT_ITEMS = EMAIL_SIGNUP_CONSENTS.map((entry) => entry.item);
 
 /* ===========================================================
  * Light theme (White&Blue) — FairGround BrandKit 2026
@@ -56,7 +61,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [formError, setFormError] = useState("");
-  const [portraitConsent, setPortraitConsent] = useState(false);
+  const [consents, setConsents] = useState<Record<string, boolean>>({});
   const [success, setSuccess] = useState(false);
   const [entryParams] = useState(() => {
     if (typeof window === "undefined") return new URLSearchParams();
@@ -117,8 +122,12 @@ export default function RegisterPage() {
       setFormError(passwordError);
       return;
     }
-
-    if (!portraitConsent) { setFormError("초상권·촬영물 활용 동의 항목을 확인해주세요."); return; }
+    if (isAtLeastAge(birthDate, MIN_SIGNUP_AGE) === false) {
+      setFormError(`만 ${MIN_SIGNUP_AGE}세 미만은 가입할 수 없습니다.`);
+      return;
+    }
+    const consentError = missingRequiredConsent(EMAIL_SIGNUP_CONSENTS, consents);
+    if (consentError) { setFormError(consentError); return; }
     if (!draft.ready || !submission.begin()) return;
     try {
       await register({
@@ -133,7 +142,7 @@ export default function RegisterPage() {
         hasPlayerExperience,
         teamId: invitedTeamId,
         cardSkin: eventCardSkin,
-        portraitConsent,
+        consents: consentPayload(EMAIL_SIGNUP_CONSENTS, consents),
       });
 
       // MBTI/성향/추구하는 가치관/자기소개(FA) 후속 저장 로직 제거 — 이 필드들은
@@ -189,7 +198,7 @@ export default function RegisterPage() {
               className="mt-3 text-sm leading-relaxed"
               style={{ color: "var(--color-fg-ink-muted)" }}
             >
-              {user ? "계정이 생성되었습니다. 다음 화면에서 감독/선수 중 시작 방식을 선택해주세요." : "가입 요청이 접수되었습니다. 이메일의 인증 링크를 누른 뒤 로그인해주세요."}
+              {user ? "계정이 생성되었습니다. 다음 화면에서 감독/선수 중 시작 방식을 선택해주세요." : "가입 요청을 접수했습니다. 인증 메일을 받으셨다면 링크를 누른 뒤 로그인해주세요. 이미 가입한 계정이라면 바로 로그인하거나 비밀번호 찾기를 이용해주세요."}
               <br />
               일부 운영 기능은 관리자 승인 후 활성화됩니다.
             </p>
@@ -265,7 +274,7 @@ export default function RegisterPage() {
           onGoogle={handleGoogleRegister}
           onKakao={handleKakaoRegister}
         />
-        <p className="text-xs leading-relaxed text-muted-foreground">Google·카카오 가입은 로그인 후 초상권 동의를 확인합니다.</p>
+        <p className="text-xs leading-relaxed text-muted-foreground">Google·카카오 가입은 로그인 후 약관·개인정보 수집 동의를 받습니다.</p>
 
         {/* Divider */}
         <div className="relative">
@@ -482,7 +491,7 @@ export default function RegisterPage() {
             inputStyle={inputStyle}
           />
 
-          <PortraitConsentField checked={portraitConsent} onChange={setPortraitConsent} disabled={loading || submission.submitting} />
+          <ConsentChecklist items={CONSENT_ITEMS} value={consents} onChange={setConsents} disabled={loading || submission.submitting} />
 
           {(formError || error) && (
             <p
@@ -497,7 +506,7 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            disabled={loading || submission.submitting || !draft.ready || !portraitConsent}
+            disabled={loading || submission.submitting || !draft.ready || !requiredConsentsGiven(CONSENT_ITEMS, consents)}
             className="w-full py-3.5 rounded-2xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-40 mt-2"
             style={{
               background: "var(--primary)",

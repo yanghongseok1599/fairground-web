@@ -3,13 +3,14 @@
 import { compressPlayerPhoto, preparePlayerPhotoPatch } from "@/features/player-photos/compress";
 import { notifyInspectionChange } from "@/lib/inspection-sync";
 import { internalReturnPath } from "@/lib/internal-return-path";
-import { hasPortraitConsent, requirePortraitConsent } from "@/features/portrait-consent/policy";
+import { hasPortraitConsent, PORTRAIT_CONSENT_DOCUMENT } from "@/features/portrait-consent/policy";
 import { create } from "zustand";
 import { createClient } from "@supabase/supabase-js";
 import { supabase, isDemoMode } from "@/config/supabase";
 import { AUTH_COPY, passwordErrorMessage, signupErrorMessage } from "@/lib/auth-messages";
 import { passwordPolicyError } from "@/lib/password-policy";
 import { isRecentEmailLinkSession } from "@/lib/recovery-session";
+import { recordMyConsents, type ConsentPayloadItem } from "@/lib/record-consents";
 import { SITE_URL } from "@/lib/site-config";
 import {
   rowToPlayer,
@@ -264,7 +265,8 @@ let authHydrationVersion = 0;
 
 // ===== Store =====
 interface RegisterData {
-  portraitConsent: boolean;
+  /** 가입 화면 ConsentChecklist 의 값 그대로 (src/content/signup-consents.ts). DB 가입 트리거가 기록한다. */
+  consents: ConsentPayloadItem[];
   email: string;
   password: string;
   name: string;
@@ -291,8 +293,6 @@ interface CreatePlayerData {
   photoScale?: number;
   teamRole?: TeamRole;
   cardSkin?: PlayerCardSkin;
-  // 선수카드 등록 화면에서 받은 촬영물 홍보 활용 동의 시각(ms).
-  portraitConsentAt?: number;
 }
 
 interface AuthState {
@@ -317,6 +317,8 @@ interface AuthState {
   completePasswordReset: (newPassword: string) => Promise<void>;
   /** 로그인 상태에서 비밀번호 변경. 현재 비밀번호를 다시 확인한다. */
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  /** [선택] 초상 홍보 이용 동의·철회. consent_records 에 남기고 DB 가 프로필 상태를 맞춘다. */
+  setPortraitConsent: (granted: boolean) => Promise<void>;
   logout: () => Promise<void>;
   refreshPlayer: () => Promise<Player | null>;
   updatePlayer: (data: Partial<Player>) => Promise<void>;
@@ -379,7 +381,6 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
   register: async (data) => {
     setState({ loading: true, error: null });
     try {
-      if (data.portraitConsent !== true) throw new Error("초상권·촬영물 활용 동의 항목을 확인해주세요.");
       const normalizedEmail = normalizeLoginId(data.email);
       if (isDemoMode) {
         const users = getLocalUsers();
@@ -396,7 +397,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
           birthDate: data.birthDate,
           hasPlayerExperience: data.hasPlayerExperience,
           cardSkin: data.cardSkin,
-          portraitConsentAt: Date.now(),
+          portraitConsentAt: data.consents.some((c) => c.kind === "portrait" && c.granted) ? Date.now() : undefined,
         });
         const players = getLocalPlayers();
         players[uid] = player;
@@ -422,7 +423,8 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
             has_player_experience: data.hasPlayerExperience,
             team_id: data.teamId || "",
             card_skin: data.cardSkin ?? "standard",
-            portrait_consent: data.portraitConsent,
+            // 동의 증빙: auth.users INSERT 트리거(record_signup_consents)가 같은 트랜잭션에서 consent_records 로 옮긴다.
+            consents: data.consents,
           },
         },
       });
@@ -465,7 +467,6 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       if (!uid) {
         throw new Error("로그인이 필요합니다");
       }
-      requirePortraitConsent(hasPortraitConsent(existingPlayer) ? existingPlayer : data);
       if (data.role === "referee" && existingPlayer && existingPlayer.role !== "referee") {
         throw new Error("기존 계정의 심판 권한은 관리자가 승인해야 합니다. 선수로 등록을 마친 뒤 심판 등록을 문의해주세요.");
       }
@@ -499,9 +500,8 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
         teamRole: existingPlayer?.teamRole,
         nationality: data.nationality || "KOR",
         gender: data.gender ?? existingPlayer?.gender ?? currentUser?.gender,
-        // 한 번 남은 동의 시각은 재등록/수정 시에도 덮어쓰지 않는다 —
-        // 최초 동의 시점이 증거로서의 의미를 가지기 때문.
-        portraitConsentAt: existingPlayer?.portraitConsentAt ?? data.portraitConsentAt,
+        // 초상 홍보 동의는 선수카드와 별개다. setPortraitConsent 만 바꾼다.
+        portraitConsentAt: existingPlayer?.portraitConsentAt,
         createdAt: existingPlayer?.createdAt ?? Date.now(),
       };
       if (isDemoMode) {
@@ -515,7 +515,7 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       let savedPlayer: Player;
       if (existingPlayer) {
         // Only submitted card fields: never resubmit membership, stats, badges,
-        // approval, role, or a stale consent timestamp from an earlier read.
+        // approval, role, or a consent timestamp from an earlier read.
         const patch = {
           name: player.name, number: player.number, numberLabel: player.numberLabel, position: player.position,
           nationality: player.nationality, photoScale: player.photoScale,
@@ -523,8 +523,6 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
           ...(data.photoUrl ? { photoUrl: data.photoUrl } : {}),
           ...(!existingPlayer.profilePhotoLocked && data.profilePhotoUrl
             ? { profilePhotoUrl: data.profilePhotoUrl } : {}),
-          ...(!existingPlayer.portraitConsentAt && data.portraitConsentAt
-            ? { portraitConsentAt: data.portraitConsentAt } : {}),
         };
         const { data: saved, error } = await supabase
           .from("profiles")
@@ -536,7 +534,6 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
           .insert(playerToInsert(player)).select("id").single();
         savedPlayer = await requireSavedProfile(saved, error, uid, fetchProfile);
       }
-      requirePortraitConsent(savedPlayer);
       if (getState().user?.uid !== uid) {
         throw new Error("로그인 계정이 변경되었습니다. 저장 결과를 해당 계정에서 확인해주세요.");
       }
@@ -649,6 +646,28 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
     }
   },
 
+  setPortraitConsent: async (granted) => {
+    const state = getState();
+    if (!state.user || !state.player) throw new Error("로그인 정보가 없습니다. 다시 로그인해주세요.");
+    if (isDemoMode) {
+      const updated = { ...state.player, portraitConsentAt: granted ? Date.now() : undefined };
+      const players = getLocalPlayers();
+      players[state.user.uid] = updated;
+      saveLocalPlayers(players);
+      setState({ player: updated });
+      return;
+    }
+    const uid = state.user.uid;
+    await recordMyConsents(supabase as unknown as Parameters<typeof recordMyConsents>[0], "mypage", [
+      { kind: "portrait", version: PORTRAIT_CONSENT_DOCUMENT.version, granted },
+    ]);
+    // Only the database record proves the new state; never flip it locally.
+    const player = await fetchProfile(uid);
+    if (getState().user?.uid !== uid) return;
+    setState({ player });
+    if (hasPortraitConsent(player) !== granted) throw new Error("동의 상태를 확인하지 못했습니다. 새로고침 후 다시 확인해주세요.");
+  },
+
   logout: async () => {
     if (isDemoMode) {
       clearLocalAdminSession();
@@ -683,15 +702,12 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
     const state = useAuthStore.getState();
     if (!state.user || !state.player) throw new Error("로그인 정보가 없습니다. 입력을 유지한 채 다시 로그인해주세요.");
 
-    const cardFields: (keyof Player)[] = ["number", "numberLabel", "position", "photoUrl", "profilePhotoUrl", "photoScale"];
-    if (cardFields.some((field) => data[field] !== undefined)) {
-      requirePortraitConsent(hasPortraitConsent(state.player) ? state.player : data);
+    // 초상 홍보 동의는 setPortraitConsent(동의 기록 RPC)만 바꾼다. 프로필 저장에 섞어 보내지 않는다.
+    if (data.portraitConsentAt !== undefined) {
+      const { portraitConsentAt: _ignored, ...rest } = data;
+      void _ignored;
+      data = rest;
     }
-    // Re-submission must never change the original evidence.
-    if (hasPortraitConsent(state.player) && data.portraitConsentAt !== undefined) {
-      data = { ...data, portraitConsentAt: state.player.portraitConsentAt };
-    }
-    if (data.portraitConsentAt !== undefined) requirePortraitConsent(data);
 
     if (isDemoMode) {
       const updated = { ...state.player, ...data };
@@ -718,7 +734,6 @@ export const useAuthStore = create<AuthState>((setState, getState) => ({
       throw new Error(error.message);
     }
     const savedPlayer = await requireSavedProfile(saved, error, state.user.uid, fetchProfile);
-    if (data.portraitConsentAt !== undefined) requirePortraitConsent(savedPlayer);
     if (getState().user?.uid !== state.user.uid) {
       throw new Error("로그인 계정이 변경되었습니다. 저장 결과를 해당 계정에서 확인해주세요.");
     }

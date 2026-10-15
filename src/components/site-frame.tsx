@@ -5,7 +5,7 @@ import { Providers } from "./providers";
 import { SiteHeader } from "./site-header";
 import { SiteFooter } from "./site-footer";
 import { BusinessFooter } from "./business-footer";
-import { PortraitConsentReminder } from "@/features/portrait-consent/components/consent-reminder";
+import { AccountConsentReminder } from "@/features/account-consent/consent-reminder";
 import { RecordingSyncService } from "@/features/match-recording/sync-service";
 import { SwRegister } from "./sw-register";
 
@@ -30,7 +30,7 @@ export function SiteFrame({ children }: { children: React.ReactNode }) {
       <SwRegister />
       <RecordingSyncService />
       <SiteHeader />
-      <main className="w-full overflow-x-clip"><PortraitConsentReminder />{children}</main>
+      <main className="w-full overflow-x-clip"><AccountConsentReminder />{children}</main>
       <SiteFooter />
     </Providers>
   );
