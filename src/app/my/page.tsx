@@ -10,6 +10,7 @@ import { mergePlayerResult } from "@/features/match-results/model";
 import { useFinalCardTier } from "@/features/standings/use-final-card-tier";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   LogOut, ChevronRight, Users, Mail, Flag, Hash,
   Shield, Target, Handshake, Gamepad2, Star, CreditCard,
@@ -1222,7 +1223,7 @@ export default function MyPage() {
                         border: "1px solid var(--color-fg-blue-soft)",
                       }}
                     >
-                      <img src={goal.badge.imageUrl} alt={goal.badge.name} className="w-10 h-10 object-contain" draggable={false} />
+                      <Image src={goal.badge.imageUrl} alt={goal.badge.name} width={40} height={40} unoptimized loading="eager" decoding="auto" className="w-10 h-10 object-contain" draggable={false} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">

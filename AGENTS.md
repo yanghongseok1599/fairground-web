@@ -208,6 +208,16 @@ Supabase 내장 pg_cron의 10초 작업은 저장된 경기 시간·서버 시�
 [보존 보완 기록](docs/releases/2026-10-08-festival-survey-durability.md).
 
 
+## 2026-10-14 개발 함수 스냅샷 접근 차단
+
+`20261014010000_dev_function_snapshot_access.sql`은 개발 전용이다. `public._fnsnap_before`의 91행·소유자·권한을 백업하고 격리 복원·동일 정의/행 해시·롤백을 검증한 뒤 PUBLIC/anon/authenticated 권한을 회수하고 RLS를 활성화했다. 기존 25개 개발 이력을 보존하고 1건만 추가했다. 공개 키 REST 조회는 401/42501, 실제 anon/authenticated DB 역할 조회는 권한 거부이며 Security Advisor의 해당 RLS 오류는 사라졌다. postgres/service_role 권한과 91행은 보존했다. 운영은 조회·변경하지 않았다. 이 SQL은 검증된 개발 연결에서 transaction-local 대상 가드를 설정한 경우에만 실행한다. 전체 이력 복구 및 linked push/reset/repair 금지는 유지한다.
+
+## 2026-10-14 개발 전체 테스트·퀴즈 복구
+
+개발 스키마 백업·정확한 격리 복원·diff·롤백·전체 DB 회귀 후 `20260911000000` 퀴즈 SQL, 누락된 `20261003010000` 사진 바이트 축소 SQL, 개발 전용 `20261014020000` 프로필 조회 권한 SQL만 적용했다. 기존 36개 공개 테이블의 데이터와 이전 이력은 보존했고 개발 이력은 26→29건이다. 새 권한 SQL은 개발 대상 가드를 요구하며 공개 32열과 본인·관리자 RPC를 유지한다. 기존 스냅샷 RLS 차단·준비 알림 중지는 유지한다.
+
+전체 148개 테스트 파일(비DB 669개·DB 178개), TypeScript, lint 오류 0, 전체 작업 소스의 정상 개발 빌드를 확인했다. 운영 DB와 웹 배포는 조회·변경하지 않았다. 기존 전체 이력 불일치와 linked push/reset/repair 금지는 유지한다. [상세 기록](docs/releases/2026-10-14-development-tests-quiz.md).
+
 ## 2026-10-15 동의 기록 개발 Preview 복구
 
 `feat/site-essentials`의 `61d1920` Preview는 개발 DB의 `my_consent_history`·`record_my_consents` 누락으로 빌드 정합성 검사에서 차단됐다. 최신 개발 스키마 597,017바이트를 격리 PG17에 복원해 public/auth/storage/이력의 정의·소유자·권한·RLS를 대조하고, 적용 diff·트랜잭션 롤백·실제 역할 회귀를 검증한 뒤 `20261015010000`, `20261015020000`, `20261015040000` 세 건만 개발에 적용했다. 문법 정규화는 정책 역할 나열 순서와 동등한 AND 괄호에 한정했다.

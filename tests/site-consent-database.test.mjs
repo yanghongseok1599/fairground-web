@@ -19,7 +19,7 @@ async function actor(id) {
   return c;
 }
 const V = '2026-10-15';
-const required = [{ kind: 'age14', version: V, granted: true }, { kind: 'terms', version: V, granted: true }, { kind: 'privacy', version: V, granted: true }];
+const required = [{ kind: 'age14', version: V, granted: true }, { kind: 'terms', version: V, granted: true }, { kind: 'privacy', version: '2026-10-15.2', granted: true }];
 const portrait = (granted) => ({ kind: 'portrait', version: V, granted });
 const signup = async (meta) => {
   const id = randomUUID();
@@ -55,6 +55,7 @@ try {
   await db.query(preserve);
   await db.query(sql('20261015010000_consent_records.sql'));
   await db.query(sql('20261015020000_portrait_consent_optional.sql'));
+  await db.query(sql('20261015040000_consent_privacy_document.sql'));
 
   await test('email signup records consents in the same transaction, with the optional item as given', async () => {
     const id = await signup({ name: '합성 회원', consents: [...required, portrait(false)] });

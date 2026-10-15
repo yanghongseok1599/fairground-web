@@ -3,15 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "postinstall": "node scripts/prepare-face-landmarker.mjs",
-    "predev": "node scripts/supabase/check-safety.mjs dev",
+    "postinstall": "node scripts/security/check-tooling-glob.mjs && node scripts/prepare-face-landmarker.mjs",
+    "predev": "npm run security:dependencies && node scripts/supabase/check-safety.mjs dev",
     "dev": "next dev",
     "dev:event": "FAIRGROUND_EVENT_LOCAL=1 npm run dev -- --hostname 0.0.0.0 --port 3100",
-    "prebuild": "node scripts/supabase/check-schema-parity.mjs && node scripts/proposals/check-media-assets.mjs",
+    "prebuild": "npm run security:dependencies && node scripts/supabase/check-schema-parity.mjs && node scripts/proposals/check-media-assets.mjs",
     "build": "next build && next-sitemap",
     "start": "next start",
     "start:event": "FAIRGROUND_EVENT_LOCAL=1 next start --hostname 0.0.0.0 --port 3100",
+    "prelint": "npm run security:dependencies",
     "lint": "eslint",
+    "security:dependencies": "node scripts/security/check-tooling-glob.mjs",
+    "test:dependencies": "node --test tests/dependency-security.test.mjs tests/dependency-upgrades.test.mjs",
     "security:audit": "npm audit --audit-level=moderate",
     "supabase:safety": "node scripts/supabase/check-safety.mjs status",
     "supabase:parity": "node scripts/supabase/check-schema-parity.mjs",
@@ -22,7 +25,9 @@
     "test:player-card": "node --experimental-strip-types tests/player-card-frame.test.ts && node --experimental-strip-types tests/player-card-photo-fallback.test.ts && node --experimental-strip-types tests/player-card-assets.test.ts && node --experimental-strip-types tests/player-card-face-geometry.test.ts",
     "test:photo-read": "node --test tests/player-card-photo-read.test.mjs",
     "test:player-card-head": "node --experimental-strip-types tests/player-card-head.test.ts && node --test tests/player-card-skin.test.mjs",
-    "test:player-card-export": "node --experimental-strip-types tests/player-card-export.test.ts"
+    "test:player-card-export": "node --experimental-strip-types tests/player-card-export.test.ts",
+    "test:browser": "node scripts/testing/browser/run.mjs",
+    "test:browser-config": "node --test tests/browser-regression-config.test.mjs"
   },
   "dependencies": {
     "@imgly/background-removal": "^1.7.0",
@@ -41,7 +46,8 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "tailwind-merge": "^3.4.1",
-    "zustand": "^5.0.11"
+    "zustand": "^5.0.11",
+    "fast-glob": "file:packages/tooling-glob"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -61,6 +67,7 @@
     "protobufjs": "7.6.6",
     "minimatch@3.1.5": {
       "brace-expansion": "1.1.21"
-    }
+    },
+    "fast-glob": "$fast-glob"
   }
 }

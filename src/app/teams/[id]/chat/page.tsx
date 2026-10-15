@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, MessageSquare, Eye, Plus, X } from "lucide-react";
 import { useDataStore } from "@/stores/dataStore";
@@ -30,6 +30,7 @@ type Sort = "recent" | "comments";
  */
 export default function TeamBoardPage() {
   const { id: teamId } = useParams<{ id: string }>();
+  const router = useRouter();
   const fetchTeam = useDataStore((s) => s.fetchTeam);
   const fetchBoardPosts = useDataStore((s) => s.fetchBoardPosts);
   const createBoardPost = useDataStore((s) => s.createBoardPost);
@@ -155,7 +156,7 @@ export default function TeamBoardPage() {
                   style={{ background: "var(--primary)", color: "#fff" }}
                   onClick={() => {
                     if (!user) {
-                      window.location.href = `/login?returnTo=${encodeURIComponent(`/teams/${teamId}/chat`)}`;
+                      router.push(`/login?returnTo=${encodeURIComponent(`/teams/${teamId}/chat`)}`);
                       return;
                     }
                     if (!canWrite) {

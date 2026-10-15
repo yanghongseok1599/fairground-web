@@ -6,6 +6,8 @@
 // object-cover 로 컨테이너를 꽉 채우며, 살짝 어두운 오버레이로 위에 올라가는
 // 흰 선수 칩/텍스트 대비를 확보한다.
 
+import Image from "next/image";
+
 const BASE_GREEN = "#15331f";
 
 /**
@@ -20,8 +22,12 @@ export function CourtBackdrop({ forceLandscape }: { forceLandscape?: boolean } =
         className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl"
         style={{ background: BASE_GREEN }}
       >
-        <img
+        <Image
           src="/match/pitch-landscape.png"
+          fill
+          unoptimized
+          loading="eager"
+          decoding="auto"
           alt=""
           aria-hidden="true"
           className="absolute inset-0 h-full w-full object-cover"
@@ -37,16 +43,24 @@ export function CourtBackdrop({ forceLandscape }: { forceLandscape?: boolean } =
       style={{ background: BASE_GREEN }}
     >
       {/* 세로(모바일) */}
-      <img
+      <Image
         src="/match/pitch-portrait.png"
+        fill
+        unoptimized
+        loading="eager"
+        decoding="auto"
         alt=""
         aria-hidden="true"
         className="absolute inset-0 h-full w-full object-cover landscape:hidden md:hidden"
         draggable={false}
       />
       {/* 가로/데스크탑 */}
-      <img
+      <Image
         src="/match/pitch-landscape.png"
+        fill
+        unoptimized
+        loading="eager"
+        decoding="auto"
         alt=""
         aria-hidden="true"
         className="absolute inset-0 hidden h-full w-full object-cover landscape:block md:block"

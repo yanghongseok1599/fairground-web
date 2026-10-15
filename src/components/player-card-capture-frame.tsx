@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { PlayerCard } from "@/components/player-card";
 import {
   PLAYER_CARD_COMPOSITION,
@@ -76,8 +77,13 @@ export function PlayerCardCaptureFrame({
         >
           <PlayerCard player={player} cardContext={cardContext} appearance={appearance} size="export" teamLogo={teamLogo} disableHoverScale />
         </div>
-        <img
+        <Image
           src={composition.wordmark.src}
+          width={3603}
+          height={767}
+          unoptimized
+          loading="eager"
+          decoding="auto"
           alt="FAIRGROUND"
           className="absolute"
           style={{

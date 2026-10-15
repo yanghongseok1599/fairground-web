@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { internalReturnPath } from "../src/lib/internal-return-path.ts";
 
 const root = process.cwd();
 const read = (p: string) => readFileSync(join(root, p), "utf8");
@@ -20,8 +21,12 @@ test("온보딩은 프로필 존재가 아니라 선수 등록 완료 여부로 
 
 test("OAuth 콜백 기본 착지점은 /onboarding", () => {
   const src = read("src/app/auth/callback/page.tsx");
-  assert.match(src, /if \(!raw\) return "\/onboarding"/);
-  assert.ok(!/if \(!raw\) return "\/my"/.test(src));
+  assert.match(src, /internalReturnPath\(searchParams\.get\("returnTo"\), "\/onboarding"\)/);
+  // 누락되거나 외부로 향하는 목적지는 실명 입력을 포함한 온보딩으로 보낸다.
+  for (const raw of [null, undefined, "", "https://outside.invalid", "//outside.invalid"]) {
+    assert.equal(internalReturnPath(raw, "/onboarding"), "/onboarding");
+  }
+  assert.equal(internalReturnPath("/my/player-setup?event=ground-challenge", "/onboarding"), "/my/player-setup?event=ground-challenge");
 });
 
 test("소셜 로그인은 Google과 Kakao 모두 공용 OAuth 콜백을 사용한다", () => {

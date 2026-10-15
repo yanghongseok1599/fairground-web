@@ -1734,6 +1734,14 @@ export type Database = {
         Args: { p_tournament_id: string; p_player_id: string; p_checked: boolean; p_expected_revision: number }
         Returns: number
       }
+      get_futsal_quiz_leaderboard: {
+        Args: { p_version: string };
+        Returns: { id: string; nickname: string; correct_count: number; rank: number; total_records: number }[];
+      };
+      register_futsal_quiz_result: {
+        Args: { p_attempt_id: string; p_nickname: string; p_answers: number[]; p_version: string };
+        Returns: { id: string; correct_count: number; rank: number }[];
+      };
       register_team: {
         Args: { p_request_id: string; p_name: string; p_logo?: string; p_founded_year?: number | null; p_team_type?: string; p_portrait_consent_at?: string | null };
         Returns: Database["public"]["Tables"]["teams"]["Row"];
