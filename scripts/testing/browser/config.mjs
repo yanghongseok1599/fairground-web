@@ -70,10 +70,10 @@ export function validateCredentials(environment) {
 
 export function parseConfig(argv, { repositoryRoot, environment = process.env } = {}) {
   const options = {};
-  const allowed = new Set(["--url", "--space", "--page", "--output", "--repeat", "--sha"]);
+  const allowed = new Set(["--url", "--space", "--page", "--output", "--repeat", "--sha", "--isolate-extension"]);
   for (let index = 0; index < argv.length; index += 2) {
     const option = argv[index];
-    if (!allowed.has(option)) throw new Error("Unknown argument; supported options are --url, --space, --page, --output, --repeat and --sha.");
+    if (!allowed.has(option)) throw new Error("Unknown argument; supported options are --url, --space, --page, --output, --repeat, --sha and --isolate-extension.");
     if (Object.hasOwn(options, option)) throw new Error(`Duplicate option ${option}.`);
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`Missing value for ${option}.`);
@@ -82,10 +82,15 @@ export function parseConfig(argv, { repositoryRoot, environment = process.env } 
   if (!COMMIT_SHA.test(options["--sha"] ?? "")) throw new Error("--sha must be the full lowercase 40-character expected Preview commit SHA.");
   const page = options["--page"] ?? "p1";
   if (!/^p[1-9]\d*$/.test(page)) throw new Error("--page must be an existing permanent Page label such as p1 or p2.");
+  const isolateExtension = options["--isolate-extension"];
+  if (isolateExtension !== undefined && isolateExtension !== "aliprice") {
+    throw new Error("--isolate-extension only supports the reviewed aliprice extension.");
+  }
   return {
     url: validatePreviewUrl(options["--url"]),
     space: strictInteger(options["--space"], "--space"),
     page,
+    isolateExtension,
     output: validateOutputPath(options["--output"], repositoryRoot),
     repeat: strictInteger(options["--repeat"] ?? "3", "--repeat", 10),
     sha: options["--sha"],

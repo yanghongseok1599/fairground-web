@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { clickButton, clickTeamCard } from './actions.mjs';
+import { KNOWN_EXTENSION_ID } from './extensions.mjs';
 
 const DEV_HOST = 'fhytkbjadhnmozppolrv.supabase.co';
 // Exact profile/team reads used by these screens; do not infer RPC safety from
@@ -52,8 +53,18 @@ export async function runTeamRegression({ taskSpace, config, credentials }) {
   assert.ok(typeof credentials.password === 'string' && credentials.password.length > 0);
   const task = await taskSpace(config.space);
   const page = task.page(config.page);
-  const report = { url: config.url, sha: config.sha, startedAt: new Date().toISOString(), status: 'running', cases: [], recoveries: [] };
+  const report = { url: config.url, sha: config.sha, startedAt: new Date().toISOString(), status: 'running', evidenceFormat: 'accessibility-snapshot', cases: [], recoveries: [] };
   const save = () => writeFile(path.join(config.output, 'results.json'), JSON.stringify(report, null, 2) + '\n');
+  const readEvents = async () => {
+    const events = await page.events();
+    if (config.isolateExtension === 'aliprice') {
+      const scripts = events.filter((event) => event.method === 'Debugger.scriptParsed' &&
+        event.params.url?.startsWith(`chrome-extension://${KNOWN_EXTENSION_ID}/`));
+      assert.equal(scripts.length, 0, 'Isolated extension code must not execute in the Preview page');
+      report.extensionScriptChecks = (report.extensionScriptChecks ?? 0) + 1;
+    }
+    return events;
+  };
   const runCase = async (name, fn) => {
     report.activeCase = name;
     report.phase = 'start';
@@ -96,15 +107,21 @@ export async function runTeamRegression({ taskSpace, config, credentials }) {
     await page.cdp('Network.enable');
     await page.cdp('Debugger.enable');
     await page.cdp('Profiler.enable');
+    await page.events(); // Ignore the caller's previous document before navigation.
     await page.goto(config.url + '/teams');
     await assertDevelopmentBackend(page);
+    await readEvents();
     await page.waitForSelector('loc=href:/login', { state: 'visible', timeout: 15000 });
     await runCase('team-card-moving-mouse', () => clickTeamCard(page, { pause: false, baseUrl: config.url, trace }));
     for (let i = 0; i < config.repeat; i++) {
       await page.goto(config.url + '/teams');
       await runCase(`team-card-focus-paused-${i + 1}`, () => clickTeamCard(page, { pause: true, baseUrl: config.url, trace }));
     }
-    await page.screenshot({ path: path.join(config.output, 'team-card-detail.png') });
+    // Ego 0.5.1.13 PNG capture times out even on a blank Page and can alter
+    // viewport dimensions. Keep mandatory semantic evidence without invoking
+    // that unrelated compositor path; native input and all assertions remain.
+    await trace('capture-team-card');
+    await writeFile(path.join(config.output, 'team-card-detail.txt'), await page.snapshot({ scope: 'full_page' }), { mode: 0o600 });
     await page.goto(config.url + '/login?returnTo=/my/team');
     await page.snapshot();
     await page.fill('input[name="email"]', credentials.email);
@@ -118,7 +135,7 @@ export async function runTeamRegression({ taskSpace, config, credentials }) {
     }, undefined, { timeout: 15000 });
     const baseline = await page.evaluate(displayTeam);
     assert.equal(baseline.name, 'FC 하늘', 'Only the synthetic captain team is allowed');
-    const startupRequests = summarizeRequests(await page.events());
+    const startupRequests = summarizeRequests(await readEvents());
     assert.ok(startupRequests.some((r) => r.host === DEV_HOST), 'Network observation must be active before cancel assertions');
     for (let i = 0; i < config.repeat; i++) {
       await runCase(`team-edit-cancel-${i + 1}`, async () => {
@@ -148,7 +165,7 @@ export async function runTeamRegression({ taskSpace, config, credentials }) {
         assert.equal(await page.url(), config.url + '/my/team');
         assert.deepEqual(await page.evaluate(displayTeam), baseline, 'Cancel must preserve the displayed team name and original logo');
         assert.equal(await page.evaluate(() => [...document.querySelectorAll('main [role="status"]')].some((el) => /수정되었습니다|저장되었습니다/.test(el.textContent))), false);
-        const requests = summarizeRequests(await page.events());
+        const requests = summarizeRequests(await readEvents());
         assert.deepEqual(requests.filter((r) => isUnexpectedWrite(r, new URL(config.url).hostname)), [], 'Cancel must not write application data');
         const foreign = requests.filter((r) => r.host.endsWith('.supabase.co') && r.host !== DEV_HOST);
         assert.deepEqual(foreign, [], 'No production backend requests are allowed');
@@ -163,7 +180,8 @@ export async function runTeamRegression({ taskSpace, config, credentials }) {
       await page.waitForFunction(displayTeamReady, undefined, { timeout: 15000 });
       assert.deepEqual(await page.evaluate(displayTeam), baseline);
     });
-    await page.screenshot({ path: path.join(config.output, 'team-cancel-verified.png'), fullPage: true });
+    await trace('capture-cancelled-team');
+    await writeFile(path.join(config.output, 'team-cancel-verified.txt'), await page.snapshot({ scope: 'full_page' }), { mode: 0o600 });
     // Use the observed header menu role to avoid the duplicate body logout button.
     await page.goto(config.url + '/my');
     await page.waitForSelector('loc=role:button[name="마이페이지"]', { state: 'visible', timeout: 15000 });
@@ -172,6 +190,7 @@ export async function runTeamRegression({ taskSpace, config, credentials }) {
     await page.snapshot();
     await page.click('loc=role:menuitem[name="로그아웃"]');
     await page.waitForSelector('loc=href:/login', { state: 'visible', timeout: 15000 });
+    await readEvents();
     await page.cdp('Emulation.clearDeviceMetricsOverride');
     report.status = 'passed';
     delete report.activeCase;

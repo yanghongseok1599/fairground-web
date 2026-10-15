@@ -86,6 +86,14 @@ test("requires a caller-owned space id and full expected commit SHA", () => {
   }
 });
 
+test("extension isolation is explicit and limited to the reviewed extension", () => {
+  assert.equal(parseConfig(argv(), { repositoryRoot: repo, environment }).isolateExtension, undefined);
+  assert.equal(parseConfig([...argv(), "--isolate-extension", "aliprice"], { repositoryRoot: repo, environment }).isolateExtension, "aliprice");
+  for (const value of ["all", "*", "other-extension", "false"]) {
+    assert.throws(() => parseConfig([...argv(), "--isolate-extension", value], { repositoryRoot: repo, environment }), /--isolate-extension/);
+  }
+});
+
 test("rejects ambiguous and unexpected CLI flags without echoing credentials", () => {
   assert.throws(() => parseConfig([...argv(), "--url", url], { repositoryRoot: repo, environment }), /Duplicate/);
   assert.throws(() => parseConfig([...argv(), "--repeat"], { repositoryRoot: repo, environment }), /Missing/);
