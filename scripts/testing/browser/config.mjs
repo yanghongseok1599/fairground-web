@@ -70,16 +70,21 @@ export function validateCredentials(environment) {
 
 export function parseConfig(argv, { repositoryRoot, environment = process.env } = {}) {
   const options = {};
-  const allowed = new Set(["--url", "--space", "--page", "--output", "--repeat", "--sha", "--isolate-extension"]);
+  const allowed = new Set(["--url", "--space", "--page", "--output", "--repeat", "--sha", "--isolate-extension", "--engine"]);
   for (let index = 0; index < argv.length; index += 2) {
     const option = argv[index];
-    if (!allowed.has(option)) throw new Error("Unknown argument; supported options are --url, --space, --page, --output, --repeat, --sha and --isolate-extension.");
+    if (!allowed.has(option)) throw new Error("Unknown argument; supported options are --url, --space, --page, --output, --repeat, --sha, --isolate-extension and --engine.");
     if (Object.hasOwn(options, option)) throw new Error(`Duplicate option ${option}.`);
     const value = argv[index + 1];
     if (!value || value.startsWith("--")) throw new Error(`Missing value for ${option}.`);
     options[option] = value;
   }
   if (!COMMIT_SHA.test(options["--sha"] ?? "")) throw new Error("--sha must be the full lowercase 40-character expected Preview commit SHA.");
+  const engine = options["--engine"] ?? "ego";
+  if (!["ego", "chromium"].includes(engine)) throw new Error("--engine must be ego or chromium.");
+  if (engine === "chromium" && ["--space", "--page", "--isolate-extension"].some((key) => Object.hasOwn(options, key))) {
+    throw new Error("Isolated Chromium cannot use an existing --space, --page or --isolate-extension.");
+  }
   const page = options["--page"] ?? "p1";
   if (!/^p[1-9]\d*$/.test(page)) throw new Error("--page must be an existing permanent Page label such as p1 or p2.");
   const isolateExtension = options["--isolate-extension"];
@@ -88,7 +93,8 @@ export function parseConfig(argv, { repositoryRoot, environment = process.env } 
   }
   return {
     url: validatePreviewUrl(options["--url"]),
-    space: strictInteger(options["--space"], "--space"),
+    engine,
+    space: engine === "chromium" ? 1 : strictInteger(options["--space"], "--space"),
     page,
     isolateExtension,
     output: validateOutputPath(options["--output"], repositoryRoot),

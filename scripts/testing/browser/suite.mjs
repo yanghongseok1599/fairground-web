@@ -3,6 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { clickButton, clickTeamCard } from './actions.mjs';
 import { KNOWN_EXTENSION_ID } from './extensions.mjs';
+import { capturePngEvidence } from './capture.mjs';
 
 const DEV_HOST = 'fhytkbjadhnmozppolrv.supabase.co';
 // Exact profile/team reads used by these screens; do not infer RPC safety from
@@ -53,7 +54,7 @@ export async function runTeamRegression({ taskSpace, config, credentials }) {
   assert.ok(typeof credentials.password === 'string' && credentials.password.length > 0);
   const task = await taskSpace(config.space);
   const page = task.page(config.page);
-  const report = { url: config.url, sha: config.sha, startedAt: new Date().toISOString(), status: 'running', evidenceFormat: 'accessibility-snapshot', cases: [], recoveries: [] };
+  const report = { url: config.url, sha: config.sha, engine: config.engine ?? 'ego', startedAt: new Date().toISOString(), status: 'running', evidenceFormat: 'png', screenshots: [], cases: [], recoveries: [] };
   const save = () => writeFile(path.join(config.output, 'results.json'), JSON.stringify(report, null, 2) + '\n');
   const readEvents = async () => {
     const events = await page.events();
@@ -117,11 +118,20 @@ export async function runTeamRegression({ taskSpace, config, credentials }) {
       await page.goto(config.url + '/teams');
       await runCase(`team-card-focus-paused-${i + 1}`, () => clickTeamCard(page, { pause: true, baseUrl: config.url, trace }));
     }
-    // Ego 0.5.1.13 PNG capture times out even on a blank Page and can alter
-    // viewport dimensions. Keep mandatory semantic evidence without invoking
-    // that unrelated compositor path; native input and all assertions remain.
     await trace('capture-team-card');
-    await writeFile(path.join(config.output, 'team-card-detail.txt'), await page.snapshot({ scope: 'full_page' }), { mode: 0o600 });
+    // The heading appears before TeamEmblem's asynchronous canvas export.
+    // Wait for the completed card image, not its translucent frame placeholder.
+    await page.waitForFunction(() => {
+      const name = document.querySelector('main h1')?.textContent.trim();
+      if (!name) return false;
+      const images = [...document.querySelectorAll('main img')].filter((image) =>
+        image.alt.startsWith(name + ' ') && image.alt.endsWith(' 팀 카드'));
+      return images.length === 1 && images[0].getAttribute('src')?.startsWith('data:image/png') &&
+        images[0].complete && images[0].naturalWidth > 0 && images[0].naturalHeight > 0 &&
+        Number(getComputedStyle(images[0]).opacity) === 1;
+    }, undefined, { timeout: 20000 });
+    report.screenshots.push(await capturePngEvidence(page, path.join(config.output, 'team-card-detail.png')));
+    await save();
     await page.goto(config.url + '/login?returnTo=/my/team');
     await page.snapshot();
     await page.fill('input[name="email"]', credentials.email);
@@ -181,7 +191,17 @@ export async function runTeamRegression({ taskSpace, config, credentials }) {
       assert.deepEqual(await page.evaluate(displayTeam), baseline);
     });
     await trace('capture-cancelled-team');
-    await writeFile(path.join(config.output, 'team-cancel-verified.txt'), await page.snapshot({ scope: 'full_page' }), { mode: 0o600 });
+    // All repeated cancel/scroll assertions are complete. Frame the original
+    // team name and emblem for the required visual evidence using native input.
+    const captureScroll = await page.evaluate(() => scrollY);
+    if (captureScroll > 0) {
+      await page.mouse.move(756, 200, { label: '팀 정보 캡처 영역 선택' });
+      await page.mouse.wheel(0, -captureScroll, { label: '원래 팀 정보 화면 캡처' });
+      await page.waitForFunction(() => scrollY <= 1, undefined, { timeout: 5000 });
+    }
+    assert.deepEqual(await page.evaluate(displayTeam), baseline);
+    report.screenshots.push(await capturePngEvidence(page, path.join(config.output, 'team-cancel-verified.png')));
+    await save();
     // Use the observed header menu role to avoid the duplicate body logout button.
     await page.goto(config.url + '/my');
     await page.waitForSelector('loc=role:button[name="마이페이지"]', { state: 'visible', timeout: 15000 });
@@ -197,7 +217,7 @@ export async function runTeamRegression({ taskSpace, config, credentials }) {
     delete report.phase;
     report.finishedAt = new Date().toISOString();
     await save();
-    console.log(`Browser regression passed: ${report.cases.length} cases, ${report.recoveries.length} observed header recoveries. TaskSpace ${config.space} remains caller-owned.`);
+    console.log(`Browser regression passed: ${report.cases.length} cases, ${report.screenshots.length} verified PNGs, ${report.recoveries.length} observed header recoveries.`);
   } catch (error) {
     report.status = 'failed';
     // Do not record arbitrary backend errors that could contain sensitive URLs.

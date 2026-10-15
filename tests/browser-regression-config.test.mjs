@@ -57,7 +57,20 @@ test("parses a bounded run and keeps the password out of serialized config", () 
   assert.equal(config.page, "p1");
   assert.equal(config.sha, sha);
   assert.equal(config.email, "captain@example.com");
+  assert.equal(config.engine, "ego");
   assert.ok(!JSON.stringify(config).includes(environment.FAIRGROUND_BROWSER_CAPTAIN_PASSWORD));
+});
+
+test("isolated Chromium is explicit and cannot target user browser state", () => {
+  const args = ["--engine", "chromium", "--url", url, "--output", join(temp, "chromium-evidence"), "--sha", sha];
+  const config = parseConfig(args, { repositoryRoot: repo, environment });
+  assert.equal(config.engine, "chromium");
+  assert.equal(config.page, "p1");
+  assert.equal(config.space, 1);
+  for (const pair of [["--space", "67"], ["--page", "p1"], ["--isolate-extension", "aliprice"]]) {
+    assert.throws(() => parseConfig([...args, ...pair], { repositoryRoot: repo, environment }), /Isolated Chromium/);
+  }
+  assert.throws(() => parseConfig([...argv(), "--engine", "chrome"], { repositoryRoot: repo, environment }), /--engine/);
 });
 
 for (const value of ["0", "-1", "11", "3.5", "03", "1e1", "NaN"]) {

@@ -4,16 +4,16 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import { deploymentReadArgs, parseConfig, validateDeploymentMetadata } from "./config.mjs";
+import { armBrowserWatchdog } from "./watchdog.mjs";
 
 const execFileAsync = promisify(execFile);
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const browserTimeoutMs = 180_000;
 
 function redact(value) {
-  const password = process.env.FAIRGROUND_BROWSER_CAPTAIN_PASSWORD;
-  if (!password) return String(value);
   // Runtime failures can echo either plain text or a JSON-escaped stdin source.
-  return [password, JSON.stringify(password).slice(1, -1)]
+  return [process.env.FAIRGROUND_BROWSER_CAPTAIN_PASSWORD, process.env.FAIRGROUND_BROWSER_PREVIEW_BYPASS]
+    .filter(Boolean).flatMap((secret) => [secret, JSON.stringify(secret).slice(1, -1)])
     .reduce((text, secret) => text.split(secret).join("[REDACTED]"), String(value));
 }
 
@@ -39,33 +39,45 @@ async function runBrowser(config) {
   const credentials = {
     email: process.env.FAIRGROUND_BROWSER_CAPTAIN_EMAIL,
     password: process.env.FAIRGROUND_BROWSER_CAPTAIN_PASSWORD,
+    protectionBypass: config.engine === "chromium" ? process.env.FAIRGROUND_BROWSER_PREVIEW_BYPASS : undefined,
   };
-  const source = `const { runRegressionSession } = await import(${JSON.stringify(suiteUrl)});\nawait runRegressionSession({ taskSpace, config: ${JSON.stringify(config)}, credentials: ${JSON.stringify(credentials)} });\n`;
+  const isolated = config.engine === "chromium";
+  const source = isolated ? JSON.stringify({ config, credentials }) : `const { runRegressionSession } = await import(${JSON.stringify(suiteUrl)});\nawait runRegressionSession({ taskSpace, config: ${JSON.stringify(config)}, credentials: ${JSON.stringify(credentials)} });\n`;
   await new Promise((resolveRun, reject) => {
-    const child = spawn("ego-browser", ["nodejs"], {
-      cwd: repositoryRoot, env: process.env, stdio: ["pipe", "pipe", "pipe"],
+    const command = isolated ? process.execPath : "ego-browser";
+    const args = isolated ? [resolve(repositoryRoot, "scripts/testing/browser/chromium-entry.mjs")] : ["nodejs"];
+    const childEnvironment = Object.fromEntries(Object.entries(process.env).filter(([name]) =>
+      !["FAIRGROUND_BROWSER_CAPTAIN_EMAIL", "FAIRGROUND_BROWSER_CAPTAIN_PASSWORD", "FAIRGROUND_BROWSER_PREVIEW_BYPASS"].includes(name)));
+    const child = spawn(command, args, {
+      cwd: repositoryRoot, env: childEnvironment, stdio: ["pipe", "pipe", "pipe"],
     });
     let stdout = "";
     let stderr = "";
     let timedOut = false;
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill("SIGTERM");
-    }, browserTimeoutMs);
+    let forcedTermination;
+    const cancelWatchdog = armBrowserWatchdog(child, {
+      engine: config.engine, timeoutMs: browserTimeoutMs,
+      onTimeout: () => { timedOut = true; },
+      onForceTermination: (receipt) => { forcedTermination = receipt; },
+    });
     child.stdout.setEncoding("utf8").on("data", (data) => { stdout += data; });
     child.stderr.setEncoding("utf8").on("data", (data) => { stderr += data; });
     child.once("error", (error) => {
-      clearTimeout(timer);
-      reject(new Error(`Could not start ego-browser (${error.code ?? "unknown error"}); no retry was attempted.`));
+      cancelWatchdog();
+      reject(new Error(`Could not start ${config.engine} (${error.code ?? "unknown error"}); no retry was attempted.`));
     });
     child.once("close", (code, signal) => {
-      clearTimeout(timer);
+      cancelWatchdog();
       if (stdout) process.stdout.write(redact(stdout));
       if (stderr) process.stderr.write(redact(stderr));
       if (timedOut) {
-        reject(new Error(`Browser run exceeded ${browserTimeoutMs / 1000}s. Inspect the existing TaskSpace ${config.space} for possible late app effects; no app input is retried. Recorded extension restoration is handled separately.`));
+        const failure = new Error(`Browser run exceeded ${browserTimeoutMs / 1000}s. Inspect the evidence and ${isolated ? "Chromium cleanup receipt" : `existing TaskSpace ${config.space}`} for possible late app effects; no app input is retried.`);
+        writeFile(resolve(config.output, "runner-timeout.json"), JSON.stringify({
+          status: "failed", engine: config.engine, timeoutMs: browserTimeoutMs,
+          forcedTermination: forcedTermination ?? null,
+        }, null, 2) + "\n", { mode: 0o600 }).then(() => reject(failure), reject);
       } else if (code !== 0) {
-        reject(new Error(`Browser regression failed (${signal ?? `exit ${code}`}). Inspect TaskSpace ${config.space} and evidence; no app retry was attempted.`));
+        reject(new Error(`Browser regression failed (${signal ?? `exit ${code}`}). Inspect the ${config.engine} evidence; no app retry was attempted.`));
       } else resolveRun();
     });
     child.stdin.on("error", () => {}); // A failed launch can close stdin before write completes.
@@ -99,7 +111,7 @@ async function main() {
   await mkdir(config.output, { recursive: true, mode: 0o700 });
   if ((await readdir(config.output)).length !== 0) throw new Error("--output must be empty; use a fresh external evidence directory for each run.");
   await writeFile(resolve(config.output, "deployment.json"), `${JSON.stringify(deployment, null, 2)}\n`, { flag: "wx", mode: 0o600 });
-  console.log(`Verified READY Preview ${deployment.id} at ${deployment.sha}. Reusing TaskSpace ${config.space}.`);
+  console.log(`Verified READY Preview ${deployment.id} at ${deployment.sha}. ${config.engine === "chromium" ? "Using isolated Chromium." : `Reusing TaskSpace ${config.space}.`}`);
   let failure;
   try {
     await runBrowser(config);
@@ -113,7 +125,7 @@ async function main() {
     }
   }
   if (failure) throw failure;
-  console.log(`Browser regression completed. Evidence: ${config.output}. Caller must inspect the result and finish the same TaskSpace once.`);
+  console.log(`Browser regression completed. Evidence: ${config.output}.${config.engine === "ego" ? " Caller must inspect the result and finish the same TaskSpace once." : ""}`);
 }
 
 main().catch((error) => {
