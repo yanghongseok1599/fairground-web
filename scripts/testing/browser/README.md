@@ -20,6 +20,8 @@ npm run test:browser -- \
 
 CDP 요청 단계에서 리다이렉트의 각 경유지를 검사한다. 실제 앱 통신은 해당 Preview와 개발 Supabase만 허용하며, 정적 글꼴·국기 및 고정 Pretendard 1.3.9 파일은 읽기만 허용한다. 선택적인 Vercel 피드백 도구의 정확한 스크립트 한 개는 가져오지 않고 `excludedToolingRequests`에 별도 기록한다. 운영 호스트·알 수 없는 외부 요청·새 팝업·네트워크 검사 오류는 전체 실패다. 실제 응답을 대체하거나 앱 입력을 흉내 내지 않는다.
 
+페이지 이동 중 이미 사라진 요청의 interception ID에 명령을 보내면 Chromium이 정확히 `Invalid InterceptionId.`를 반환할 수 있다. 이미 허용한 목적지의 요청 단계에서 최초 `Fetch.continueRequest`가 이 오류를 반환한 경우만 `terminalMissingInterceptions`와 진단 항목에 기록하고 재요청 없이 마친다. 취소라고 추정하지 않으며, 다른 프로토콜 오류·시간 초과·중복 ID·응답 단계·금지 목적지는 계속 실패한다. 진단에는 고정 오류 종류와 이벤트 관측 여부만 남기며 임의 오류 원문·요청 ID·헤더는 저장하지 않는다.
+
 Vercel Authentication이 적용된 Preview는 기존 자동화 인증 값을 `FAIRGROUND_BROWSER_PREVIEW_BYPASS` 환경변수로 전달한다. 표준 입력으로만 자식 실행기에 넘기고, 검증된 Preview origin에 자동 리다이렉트를 끈 인증 요청을 한 번 보낸다. 같은 호스트의 Secure·HttpOnly 쿠키만 생성됐는지 확인한 뒤 실제 브라우저 요청은 쿠키를 사용한다. 인증 값을 외부 Supabase·이미지 서버에 보내거나 Git·로그·증거 파일에 기록하지 않는다. 이 실행기는 보호 설정을 변경하거나 새 인증 값을 만들지 않는다.
 
 ## 기존 Ego TaskSpace 실행

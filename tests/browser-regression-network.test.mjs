@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import test from 'node:test';
-import { classifyDestination, createNetworkGuard } from '../scripts/testing/browser/network.mjs';
+import { classifyDestination, classifyProtocolFailure, createNetworkGuard } from '../scripts/testing/browser/network.mjs';
 
 const previewOrigin = 'https://fairground-7idyy4r9g-milestones-projects-d52c4dda.vercel.app';
 const devOrigin = 'https://fhytkbjadhnmozppolrv.supabase.co';
@@ -17,6 +17,9 @@ function fixture(send) {
   const emit = (url, options = {}) => protocol.emit('Fetch.requestPaused', {
     requestId: options.id ?? 'request-1', resourceType: options.resourceType ?? 'Fetch',
     redirectedRequestId: options.redirectedFrom,
+    networkId: options.networkId,
+    responseStatusCode: options.responseStatusCode,
+    responseErrorReason: options.responseErrorReason,
     request: { url, method: options.method ?? 'GET', headers: options.headers ?? {} },
   });
   return { protocol, calls, receipt, guard, emit };
@@ -142,4 +145,145 @@ test('requests arriving during owned-browser cleanup are failed rather than rele
   await f.guard.dispose({ browserClosed: true });
   assert.equal(f.calls.at(-1).method, 'Fetch.failRequest');
   assert.equal(f.receipt.networkGuard.closed, true);
+});
+
+test('protocol diagnostics use only fixed categories even when the message includes secrets', () => {
+  for (const [message, expected] of [
+    ['cdpSession.send: Protocol error (Fetch.continueRequest): Invalid InterceptionId.', 'invalid-interception-id'],
+    ['cdpSession.send: Protocol error (Fetch.failRequest): Invalid InterceptionId.', 'invalid-interception-id'],
+    ['Protocol error (Fetch.continueRequest): Invalid requestId', 'invalid-request-id'],
+    ['Protocol error (Network.getResponseBody): No resource with given identifier found', 'resource-not-found'],
+    ['Protocol error (Fetch.continueRequest): Invalid InterceptionId. https://secret.example/?token=secret', 'request-id-unavailable'],
+    ['Session closed. password=secret', 'target-closed'],
+    ['Protocol error: Unsafe header Authorization: secret', 'unsafe-header'],
+    ['Protocol error: Invalid http status code or phrase secret', 'invalid-http-status'],
+    ['Protocol error: arbitrary details secret', 'protocol-error'],
+    ['password=secret', 'unknown'],
+  ]) assert.equal(classifyProtocolFailure(new Error(message)), expected);
+  assert.equal(classifyProtocolFailure({ name: 'NetworkGuardDeadline' }), 'deadline');
+});
+
+test('a lost request id records matching explicit cancellation but still fails closed', async () => {
+  let f;
+  f = fixture((method) => {
+    if (method === 'Fetch.continueRequest') {
+      f.protocol.emit('Network.loadingFailed', { requestId: 'net-1', canceled: true, errorText: 'net::ERR_ABORTED' });
+      throw new Error('Protocol error (Fetch.continueRequest): Invalid InterceptionId. Authorization: secret');
+    }
+  });
+  await f.guard.start();
+  f.emit(previewOrigin + '/teams', { networkId: 'net-1' });
+  await assert.rejects(f.guard.assertHealthy(), /interception failed/);
+  assert.deepEqual(f.receipt.networkGuard.diagnostics, [{
+    operation: 'Fetch.continueRequest', kind: 'request-id-unavailable', phase: 'active', resourceType: 'Fetch',
+    redirectHop: false, networkIdPresent: true, canceledObserved: true, abortedObserved: true, finishedObserved: false,
+  }]);
+  assert.equal(f.receipt.networkGuard.canceledRequestsObserved, 1);
+  assert.ok(!JSON.stringify(f.receipt).includes('Authorization'));
+  assert.ok(!JSON.stringify(f.receipt).includes('secret'));
+  assert.ok(!JSON.stringify(f.receipt).includes('net-1'));
+  f.guard.beginClose();
+  await f.guard.dispose({ browserClosed: true });
+  assert.equal(f.protocol.eventNames().length, 0);
+});
+
+test('another request cancellation cannot be used as evidence for the failed request', async () => {
+  const f = fixture((method) => { if (method === 'Fetch.continueRequest') throw new Error('Invalid requestId'); });
+  await f.guard.start();
+  f.protocol.emit('Network.loadingFailed', { requestId: 'different', canceled: true, errorText: 'net::ERR_ABORTED' });
+  f.emit(previewOrigin + '/teams', { networkId: 'actual' });
+  await assert.rejects(f.guard.assertHealthy(), /interception failed/);
+  assert.equal(f.receipt.networkGuard.diagnostics[0].canceledObserved, false);
+  f.guard.beginClose();
+  await f.guard.dispose({ browserClosed: true });
+});
+
+for (const networkId of [undefined, 'net-1']) {
+  test(`an allowed missing interception is terminal without inferring cancellation (${networkId ? 'with' : 'without'} network ID)`, async () => {
+    const f = fixture((method) => {
+      if (method === 'Fetch.continueRequest') throw new Error('cdpSession.send: Protocol error (Fetch.continueRequest): Invalid InterceptionId.');
+    });
+    await f.guard.start();
+    f.protocol.emit('Network.loadingFailed', { requestId: 'different', canceled: true, errorText: 'net::ERR_ABORTED' });
+    f.emit(previewOrigin + '/teams', { networkId });
+    await f.guard.assertHealthy();
+    assert.deepEqual(f.calls.map(({ method }) => method), ['Fetch.enable', 'Fetch.continueRequest']);
+    assert.equal(f.receipt.networkGuard.terminalMissingInterceptions, 1);
+    assert.deepEqual(f.receipt.networkGuard.errors, []);
+    assert.deepEqual(f.receipt.networkGuard.diagnostics, [{
+      operation: 'Fetch.continueRequest', kind: 'invalid-interception-id', phase: 'active', resourceType: 'Fetch',
+      redirectHop: false, networkIdPresent: Boolean(networkId), canceledObserved: false, abortedObserved: false, finishedObserved: false,
+      disposition: 'terminal-missing-interception',
+    }]);
+    f.guard.beginClose();
+    await f.guard.dispose({ browserClosed: true });
+  });
+}
+
+test('similar, unknown, target, header and deadline errors still fail an allowed request', async () => {
+  for (const error of [
+    new Error('Protocol error (Fetch.continueRequest): Invalid InterceptionId. unexpected detail'),
+    new Error('Protocol error (Fetch.continueRequest): Invalid requestId'),
+    new Error('No resource with given identifier found'),
+    new Error('Session closed'),
+    new Error('Protocol error: Unsafe header'),
+    new Error('Unrecognized failure'),
+    Object.assign(new Error('Invalid InterceptionId.'), { name: 'NetworkGuardDeadline' }),
+  ]) {
+    const f = fixture((method) => { if (method === 'Fetch.continueRequest') throw error; });
+    await f.guard.start();
+    f.emit(previewOrigin + '/teams');
+    await assert.rejects(f.guard.assertHealthy(), /interception failed/);
+    assert.equal(f.receipt.networkGuard.terminalMissingInterceptions, 0);
+    assert.deepEqual(f.calls.map(({ method }) => method), ['Fetch.enable', 'Fetch.continueRequest', 'Fetch.failRequest']);
+    f.guard.beginClose();
+    await f.guard.dispose({ browserClosed: true });
+  }
+});
+
+test('missing interceptions never excuse forbidden or excluded requests and failRequest is not retried', async () => {
+  for (const [url, resourceType] of [['https://fairground-kor.com/api/teams', 'Fetch'], [toolbar, 'Script']]) {
+    const f = fixture((method) => {
+      if (method === 'Fetch.failRequest') throw new Error('cdpSession.send: Protocol error (Fetch.failRequest): Invalid InterceptionId.');
+    });
+    await f.guard.start();
+    f.emit(url, { resourceType });
+    await assert.rejects(f.guard.assertHealthy(), /forbidden backend|interception failed/);
+    assert.equal(f.receipt.networkGuard.terminalMissingInterceptions, 0);
+    assert.deepEqual(f.calls.map(({ method }) => method), ['Fetch.enable', 'Fetch.failRequest']);
+    assert.equal(f.receipt.forbiddenRequests.length, resourceType === 'Fetch' ? 1 : 0);
+    f.guard.beginClose();
+    await f.guard.dispose({ browserClosed: true });
+  }
+});
+
+test('a repeated Fetch ID fails even after its first allowed dispatch had a missing interception', async () => {
+  const f = fixture((method) => {
+    if (method !== 'Fetch.enable') throw new Error(`Protocol error (${method}): Invalid InterceptionId.`);
+  });
+  await f.guard.start();
+  f.emit(previewOrigin + '/teams');
+  await f.guard.assertHealthy();
+  f.emit(previewOrigin + '/teams');
+  await assert.rejects(f.guard.assertHealthy(), /Duplicate intercepted request/);
+  assert.equal(f.receipt.networkGuard.terminalMissingInterceptions, 1);
+  assert.ok(f.receipt.networkGuard.errors.includes('duplicate-request'));
+  assert.deepEqual(f.calls.map(({ method }) => method), ['Fetch.enable', 'Fetch.continueRequest', 'Fetch.failRequest']);
+  f.guard.beginClose();
+  await f.guard.dispose({ browserClosed: true });
+});
+
+test('unexpected response-stage events cannot be continued or recovered as missing interceptions', async () => {
+  for (const stage of [{ responseStatusCode: 200 }, { responseErrorReason: 'Aborted' }]) {
+    const f = fixture((method) => {
+      if (method === 'Fetch.failRequest') throw new Error('Protocol error (Fetch.failRequest): Invalid InterceptionId.');
+    });
+    await f.guard.start();
+    f.emit(previewOrigin + '/teams', stage);
+    await assert.rejects(f.guard.assertHealthy(), /Unexpected response-stage/);
+    assert.equal(f.receipt.networkGuard.terminalMissingInterceptions, 0);
+    assert.deepEqual(f.calls.map(({ method }) => method), ['Fetch.enable', 'Fetch.failRequest']);
+    f.guard.beginClose();
+    await f.guard.dispose({ browserClosed: true });
+  }
 });

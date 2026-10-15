@@ -28,3 +28,13 @@
 이 변경만 feature 브랜치에 푸시한 뒤 새 immutable Preview의 전체 SHA·READY·빌드 로그를 확인하고 같은 무인 회귀와 PNG 검수를 다시 수행한다. 최종 배포 URL·커밋·사례별 결과·PNG 해시·종료 영수증은 별도 영구 검증 보고서 `artifacts/2026-10-16-png-capture/report.md`에 기록한다. 저장소 밖에 증거를 보관해 캡처·브라우저 프로필·빌드 캐시가 소스에 섞이지 않게 한다.
 
 서비스 워커는 요청 경계 유지를 위해 차단하므로 PWA·오프라인 동작은 이번 회귀 범위에 포함하지 않는다. 기존 보호 설정을 유지하며 운영 DB·배포·도메인·환경변수는 변경하지 않는다. 운영 연결 가능성이 있는 전역 GitHub DB 검사 워크플로는 `[skip actions]`로 실행하지 않고, 개발 대상 로컬 검사와 Vercel의 정상 빌드 게이트로 검증한다.
+
+## 배포 후 요청 수명 경합 보완
+
+첫 커밋 `0468a875a1f5b3f9fe11f1c044e3fecd94fd7f97`의 자동 Preview는 정상 빌드됐다. 첫 무인 실행은 기능 8개·PNG 2개 이후 요청 감시기 오류로 전체 실패했다. 비밀을 제외한 진단을 추가해 `Fetch.continueRequest`의 사라진 요청 ID 오류를 확인했다. 상세 분류를 추가한 뒤 기본 실행 2회와 10회 반복 실행(22개 사례)은 성공해 간헐적 상태임을 확인했다.
+
+별도 로컬 합성 페이지에서 실제 동일 Chromium 156.0.8078.4의 fetch/XHR 취소·페이지 이동 12/12건이 정확히 `Invalid InterceptionId.`를 반환했고, 미취소 대조군 4/4건은 성공했다. 외부 요청은 0건이다. [해당 Chromium 버전의 FindJob 구현](https://chromium.googlesource.com/chromium/src/+/156.0.8078.4/content/browser/devtools/devtools_url_loader_interceptor.h#251)도 이 응답이 interception job 부재를 뜻함을 확인한다. 합성 재현에는 networkId가 존재했으므로 실제 앱의 ID 미제공 원인까지 같다고 단정하지 않는다.
+
+이미 허용된 목적지의 요청 단계·최초 Fetch ID에서 정확한 `Invalid InterceptionId.`가 발생한 경우만 종료된 interception으로 별도 기록한다. 취소라고 추정하거나 요청을 재시도하지 않는다. 금지 목적지·중복 ID·응답 단계·다른 오류는 여전히 실패하며, 금지 목적지는 차단 명령의 응답과 무관하게 실패를 확정한다. 보완 후 단위·브라우저 검증과 새 커밋의 최종 Preview 결과는 영구 보고서에 추가한다.
+
+보완한 비DB 전체 테스트 867/867, lint·TypeScript·보안 검사 모두 통과했다. 기준 Preview에서 보완한 실행기의 8/8 사례·PNG 2개·로그아웃·브라우저 종료도 통과했다. 최종 검토에서 운영 경계 약화나 입력 재시도는 발견하지 않았다.
