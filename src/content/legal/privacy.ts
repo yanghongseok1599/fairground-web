@@ -18,7 +18,7 @@ import { markPendingSections } from "@/lib/legal-document";
 
 export const PRIVACY_DOCUMENT = markPendingSections(buildPrivacyPolicy({
   serviceName: "페어그라운드(FairGround)",
-  version: "2026-10-15",
+  version: "2026-10-15.2", // .2: 참가비 납부 기록 분리 보관 명시 (20261015030000)
   effectiveAt: null, // 시행일은 운영자가 정한다. 정해지기 전까지 초안으로 표시된다.
   processing: [
     {
@@ -48,7 +48,7 @@ export const PRIVACY_DOCUMENT = markPendingSections(buildPrivacyPolicy({
     {
       purpose: "팀·대회 참가 신청 접수와 참가비 입금 확인",
       items: "팀명, 대표자 이름·연락처, 참가비 청구 금액·입금 여부",
-      retention: "대금결제 기록 5년 (전자상거래법)",
+      retention: "팀 또는 대회 정보가 삭제될 때까지. 납부(일부 납부 포함) 기록은 아래 법정 보관 기록으로 5년간 분리 보관",
       basis: "계약 이행",
     },
     {
@@ -82,7 +82,12 @@ export const PRIVACY_DOCUMENT = markPendingSections(buildPrivacyPolicy({
       basis: "계약 이행",
     },
   ],
-  legalRetention: ECOMMERCE_RETENTION,
+  // 대금결제 기록: 팀·대회를 지워도 참가비 납부 기록은 별도 보관함(entry_fee_payment_records)에 남는다.
+  legalRetention: ECOMMERCE_RETENTION.map((r) => r.record.startsWith("대금결제") ? {
+    record: "참가비 납부 기록 — 대회명, 팀명, 신청 대표자 이름, 금액, 납부 상태·일시, 입금 메모 (팀·대회가 삭제되면 삭제 시점의 내용을 운영 데이터와 분리된 별도 보관함에 옮겨 보관하고, 보관 목적 외에는 이용하지 않습니다)",
+    period: "납부일부터 5년",
+    basis: r.basis,
+  } : r),
   thirdParties: [],
   processors: [
     { name: "Supabase Inc.", task: "회원 인증, 데이터베이스·파일 저장 (데이터베이스 서버: 서울 리전)" },

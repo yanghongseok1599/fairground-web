@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { moduleLoader } from './helpers/load-ts-module.mjs';
 
 // adding-korean-site-essentials 키트 적용분: 법적 문서·사업자 정보·동의 기록·만 14세.
@@ -14,7 +14,10 @@ const { isDraft } = load('src/lib/legal-document.ts');
 const { BUSINESS, MISSING_BUSINESS_FIELDS, BUSINESS_INFO_READY } = load('src/lib/business-info.ts');
 const { consentPayload, missingRequiredConsent, REQUIRED_CONSENT_KINDS } = load('src/lib/record-consents.ts');
 const { isAtLeastAge } = load('src/lib/age.ts');
-const migration = readFileSync('supabase/migrations/20261015010000_consent_records.sql', 'utf8');
+
+// 문서 시드는 여러 마이그레이션에 나뉜다 (개정판은 새 마이그레이션이 넣는다).
+const migration = readdirSync('supabase/migrations').filter((f) => f >= '20261015010000').sort()
+  .map((f) => readFileSync(`supabase/migrations/${f}`, 'utf8')).join('\n');
 
 const hashOf = (doc) => createHash('sha256').update(JSON.stringify({ kind: doc.kind, version: doc.version, sections: doc.sections })).digest('hex');
 
@@ -61,6 +64,8 @@ test('legal pages only describe features that exist', () => {
   assert.match(JSON.stringify(REFUND_DOCUMENT), /주최 측 사정으로 취소·연기되는 경우: 전액 환불/);
   assert.match(JSON.stringify(PRIVACY_DOCUMENT), /Telegram/);
   assert.match(JSON.stringify(PRIVACY_DOCUMENT), /Google Drive/);
+  // 팀·대회 삭제 후에도 남는 참가비 납부 기록 (20261015030000)
+  assert.match(JSON.stringify(PRIVACY_DOCUMENT), /참가비 납부 기록.*별도 보관함.*납부일부터 5년.*전자상거래법 시행령 제6조/);
 });
 
 test('under-14 signups are refused', () => {
