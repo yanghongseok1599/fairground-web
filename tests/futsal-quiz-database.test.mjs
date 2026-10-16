@@ -1,3 +1,4 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
@@ -5,11 +6,7 @@ import { Client } from "pg";
 
 // Explicit local-only test target. Never load application env or connect to a remote DB.
 const url = process.env.FUTSAL_QUIZ_TEST_DATABASE_URL;
-const target = url ? new URL(url) : null;
-if (!target || !["postgres:", "postgresql:"].includes(target.protocol)
-  || !["127.0.0.1", "localhost", "[::1]"].includes(target.hostname) || target.search) {
-  throw new Error("FUTSAL_QUIZ_TEST_DATABASE_URL must point to an isolated localhost database without connection query overrides.");
-}
+assertLocalDatabaseUrl(url);
 const client = new Client({ connectionString: url, statement_timeout: 10000 });
 const attemptIds = [];
 const nextId = () => { const id = randomUUID(); attemptIds.push(id); return id; };

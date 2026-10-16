@@ -18,11 +18,15 @@ npm run test:browser -- \
 
 아래의 합성 계정 환경변수·정확한 READY Preview·빈 외부 증거 경로 조건은 두 엔진에 공통이다. Chromium 모드에서는 `--space`, `--page`, `--isolate-extension`을 거부한다. 확장 프로그램을 설치하거나 사용자 브라우저의 확장 상태를 변경하지 않는다. 서비스 워커는 요청 차단 우회를 방지하기 위해 차단하므로 PWA·오프라인 동작은 이 회귀 범위에 포함하지 않는다. 개발 외 Supabase 요청은 연결 전에 차단하고 실행을 실패 처리한다.
 
-CDP 요청 단계에서 리다이렉트의 각 경유지를 검사한다. 실제 앱 통신은 해당 Preview와 개발 Supabase만 허용하며, 정적 글꼴·국기 및 고정 Pretendard 1.3.9 파일은 읽기만 허용한다. 선택적인 Vercel 피드백 도구의 정확한 스크립트 한 개는 가져오지 않고 `excludedToolingRequests`에 별도 기록한다. 운영 호스트·알 수 없는 외부 요청·새 팝업·네트워크 검사 오류는 전체 실패다. 실제 응답을 대체하거나 앱 입력을 흉내 내지 않는다.
+CDP 요청 단계에서 리다이렉트의 각 경유지를 검사한다. 실제 앱 통신은 해당 Preview와 개발 Supabase만 허용하며, 정적 글꼴·국기 및 고정 Pretendard 1.3.9 파일은 읽기만 허용한다. 선택적인 Vercel 피드백 도구의 정확한 스크립트 한 개는 가져오지 않고 `excludedToolingRequests`에 별도 기록한다. 운영 호스트·알 수 없는 외부 요청·새 팝업·네트워크 검사 오류는 전체 실패다. 앱의 본문 응답을 대체하거나 앱 입력을 흉내 내지 않는다. CORS preflight에 대한 라우팅의 영향은 아래에 별도로 명시한다.
 
 페이지 이동 중 이미 사라진 요청의 interception ID에 명령을 보내면 Chromium이 정확히 `Invalid InterceptionId.`를 반환할 수 있다. 이미 허용한 목적지의 요청 단계에서 최초 `Fetch.continueRequest`가 이 오류를 반환한 경우만 `terminalMissingInterceptions`와 진단 항목에 기록하고 재요청 없이 마친다. 취소라고 추정하지 않으며, 다른 프로토콜 오류·시간 초과·중복 ID·응답 단계·금지 목적지는 계속 실패한다. 진단에는 고정 오류 종류와 이벤트 관측 여부만 남기며 임의 오류 원문·요청 ID·헤더는 저장하지 않는다.
 
 Vercel Authentication이 적용된 Preview는 기존 자동화 인증 값을 `FAIRGROUND_BROWSER_PREVIEW_BYPASS` 환경변수로 전달한다. 표준 입력으로만 자식 실행기에 넘기고, 검증된 Preview origin에 자동 리다이렉트를 끈 인증 요청을 한 번 보낸다. 같은 호스트의 Secure·HttpOnly 쿠키만 생성됐는지 확인한 뒤 실제 브라우저 요청은 쿠키를 사용한다. 인증 값을 외부 Supabase·이미지 서버에 보내거나 Git·로그·증거 파일에 기록하지 않는다. 이 실행기는 보호 설정을 변경하거나 새 인증 값을 만들지 않는다.
+
+페이지를 만들기 전에 컨텍스트 요청 가드를 설치한다. 정확한 테스트 페이지 `p1`이 소유한 요청만 진행하며, 초기 팝업처럼 아직 frame을 확인할 수 없거나 다른 페이지·서비스 워커가 소유한 요청은 첫 요청부터 중단한다. 같은 Preview로 향하는 추가 창도 허용하지 않는다. 요청 중단이 완료된 뒤 실패를 전달하고, 페이지 생성 이벤트에서 추가 창을 닫는 기존 검사도 유지한다. Playwright 라우팅은 리다이렉트 이후 요청을 다시 호출하지 않으므로 기존 `p1`의 CDP 경유지 검사는 별도로 유지한다.
+
+컨텍스트 라우팅을 켜면 Playwright가 HTTP 캐시를 비활성화하고, 가로챈 CORS preflight에 자체 204 응답을 만들 수 있다. 이 회귀는 UI 동작·허용된 요청 대상·취소 보존을 검증하며 실제 서버의 CORS/preflight 또는 HTTP 캐시 동작을 검증하지 않는다.
 
 ## 기존 Ego TaskSpace 실행
 
@@ -121,6 +125,10 @@ JS
 - `capture.mjs`: 필수 PNG 캡처·디코딩·빈 이미지 검사·해시 증거.
 - `chromium.mjs`, `chromium-entry.mjs`: 임시 Chromium 수명·요청 경계·기존 테스트 동작 어댑터·표준 입력 전달.
 - `network.mjs`: 리다이렉트 경유지별 요청 허용·차단과 실패 증거.
+- `context-request-guard.mjs`: 추가 창의 첫 요청부터 소유권 확인·차단, 중단 완료와 실패 전달.
+- `check-context-guard-loopback.mjs`: 실제 Chromium에서 두 요청 가드의 동시 동작을 확인하는 별도 로컬 런타임 검사.
 - `watchdog.mjs`: 실행 제한·종료 유예·격리 자식 프로세스 종료.
 
 브라우저·DB 연결 없이 URL·설정 안전장치를 검사하려면 `npm run test:browser-config`를 실행한다. 동작·확장·세션 회귀까지 포함하려면 `node --test tests/browser-regression-*.test.mjs`를 실행한다.
+
+실제 Chromium의 요청 순서는 별도 필수 검사 `node scripts/testing/browser/check-context-guard-loopback.mjs`로 확인한다. 설치된 Playwright Chromium과 `openssl`이 필요하며, 별도 브라우저 캐시를 사용한다면 이 명령에만 `PLAYWRIGHT_BROWSERS_PATH`를 지정한다. 이 검사는 임시 자체 서명 인증서·HTTPS 서버·CONNECT 프록시를 시스템 임시 폴더와 `127.0.0.1`에 만들고 종료 시 정리한다. 모든 요청 호스트는 프록시 안에서 루프백 서버로 연결되며 외부 DNS도 차단한다. 가상의 Preview 이름과 `blocked.invalid`를 사용해 정상 `p1` 요청, 추가 창 GET·POST, 같은 Preview의 추가 창 리다이렉트, `about:blank` 추가 창의 fetch, `p1`의 금지 리다이렉트를 검사한다. 실제 Preview·계정·DB에 접속하지 않는다.

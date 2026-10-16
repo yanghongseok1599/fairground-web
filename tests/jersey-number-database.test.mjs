@@ -1,7 +1,8 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 // Run only on a local database restored from the current schema and migrated first.
 import assert from 'node:assert/strict';import test from 'node:test';import pg from 'pg';import {randomUUID} from 'node:crypto';
 const url=process.env.FAIRGROUND_TEST_DB_URL;
-if(!url||!['localhost','127.0.0.1','[::1]'].includes(new URL(url).hostname))throw Error('Local synthetic DB required');
+assertLocalDatabaseUrl(url);
 const db=new pg.Client({connectionString:url});await db.connect();await db.query('begin');
 const user=randomUUID(),other=randomUUID(),admin=randomUUID(),team=randomUUID(),match=randomUUID();
 try{

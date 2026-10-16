@@ -1,11 +1,10 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 const connectionString=process.env.FAIRGROUND_TEST_DB_URL;
-if (!connectionString) throw new Error('Set FAIRGROUND_TEST_DB_URL to an isolated local PostgreSQL database.');
-const target=new URL(connectionString);
-if (!['127.0.0.1','localhost','[::1]'].includes(target.hostname)) throw new Error('Only an isolated LOCAL database is permitted.');
+assertLocalDatabaseUrl(connectionString);
 const admin=new pg.Client({connectionString});await admin.connect();
 const owner=randomUUID(), nextOwner=randomUUID(), rival=randomUUID(), failing=randomUUID(), teamId=randomUUID();
 const actor=async(id)=>{const db=new pg.Client({connectionString});await db.connect();await db.query('set role authenticated');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);return db;};

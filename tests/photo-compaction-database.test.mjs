@@ -1,7 +1,8 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from 'node:assert/strict';import test from 'node:test';import {randomUUID} from 'node:crypto';import pg from 'pg';
 import {applyPhotoReplacements,photoReplacement} from '../scripts/photos/compact-photo-data.mjs';
 const connectionString=process.env.FAIRGROUND_TEST_DB_URL;
-if(!connectionString||!['127.0.0.1','localhost','[::1]'].includes(new URL(connectionString).hostname))throw Error('Use an isolated local database only');
+assertLocalDatabaseUrl(connectionString);
 const db=new pg.Client({connectionString});await db.connect();
 try {
   const id=randomUUID(), noConsent=randomUUID();

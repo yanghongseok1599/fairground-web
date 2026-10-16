@@ -143,7 +143,8 @@ async function fixture(t) {
     setDefaultNavigationTimeout: (value) => calls.push(['navigation-timeout', value]),
     on: (...args) => pageEvents.on(...args),
     routeWebSocket: async (_, handler) => { context.socketGuard = handler; },
-    newPage: async () => page,
+    route: async (pattern, handler) => { assert.equal(pattern, '**/*'); context.requestGuardRoute = handler; },
+    newPage: async () => { assert.equal(typeof context.requestGuardRoute, 'function'); return page; },
     newCDPSession: async (actualPage) => { assert.equal(actualPage, page); return protocol; },
     close: async () => { calls.push(['context-close']); },
   };
@@ -300,6 +301,37 @@ test('cleanup receipt persistence failure remains a failure after browser closes
   f.config.output = path.join(f.output, 'nonexistent');
   await assert.rejects(runIsolatedChromiumSession(f.input, f.dependencies), { code: 'ENOENT' });
   assert.equal(f.browser.isConnected(), false);
+});
+
+test('an initial popup request fails before a Page event and settles its abort before context cleanup', async (t) => {
+  const f = await fixture(t);
+  let aborted = false;
+  f.dependencies.runSession = async () => {
+    await f.context.requestGuardRoute({
+      request: () => ({ serviceWorker: () => null, frame: () => { throw new Error('Frame unavailable secret'); } }),
+      abort: async (reason) => { assert.equal(reason, 'blockedbyclient'); aborted = true; },
+      continue: async () => assert.fail('Unowned request must not be released'),
+    });
+  };
+  f.context.close = async () => { assert.equal(aborted, true); f.calls.push(['context-close']); };
+  await assert.rejects(runIsolatedChromiumSession(f.input, f.dependencies), /Context request guard failed/);
+  const receipt = await f.receipt();
+  assert.equal(receipt.contextRequestGuard.blockedRequests, 1);
+  assert.equal(receipt.contextRequestGuard.closed, true);
+  assert.equal(receipt.unexpectedPages, undefined);
+  assert.ok(!JSON.stringify(receipt).includes('secret'));
+});
+
+test('context routing setup failure stops before Page creation and still closes its browser', async (t) => {
+  const f = await fixture(t);
+  f.context.route = async () => { throw new Error('Routing setup failed secret'); };
+  f.context.newPage = async () => assert.fail('A Page cannot precede the context request guard');
+  await assert.rejects(runIsolatedChromiumSession(f.input, f.dependencies), /enable-failed/);
+  const receipt = await f.receipt();
+  assert.equal(receipt.status, 'failed');
+  assert.equal(receipt.browserClosed, true);
+  assert.equal(f.calls.some(([name]) => name === 'suite'), false);
+  assert.ok(!JSON.stringify(receipt).includes('secret'));
 });
 
 test('user extension or external space options are rejected before browser launch', async (t) => {

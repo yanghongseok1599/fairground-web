@@ -24,19 +24,25 @@ export function summarizeRequests(events) {
   return events.filter((e) => e.method === 'Network.requestWillBeSent').flatMap((e) => {
     const url = new URL(e.params.request.url);
     if (!['https:', 'http:'].includes(url.protocol)) return [];
-    return [{ method: e.params.request.method, host: url.hostname, path: url.pathname }];
+    const request = { method: e.params.request.method, host: url.hostname, path: url.pathname };
+    // Preserve only this non-sensitive classification, never the auth query or body.
+    if (request.method === 'POST' && request.host === DEV_HOST && request.path === '/auth/v1/token'
+      && url.searchParams.getAll('grant_type').length === 1
+      && url.searchParams.get('grant_type') === 'refresh_token') request.authRefresh = true;
+    return [request];
   });
 }
 
 export function isUnexpectedWrite(request, appHost) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return false;
   if (request.host === DEV_HOST) {
-    if (request.path.startsWith('/auth/')) return false;
+    if (request.method === 'POST' && request.path === '/auth/v1/token' && request.authRefresh === true) return false;
     // PostgREST reads may use POST for explicitly read-only RPCs.
     if (request.method === 'POST' && READ_RPCS.has(request.path.replace(/^\/rest\/v1\/rpc\//, ''))) return false;
     return true;
   }
-  return request.host === appHost && request.path.startsWith('/api/');
+  // Next Server Actions can POST to a page route, not only /api/.
+  return request.host === appHost;
 }
 
 async function assertDevelopmentBackend(page) {

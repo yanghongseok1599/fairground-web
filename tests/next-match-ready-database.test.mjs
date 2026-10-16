@@ -1,3 +1,4 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
@@ -7,9 +8,7 @@ import pg from 'pg';
 // locks. Run only on a disposable, restored local schema. Verify the deployed
 // pause first, then exercise the retained notification implementation locally.
 const url = process.env.FAIRGROUND_TEST_DB_URL;
-if (!url || !['localhost', '127.0.0.1', '[::1]'].includes(new URL(url).hostname)) {
-  throw new Error('An isolated local database is required');
-}
+assertLocalDatabaseUrl(url);
 const clients = [];
 async function connect(actor, role = 'authenticated') {
   const client = new pg.Client({ connectionString: url, ssl: false, statement_timeout: 10000 });

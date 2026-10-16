@@ -1,3 +1,4 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
@@ -7,9 +8,7 @@ import { compactLegacyPhoto, compactionScope } from '../scripts/photos/compact-p
 // Current restored development contract: promotional consent is optional for
 // service photos. Compaction still must preserve absent consent and stale writes.
 const connectionString = process.env.FAIRGROUND_TEST_DB_URL;
-if (!connectionString || !['127.0.0.1', 'localhost', '[::1]'].includes(new URL(connectionString).hostname)) {
-  throw Error('Use an isolated local database only');
-}
+assertLocalDatabaseUrl(connectionString);
 const db = new pg.Client({ connectionString });
 await db.connect();
 const id = randomUUID(), other = randomUUID();

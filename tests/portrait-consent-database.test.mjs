@@ -1,3 +1,4 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 // 2026-09-15 마이그레이션 단독 동작(역사 기록)만 확인한다. 20261015020000 이후 현재 규칙은
 // tests/site-consent-database.test.mjs 가 확인한다 (선수카드는 동의와 무관, 철회 가능).
 import assert from 'node:assert/strict';
@@ -7,9 +8,7 @@ import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 
 const connectionString=process.env.FAIRGROUND_TEST_DB_URL;
-if (!connectionString || !['127.0.0.1','localhost','[::1]'].includes(new URL(connectionString).hostname)) {
-  throw new Error('FAIRGROUND_TEST_DB_URL must be an isolated LOCAL PostgreSQL database.');
-}
+assertLocalDatabaseUrl(connectionString);
 const db=new pg.Client({connectionString});await db.connect();
 try {
   // Minimal schema contract for these additive triggers. Never hosted/member data.

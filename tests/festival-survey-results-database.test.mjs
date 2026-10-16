@@ -1,3 +1,4 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 // Synthetic answers and users only, on isolated localhost PG17; fixtures always roll back.
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
@@ -5,9 +6,7 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 
 const url = process.env.FESTIVAL_SURVEY_RESULTS_TEST_DATABASE_URL;
-if (!url || !["localhost", "127.0.0.1", "[::1]"].includes(new URL(url).hostname)) {
-  throw new Error("FESTIVAL_SURVEY_RESULTS_TEST_DATABASE_URL must point to an isolated localhost database.");
-}
+assertLocalDatabaseUrl(url);
 const db = new pg.Client({ connectionString: url });
 await db.connect();
 let assertions = 0;

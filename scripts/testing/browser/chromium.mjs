@@ -3,6 +3,7 @@ import path from 'node:path';
 import { runRegressionSession } from './session.mjs';
 import { validatePreviewUrl } from './config.mjs';
 import { createNetworkGuard, forbiddenDestination } from './network.mjs';
+import { createContextRequestGuard } from './context-request-guard.mjs';
 export { forbiddenDestination } from './network.mjs';
 
 const PROTOCOL_EVENTS = [
@@ -177,6 +178,7 @@ export async function runIsolatedChromiumSession({ config, credentials, signal }
   let running;
   let failure;
   let networkGuard;
+  let contextRequestGuard;
   let popupFailure;
   let rejectPopup;
   const unexpectedPopup = new Promise((_, reject) => { rejectPopup = reject; });
@@ -198,6 +200,8 @@ export async function runIsolatedChromiumSession({ config, credentials, signal }
     });
     context.setDefaultTimeout(15_000);
     context.setDefaultNavigationTimeout(30_000);
+    contextRequestGuard = createContextRequestGuard(context, { receipt });
+    await contextRequestGuard.start();
     if (credentials?.protectionBypass) {
       receipt.previewProtectionCookieCount = await bootstrapPreviewProtection(context, previewOrigin, credentials.protectionBypass);
     }
@@ -209,6 +213,7 @@ export async function runIsolatedChromiumSession({ config, credentials, signal }
       } else socket.connectToServer();
     });
     const page = await context.newPage();
+    contextRequestGuard.bindOwnedPage(page);
     context.on('page', (extraPage) => {
       if (extraPage === page) return;
       popupFailure = new Error('An unexpected extra Page was opened; the regression only permits its owned p1');
@@ -231,15 +236,22 @@ export async function runIsolatedChromiumSession({ config, credentials, signal }
       if (id !== 1) throw new Error('Cannot connect to an external TaskSpace');
       return task;
     };
+    await contextRequestGuard.assertHealthy();
     running = runSession({ taskSpace, config, credentials });
-    await Promise.race([running, interrupted(signal), networkGuard.failed, unexpectedPopup]);
+    await Promise.race([running, interrupted(signal), networkGuard.failed, contextRequestGuard.failed, unexpectedPopup]);
     await networkGuard.assertHealthy();
+    await contextRequestGuard.assertHealthy();
     if (popupFailure) throw popupFailure;
     if (receipt.forbiddenRequests.length) throw new Error('A forbidden backend or navigation was blocked; regression verification failed');
   } catch (error) {
     failure = error;
   } finally {
     networkGuard?.beginClose();
+    contextRequestGuard?.beginClose();
+    if (contextRequestGuard) {
+      try { await contextRequestGuard.settle(); }
+      catch (error) { failure ??= error; }
+    }
     // Closing the context aborts any timed-out pending browser operation. It is
     // never reused, and neither cleanup operation dispatches application input.
     if (context) {
@@ -261,6 +273,10 @@ export async function runIsolatedChromiumSession({ config, credentials, signal }
     }
     if (networkGuard) {
       try { await networkGuard.dispose({ browserClosed: receipt.contextClosed || receipt.browserClosed }); }
+      catch (error) { failure ??= error; }
+    }
+    if (contextRequestGuard) {
+      try { await contextRequestGuard.dispose({ contextClosed: receipt.contextClosed || receipt.browserClosed }); }
       catch (error) { failure ??= error; }
     }
     receipt.status = failure ? 'failed' : 'passed';

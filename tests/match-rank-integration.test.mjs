@@ -1,3 +1,4 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { randomUUID } from "node:crypto";
@@ -7,9 +8,7 @@ import { moduleLoader } from "./helpers/load-ts-module.mjs";
 // Restore a fresh production SCHEMA ONLY into a disposable local database first.
 // This suite creates synthetic rows and never connects to a hosted database.
 const url = process.env.FAIRGROUND_TEST_DB_URL;
-if (!url || !["127.0.0.1", "localhost", "[::1]"].includes(new URL(url).hostname)) {
-  throw new Error("A disposable LOCAL schema is required via FAIRGROUND_TEST_DB_URL.");
-}
+assertLocalDatabaseUrl(url);
 
 function sqlBridge(db) {
   const ident = name => { assert.match(name, /^[a-z_][a-z0-9_]*$/); return `"${name}"`; };

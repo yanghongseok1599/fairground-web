@@ -2,6 +2,8 @@
 
 `run-database-tests.mjs`는 PostgreSQL 17의 **빈 개발 스키마 복원본**을 파일마다 복제하고 검사 후 해당 복제 DB를 삭제한다. 애플리케이션 `.env` 파일은 읽지 않으며, hosted DB 주소·암묵적 포트·연결 옵션을 거절한다. 운영 DB에는 연결하지 않는다.
 
+환경변수로 DB URL을 받는 테스트를 직접 실행해도 `local-database-url.mjs`를 먼저 통과해야 한다. `postgres://`·`postgresql://`의 `localhost`·`127.0.0.1`·`[::1]`만 허용하며, 호스트·포트·SSL을 덮어쓰는 쿼리 옵션, fragment, 제어문자와 모호한 URL 형식은 `pg.Client` 생성 전에 거절한다. 인증정보와 DB 이름의 정상 percent encoding은 유지한다. 직접 실행할 때도 호출자가 폐기할 로컬 DB를 준비해야 하며, 파일마다 복제·삭제하는 위 실행기를 권장한다.
+
 준비한 로컬 클러스터의 `postgres` 관리자 연결과 `fg_test_` 접두사의 템플릿 DB를 명시한다. 템플릿에는 검증 대상 개발 정의·소유자·역할·권한·RLS·트리거를 그대로 복원하고 `public/auth/storage` 데이터는 넣지 않는다. 저장소의 과거 마이그레이션만으로 빈 스키마를 재구성하지 않는다.
 
 ```sh

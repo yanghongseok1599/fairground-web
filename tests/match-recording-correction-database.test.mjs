@@ -1,3 +1,4 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
@@ -6,9 +7,7 @@ import pg from 'pg';
 // Committed synthetic fixtures exercise the production RPC under actual API
 // roles. This suite must never run on a hosted or production database.
 const url = process.env.FAIRGROUND_TEST_DB_URL;
-if (!url || !['localhost', '127.0.0.1'].includes(new URL(url).hostname)) {
-  throw new Error('An isolated local database is required');
-}
+assertLocalDatabaseUrl(url);
 const clients = [];
 async function connect(actor) {
   const client = new pg.Client({ connectionString: url, ssl: false, statement_timeout: 15000 });

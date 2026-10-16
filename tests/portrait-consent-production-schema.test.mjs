@@ -1,3 +1,4 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
@@ -6,10 +7,7 @@ import pg from 'pg';
 // Restore the current development schema, including optional promotional consent.
 // Use a disposable local database: tests create synthetic member/team rows.
 const connectionString = process.env.FAIRGROUND_TEST_DB_URL;
-const localHosts = ['127.0.0.1', 'localhost', '[::1]'];
-if (!connectionString || !localHosts.includes(new URL(connectionString).hostname)) {
-  throw new Error('Only a restored LOCAL development schema is allowed.');
-}
+assertLocalDatabaseUrl(connectionString);
 const admin = new pg.Client({ connectionString });
 await admin.connect();
 const member = randomUUID();

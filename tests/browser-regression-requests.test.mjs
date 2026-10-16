@@ -26,6 +26,34 @@ test('cancel rejects table writes, storage upload and unknown RPCs even with rea
 test('cancel permits ordinary reads, exact reviewed read RPCs and auth refresh only', () => {
   for (const [method, path] of [
     ['GET', '/rest/v1/teams'], ['POST', '/rest/v1/rpc/get_my_profile'],
-    ['POST', '/rest/v1/rpc/get_team_member_profiles'], ['POST', '/auth/v1/token'],
+    ['POST', '/rest/v1/rpc/get_team_member_profiles'],
   ]) assert.equal(isUnexpectedWrite({ method, host, path }, app), false);
+});
+
+test('cancel rejects auth mutations and page-route Server Actions', () => {
+  for (const [method, path] of [
+    ['PUT', '/auth/v1/user'], ['POST', '/auth/v1/logout'], ['POST', '/auth/v1/signup'],
+    ['DELETE', '/auth/v1/admin/users/synthetic'], ['POST', '/auth/v1/token'],
+    ['DELETE', '/auth/v1/token'],
+  ]) assert.equal(isUnexpectedWrite({ method, host, path }, app), true, `${method} ${path}`);
+  for (const path of ['/my/team', '/teams/synthetic', '/api/teams']) {
+    assert.equal(isUnexpectedWrite({ method: 'POST', host: app, path }, app), true, path);
+  }
+});
+
+test('only an exact refresh-token request is exempted without retaining query or body', () => {
+  const request = query => summarizeRequests([{ method: 'Network.requestWillBeSent', params: { request: {
+    url: `https://${host}/auth/v1/token${query}`, method: 'POST',
+    postData: '{"refresh_token":"secret"}', headers: { apikey: 'secret' },
+  } } }])[0];
+  const refresh = request('?grant_type=refresh_token');
+  assert.deepEqual(refresh, { method: 'POST', host, path: '/auth/v1/token', authRefresh: true });
+  assert.equal(isUnexpectedWrite(refresh, app), false);
+  for (const query of ['', '?grant_type=password', '?grant_type=refresh_token&grant_type=password']) {
+    const summary = request(query);
+    assert.equal(isUnexpectedWrite(summary, app), true, query);
+    assert.equal(JSON.stringify(summary).includes('secret'), false);
+  }
+  assert.equal(isUnexpectedWrite({ ...refresh, method: 'PUT' }, app), true);
+  assert.equal(isUnexpectedWrite({ ...refresh, path: '/auth/v1/user' }, app), true);
 });

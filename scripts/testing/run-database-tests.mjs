@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import pg from 'pg';
+import { assertLocalDatabaseUrl } from './local-database-url.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const args = process.argv.slice(2);
@@ -14,7 +15,7 @@ const option = name => {
   const index = args.indexOf(name);
   return index < 0 ? undefined : args[index + 1];
 };
-const url = new URL(option('--url') ?? 'invalid:');
+const url = assertLocalDatabaseUrl(option('--url'));
 assert.ok(['postgres:', 'postgresql:'].includes(url.protocol) && url.hostname === '127.0.0.1' && url.port,
   'Pass an explicit disposable 127.0.0.1 PostgreSQL URL and port with --url.');
 assert.equal(url.username, 'postgres', 'Tests require the isolated cluster owner.');
