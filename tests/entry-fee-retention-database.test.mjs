@@ -1,3 +1,4 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -7,9 +8,7 @@ import pg from 'pg';
 // 팀·대회·참가비를 지워도 납부 기록은 5년 보관함에 남는다 (전자상거래법 시행령 제6조).
 // 빈 로컬 DB 에 최소 스키마를 만들고 실제 마이그레이션을 올린다. 운영·개발 DB 금지.
 const url = process.env.FAIRGROUND_TEST_DB_URL;
-if (!url || !['127.0.0.1', 'localhost', '[::1]'].includes(new URL(url).hostname)) {
-  throw new Error('FAIRGROUND_TEST_DB_URL must be an isolated LOCAL PostgreSQL database.');
-}
+assertLocalDatabaseUrl(url);
 const sql = (file) => readFileSync(`supabase/migrations/${file}`, 'utf8');
 const db = new pg.Client({ connectionString: url }); await db.connect();
 const clients = [];

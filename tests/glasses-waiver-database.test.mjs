@@ -1,3 +1,4 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
@@ -5,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import pg from 'pg';
 
 const url = process.env.FAIRGROUND_TEST_DB_URL;
-if (!url || !['localhost', '127.0.0.1', '[::1]'].includes(new URL(url).hostname)) throw new Error('An isolated local database is required');
+assertLocalDatabaseUrl(url);
 const db = new pg.Client({ connectionString: url });
 await db.connect();
 const members = [randomUUID(), randomUUID()];

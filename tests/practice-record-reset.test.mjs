@@ -1,7 +1,8 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import {test} from 'node:test';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';import pg from 'pg';
 import {resetApprovedPracticeRecords} from '../scripts/ops/practice-record-reset.mjs';
 const url=process.env.FAIRGROUND_TEST_DB_URL;
-if(!url||new URL(url).hostname!=='127.0.0.1')throw Error('Disposable local DB required');
+assertLocalDatabaseUrl(url);
 async function fixture(t){
  const db=new pg.Client({connectionString:url});await db.connect();await db.query('begin');t.after(async()=>{await db.query('rollback');await db.end();});
  const [admin,player,home,away,tour,match,otherTour,otherMatch,badge]=Array.from({length:9},randomUUID);

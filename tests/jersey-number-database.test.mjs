@@ -1,7 +1,8 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 // Run only on a local database restored from the current schema and migrated first.
 import assert from 'node:assert/strict';import test from 'node:test';import pg from 'pg';import {randomUUID} from 'node:crypto';
 const url=process.env.FAIRGROUND_TEST_DB_URL;
-if(!url||!['localhost','127.0.0.1','[::1]'].includes(new URL(url).hostname))throw Error('Local synthetic DB required');
+assertLocalDatabaseUrl(url);
 const db=new pg.Client({connectionString:url});await db.connect();await db.query('begin');
 const user=randomUUID(),other=randomUUID(),admin=randomUUID(),team=randomUUID(),match=randomUUID();
 try{
@@ -26,7 +27,12 @@ try{
   await rejected('select * from get_admin_profiles()',[],/관리자/);
   await asUser(admin);assert.equal((await db.query('select number_label from get_admin_profiles() where id=$1',[user])).rows[0].number_label,'007');
  });
- await test('zero labels still require the owner portrait consent',async()=>{await asUser(other);await rejected("update profiles set number_label='00' where id=$1",[other],/초상권/);assert.equal((await db.query('select number_label from get_my_profile()')).rows[0].number_label,null)});
+ await test('zero labels are available without promotional consent and do not fabricate consent',async()=>{
+  await asUser(other);
+  await db.query("update profiles set number_label='00' where id=$1",[other]);
+  const profile=(await db.query('select number_label,portrait_consent_at from get_my_profile()')).rows[0];
+  assert.deepEqual(profile,{number_label:'00',portrait_consent_at:null});
+ });
  await test('invalid labels and mismatched numeric values fail atomically',async()=>{await asUser(user);for(const [num,label] of [[5,'00'],[0,'1'],[1000,null],[-1,null],[7,'0007'],[7,'7.0'],[7,'+7'],[7,' 7'],[7,'7\n'],[7,'７']])await rejected('update profiles set number=$1,number_label=$2 where id=$3',[num,label,user],/profiles_jersey_number_label/);assert.equal((await db.query('select number_label from get_my_profile()')).rows[0].number_label,'007')});
  await test('lineup keeps 007 independently of profile edits',async()=>{await asUser(admin);await db.query("insert into match_lineups(match_id,team_id,player_id,jersey_number,jersey_number_label) values($1,$2,$3,7,'007')",[match,team,user]);await asUser(user)});
  await test('lineup rejects four digits, mismatched labels and labels without a number',async()=>{await asUser(admin);for(const [n,label] of [[1000,null],[7,'0007'],[7,'008'],[null,'007']])await rejected('update match_lineups set jersey_number=$1,jersey_number_label=$2 where match_id=$3',[n,label,match],/lineups_jersey_number_label/);await asUser(user)});

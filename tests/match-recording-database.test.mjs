@@ -1,9 +1,10 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 const url=process.env.FAIRGROUND_TEST_DB_URL;
-if(!url || !['localhost','127.0.0.1'].includes(new URL(url).hostname)) throw Error('Isolated local database required');
+assertLocalDatabaseUrl(url);
 const db=new pg.Client({connectionString:url});await db.connect();
 const [actor,player,outsider,home,away,match]=Array.from({length:6},randomUUID);
 const rpc=async(client,id,kind,payload={},matchId=match)=>(await client.query('select public.apply_match_recording_operation($1,$2,$3,$4) result',[id,matchId,kind,payload])).rows[0].result;

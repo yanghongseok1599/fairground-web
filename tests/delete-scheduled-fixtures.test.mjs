@@ -1,3 +1,4 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -5,7 +6,7 @@ import pg from 'pg';
 import { deleteApprovedScheduledFixtures } from '../scripts/ops/delete-scheduled-fixtures.mjs';
 
 const url = process.env.FAIRGROUND_TEST_DB_URL;
-if (!url || new URL(url).hostname !== '127.0.0.1') throw Error('Disposable local DB required');
+assertLocalDatabaseUrl(url);
 
 async function fixture(t) {
   const db = new pg.Client({ connectionString: url });

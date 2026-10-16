@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { Player, CardType } from "@/types";
 import { useFinalCardTier } from "@/features/standings/use-final-card-tier";
 
@@ -169,8 +170,12 @@ export function PlayerCard({
   const cardInner = (
     <>
       {/* Card Background (티어별) — 장식, 의미는 컨테이너 aria-label 이 제공 */}
-      <img
+      <Image
         src={skin.bg}
+        fill
+        unoptimized
+        loading="eager"
+        decoding="auto"
         alt=""
         aria-hidden="true"
         className="absolute inset-0 h-full w-full object-contain drop-shadow-lg"
@@ -242,6 +247,8 @@ export function PlayerCard({
           zIndex: 2,
         }}
       >
+        {/* Preserve each flag's natural ratio and never enlarge its 80px source in the PNG capture. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={`https://flagcdn.com/w80/${countryToFlagCode(player.nationality || "KR")}.png`}
           alt=""
@@ -266,6 +273,8 @@ export function PlayerCard({
             zIndex: 2,
           }}
         >
+          {/* Uploaded/cut-out logos have unknown natural dimensions; keep small originals from enlarging. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={processedTeamLogo.src}
             alt=""
@@ -354,14 +363,20 @@ export function PlayerCard({
             const badge = BADGES.find((b) => b.id === badgeId);
             if (!badge) return null;
             return (
-              <img
+              <Image
                 key={badgeId}
                 src={badge.imageUrl}
+                width={512}
+                height={512}
+                unoptimized
+                loading="eager"
+                decoding="auto"
                 alt=""
                 aria-hidden="true"
                 title={badge.name}
                 className="object-contain"
                 style={{
+                  width: "auto",
                   height: fs.badge * 2.745,
                   marginLeft: idx > 0 ? fs.badge * 0.225 : 0,
                   // 깊이 그림자(중립 흑) + 티어 잉크 글로우(브랜드 토큰) — gold 하드코딩 제거

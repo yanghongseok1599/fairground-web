@@ -1,14 +1,14 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 
 // Synthetic fixtures commit to exercise real API roles and concurrent row
-// locks. Run only on a disposable, restored local schema with the new SQL.
+// locks. Run only on a disposable, restored local schema. Verify the deployed
+// pause first, then exercise the retained notification implementation locally.
 const url = process.env.FAIRGROUND_TEST_DB_URL;
-if (!url || !['localhost', '127.0.0.1', '[::1]'].includes(new URL(url).hostname)) {
-  throw new Error('An isolated local database is required');
-}
+assertLocalDatabaseUrl(url);
 const clients = [];
 async function connect(actor, role = 'authenticated') {
   const client = new pg.Client({ connectionString: url, ssl: false, statement_timeout: 10000 });
@@ -124,6 +124,25 @@ try {
   const anon = await connect(null, 'anon');
   const cron = await connect();
   const cronRetry = await connect();
+
+  await test('the restored paused configuration blocks kickoff, timer and legacy API notifications', async () => {
+    const config = (await db.query(`select tgenabled,
+      has_function_privilege('authenticated','public.notify_next_match_ready(uuid)','EXECUTE') executable
+      from pg_trigger where tgrelid='public.matches'::regclass and tgname='next_match_ready_after_clock'`)).rows[0];
+    assert.deepEqual(config, { tgenabled: 'D', executable: false });
+    const f = await fixture({ venueWait: true });
+    await start(referee, f);
+    await timer(referee, f, 420);
+    assert.deepEqual(await noticeRows(f), []);
+    assert.deepEqual(await noticeRows(f, f.later), []);
+    await assert.rejects(referee.query('select public.notify_next_match_ready($1)', [f.current]), error => error.code === '42501');
+    await quiesce(f);
+  });
+
+  // This isolated test DB is the only place activation is performed. Hosted
+  // scheduling remains paused; the owner invokes dispatch directly below.
+  await db.query('alter table public.matches enable trigger next_match_ready_after_clock');
+  await db.query('grant execute on function public.notify_next_match_ready(uuid) to authenticated');
 
   await test('kickoff sends one start notice only to approved next-team players/captains', async () => {
     const f = await fixture({ venueWait: true });
@@ -531,5 +550,9 @@ try {
     await quiesce(f);
   });
 } finally {
-  await Promise.allSettled(clients.map(client => client.end()));
+  try {
+    await db.query('rollback');
+    await db.query('alter table public.matches disable trigger next_match_ready_after_clock');
+    await db.query('revoke execute on function public.notify_next_match_ready(uuid) from authenticated');
+  } finally { await Promise.allSettled(clients.map(client => client.end())); }
 }

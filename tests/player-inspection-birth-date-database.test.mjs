@@ -1,10 +1,11 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 // Exercise production's existing RLS against synthetic identities in a local restore only.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 const url=process.env.FAIRGROUND_TEST_DB_URL;
-if(!url || !['localhost','127.0.0.1','[::1]'].includes(new URL(url).hostname)) throw Error('Local synthetic DB required');
+assertLocalDatabaseUrl(url);
 const db=new pg.Client({connectionString:url});await db.connect();await db.query('begin');
 const [admin,operator,player,newPlayer,team,event]=Array.from({length:6},randomUUID);
 const asUser=async id=>{await db.query('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,true)",[id]);await db.query('set local role authenticated');};

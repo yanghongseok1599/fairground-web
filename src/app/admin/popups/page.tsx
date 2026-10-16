@@ -3,6 +3,7 @@
 import {
   cloneElement,
   isValidElement,
+  useCallback,
   useEffect,
   useId,
   useMemo,
@@ -62,14 +63,14 @@ function AdminPopups() {
    * draft 와 제목 두 줄 상태를 항상 함께 갈아끼운다.
    * (팝업을 바꿔 선택했는데 이전 제목이 남는 버그 방지)
    */
-  const loadDraft = (nextDraft: SitePopupDraft) => {
+  const loadDraft = useCallback((nextDraft: SitePopupDraft) => {
     const { lineOne, lineTwo } = splitPopupTitleLines(nextDraft.title);
     setDraft(nextDraft);
     setTitleLineOne(lineOne);
     setTitleLineTwo(lineTwo);
-  };
+  }, []);
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -87,13 +88,13 @@ function AdminPopups() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [loadDraft]);
 
   useEffect(() => {
     queueMicrotask(() => {
       void reload();
     });
-  }, []);
+  }, [reload]);
 
   const selectPopup = (popup: SitePopup) => {
     setSelectedId(popup.id);

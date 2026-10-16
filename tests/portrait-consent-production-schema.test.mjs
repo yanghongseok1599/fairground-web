@@ -1,15 +1,13 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 
-// Restore the schema and apply the migration as postgres before running.
+// Restore the current development schema, including optional promotional consent.
 // Use a disposable local database: tests create synthetic member/team rows.
 const connectionString = process.env.FAIRGROUND_TEST_DB_URL;
-const localHosts = ['127.0.0.1', 'localhost', '[::1]'];
-if (!connectionString || !localHosts.includes(new URL(connectionString).hostname)) {
-  throw new Error('Only a restored LOCAL production schema is allowed.');
-}
+assertLocalDatabaseUrl(connectionString);
 const admin = new pg.Client({ connectionString });
 await admin.connect();
 const member = randomUUID();
@@ -43,13 +41,24 @@ try {
  });
  await admin.query('insert into auth.users(id,email,raw_user_meta_data) values($1,$2,$3),($4,$5,$6)',[legacy,`${legacy}@synthetic.invalid`,{name:'기존 테스트'},other,`${other}@synthetic.invalid`,{name:'다른 테스트'}]);
  memberDb=await actor(member);legacyDb=await actor(legacy);
- await test('real column grants keep private consent unreadable through profiles and readable through own RPC',async()=>{
-  await assert.rejects(memberDb.query('select portrait_consent_at from profiles'),/permission denied/);
+ await test('real API column grants protect all private profile fields while the own-profile RPC retains them',async()=>{
+  const privateColumns=['birth_date','email','gender','has_player_experience','phone','portrait_consent_at','team_role'];
+  const anon=new pg.Client({connectionString});await anon.connect();
+  try{
+   await anon.query('set role anon');
+   for(const db of [anon,memberDb])for(const column of privateColumns){
+    await assert.rejects(db.query(`select ${column} from public.profiles`),error=>error.code==='42501');
+   }
+  }finally{await anon.end();}
   const p=(await memberDb.query('select * from get_my_profile()')).rows;
   assert.equal(p.length,1);assert.equal(p[0].id,member);assert.ok(p[0].portrait_consent_at);
+  for(const column of privateColumns)assert.ok(Object.hasOwn(p[0],column),`Own-profile RPC must retain ${column}`);
  });
- await test('real RLS and all existing triggers reject a non-consenting card creation',async()=>{
-  await assert.rejects(legacyDb.query("update profiles set number=8,position='ALA' where id=$1 returning id",[legacy]),/초상권/);
+ await test('real RLS and all current triggers allow a card without promotional consent',async()=>{
+  const saved=await legacyDb.query("update profiles set number=8,position='ALA',photo_url='synthetic-photo' where id=$1 returning id",[legacy]);
+  assert.equal(saved.rowCount,1);
+  const card=(await legacyDb.query('select * from get_my_profile()')).rows[0];
+  assert.equal(card.number,8);assert.equal(card.photo_url,'synthetic-photo');
   assert.equal((await legacyDb.query('select portrait_consent_at from get_my_profile()')).rows[0].portrait_consent_at,null);
  });
  await test('consented photo-optional card is saved with all deployed guards and statistics intact',async()=>{

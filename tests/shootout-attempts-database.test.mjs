@@ -1,10 +1,11 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {randomUUID} from 'node:crypto';
 import pg from 'pg';
 
 const url=process.env.FAIRGROUND_TEST_DB_URL;
-if(!url || !['localhost','127.0.0.1'].includes(new URL(url).hostname))throw Error('Isolated local database required');
+assertLocalDatabaseUrl(url);
 const db=new pg.Client({connectionString:url});await db.connect();
 const [referee,admin,ordinary,unapproved,playerHome,playerAway,home,away,match,legacy,maximum,running,group]=Array.from({length:13},randomUUID);
 const owner=async(c=db)=>c.query('reset session authorization');

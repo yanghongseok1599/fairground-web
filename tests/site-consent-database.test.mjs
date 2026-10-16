@@ -1,3 +1,4 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -6,9 +7,7 @@ import pg from 'pg';
 
 // 동의 기록 + 초상 홍보 동의 철회. 빈 로컬 DB 에 최소 스키마를 만들고 실제 마이그레이션을 순서대로 올린다.
 const url = process.env.FAIRGROUND_TEST_DB_URL;
-if (!url || !['127.0.0.1', 'localhost', '[::1]'].includes(new URL(url).hostname)) {
-  throw new Error('FAIRGROUND_TEST_DB_URL must be an isolated LOCAL PostgreSQL database.');
-}
+assertLocalDatabaseUrl(url);
 const sql = (file) => readFileSync(`supabase/migrations/${file}`, 'utf8');
 const db = new pg.Client({ connectionString: url }); await db.connect();
 const clients = [];
@@ -19,7 +18,7 @@ async function actor(id) {
   return c;
 }
 const V = '2026-10-15';
-const required = [{ kind: 'age14', version: V, granted: true }, { kind: 'terms', version: V, granted: true }, { kind: 'privacy', version: V, granted: true }];
+const required = [{ kind: 'age14', version: V, granted: true }, { kind: 'terms', version: V, granted: true }, { kind: 'privacy', version: '2026-10-15.2', granted: true }];
 const portrait = (granted) => ({ kind: 'portrait', version: V, granted });
 const signup = async (meta) => {
   const id = randomUUID();
@@ -55,6 +54,7 @@ try {
   await db.query(preserve);
   await db.query(sql('20261015010000_consent_records.sql'));
   await db.query(sql('20261015020000_portrait_consent_optional.sql'));
+  await db.query(sql('20261015040000_consent_privacy_document.sql'));
 
   await test('email signup records consents in the same transaction, with the optional item as given', async () => {
     const id = await signup({ name: '합성 회원', consents: [...required, portrait(false)] });

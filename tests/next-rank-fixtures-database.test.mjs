@@ -1,5 +1,7 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from 'node:assert/strict';import test from 'node:test';import {randomUUID} from 'node:crypto';import pg from 'pg';
-const url=process.env.FAIRGROUND_TEST_DB_URL;if(!url||!['localhost','127.0.0.1'].includes(new URL(url).hostname))throw Error('Isolated local database required');
+const url=process.env.FAIRGROUND_TEST_DB_URL;
+assertLocalDatabaseUrl(url);
 const db=new pg.Client({connectionString:url});await db.connect();const tid='5ff73034-1747-4b9e-874a-6fe19fa68ac1',otherTid=randomUUID(),[referee,admin]=[randomUUID(),randomUUID()],teams=Array.from({length:8},randomUUID),sources=Array.from({length:4},randomUUID);let other;
 const as=async(c,actor=referee)=>{await c.query('reset session authorization');await c.query('set session authorization authenticated');await c.query("select set_config('request.jwt.claim.sub',$1,false)",[actor]);};
 const rpc=async(c,matchId,kind,payload={},id=randomUUID())=>(await c.query('select apply_match_recording_operation($1,$2,$3,$4) r',[id,matchId,kind,payload])).rows[0].r;

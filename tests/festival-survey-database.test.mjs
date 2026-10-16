@@ -1,3 +1,4 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
@@ -5,9 +6,7 @@ import { Client } from "pg";
 
 // This suite never loads application secrets and refuses all hosted DB targets.
 const url = process.env.FESTIVAL_SURVEY_TEST_DATABASE_URL;
-if (!url || !["127.0.0.1", "localhost"].includes(new URL(url).hostname)) {
-  throw new Error("FESTIVAL_SURVEY_TEST_DATABASE_URL must point to an isolated localhost database.");
-}
+assertLocalDatabaseUrl(url);
 const client = new Client({ connectionString: url });
 const responseIds = [];
 const nextId = () => { const id = randomUUID(); responseIds.push(id); return id; };

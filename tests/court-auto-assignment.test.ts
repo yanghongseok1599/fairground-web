@@ -2,6 +2,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { moduleLoader } from "./helpers/load-ts-module.mjs";
+import type { Player } from "../src/types/index.ts";
+
+const { benchRoster } = moduleLoader()("src/features/match-control/bench-roster.ts") as typeof import("../src/features/match-control/bench-roster.ts");
 
 // 출전 명단이 제출되지 않은 경기에서 코트 5명을 자동으로 채울 때의 순서 규칙.
 // 실제 사고: 감독(김한주, 등번호 미지정=0)이 항상 코트 1순위로 올라왔다.
@@ -51,7 +55,21 @@ test("선출은 코트·벤치 후보에서 아예 제외된다", () => {
   assert.match(src, /return eligible\(fallbackActive\)\.sort\(byFieldPriority\)/);
   assert.match(src, /const starters = eligible\(toPlayers\(/);
   assert.match(src, /const rosterFillers = eligible\(pool\)/);
-  assert.match(src, /const rosterBench = eligible\(pool\)/);
+  assert.match(src, /const homeBench = benchRoster\(homeLineup, mc\.homePlayers, homeOnCourt\)/);
+  assert.match(src, /const awayBench = benchRoster\(awayLineup, mc\.awayPlayers, awayOnCourt\)/);
+  const player = (id: string, extra: Partial<Player> = {}): Player => ({
+    id, name: id, number: 1, ...extra,
+  }) as Player;
+  const onCourt = player("on-court");
+  const fieldPlayer = player("field");
+  const playingCoach = player("coach", { teamRole: "coach" });
+  const formerPlayer = player("former", { hasPlayerExperience: true });
+  const pool = [onCourt, fieldPlayer, playingCoach, formerPlayer];
+  // 벤치 계산을 분리해도 제출 여부와 상관없이 선출은 제외하고 플레잉코치는 남긴다.
+  for (const entries of [[], [{ matchId: "match", teamId: "team", playerId: formerPlayer.id, isStarter: false, createdAt: 0 }]]) {
+    const bench = benchRoster(entries, pool, [onCourt]);
+    assert.deepEqual(new Set(bench.map((p) => p.id)), new Set([fieldPlayer.id, playingCoach.id]));
+  }
 });
 
 test("선출 차단은 DB 에서도 강제된다 (클라이언트 필터만으로는 우회 가능)", () => {

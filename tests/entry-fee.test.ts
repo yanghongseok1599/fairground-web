@@ -1,10 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
+import { moduleLoader } from "./helpers/load-ts-module.mjs";
+import type { EntryFee } from "../src/lib/entry-fee.ts";
+
+// Node의 타입 제거 모드는 @/ 별칭을 해석하지 않으므로 기존 공용 로더로 실제
+// 참가비 모듈과 그 상수 의존성을 함께 읽는다. 금액을 목(mock)으로 대체하지 않는다.
+const {
   defaultFeeFor, summarizeFees, formatWon,
   EARLY_BIRD_AMOUNT, REGULAR_AMOUNT, EARLY_BIRD_DEADLINE_ISO,
-  type EntryFee,
-} from "../src/lib/entry-fee.ts";
+} = moduleLoader()("src/lib/entry-fee.ts") as typeof import("../src/lib/entry-fee.ts");
 
 test("얼리버드 마감 전후로 금액이 갈린다", () => {
   const deadline = Date.parse(EARLY_BIRD_DEADLINE_ISO);

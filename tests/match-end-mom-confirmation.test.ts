@@ -21,7 +21,13 @@ test("동점 순위전은 승부차기 결과를 먼저 저장하며 진행 시�
   assert.match(adminMatchPage, /const requiresShootout = !matchData\.groupId && matchData\.round >= 13 && homeScore === awayScore/);
   assert.match(adminMatchPage, /if \(requiresShootout && !\(await saveShootout\(\)\)\) return/);
   assert.match(adminMatchPage, /if \(isLive && mc\.isRunning && !\(await mc\.pauseMatch\(\)\)\) return false/);
-  assert.match(adminMatchPage, /return mc\.setShootout\(shootoutScores\[0\], shootoutScores\[1\]\)/);
+  // 차수별 O/X 기록이 도입된 이후 합계뿐 아니라 정규화한 시도도 함께 저장한다.
+  assert.match(adminMatchPage, /const attempts = normalizedShootoutAttempts \?\? undefined/);
+  assert.match(adminMatchPage, /shootoutRecordingError\(shootoutScores\[0\], shootoutScores\[1\], attempts, matchData\.status\)/);
+  assert.match(adminMatchPage, /return mc\.setShootout\(shootoutScores\[0\], shootoutScores\[1\], attempts\)/);
+  const pauseIndex = adminMatchPage.indexOf("if (isLive && mc.isRunning && !(await mc.pauseMatch())) return false;");
+  const recordIndex = adminMatchPage.indexOf("return mc.setShootout(shootoutScores[0], shootoutScores[1], attempts);");
+  assert.ok(pauseIndex >= 0 && recordIndex > pauseIndex, "진행 시계 정지 성공 후 승부차기를 저장해야 한다");
   const saveIndex = adminMatchPage.indexOf("if (requiresShootout && !(await saveShootout())) return;");
   const finishIndex = adminMatchPage.indexOf("await mc.endMatch();", saveIndex);
   assert.ok(saveIndex >= 0 && finishIndex > saveIndex);

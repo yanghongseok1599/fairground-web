@@ -1,3 +1,4 @@
+import { assertLocalDatabaseUrl } from '../scripts/testing/local-database-url.mjs';
 // Synthetic data only, in a restored local database. The whole test rolls back.
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -5,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 
 const url = process.env.FAIRGROUND_TEST_DB_URL;
-if (!url || !['localhost', '127.0.0.1', '[::1]'].includes(new URL(url).hostname)) throw Error('Local synthetic DB required');
+assertLocalDatabaseUrl(url);
 const db = new pg.Client({ connectionString: url });
 await db.connect();
 await db.query('begin');
